@@ -1,0 +1,19 @@
+server:
+  port: 8080
+  shutdown: immediate
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ttalkak_db
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+ 
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true     # 기존 DB에 스키마가 있어도 baseline 잡고 시작
+    locations: classpath:db/migration/schema
+
