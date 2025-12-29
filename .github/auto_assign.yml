@@ -1,0 +1,25 @@
+addReviewers: true
+
+# Set to true to add assignees to pull requests
+addAssignees: author
+
+# A list of reviewers to be added to pull requests (GitHub user name)
+reviewers: 
+  - cheayoungg
+  - CyberBoarder
+  - Roy-wonji
+  - hjp1016
+  - NewOld21
+  - yeon35
+
+# A number of reviewers added to the pull request
+# Set 0 to add all the reviewers (default: 0)
+numberOfReviewers: 5
+
+# A number of assignees to add to the pull request
+# Set to 0 to add all of the assignees.
+# Uses numberOfReviewers if unset.
+numberOfAssignees: 3
+
+skipKeywords:
+  - wip
