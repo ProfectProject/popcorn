@@ -4,23 +4,31 @@
 
 ```
 src/main/java/com/ttalkak/demo/
-├── domain/                      # 도메인 레이어 (순수 Java, Spring 의존성 없음)
+├── domain/                      # 도메인 레이어
 │   ├── user/
+│   │   ├── controller/         # 사용자 REST 컨트롤러
+│   │   ├── dto/                # 사용자 DTO
 │   │   ├── entity/             # 사용자 엔티티
 │   │   ├── vo/                 # 값 객체 (Value Object)
 │   │   ├── repository/         # 레포지토리 인터페이스
 │   │   └── service/            # 도메인 서비스
 │   ├── order/
+│   │   ├── controller/         # 주문 REST 컨트롤러
+│   │   ├── dto/                # 주문 DTO
 │   │   ├── entity/
 │   │   ├── vo/
 │   │   ├── repository/
 │   │   └── service/
 │   ├── store/
+│   │   ├── controller/         # 스토어 REST 컨트롤러
+│   │   ├── dto/                # 스토어 DTO
 │   │   ├── entity/
 │   │   ├── vo/
 │   │   ├── repository/
 │   │   └── service/
 │   └── product/
+│       ├── controller/         # 상품 REST 컨트롤러
+│       ├── dto/                # 상품 DTO
 │       ├── entity/
 │       ├── vo/
 │       ├── repository/
@@ -38,12 +46,6 @@ src/main/java/com/ttalkak/demo/
 │   │   ├── repository/         # JPA 레포지토리 구현
 │   │   └── mapper/             # 도메인 ↔ JPA 매퍼
 │   ├── external/               # 외부 서비스
-│   └── config/                 # DI 설정 ✅
-│
-├── presentation/                # 프레젠테이션 레이어
-│   ├── web/                    # 웹 컨트롤러
-│   │   ├── controller/         # REST 컨트롤러
-│   │   └── dto/                # 웹 DTO (Request/Response)
 │   └── config/                 # DI 설정 ✅
 │
 └── DemoApplication.java         # Spring Boot 메인 클래스 ✅
