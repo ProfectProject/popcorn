@@ -71,25 +71,8 @@ public class Order extends BaseEntity {
     @Column(name = "total_amount", nullable = false)
     private Integer totalAmount;
 
-    /** 연동할 예약 ID (구매형에서 체크인 연동용) */
-    @Column(name = "reservation_id")
-    private Long reservationId;
-
-    /** 배송지 - 기본 주소 */
-    @Column(name = "address1", length = 255)
-    private String address1;
-
-    /** 배송지 - 상세 주소 */
-    @Column(name = "address2", length = 255)
-    private String address2;
-
-    /** 수령인 이름 */
-    @Column(name = "receiver_name", length = 100)
-    private String receiverName;
-
-    /** 연락처 */
-    @Column(name = "phone", length = 20)
-    private String phone;
+    // TODO: 주소 정보는 별도 테이블로 관리하거나 향후 스키마 확장 필요
+    // 현재 p_orders 테이블에는 주소 필드가 없음
 
     /** 주문 항목 목록 */
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
