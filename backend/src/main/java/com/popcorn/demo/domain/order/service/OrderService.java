@@ -45,10 +45,11 @@ public class OrderService {
      * 새로운 주문을 생성합니다. (DI 및 비동기 처리 통합 버전)
      *
      * 처리 순서:
-     * 1. 기본 검증
-     * 2. 비동기 검증 (재고, 고객 정보 등)
-     * 3. 주문 엔티티 생성 및 저장
-     * 4. 비동기 후처리 작업 실행 (재고 차감, 알림 등)
+     * 1. 멱등성 키 검증 및 중복 주문 확인
+     * 2. 기본 검증
+     * 3. 비동기 검증 (재고, 고객 정보 등)
+     * 4. 주문 엔티티 생성 및 저장
+     * 5. 비동기 후처리 작업 실행 (재고 차감, 알림 등)
      *
      * @param userId 사용자 ID
      * @param request 주문 생성 요청
@@ -56,7 +57,17 @@ public class OrderService {
      * @return 생성된 주문 정보
      */
     public OrderCreatedDto createOrder(Long userId, CreateOrderRequest request, String idempotencyKey) {
-        // 1. 기본 검증
+        // 1. 멱등성 키 검증 및 중복 주문 확인
+        if (idempotencyKey != null && !idempotencyKey.trim().isEmpty()) {
+            // 기존 주문이 있는지 확인
+            var existingOrder = orderRepository.findByIdempotencyKey(idempotencyKey);
+            if (existingOrder.isPresent()) {
+                // 기존 주문이 있으면 해당 주문 정보를 반환 (멱등성 보장)
+                return convertToOrderCreatedDto(existingOrder.get());
+            }
+        }
+
+        // 2. 기본 검증
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw OrderException.emptyItems();
         }
@@ -79,6 +90,7 @@ public class OrderService {
                 .status(OrderStatus.REQUESTED)
                 .totalAmount(29000) // 임시 고정값
                 .cancelableUntil(LocalDateTime.now().plusHours(1))
+                .idempotencyKey(idempotencyKey) // 멱등성 키 설정
                 .build();
 
         // 4. 주소 정보는 현재 스키마에 없음 - 향후 별도 테이블로 관리 예정
@@ -107,8 +119,19 @@ public class OrderService {
         orderAsyncService.processOrderPostActions(savedOrder.getId())
                 .thenRun(() -> System.out.println("주문 " + savedOrder.getId() + " 후처리 작업 완료"));
 
-        // 8. 응답 DTO 생성
-        List<OrderCreatedDto.OrderItemDto> itemDtos = savedOrder.getOrderItems().stream()
+        // 8. 응답 DTO 생성 및 반환
+        return convertToOrderCreatedDto(savedOrder);
+    }
+
+    /**
+     * Order 엔티티를 OrderCreatedDto로 변환하는 헬퍼 메서드
+     * 멱등성 처리와 일반 생성 처리에서 공통으로 사용
+     *
+     * @param order 변환할 주문 엔티티
+     * @return 주문 생성 응답 DTO
+     */
+    private OrderCreatedDto convertToOrderCreatedDto(Order order) {
+        List<OrderCreatedDto.OrderItemDto> itemDtos = order.getOrderItems().stream()
                 .map(item -> new OrderCreatedDto.OrderItemDto(
                         item.getId(),
                         item.getOrderItemType().name(),
@@ -119,15 +142,15 @@ public class OrderService {
                 .toList();
 
         return new OrderCreatedDto(
-                savedOrder.getId(),
-                savedOrder.getOrderNo(),
-                savedOrder.getOrderType().name(),
-                savedOrder.getStatus().name(),
-                savedOrder.getStoreId(),
-                savedOrder.getProductId(),
-                savedOrder.getTotalAmount(),
-                savedOrder.getCancelableUntil(),
-                savedOrder.getCreatedAt(),
+                order.getId(),
+                order.getOrderNo(),
+                order.getOrderType().name(),
+                order.getStatus().name(),
+                order.getStoreId(),
+                order.getProductId(),
+                order.getTotalAmount(),
+                order.getCancelableUntil(),
+                order.getCreatedAt(),
                 itemDtos
         );
     }

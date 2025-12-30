@@ -71,6 +71,10 @@ public class Order extends BaseEntity {
     @Column(name = "total_amount", nullable = false)
     private Integer totalAmount;
 
+    /** 멱등성 키 (중복 주문 방지용) */
+    @Column(name = "idempotency_key", unique = true, length = 128)
+    private String idempotencyKey;
+
     // TODO: 주소 정보는 별도 테이블로 관리하거나 향후 스키마 확장 필요
     // 현재 p_orders 테이블에는 주소 필드가 없음
 
