@@ -77,18 +77,12 @@ public class OrderService {
                 .productId(request.getProductId())
                 .orderType(OrderType.valueOf(request.getOrderType()))
                 .status(OrderStatus.REQUESTED)
-                .reservationId(request.getReservationId())
                 .totalAmount(29000) // 임시 고정값
                 .cancelableUntil(LocalDateTime.now().plusHours(1))
                 .build();
 
-        // 4. 주소 정보 설정 (구매형 주문의 경우)
-        if (request.getAddress() != null) {
-            order.setAddress1(request.getAddress().getAddress1());
-            order.setAddress2(request.getAddress().getAddress2());
-            order.setReceiverName(request.getAddress().getReceiverName());
-            order.setPhone(request.getAddress().getPhone());
-        }
+        // 4. 주소 정보는 현재 스키마에 없음 - 향후 별도 테이블로 관리 예정
+        // TODO: 구매형 주문의 주소 정보는 별도 주문 배송 테이블에 저장
 
         // 5. 주문 아이템들 생성
         List<OrderItem> orderItems = new ArrayList<>();
