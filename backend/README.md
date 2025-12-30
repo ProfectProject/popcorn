@@ -1,5 +1,6 @@
 # 🍿 Popcorn Backend
 
+
 ## 📋 프로젝트 개요
 
 팝콘은 **DDD(Domain Driven Design)** 와 **Clean Architecture** 를 기반으로 구축된 Spring Boot 애플리케이션입니다.
@@ -19,15 +20,15 @@
 │  • Database Configurations              │
 ├─────────────────────────────────────────┤
 │           Application Layer             │ ← 애플리케이션 레이어
-│  • Use Cases                           │   (비즈니스 플로우 조정)
+│  • Use Cases                            │   (비즈니스 플로우 조정)
 │  • Application Services                 │
 │  • DTO Transformations                  │
 ├─────────────────────────────────────────┤
 │             Domain Layer                │ ← 도메인 레이어 (핵심)
-│  • Entities                           │   (순수 비즈니스 로직)
-│  • Domain Services                     │
-│  • Repository Interfaces               │
-│  • Business Rules                      │
+│  • Entities                             │   (순수 비즈니스 로직)
+│  • Domain Services                      │
+│  • Repository Interfaces                │
+│  • Business Rules                       │
 └─────────────────────────────────────────┘
 ```
 
@@ -150,7 +151,7 @@ docker run --name popcorn-postgres \
 
 | 레이어 | 책임 | 주요 컴포넌트 | Spring 어노테이션 |
 |--------|------|---------------|-------------------|
-| **Domain** | 비즈니스 규칙, 엔티티, 도메인 로직 | Entity, VO, Repository Interface | `@Component` (컨트롤러용) |
+| **Domain** | 비즈니스 규칙, 엔티티, 도메인 로직 | Entity, Repository Interface | `@Component` (컨트롤러용) |
 | **Application** | 유스케이스 조정, 트랜잭션 관리 | UseCase, Application Service | `@Service`, `@Component` |
 | **Infrastructure** | 데이터 영속성, 외부 서비스 연동 | JPA Repository, External Client | `@Repository`, `@Component` |
 
