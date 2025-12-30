@@ -1,4 +1,4 @@
-package com.ttalkak.demo.application.config;
+package com.popcorn.demo.application.config;
 
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @ComponentScan(basePackages = {
-    "com.ttalkak.demo.application.usecase",
-    "com.ttalkak.demo.application.service"
+    "com.popcorn.demo.application.usecase",
+    "com.popcorn.demo.application.service"
 })
 public class ApplicationConfig {
     // Use Case와 Application Service Bean 스캔

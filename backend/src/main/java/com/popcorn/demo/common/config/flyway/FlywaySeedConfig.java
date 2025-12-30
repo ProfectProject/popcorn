@@ -1,4 +1,4 @@
-package com.ttalkak.demo.common.config.flyway;
+package com.popcorn.demo.common.config.flyway;
 
 import org.flywaydb.core.Flyway;
 import org.springframework.context.annotation.Bean;
