@@ -19,6 +19,7 @@ public class FlywaySchemaConfig {
                 .table("flyway_schema_history")
                 .baselineOnMigrate(true)
                 .outOfOrder(false)
+                .validateOnMigrate(false)
                 .load();
 
         flyway.migrate();
