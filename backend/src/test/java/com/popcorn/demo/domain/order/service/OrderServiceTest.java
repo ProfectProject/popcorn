@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.order.service;
 
 import com.popcorn.demo.domain.order.dto.CreateOrderRequest;
+import com.popcorn.demo.domain.order.dto.AddressRequest;
 import com.popcorn.demo.domain.order.dto.OrderCreatedDto;
 import com.popcorn.demo.domain.order.dto.OrderItemRequest;
 import com.popcorn.demo.domain.order.entity.*;
@@ -18,9 +19,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
@@ -53,6 +57,11 @@ class OrderServiceTest {
     @BeforeEach
     @DisplayName("테스트 데이터 준비")
     void setUp() {
+        lenient().when(orderAsyncService.validateOrderAsync(anyLong(), anyLong(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        lenient().when(orderAsyncService.processOrderPostActions(anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
         // 예약형 주문 요청 데이터
         OrderItemRequest reservationItem = OrderItemRequest.builder()
                 .orderItemType("RESERVATION")
@@ -74,7 +83,7 @@ class OrderServiceTest {
                 .qty(1)
                 .build();
 
-        CreateOrderRequest.AddressRequest address = CreateOrderRequest.AddressRequest.builder()
+        AddressRequest address = AddressRequest.builder()
                 .address1("서울시 강남구 테헤란로 123")
                 .address2("456호")
                 .receiverName("홍길동")
@@ -101,7 +110,16 @@ class OrderServiceTest {
                 .cancelableUntil(LocalDateTime.now().plusHours(1))
                 .build();
         mockSavedOrder.setId(1L);
-        mockSavedOrder.setCreatedAt(LocalDateTime.now());
+        OrderItem mockItem = OrderItem.builder()
+                .order(mockSavedOrder)
+                .orderItemType(OrderItemType.RESERVATION)
+                .sessionOptionId(101L)
+                .qty(2)
+                .unitPrice(14500)
+                .lineAmount(29000)
+                .build();
+        mockItem.setId(10L);
+        mockSavedOrder.setOrderItems(Arrays.asList(mockItem));
     }
 
     @Nested
@@ -157,13 +175,18 @@ class OrderServiceTest {
                     .status(OrderStatus.REQUESTED)
                     .totalAmount(29000)
                     .cancelableUntil(LocalDateTime.now().plusHours(1))
-                    .address1("서울시 강남구 테헤란로 123")
-                    .address2("456호")
-                    .receiverName("홍길동")
-                    .phone("010-1234-5678")
                     .build();
             purchaseOrder.setId(2L);
-            purchaseOrder.setCreatedAt(LocalDateTime.now());
+            OrderItem purchaseItem = OrderItem.builder()
+                    .order(purchaseOrder)
+                    .orderItemType(OrderItemType.MERCH)
+                    .merchVariantId(201L)
+                    .qty(1)
+                    .unitPrice(14500)
+                    .lineAmount(14500)
+                    .build();
+            purchaseItem.setId(20L);
+            purchaseOrder.setOrderItems(Arrays.asList(purchaseItem));
 
             when(orderRepository.save(any(Order.class))).thenReturn(purchaseOrder);
 
@@ -180,13 +203,8 @@ class OrderServiceTest {
             // Repository save 호출 검증
             verify(orderRepository, times(1)).save(any(Order.class));
 
-            // 주소 정보가 있는 구매형 주문 검증
-            verify(orderRepository).save(argThat(order -> {
-                return order.getAddress1().equals("서울시 강남구 테헤란로 123") &&
-                       order.getAddress2().equals("456호") &&
-                       order.getReceiverName().equals("홍길동") &&
-                       order.getPhone().equals("010-1234-5678");
-            }));
+            // 주소 정보는 현재 Order 엔티티에 없음
+            verify(orderRepository).save(any(Order.class));
         }
     }
 
@@ -234,6 +252,71 @@ class OrderServiceTest {
             .isInstanceOf(OrderException.class);
 
             verify(orderRepository, never()).save(any(Order.class));
+        }
+
+        @Test
+        @DisplayName("주문 타입이 유효하지 않으면 예외 발생")
+        void createOrder_InvalidOrderType_ThrowsException() {
+            // Given
+            CreateOrderRequest invalidOrderTypeRequest = CreateOrderRequest.builder()
+                    .storeId(1L)
+                    .productId(2L)
+                    .orderType("INVALID")
+                    .items(reservationRequest.getItems())
+                    .build();
+
+            // When & Then
+            assertThatThrownBy(() ->
+                orderService.createOrder(1001L, invalidOrderTypeRequest, "test-key")
+            )
+            .isInstanceOf(IllegalArgumentException.class);
+
+            verify(orderRepository, never()).save(any(Order.class));
+            verify(orderAsyncService, never()).processOrderPostActions(any());
+        }
+
+        @Test
+        @DisplayName("주문 아이템 타입이 유효하지 않으면 예외 발생")
+        void createOrder_InvalidOrderItemType_ThrowsException() {
+            // Given
+            OrderItemRequest invalidItem = OrderItemRequest.builder()
+                    .orderItemType("INVALID")
+                    .qty(1)
+                    .build();
+
+            CreateOrderRequest invalidItemTypeRequest = CreateOrderRequest.builder()
+                    .storeId(1L)
+                    .productId(2L)
+                    .orderType("RESERVATION")
+                    .items(Arrays.asList(invalidItem))
+                    .build();
+
+            // When & Then
+            assertThatThrownBy(() ->
+                orderService.createOrder(1001L, invalidItemTypeRequest, "test-key")
+            )
+            .isInstanceOf(IllegalArgumentException.class);
+
+            verify(orderRepository, never()).save(any(Order.class));
+            verify(orderAsyncService, never()).processOrderPostActions(any());
+        }
+
+        @Test
+        @DisplayName("비동기 검증 호출 중 예외 발생 시 저장하지 않음")
+        void createOrder_AsyncValidationThrows_DoesNotSave() {
+            // Given
+            when(orderAsyncService.validateOrderAsync(anyLong(), anyLong(), anyInt()))
+                    .thenThrow(new RuntimeException("async validation failed"));
+
+            // When & Then
+            assertThatThrownBy(() ->
+                orderService.createOrder(1001L, reservationRequest, "test-key")
+            )
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("async validation failed");
+
+            verify(orderRepository, never()).save(any(Order.class));
+            verify(orderAsyncService, never()).processOrderPostActions(any());
         }
     }
 
