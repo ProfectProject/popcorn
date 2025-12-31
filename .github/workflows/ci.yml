@@ -7,7 +7,7 @@ on:
     branches: [main, develop]  # merge 시에도 실행
 
 jobs:
-  test-and-build:
+  test:
     runs-on: ubuntu-latest
 
     services:
@@ -25,13 +25,82 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    defaults:
-      run:
-        working-directory: ./backend
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Docker test
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/backend:/app \
+          -w /app \
+          --network=host \
+          eclipse-temurin:17-jdk \
+          ./gradlew clean test --no-daemon
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Docker test build
-      run: docker build --target ci --network=host -f Dockerfile .
+    - name: Docker build
+      run: docker build -f backend/Dockerfile -t popcorn-backend:ci ./backend
+
+  app-smoke:
+    runs-on: ubuntu-latest
+    needs: build
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Docker build
+      run: docker build -f backend/Dockerfile -t popcorn-backend:ci ./backend
+
+    - name: Start application container
+      run: |
+        docker run -d --name popcorn-backend \
+          --network=host \
+          -e SPRING_PROFILES_ACTIVE=ci \
+          -e DB_HOST=localhost \
+          -e DB_PORT=5432 \
+          -e DB_NAME=testdb \
+          -e DB_USERNAME=testuser \
+          -e DB_PASSWORD=testpass \
+          popcorn-backend:ci
+
+    - name: Wait for application startup
+      run: |
+        echo "Waiting for application to start..."
+        for i in {1..30}; do
+          if curl -f http://localhost:8080/actuator/health > /dev/null 2>&1; then
+            echo "Application started successfully!"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "Application failed to start"
+        docker logs popcorn-backend
+        exit 1
+
+    - name: Stop application container
+      if: always()
+      run: docker rm -f popcorn-backend
