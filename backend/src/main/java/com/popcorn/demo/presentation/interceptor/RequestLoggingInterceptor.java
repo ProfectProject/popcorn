@@ -3,85 +3,38 @@ package com.popcorn.demo.presentation.interceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.lang.NonNull;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import reactor.core.publisher.Mono;
 
-public class RequestLoggingInterceptor implements HandlerInterceptor {
-
-
+public class RequestLoggingInterceptor implements WebFilter {
 
 	private static final Logger log = LoggerFactory.getLogger(RequestLoggingInterceptor.class);
-
 	private static final String START_TIME_ATTR = "requestStartTime";
 
-
-
 	@Override
-
-	public boolean preHandle(
-
-			@NonNull HttpServletRequest request,
-
-			@NonNull HttpServletResponse response,
-
-			@NonNull Object handler
-
-	) {
-
-		request.setAttribute(START_TIME_ATTR, System.currentTimeMillis());
+	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+		exchange.getAttributes().put(START_TIME_ATTR, System.currentTimeMillis());
 
 		log.info("Incoming request: {} {} traceId={}",
+			exchange.getRequest().getMethod(),
+			exchange.getRequest().getURI().getPath(),
+			MDC.get("traceId"));
 
-				request.getMethod(),
-
-				request.getRequestURI(),
-
-				MDC.get("traceId"));
-
-		return true;
-
+		return chain.filter(exchange)
+				.doFinally(signalType -> {
+					Object startTime = exchange.getAttribute(START_TIME_ATTR);
+					long elapsedMs = startTime instanceof Long
+							? System.currentTimeMillis() - (Long) startTime
+							: -1L;
+					log.info("Completed request: {} {} -> {} ({}ms) traceId={}",
+						exchange.getRequest().getMethod(),
+						exchange.getRequest().getURI().getPath(),
+						exchange.getResponse().getStatusCode(),
+						elapsedMs,
+						MDC.get("traceId"));
+				});
 	}
-
-
-
-	@Override
-
-	public void afterCompletion(
-
-			@NonNull HttpServletRequest request,
-
-			@NonNull HttpServletResponse response,
-
-			@NonNull Object handler,
-
-			Exception ex
-
-	) {
-
-		Object startTime = request.getAttribute(START_TIME_ATTR);
-
-		long elapsedMs = startTime instanceof Long
-
-				? System.currentTimeMillis() - (Long) startTime
-
-				: -1L;
-
-		log.info("Completed request: {} {} -> {} ({}ms) traceId={}",
-
-				request.getMethod(),
-
-				request.getRequestURI(),
-
-				response.getStatus(),
-
-				elapsedMs,
-
-				MDC.get("traceId"));
-
-	}
-
 }
-

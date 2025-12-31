@@ -1,11 +1,10 @@
 package com.popcorn.demo.application.order.usecase;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
 import com.popcorn.demo.application.order.port.out.SaveOrderPort;
@@ -24,11 +28,10 @@ import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.service.OrderDomainService;
 
-import lombok.extern.slf4j.Slf4j;
-
 @ExtendWith(MockitoExtension.class)
-@Slf4j
 class UpdateOrderStatusUseCaseTest {
+
+	private static final Logger log = LoggerFactory.getLogger(UpdateOrderStatusUseCaseTest.class);
 
 	@Mock
 	private FindOrderPort findOrderPort;
@@ -45,17 +48,19 @@ class UpdateOrderStatusUseCaseTest {
 	@Test
 	void updateStatus_success() {
 		log.info("🧪 주문 상태 변경 유스케이스 성공 테스트 시작");
+		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
-				.id(1L)
+				.id(orderId)
 				.status(OrderStatus.REQUESTED)
 				.build();
 
-		when(findOrderPort.findById(1L)).thenReturn(Optional.of(order));
-		when(saveOrderPort.save(order)).thenReturn(order);
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
+		when(saveOrderPort.save(order)).thenReturn(Mono.just(order));
+		when(saveOrderPort.saveStatusHistory(org.mockito.ArgumentMatchers.any())).thenReturn(Mono.empty());
 
-		Order result = updateOrderStatusUseCase.updateStatus(1L, "OWNER_ACCEPTED", "approved");
-
-		assertThat(result.getStatus()).isEqualTo(OrderStatus.OWNER_ACCEPTED);
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+				.assertNext(result -> assertThat(result.getStatus()).isEqualTo(OrderStatus.OWNER_ACCEPTED))
+				.verifyComplete();
 
 		ArgumentCaptor<OrderStatusHistory> historyCaptor = ArgumentCaptor.forClass(OrderStatusHistory.class);
 		verify(saveOrderPort).saveStatusHistory(historyCaptor.capture());
@@ -67,63 +72,75 @@ class UpdateOrderStatusUseCaseTest {
 	@Test
 	void updateStatus_orderNotFound() {
 		log.info("🧪 주문 상태 변경 유스케이스 주문 없음 테스트 시작");
-		when(findOrderPort.findById(1L)).thenReturn(Optional.empty());
+		UUID orderId = UUID.randomUUID();
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.empty());
 
-		assertThatThrownBy(() -> updateOrderStatusUseCase.updateStatus(1L, "OWNER_ACCEPTED", "reason"))
-				.isInstanceOf(OrderException.class)
-				.extracting("responseCode")
-				.isEqualTo(ResponseCode.ORDER_NOT_FOUND);
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+				.expectErrorSatisfies(ex -> {
+					assertThat(ex).isInstanceOf(OrderException.class);
+					assertThat(((OrderException) ex).getResponseCode()).isEqualTo(ResponseCode.ORDER_NOT_FOUND);
+				})
+				.verify();
 		log.info("✅ 주문 상태 변경 유스케이스 주문 없음 테스트 완료");
 	}
 
 	@Test
 	void updateStatus_alreadyCanceled() {
 		log.info("🧪 주문 상태 변경 유스케이스 이미 취소 테스트 시작");
+		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
-				.id(1L)
+				.id(orderId)
 				.status(OrderStatus.CANCELLED)
 				.build();
 
-		when(findOrderPort.findById(1L)).thenReturn(Optional.of(order));
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
 
-		assertThatThrownBy(() -> updateOrderStatusUseCase.updateStatus(1L, "COMPLETED", "reason"))
-				.isInstanceOf(OrderException.class)
-				.extracting("responseCode")
-				.isEqualTo(ResponseCode.ALREADY_CANCELED);
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "COMPLETED", "reason"))
+				.expectErrorSatisfies(ex -> {
+					assertThat(ex).isInstanceOf(OrderException.class);
+					assertThat(((OrderException) ex).getResponseCode()).isEqualTo(ResponseCode.ALREADY_CANCELED);
+				})
+				.verify();
 		log.info("✅ 주문 상태 변경 유스케이스 이미 취소 테스트 완료");
 	}
 
 	@Test
 	void updateStatus_invalidTransition() {
 		log.info("🧪 주문 상태 변경 유스케이스 전이 오류 테스트 시작");
+		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
-				.id(1L)
+				.id(orderId)
 				.status(OrderStatus.READY)
 				.build();
 
-		when(findOrderPort.findById(1L)).thenReturn(Optional.of(order));
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
 
-		assertThatThrownBy(() -> updateOrderStatusUseCase.updateStatus(1L, "OWNER_ACCEPTED", "reason"))
-				.isInstanceOf(OrderException.class)
-				.extracting("responseCode")
-				.isEqualTo(ResponseCode.INVALID_STATUS_TRANSITION);
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+				.expectErrorSatisfies(ex -> {
+					assertThat(ex).isInstanceOf(OrderException.class);
+					assertThat(((OrderException) ex).getResponseCode()).isEqualTo(ResponseCode.INVALID_STATUS_TRANSITION);
+				})
+				.verify();
 		log.info("✅ 주문 상태 변경 유스케이스 전이 오류 테스트 완료");
 	}
 
 	@Test
 	void updateStatus_invalidStatusValue() {
 		log.info("🧪 주문 상태 변경 유스케이스 상태값 오류 테스트 시작");
+		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
-				.id(1L)
+				.id(orderId)
 				.status(OrderStatus.REQUESTED)
 				.build();
 
-		when(findOrderPort.findById(1L)).thenReturn(Optional.of(order));
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
 
-		assertThatThrownBy(() -> updateOrderStatusUseCase.updateStatus(1L, "NOT_A_STATUS", "reason"))
-				.isInstanceOf(OrderException.class)
-				.extracting("responseCode")
-				.isEqualTo(ResponseCode.INVALID_REQUEST);
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "NOT_A_STATUS", "reason"))
+				.expectErrorSatisfies(ex -> {
+					assertThat(ex).isInstanceOf(OrderException.class);
+					assertThat(((OrderException) ex).getResponseCode()).isEqualTo(ResponseCode.INVALID_REQUEST);
+				})
+				.verify();
 		log.info("✅ 주문 상태 변경 유스케이스 상태값 오류 테스트 완료");
 	}
 }

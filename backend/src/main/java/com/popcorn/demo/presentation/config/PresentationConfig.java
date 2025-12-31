@@ -1,17 +1,12 @@
 package com.popcorn.demo.presentation.config;
 
-import java.util.List;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.reactive.config.CorsRegistry;
+import org.springframework.web.reactive.config.EnableWebFlux;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -20,13 +15,13 @@ import com.popcorn.demo.presentation.interceptor.RequestLoggingInterceptor;
 
 @Configuration
 
-@EnableWebMvc
+@EnableWebFlux
 
 @Import(OpenApiConfig.class)
 
 @ComponentScan(basePackages = "com.popcorn.demo.presentation")
 
-public class PresentationConfig implements WebMvcConfigurer {
+public class PresentationConfig implements WebFluxConfigurer {
 
 
 
@@ -73,37 +68,6 @@ public class PresentationConfig implements WebMvcConfigurer {
 				.allowCredentials(false)
 
 				.maxAge(3600);
-
-	}
-
-
-
-	@Override
-
-	public void addInterceptors(InterceptorRegistry registry) {
-
-		registry.addInterceptor(requestLoggingInterceptor())
-
-				.addPathPatterns("/api/**");
-
-	}
-
-
-
-	@Override
-
-	public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
-
-		for (HttpMessageConverter<?> converter : converters) {
-
-			if (converter instanceof MappingJackson2HttpMessageConverter jacksonConverter) {
-				jacksonConverter.setObjectMapper(objectMapper());
-				return;
-			}
-
-		}
-
-		converters.add(new MappingJackson2HttpMessageConverter(objectMapper()));
 
 	}
 

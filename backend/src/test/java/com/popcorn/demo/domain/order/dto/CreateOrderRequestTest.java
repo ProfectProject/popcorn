@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,20 +15,20 @@ class CreateOrderRequestTest {
 	void reservationTypeChecksAndTotalQuantity() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
-				.storeId(1L)
-				.productId(2L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.items(List.of(
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
-								.sessionId(10L)
-								.optionId(20L)
+								.sessionId(UUID.randomUUID())
+								.optionId(UUID.randomUUID())
 								.qty(2)
 								.unitPrice(1000)
 								.build(),
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
-								.sessionId(11L)
-								.optionId(21L)
+								.sessionId(UUID.randomUUID())
+								.optionId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1200)
 								.build()
@@ -47,15 +48,15 @@ class CreateOrderRequestTest {
 	void purchaseTypeChecksWithAddress() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("PURCHASE")
-				.storeId(1L)
-				.productId(2L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.address(AddressRequest.builder()
 						.address1("123 Main St")
 						.build())
 				.items(List.of(
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
-								.merchVariantId(100L)
+								.merchVariantId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1500)
 								.build()
@@ -73,19 +74,19 @@ class CreateOrderRequestTest {
 	void mixedItemTypesAreNotConsistent() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
-				.storeId(1L)
-				.productId(2L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.items(List.of(
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
-								.sessionId(10L)
-								.optionId(20L)
+								.sessionId(UUID.randomUUID())
+								.optionId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1000)
 								.build(),
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
-								.merchVariantId(100L)
+								.merchVariantId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1500)
 								.build()
@@ -101,12 +102,12 @@ class CreateOrderRequestTest {
 	void purchaseRequestWithoutAddressIsInvalid() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("PURCHASE")
-				.storeId(1L)
-				.productId(2L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.items(List.of(
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
-								.merchVariantId(100L)
+								.merchVariantId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1500)
 								.build()

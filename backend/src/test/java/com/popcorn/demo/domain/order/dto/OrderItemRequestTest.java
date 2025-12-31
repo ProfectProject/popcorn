@@ -2,6 +2,8 @@ package com.popcorn.demo.domain.order.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -10,10 +12,13 @@ class OrderItemRequestTest {
 	@Test
 	@DisplayName("Reservation item validation and identifiers")
 	void reservationItemValidationAndIdentifiers() {
+		UUID sessionId = UUID.randomUUID();
+		UUID optionId = UUID.randomUUID();
+
 		OrderItemRequest item = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
-				.sessionId(10L)
-				.optionId(20L)
+				.sessionId(sessionId)
+				.optionId(optionId)
 				.qty(2)
 				.unitPrice(1000)
 				.build();
@@ -22,17 +27,22 @@ class OrderItemRequestTest {
 		assertThat(item.isMerchType()).isFalse();
 		assertThat(item.hasRequiredFields()).isTrue();
 		assertThat(item.hasUnnecessaryFields()).isFalse();
-		assertThat(item.getSessionOptionKey()).isEqualTo("10-20");
-		assertThat(item.getStockIdentifier()).isEqualTo("10-20");
-		assertThat(item.getDisplayDescription()).contains("10").contains("20").contains("2");
+		assertThat(item.getSessionOptionKey()).isEqualTo(sessionId + "-" + optionId);
+		assertThat(item.getStockIdentifier()).isEqualTo(sessionId + "-" + optionId);
+		assertThat(item.getDisplayDescription())
+				.contains(sessionId.toString())
+				.contains(optionId.toString())
+				.contains("2");
 	}
 
 	@Test
 	@DisplayName("Merch item validation and identifiers")
 	void merchItemValidationAndIdentifiers() {
+		UUID merchVariantId = UUID.randomUUID();
+
 		OrderItemRequest item = OrderItemRequest.builder()
 				.orderItemType("MERCH")
-				.merchVariantId(100L)
+				.merchVariantId(merchVariantId)
 				.qty(1)
 				.unitPrice(1500)
 				.build();
@@ -42,8 +52,8 @@ class OrderItemRequestTest {
 		assertThat(item.hasRequiredFields()).isTrue();
 		assertThat(item.hasUnnecessaryFields()).isFalse();
 		assertThat(item.getSessionOptionKey()).isNull();
-		assertThat(item.getStockIdentifier()).isEqualTo("VARIANT_100");
-		assertThat(item.getDisplayDescription()).contains("100").contains("1");
+		assertThat(item.getStockIdentifier()).isEqualTo("VARIANT_" + merchVariantId);
+		assertThat(item.getDisplayDescription()).contains(merchVariantId.toString()).contains("1");
 	}
 
 	@Test
@@ -68,20 +78,24 @@ class OrderItemRequestTest {
 	@Test
 	@DisplayName("Unnecessary fields are detected")
 	void unnecessaryFieldsAreDetected() {
+		UUID sessionId = UUID.randomUUID();
+		UUID optionId = UUID.randomUUID();
+		UUID merchVariantId = UUID.randomUUID();
+
 		OrderItemRequest reservationWithMerch = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
-				.sessionId(10L)
-				.optionId(20L)
-				.merchVariantId(100L)
+				.sessionId(sessionId)
+				.optionId(optionId)
+				.merchVariantId(merchVariantId)
 				.qty(1)
 				.unitPrice(1000)
 				.build();
 
 		OrderItemRequest merchWithReservationFields = OrderItemRequest.builder()
 				.orderItemType("MERCH")
-				.sessionId(10L)
-				.optionId(20L)
-				.merchVariantId(100L)
+				.sessionId(sessionId)
+				.optionId(optionId)
+				.merchVariantId(merchVariantId)
 				.qty(1)
 				.unitPrice(1500)
 				.build();

@@ -1,9 +1,10 @@
 package com.popcorn.demo.application.order.usecase;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
@@ -86,30 +90,31 @@ class CreateOrderUseCaseTest {
 		Order mockOrder = createMockOrder();
 		Order savedOrder = createSavedOrder();
 
-		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
-		when(orderDomainService.isDuplicateOrder(any(), anyString())).thenReturn(false);
-		when(processOrderPort.validateOrder(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-		when(findOrderItemPricePort.findSessionOptionPrice(any())).thenReturn(Optional.of(14500));
+		when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
+		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Mono.empty());
+		when(processOrderPort.validateOrder(anyLong(), any(UUID.class), any())).thenReturn(Mono.just(true));
+		when(findOrderItemPricePort.findSessionOptionPrice(any(UUID.class))).thenReturn(Mono.just(14500));
 		when(orderDomainService.createOrder(any(), any(), any(), any(), any(), anyString())).thenReturn(mockOrder);
-		when(saveOrderPort.save(any(Order.class))).thenReturn(savedOrder);
+		when(saveOrderPort.save(any(Order.class))).thenReturn(Mono.just(savedOrder));
+		when(saveOrderPort.saveOrderItems(any())).thenReturn(Mono.empty());
 
 		// when
-		CreateOrderResponse response = createOrderUseCase.createOrder(command);
+		Mono<CreateOrderResponse> response = createOrderUseCase.createOrder(command);
 
 		// then
-		assertThat(response).isNotNull();
-		assertThat(response.getOrderId()).isEqualTo(savedOrder.getId());
-		assertThat(response.getOrderNo()).isEqualTo(savedOrder.getOrderNo());
-		assertThat(response.getOrderType()).isEqualTo(savedOrder.getOrderType().name());
-		assertThat(response.getStatus()).isEqualTo(savedOrder.getStatus().name());
+		StepVerifier.create(response)
+				.assertNext(result -> {
+					assertThat(result.getOrderId()).isEqualTo(savedOrder.getId());
+					assertThat(result.getOrderNo()).isEqualTo(savedOrder.getOrderNo());
+					assertThat(result.getOrderType()).isEqualTo(savedOrder.getOrderType().name());
+					assertThat(result.getStatus()).isEqualTo(savedOrder.getStatus().name());
+				})
+				.verifyComplete();
 
-		// 모든 필수 메서드들이 호출되었는지 검증
 		verify(findOrderPort, times(1)).findByIdempotencyKey(command.getIdempotencyKey());
-		verify(orderDomainService, times(1)).isDuplicateOrder(any(), any());
-		verify(processOrderPort, times(1)).validateOrder(any(), any(), any());
+		verify(processOrderPort, times(1)).validateOrder(anyLong(), any(UUID.class), any());
 		verify(orderDomainService, times(1)).createOrder(any(), any(), any(), any(), any(), any());
 		verify(saveOrderPort, times(1)).save(any(Order.class));
-		// processOrderPostActions는 이벤트를 통해 비동기로 호출되므로 직접 검증하지 않음
 	}
 
 	@Test
@@ -119,18 +124,21 @@ class CreateOrderUseCaseTest {
 		CreateOrderCommand command = createValidCommand();
 		Order existingOrder = createMockOrder();
 
-		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Optional.of(existingOrder));
-		when(orderDomainService.isDuplicateOrder(any(), anyString())).thenReturn(true);
+		when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
+		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Mono.just(existingOrder));
+		when(orderDomainService.isDuplicateOrder(any(Optional.class), anyString())).thenReturn(true);
 
-		// when & then
-		assertThatThrownBy(() -> createOrderUseCase.createOrder(command))
-				.isInstanceOf(OrderException.class);
+		// when
+		Mono<CreateOrderResponse> response = createOrderUseCase.createOrder(command);
 
-		// 중복 검증 후 더 이상 진행되지 않았는지 확인
+		// then
+		StepVerifier.create(response)
+				.expectError(OrderException.class)
+				.verify();
+
 		verify(findOrderPort, times(1)).findByIdempotencyKey(command.getIdempotencyKey());
-		verify(orderDomainService, times(1)).isDuplicateOrder(any(), any());
-		verify(orderDomainService, times(0)).createOrder(any(), any(), any(), any(), any(), any());
-		verify(saveOrderPort, times(0)).save(any(Order.class));
+		verify(orderDomainService, times(1)).isDuplicateOrder(any(Optional.class), any());
+		verify(saveOrderPort, never()).save(any(Order.class));
 	}
 
 	@Test
@@ -139,36 +147,35 @@ class CreateOrderUseCaseTest {
 		// given
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(1001L)
-				.storeId(1L)
-				.productId(1L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.orderType("RESERVATION")
-				.idempotencyKey(null) // 멱등성 키 없음
+				.idempotencyKey(null)
 				.items(createSampleItemCommands())
 				.build();
 
 		Order mockOrder = createMockOrder();
 		Order savedOrder = createSavedOrder();
 
-		when(processOrderPort.validateOrder(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-		when(findOrderItemPricePort.findSessionOptionPrice(any())).thenReturn(Optional.of(14500));
+		when(processOrderPort.validateOrder(anyLong(), any(UUID.class), any())).thenReturn(Mono.just(true));
+		when(findOrderItemPricePort.findSessionOptionPrice(any(UUID.class))).thenReturn(Mono.just(14500));
 		when(orderDomainService.createOrder(any(), any(), any(), any(), any(), any())).thenReturn(mockOrder);
-		when(saveOrderPort.save(any(Order.class))).thenReturn(savedOrder);
+		when(saveOrderPort.save(any(Order.class))).thenReturn(Mono.just(savedOrder));
+		when(saveOrderPort.saveOrderItems(any())).thenReturn(Mono.empty());
 
 		// when
-		CreateOrderResponse response = createOrderUseCase.createOrder(command);
+		Mono<CreateOrderResponse> response = createOrderUseCase.createOrder(command);
 
 		// then
-		assertThat(response).isNotNull();
+		StepVerifier.create(response)
+				.assertNext(result -> assertThat(result.getOrderId()).isEqualTo(savedOrder.getId()))
+				.verifyComplete();
 
-		// 멱등성 검사를 하지 않았는지 확인
 		verify(findOrderPort, times(0)).findByIdempotencyKey(any());
-		verify(orderDomainService, times(0)).isDuplicateOrder(any(), any());
-
-		// 나머지 프로세스는 정상 진행되었는지 확인
-		verify(processOrderPort, times(1)).validateOrder(any(), any(), any());
+		verify(orderDomainService, times(0)).isDuplicateOrder(any(Optional.class), any());
+		verify(processOrderPort, times(1)).validateOrder(anyLong(), any(UUID.class), any());
 		verify(orderDomainService, times(1)).createOrder(any(), any(), any(), any(), any(), any());
 		verify(saveOrderPort, times(1)).save(any(Order.class));
-		// processOrderPostActions는 이벤트를 통해 비동기로 호출되므로 직접 검증하지 않음
 	}
 
 	@Test
@@ -177,28 +184,29 @@ class CreateOrderUseCaseTest {
 		// given
 		CreateOrderCommand command = createValidCommand();
 
-		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
-		when(orderDomainService.isDuplicateOrder(any(), anyString())).thenReturn(false);
-		when(processOrderPort.validateOrder(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-		when(findOrderItemPricePort.findSessionOptionPrice(any())).thenReturn(Optional.of(14500));
+		when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
+		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Mono.empty());
+		when(processOrderPort.validateOrder(anyLong(), any(UUID.class), any())).thenReturn(Mono.just(true));
+		when(findOrderItemPricePort.findSessionOptionPrice(any(UUID.class))).thenReturn(Mono.just(14500));
 		when(orderDomainService.createOrder(any(), any(), any(), any(), any(), any()))
 				.thenThrow(OrderException.invalidRequest());
 
-		// when & then
-		assertThatThrownBy(() -> createOrderUseCase.createOrder(command))
-				.isInstanceOf(OrderException.class);
+		// when
+		Mono<CreateOrderResponse> response = createOrderUseCase.createOrder(command);
 
-		// 도메인 검증 실패 후 저장이 시도되지 않았는지 확인
-		verify(saveOrderPort, times(0)).save(any(Order.class));
-		verify(processOrderPort, times(0)).processOrderPostActions(any());
+		// then
+		StepVerifier.create(response)
+				.expectError(OrderException.class)
+				.verify();
+
+		verify(saveOrderPort, never()).save(any(Order.class));
 	}
 
-	// Helper methods
 	private CreateOrderCommand createValidCommand() {
 		return CreateOrderCommand.builder()
 				.userId(1001L)
-				.storeId(1L)
-				.productId(1L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.orderType("RESERVATION")
 				.idempotencyKey("test-key-001")
 				.items(createSampleItemCommands())
@@ -209,8 +217,8 @@ class CreateOrderUseCaseTest {
 		return List.of(
 				CreateOrderCommand.OrderItemCommand.builder()
 						.orderItemType(OrderItemType.RESERVATION)
-						.sessionId(1L)
-						.optionId(10L)
+						.sessionId(UUID.randomUUID())
+						.optionId(UUID.randomUUID())
 						.qty(2)
 						.unitPrice(14500)
 						.build()
@@ -221,8 +229,8 @@ class CreateOrderUseCaseTest {
 		return Order.builder()
 				.orderNo("O20231230-000001")
 				.customerId(1001L)
-				.storeId(1L)
-				.productId(1L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(29000)
@@ -234,8 +242,8 @@ class CreateOrderUseCaseTest {
 
 	private Order createSavedOrder() {
 		Order order = createMockOrder();
-		order = Order.builder()
-				.id(101L) // DB에 저장 후 ID 부여
+		return Order.builder()
+				.id(UUID.randomUUID())
 				.orderNo(order.getOrderNo())
 				.customerId(order.getCustomerId())
 				.storeId(order.getStoreId())
@@ -247,6 +255,5 @@ class CreateOrderUseCaseTest {
 				.cancelableUntil(order.getCancelableUntil())
 				.orderItems(order.getOrderItems())
 				.build();
-		return order;
 	}
 }

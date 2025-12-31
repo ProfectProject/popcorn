@@ -2,20 +2,20 @@ package com.popcorn.demo.infrastructure.persistence.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import java.util.UUID;
+
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
@@ -25,118 +25,131 @@ import com.popcorn.demo.domain.order.entity.OrderType;
 class OrderRepositoryImplTest {
 
 	@Mock
-	private JpaOrderRepository jpaOrderRepository;
+	private R2dbcOrderRepository orderRepository;
 
 	@Mock
-	private JpaOrderItemRepository jpaOrderItemRepository;
+	private R2dbcOrderItemRepository orderItemRepository;
 
 	@Mock
-	private JpaOrderStatusHistoryRepository jpaOrderStatusHistoryRepository;
+	private R2dbcOrderStatusHistoryRepository orderStatusHistoryRepository;
 
-	private OrderRepositoryImpl orderRepository;
+	private OrderRepositoryImpl orderRepositoryImpl;
 
 	@BeforeEach
 	void setUp() {
-		orderRepository = new OrderRepositoryImpl(
-				jpaOrderItemRepository,
-				jpaOrderRepository,
-				jpaOrderStatusHistoryRepository
+		orderRepositoryImpl = new OrderRepositoryImpl(
+				orderItemRepository,
+				orderRepository,
+				orderStatusHistoryRepository
 		);
 	}
 
 	@Test
-	@DisplayName("Save - JpaOrderRepository delegate")
-	void save_DelegatesToJpaOrderRepository() {
+	@DisplayName("Save - R2dbcOrderRepository delegate")
+	void save_DelegatesToOrderRepository() {
 		// given
-		Order order = buildOrder("O-1001", 1001L, 10L, 55L, OrderStatus.REQUESTED, 29000, null);
-		Order savedOrder = buildOrder("O-1001", 1001L, 10L, 55L, OrderStatus.REQUESTED, 29000, null);
-		savedOrder = Order.builder()
-				.id(1L)
-				.orderNo(savedOrder.getOrderNo())
-				.customerId(savedOrder.getCustomerId())
-				.storeId(savedOrder.getStoreId())
-				.productId(savedOrder.getProductId())
-				.orderType(savedOrder.getOrderType())
-				.status(savedOrder.getStatus())
-				.totalAmount(savedOrder.getTotalAmount())
+		Order order = buildOrder("O-1001", 1001L, UUID.randomUUID(), UUID.randomUUID(), 29000);
+		UUID savedOrderId = UUID.randomUUID();
+		Order savedOrder = Order.builder()
+				.id(savedOrderId)
+				.orderNo(order.getOrderNo())
+				.customerId(order.getCustomerId())
+				.storeId(order.getStoreId())
+				.productId(order.getProductId())
+				.orderType(order.getOrderType())
+				.status(order.getStatus())
+				.totalAmount(order.getTotalAmount())
 				.build();
 
-		when(jpaOrderRepository.save(any(Order.class))).thenReturn(savedOrder);
+		when(orderRepository.save(any(Order.class))).thenReturn(Mono.just(savedOrder));
 
 		// when
-		Order result = orderRepository.save(order);
+		Mono<Order> result = orderRepositoryImpl.save(order);
 
 		// then
-		assertThat(result.getId()).isEqualTo(1L);
-		verify(jpaOrderRepository).save(order);
+		StepVerifier.create(result)
+				.assertNext(saved -> assertThat(saved.getId()).isEqualTo(savedOrderId))
+				.verifyComplete();
+		verify(orderRepository).save(order);
 	}
 
 	@Test
-	@DisplayName("FindById - JpaOrderRepository delegate")
-	void findById_DelegatesToJpaOrderRepository() {
+	@DisplayName("FindById - R2dbcOrderRepository delegate")
+	void findById_DelegatesToOrderRepository() {
 		// given
-		Order order = buildOrder("O-1001", 1001L, 10L, 55L, OrderStatus.REQUESTED, 29000, null);
-		when(jpaOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+		UUID orderId = UUID.randomUUID();
+		Order order = buildOrder("O-1001", 1001L, UUID.randomUUID(), UUID.randomUUID(), 29000);
+		when(orderRepository.findById(orderId)).thenReturn(Mono.just(order));
 
 		// when
-		Optional<Order> result = orderRepository.findById(1L);
+		Mono<Order> result = orderRepositoryImpl.findById(orderId);
 
 		// then
-		assertThat(result).isPresent();
-		assertThat(result.get().getOrderNo()).isEqualTo("O-1001");
-		verify(jpaOrderRepository).findById(1L);
+		StepVerifier.create(result)
+				.assertNext(found -> assertThat(found.getOrderNo()).isEqualTo("O-1001"))
+				.verifyComplete();
+		verify(orderRepository).findById(orderId);
 	}
 
 	@Test
-	@DisplayName("FindByOrderNo - JpaOrderRepository delegate")
-	void findByOrderNo_DelegatesToJpaOrderRepository() {
+	@DisplayName("FindByOrderNo - R2dbcOrderRepository delegate")
+	void findByOrderNo_DelegatesToOrderRepository() {
 		// given
-		Order order = buildOrder("O-2001", 1002L, 11L, 56L, OrderStatus.REQUESTED, 15000, null);
-		when(jpaOrderRepository.findByOrderNo("O-2001")).thenReturn(Optional.of(order));
+		Order order = buildOrder("O-2001", 1002L, UUID.randomUUID(), UUID.randomUUID(), 15000);
+		when(orderRepository.findByOrderNo("O-2001")).thenReturn(Mono.just(order));
 
 		// when
-		Optional<Order> result = orderRepository.findByOrderNo("O-2001");
+		Mono<Order> result = orderRepositoryImpl.findByOrderNo("O-2001");
 
 		// then
-		assertThat(result).isPresent();
-		verify(jpaOrderRepository).findByOrderNo("O-2001");
+		StepVerifier.create(result)
+				.expectNext(order)
+				.verifyComplete();
+		verify(orderRepository).findByOrderNo("O-2001");
 	}
 
 	@Test
-	@DisplayName("ExistsById - JpaOrderRepository delegate")
-	void existsById_DelegatesToJpaOrderRepository() {
+	@DisplayName("ExistsById - R2dbcOrderRepository delegate")
+	void existsById_DelegatesToOrderRepository() {
 		// given
-		when(jpaOrderRepository.existsById(99999L)).thenReturn(false);
+		UUID orderId = UUID.randomUUID();
+		when(orderRepository.existsById(orderId)).thenReturn(Mono.just(false));
 
 		// when
-		boolean result = orderRepository.existsById(99999L);
+		Mono<Boolean> result = orderRepositoryImpl.existsById(orderId);
 
 		// then
-		assertThat(result).isFalse();
-		verify(jpaOrderRepository).existsById(99999L);
+		StepVerifier.create(result)
+				.expectNext(false)
+				.verifyComplete();
+		verify(orderRepository).existsById(orderId);
 	}
 
 	@Test
-	@DisplayName("DeleteById - JpaOrderRepository delegate")
-	void deleteById_DelegatesToJpaOrderRepository() {
+	@DisplayName("DeleteById - R2dbcOrderRepository delegate")
+	void deleteById_DelegatesToOrderRepository() {
+		// given
+		UUID orderId = UUID.randomUUID();
+		when(orderRepository.deleteById(orderId)).thenReturn(Mono.empty());
+
 		// when
-		orderRepository.deleteById(1L);
+		Mono<Void> result = orderRepositoryImpl.deleteById(orderId);
 
 		// then
-		verify(jpaOrderRepository).deleteById(1L);
+		StepVerifier.create(result)
+				.verifyComplete();
+		verify(orderRepository).deleteById(orderId);
 	}
 
-	private Order buildOrder(String orderNo, Long customerId, Long storeId, Long productId,
-								OrderStatus status, int totalAmount, LocalDateTime cancelableUntil) {
+	private Order buildOrder(String orderNo, Long customerId, UUID storeId, UUID productId, int totalAmount) {
 		return Order.builder()
 				.orderNo(orderNo)
 				.customerId(customerId)
 				.storeId(storeId)
 				.productId(productId)
 				.orderType(OrderType.RESERVATION)
-				.status(status)
+				.status(OrderStatus.REQUESTED)
 				.totalAmount(totalAmount)
-				.cancelableUntil(cancelableUntil)
 				.build();
 	}
 }

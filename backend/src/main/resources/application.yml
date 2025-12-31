@@ -2,6 +2,8 @@
 spring:
   application:
     name: popcorn-demo
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
 
   # 기본 프로파일 설정
   profiles:
@@ -14,37 +16,22 @@ spring:
     activate:
       on-profile: local
 
-  # 데이터베이스 설정 (PostgreSQL)
+  # 데이터베이스 설정 (PostgreSQL, R2DBC)
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ttalkak_db}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      connection-timeout: 20000
-
-  # JPA/Hibernate 설정
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-        use_sql_comments: true
-        jdbc:
-          batch_size: 100
-          batch_versioned_data: true
-          order_inserts: true
-          order_updates: true
 
   # Flyway 마이그레이션 설정
   flyway:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
+    user: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
     enabled: true
     baseline-on-migrate: true
     validate-on-migrate: true
@@ -61,8 +48,7 @@ logging:
   level:
     com.popcorn.demo: DEBUG
     org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.data.r2dbc: DEBUG
 
 # Actuator 설정
 management:
@@ -90,22 +76,20 @@ spring:
     activate:
       on-profile: dev
 
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ttalkak_db}
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:1234}
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
+    driver-class-name: org.postgresql.Driver
 
-  jpa:
-    show-sql: true
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        jdbc:
-          batch_size: 100
-          batch_versioned_data: true
-          order_inserts: true
-          order_updates: true
+  flyway:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
+    user: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
 
 logging:
   level:
@@ -120,20 +104,21 @@ spring:
       on-profile: ci
 
   # PostgreSQL 설정 (CI 서비스 사용)
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/popcorn_db
+    username: testuser
+    password: testpass
   datasource:
     url: jdbc:postgresql://localhost:5432/popcorn_db
     username: testuser
     password: testpass
     driver-class-name: org.postgresql.Driver
 
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-
   # Flyway 설정 (CI용)
   flyway:
+    url: jdbc:postgresql://localhost:5432/popcorn_db
+    user: testuser
+    password: testpass
     enabled: true
     baseline-on-migrate: true
     validate-on-migrate: true
@@ -157,24 +142,19 @@ spring:
     activate:
       on-profile: prod
 
+  r2dbc:
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   datasource:
     url: ${DATABASE_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    hikari:
-      maximum-pool-size: 20
 
-  jpa:
-    show-sql: false
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        jdbc:
-          batch_size: 100
-          batch_versioned_data: true
-          order_inserts: true
-          order_updates: true
+  flyway:
+    url: ${DATABASE_URL}
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
 logging:
   level:
