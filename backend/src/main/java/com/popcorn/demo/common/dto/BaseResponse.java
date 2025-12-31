@@ -1,9 +1,5 @@
 package com.popcorn.demo.common.dto;
 
-import java.time.OffsetDateTime;
-
-import com.popcorn.demo.common.context.RequestContext;
-
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,34 +16,19 @@ import lombok.NoArgsConstructor;
 
 public class BaseResponse<T> {
 
-	private String code;
+	private int code;
 
 	private String message;
 
 	private T data;
 
-	private String traceId;
-
-	private String path;
-
-	private OffsetDateTime timestamp;
-
 
 
 	/**
-
-	 * 공통 응답 포맷 생성 (요청 메타데이터 포함)
-
+	 * 공통 응답 포맷 생성
 	 */
 
-	public static <T> BaseResponse<T> of(String code, String message, T data) {
-
-		RequestContext.RequestMetadata metadata = RequestContext.get();
-
-		String traceId = metadata != null ? metadata.getTraceId() : null;
-
-		String path = metadata != null ? metadata.getPath() : null;
-
+	public static <T> BaseResponse<T> of(int code, String message, T data) {
 		return BaseResponse.<T>builder()
 
 				.code(code)
@@ -55,12 +36,6 @@ public class BaseResponse<T> {
 				.message(message)
 
 				.data(data)
-
-				.traceId(traceId)
-
-				.path(path)
-
-				.timestamp(OffsetDateTime.now())
 
 				.build();
 
@@ -91,4 +66,3 @@ public class BaseResponse<T> {
 	}
 
 }
-

@@ -7,7 +7,6 @@ import java.util.List;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,6 +17,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -152,6 +152,14 @@ public class Order extends BaseEntity {
 
 	private String idempotencyKey;
 
+	/** 낙관적 락 버전 */
+
+	@Version
+
+	@Column(name = "version", nullable = false)
+
+	private Long version;
+
 
 
 	// TODO: 주소 정보는 별도 테이블로 관리하거나 향후 스키마 확장 필요
@@ -162,7 +170,7 @@ public class Order extends BaseEntity {
 
 	/** 주문 항목 목록 */
 
-	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	@OneToMany(mappedBy = "order", fetch = FetchType.LAZY, orphanRemoval = true)
 
 	@Builder.Default
 
@@ -260,6 +268,33 @@ public class Order extends BaseEntity {
 
 				.sum();
 
+	}
+
+
+
+	/**
+		* 주문 항목 추가 (양방향 연관관계 유지)
+		*/
+
+	public void addOrderItem(OrderItem orderItem) {
+		if (orderItem == null) {
+			return;
+		}
+		orderItems.add(orderItem);
+		orderItem.setOrder(this);
+	}
+
+
+
+	/**
+		* 주문 항목 목록 추가 (양방향 연관관계 유지)
+		*/
+
+	public void addOrderItems(List<OrderItem> items) {
+		if (items == null) {
+			return;
+		}
+		items.forEach(this::addOrderItem);
 	}
 
 }

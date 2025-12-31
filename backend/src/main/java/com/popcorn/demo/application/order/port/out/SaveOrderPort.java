@@ -1,6 +1,9 @@
 package com.popcorn.demo.application.order.port.out;
 
+import java.util.List;
+
 import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
 
 /**
 
@@ -36,5 +39,14 @@ public interface SaveOrderPort {
 
 	Order save(Order order);
 
-}
 
+
+	/**
+		* 주문 항목을 일괄 저장합니다.
+		*
+		* @param orderItems 저장할 주문 항목들
+		*/
+
+	void saveOrderItems(List<OrderItem> orderItems);
+
+}

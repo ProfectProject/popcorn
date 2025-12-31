@@ -12,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,7 +48,13 @@ public class OrderItem extends BaseEntity {
 
 	@Id
 
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@SequenceGenerator(
+			name = "order_item_seq",
+			sequenceName = "p_order_items_id_seq",
+			allocationSize = 1
+	)
+
+	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_item_seq")
 
 	private Long id;
 

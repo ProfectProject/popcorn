@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.OrderSummaryView;
@@ -31,6 +32,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 
 
+	private final JpaOrderItemRepository jpaOrderItemRepository;
 	private final JpaOrderRepository jpaOrderRepository;
 
 
@@ -45,8 +47,11 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Autowired
 
-	public OrderRepositoryImpl(JpaOrderRepository jpaOrderRepository) {
+	public OrderRepositoryImpl(
+			JpaOrderItemRepository jpaOrderItemRepository,
+			JpaOrderRepository jpaOrderRepository) {
 
+		this.jpaOrderItemRepository = jpaOrderItemRepository;
 		this.jpaOrderRepository = jpaOrderRepository;
 
 	}
@@ -62,6 +67,19 @@ public class OrderRepositoryImpl implements OrderRepository {
 	public Order save(Order order) {
 
 		return jpaOrderRepository.save(order);
+
+	}
+
+
+
+	@Override
+
+	public void saveOrderItems(List<OrderItem> orderItems) {
+
+		if (orderItems == null || orderItems.isEmpty()) {
+			return;
+		}
+		jpaOrderItemRepository.saveAll(orderItems);
 
 	}
 

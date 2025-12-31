@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 
 /**
@@ -38,6 +39,15 @@ public interface OrderRepository {
 		*/
 
 	Order save(Order order);
+
+
+
+	/**
+		* 주문 항목을 일괄 저장합니다.
+		* @param orderItems 저장할 주문 항목들
+		*/
+
+	void saveOrderItems(List<OrderItem> orderItems);
 
 
 
@@ -332,4 +342,3 @@ public interface OrderRepository {
 	boolean existsByIdempotencyKey(String idempotencyKey);
 
 }
-

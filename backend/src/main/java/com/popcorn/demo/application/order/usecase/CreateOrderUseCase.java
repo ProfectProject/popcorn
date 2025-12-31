@@ -179,6 +179,8 @@ public class CreateOrderUseCase {
 
 		Order savedOrder = saveOrderPort.save(order);
 
+		saveOrderPort.saveOrderItems(savedOrder.getOrderItems());
+
 		log.info("💾 주문 저장 완료 - 주문번호: {}, ID: {}", savedOrder.getOrderNo(), savedOrder.getId());
 
 
@@ -282,4 +284,3 @@ public class CreateOrderUseCase {
 	}
 
 }
-

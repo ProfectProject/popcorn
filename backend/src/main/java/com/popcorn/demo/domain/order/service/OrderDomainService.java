@@ -278,15 +278,10 @@ public class OrderDomainService {
 
 				.idempotencyKey(idempotencyKey)
 
-				.orderItems(new ArrayList<>(orderItems))
-
 				.build();
 
-
-
 		// 4. 주문 항목과 주문 간의 연관관계 설정
-
-		orderItems.forEach(item -> item.setOrder(order));
+		order.addOrderItems(new ArrayList<>(orderItems));
 
 
 

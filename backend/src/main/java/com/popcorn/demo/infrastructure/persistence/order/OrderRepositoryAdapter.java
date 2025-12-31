@@ -1,5 +1,6 @@
 package com.popcorn.demo.infrastructure.persistence.order;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
 import com.popcorn.demo.application.order.port.out.SaveOrderPort;
 import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.OrderSummaryView;
 
@@ -84,5 +86,14 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	}
 
-}
 
+
+	@Override
+
+	public void saveOrderItems(List<OrderItem> orderItems) {
+
+		orderRepository.saveOrderItems(orderItems);
+
+	}
+
+}

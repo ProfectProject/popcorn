@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 
 public class BaseError {
 
-	private String code;
+	private int code;
 
 	private String message;
 
@@ -53,4 +53,3 @@ public class BaseError {
 	}
 
 }
-

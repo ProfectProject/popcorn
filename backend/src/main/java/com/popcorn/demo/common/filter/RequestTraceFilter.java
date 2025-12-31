@@ -8,8 +8,6 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.popcorn.demo.common.context.RequestContext;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,9 +24,7 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 
 
 	/**
-
-	 * 요청 단위 추적 ID 생성 및 컨텍스트/MDC에 주입
-
+	 * 요청 단위 추적 ID 생성 및 MDC에 주입
 	 */
 
 	@Override
@@ -45,12 +41,6 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 
 		String traceId = UUID.randomUUID().toString();
 
-		String path = request.getRequestURI();
-
-
-
-		RequestContext.set(new RequestContext.RequestMetadata(traceId, path));
-
 		MDC.put(TRACE_ID_KEY, traceId);
 
 		try {
@@ -60,12 +50,8 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 		} finally {
 
 			MDC.remove(TRACE_ID_KEY);
-
-			RequestContext.clear();
-
 		}
 
 	}
 
 }
-
