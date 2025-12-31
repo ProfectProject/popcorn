@@ -1,6 +1,6 @@
 package com.popcorn.demo;
 
-import org.springframework.boot.SpringApplication;
+import com.popcorn.demo.order.OrderApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
@@ -11,11 +11,10 @@ public class DemoApplication {
 
 	public static void main(String[] args) {
 
-		SpringApplication.run(DemoApplication.class, args);
+		OrderApplication.main(args);
 
 	}
 
 
 
 }
-
