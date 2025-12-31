@@ -1,6 +1,8 @@
 package com.popcorn.demo.application.order.port.out;
 
-import java.util.Optional;
+import java.util.UUID;
+
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.repository.OrderSummaryView;
@@ -37,7 +39,7 @@ public interface FindOrderPort {
 
 		*/
 
-	Optional<Order> findByIdempotencyKey(String idempotencyKey);
+	Mono<Order> findByIdempotencyKey(String idempotencyKey);
 
 
 
@@ -53,7 +55,7 @@ public interface FindOrderPort {
 
 		*/
 
-	Optional<Order> findById(Long orderId);
+	Mono<Order> findById(UUID orderId);
 
 
 
@@ -69,7 +71,6 @@ public interface FindOrderPort {
 
 		*/
 
-	Optional<OrderSummaryView> findSummaryById(Long orderId);
+	Mono<OrderSummaryView> findSummaryById(UUID orderId);
 
 }
-

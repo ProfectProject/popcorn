@@ -2,27 +2,30 @@ package com.popcorn.demo.infrastructure.persistence.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.OrderSummaryView;
 
 /**
 
-	* 도메인 OrderRepository 인터페이스의 JPA 구현체
+	* 도메인 OrderRepository 인터페이스의 R2DBC 구현체
 
 	* - Clean Architecture: 어댑터 패턴 적용
 
 	* - 도메인 레이어의 인터페이스를 인프라스트럭처 레이어에서 구현
 
-	* - JpaOrderRepository를 래핑하여 도메인 요구사항 충족
+	* - R2DBC Repository를 래핑하여 도메인 요구사항 충족
 
 	*/
 
@@ -32,9 +35,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 
 
-	private final JpaOrderItemRepository jpaOrderItemRepository;
-	private final JpaOrderRepository jpaOrderRepository;
-	private final JpaOrderStatusHistoryRepository jpaOrderStatusHistoryRepository;
+	private final R2dbcOrderItemRepository orderItemRepository;
+	private final R2dbcOrderRepository orderRepository;
+	private final R2dbcOrderStatusHistoryRepository orderStatusHistoryRepository;
 
 
 
@@ -42,20 +45,20 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 		* 생성자 기반 의존성 주입
 
-		* @param jpaOrderRepository JPA Repository
+		* @param orderRepository R2DBC Repository
 
 		*/
 
 	@Autowired
 
 	public OrderRepositoryImpl(
-			JpaOrderItemRepository jpaOrderItemRepository,
-			JpaOrderRepository jpaOrderRepository,
-			JpaOrderStatusHistoryRepository jpaOrderStatusHistoryRepository) {
+			R2dbcOrderItemRepository orderItemRepository,
+			R2dbcOrderRepository orderRepository,
+			R2dbcOrderStatusHistoryRepository orderStatusHistoryRepository) {
 
-		this.jpaOrderItemRepository = jpaOrderItemRepository;
-		this.jpaOrderRepository = jpaOrderRepository;
-		this.jpaOrderStatusHistoryRepository = jpaOrderStatusHistoryRepository;
+		this.orderItemRepository = orderItemRepository;
+		this.orderRepository = orderRepository;
+		this.orderStatusHistoryRepository = orderStatusHistoryRepository;
 
 	}
 
@@ -67,9 +70,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public Order save(Order order) {
+	public Mono<Order> save(Order order) {
 
-		return jpaOrderRepository.save(order);
+		return orderRepository.save(order);
 
 	}
 
@@ -77,12 +80,12 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public void saveOrderItems(List<OrderItem> orderItems) {
+	public Mono<Void> saveOrderItems(List<OrderItem> orderItems) {
 
 		if (orderItems == null || orderItems.isEmpty()) {
-			return;
+			return Mono.empty();
 		}
-		jpaOrderItemRepository.saveAll(orderItems);
+		return orderItemRepository.saveAll(orderItems).then();
 
 	}
 
@@ -90,19 +93,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public Optional<Order> findById(Long orderId) {
+	public Mono<Order> findById(UUID orderId) {
 
-		return jpaOrderRepository.findById(orderId);
-
-	}
-
-
-
-	@Override
-
-	public Optional<OrderSummaryView> findSummaryById(Long orderId) {
-
-		return jpaOrderRepository.findSummaryById(orderId);
+		return orderRepository.findById(orderId);
 
 	}
 
@@ -110,19 +103,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public Optional<Order> findByOrderNo(String orderNo) {
+	public Mono<OrderSummaryView> findSummaryById(UUID orderId) {
 
-		return jpaOrderRepository.findByOrderNo(orderNo);
-
-	}
-
-
-
-	@Override
-
-	public void deleteById(Long orderId) {
-
-		jpaOrderRepository.deleteById(orderId);
+		return orderRepository.findSummaryById(orderId);
 
 	}
 
@@ -130,9 +113,29 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public boolean existsById(Long orderId) {
+	public Mono<Order> findByOrderNo(String orderNo) {
 
-		return jpaOrderRepository.existsById(orderId);
+		return orderRepository.findByOrderNo(orderNo);
+
+	}
+
+
+
+	@Override
+
+	public Mono<Void> deleteById(UUID orderId) {
+
+		return orderRepository.deleteById(orderId);
+
+	}
+
+
+
+	@Override
+
+	public Mono<Boolean> existsById(UUID orderId) {
+
+		return orderRepository.existsById(orderId);
 
 	}
 
@@ -144,25 +147,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public List<Order> findByCustomerId(Long customerId) {
+	public Flux<Order> findByCustomerId(Long customerId) {
 
-		return jpaOrderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
-
-	}
-
-
-
-	@Override
-
-	public List<Order> findByCustomerId(Long customerId, int offset, int limit) {
-
-		// offset/limit을 PageRequest로 변환 (offset은 page 번호가 아니라 실제 offset)
-
-		int page = offset / limit;
-
-		PageRequest pageRequest = PageRequest.of(page, limit);
-
-		return jpaOrderRepository.findByCustomerIdWithPaging(customerId, pageRequest);
+		return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
 
 	}
 
@@ -170,19 +157,11 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public List<Order> findByStoreId(Long storeId) {
+	public Flux<Order> findByCustomerId(Long customerId, int offset, int limit) {
 
-		return jpaOrderRepository.findByStoreId(storeId);
-
-	}
-
-
-
-	@Override
-
-	public List<Order> findByStoreIdAndStatus(Long storeId, OrderStatus status) {
-
-		return jpaOrderRepository.findByStoreIdAndStatus(storeId, status);
+		long safeOffset = Math.max(0, offset);
+		int safeLimit = Math.max(1, limit);
+		return orderRepository.findByCustomerIdWithPaging(customerId, safeOffset, safeLimit);
 
 	}
 
@@ -190,9 +169,29 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public List<Order> findByProductId(Long productId) {
+	public Flux<Order> findByStoreId(UUID storeId) {
 
-		return jpaOrderRepository.findByProductId(productId);
+		return orderRepository.findByStoreId(storeId);
+
+	}
+
+
+
+	@Override
+
+	public Flux<Order> findByStoreIdAndStatus(UUID storeId, OrderStatus status) {
+
+		return orderRepository.findByStoreIdAndStatus(storeId, status);
+
+	}
+
+
+
+	@Override
+
+	public Flux<Order> findByProductId(UUID productId) {
+
+		return orderRepository.findByProductId(productId);
 
 	}
 
@@ -204,19 +203,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public List<Order> findByStatus(OrderStatus status) {
+	public Flux<Order> findByStatus(OrderStatus status) {
 
-		return jpaOrderRepository.findByStatus(status);
-
-	}
-
-
-
-	@Override
-
-	public List<Order> findCancelableOrders(LocalDateTime currentTime) {
-
-		return jpaOrderRepository.findCancelableOrders(currentTime);
+		return orderRepository.findByStatus(status);
 
 	}
 
@@ -224,9 +213,19 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public List<Order> findExpiredCancelableOrders(LocalDateTime currentTime) {
+	public Flux<Order> findCancelableOrders(LocalDateTime currentTime) {
 
-		return jpaOrderRepository.findExpiredCancelableOrders(currentTime);
+		return orderRepository.findCancelableOrders(currentTime);
+
+	}
+
+
+
+	@Override
+
+	public Flux<Order> findExpiredCancelableOrders(LocalDateTime currentTime) {
+
+		return orderRepository.findExpiredCancelableOrders(currentTime);
 
 	}
 
@@ -238,19 +237,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public long countByCustomerId(Long customerId) {
+	public Mono<Long> countByCustomerId(Long customerId) {
 
-		return jpaOrderRepository.countByCustomerId(customerId);
-
-	}
-
-
-
-	@Override
-
-	public long countByStoreId(Long storeId) {
-
-		return jpaOrderRepository.countByStoreId(storeId);
+		return orderRepository.countByCustomerId(customerId);
 
 	}
 
@@ -258,9 +247,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public long countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate) {
+	public Mono<Long> countByStoreId(UUID storeId) {
 
-		return jpaOrderRepository.countByCreatedAtBetween(startDate, endDate);
+		return orderRepository.countByStoreId(storeId);
 
 	}
 
@@ -268,12 +257,20 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public long sumTotalAmountByCustomerIdAndCreatedAtBetween(
-			Long customerId,
-			LocalDateTime startDate,
+	public Mono<Long> countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate) {
+
+		return orderRepository.countByCreatedAtBetween(startDate, endDate);
+
+	}
+
+
+
+	@Override
+
+	public Mono<Long> sumTotalAmountByCustomerIdAndCreatedAtBetween(Long customerId, LocalDateTime startDate,
 			LocalDateTime endDate) {
 
-		return jpaOrderRepository.sumTotalAmountByCustomerIdAndCreatedAtBetween(customerId, startDate, endDate);
+		return orderRepository.sumTotalAmountByCustomerIdAndCreatedAtBetween(customerId, startDate, endDate);
 
 	}
 
@@ -281,15 +278,13 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	// ========================= 중복 방지 메서드 =========================
 
-	// 향후 Order 엔티티에 idempotencyKey 필드 추가 시 구현
-
 
 
 	@Override
 
-	public Optional<Order> findByIdempotencyKey(String idempotencyKey) {
+	public Mono<Order> findByIdempotencyKey(String idempotencyKey) {
 
-		return jpaOrderRepository.findByIdempotencyKey(idempotencyKey);
+		return orderRepository.findByIdempotencyKey(idempotencyKey);
 
 	}
 
@@ -297,18 +292,19 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 
-	public boolean existsByIdempotencyKey(String idempotencyKey) {
+	public Mono<Boolean> existsByIdempotencyKey(String idempotencyKey) {
 
-		return jpaOrderRepository.existsByIdempotencyKey(idempotencyKey);
+		return orderRepository.existsByIdempotencyKey(idempotencyKey);
 
 	}
 
+
 	@Override
-	public void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history) {
+	public Mono<Void> saveStatusHistory(OrderStatusHistory history) {
 		if (history == null) {
-			return;
+			return Mono.empty();
 		}
-		jpaOrderStatusHistoryRepository.save(history);
+		return orderStatusHistoryRepository.save(history).then();
 	}
 
 }

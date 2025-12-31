@@ -2,10 +2,14 @@ package com.popcorn.demo.application.order.usecase;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.application.order.event.OrderCreatedEvent;
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
@@ -83,136 +87,87 @@ public class CreateOrderUseCase {
 
 	@Transactional
 
-	public CreateOrderResponse createOrder(CreateOrderCommand command) {
+	public Mono<CreateOrderResponse> createOrder(CreateOrderCommand command) {
 
 		log.info("🎯 주문 생성 시작 - 사용자: {}, 멱등성키: {}", command.getUserId(), command.getIdempotencyKey());
 
-
-
-		// 1. 멱등성 검증 (중복 주문 방지)
-
 		String idempotencyKey = normalizeIdempotencyKey(command.getIdempotencyKey());
 
-		if (idempotencyKey != null) {
+		Mono<Void> idempotencyCheck = checkIdempotency(command.getIdempotencyKey(), idempotencyKey);
 
-			if (idempotencyCache.isDuplicate(idempotencyKey)) {
+		Mono<List<OrderItem>> orderItemsMono = convertToOrderItems(command.getItems()).collectList();
 
-				log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", idempotencyKey);
+		return idempotencyCheck
+				.then(orderItemsMono)
+				.flatMap(orderItems -> {
+					OrderType orderType = OrderType.valueOf(command.getOrderType());
+					int totalQty = calculateTotalQuantity(orderItems);
 
-				throw OrderException.duplicateIdempotencyKey();
+					return processOrderPort.validateOrder(command.getUserId(), command.getProductId(), totalQty)
+							.flatMap(result -> {
+								if (!result) {
+									return Mono.error(OrderException.invalidRequest());
+								}
+								orderDomainService.validateOrderCreation(
+										command.getUserId(),
+										command.getStoreId(),
+										command.getProductId(),
+										orderItems
+								);
 
-			}
+								Order order = orderDomainService.createOrder(
+										command.getUserId(),
+										command.getStoreId(),
+										command.getProductId(),
+										orderType,
+										orderItems,
+										command.getIdempotencyKey()
+								);
 
-			Optional<Order> existingOrder = findOrderPort.findByIdempotencyKey(command.getIdempotencyKey());
+								return saveOrderPort.save(order)
+										.flatMap(savedOrder -> {
+											if (idempotencyKey != null) {
+												idempotencyCache.mark(idempotencyKey);
+											}
 
-			if (orderDomainService.isDuplicateOrder(existingOrder, command.getIdempotencyKey())) {
+											List<OrderItem> itemsWithOrderId = savedOrder.getOrderItems().stream()
+													.map(item -> {
+														item.setOrderId(savedOrder.getId());
+														return item;
+													})
+													.toList();
 
-				log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", command.getIdempotencyKey());
+											return saveOrderPort.saveOrderItems(itemsWithOrderId)
+													.then(Mono.fromRunnable(() -> eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder))))
+													.thenReturn(CreateOrderResponse.fromOrder(savedOrder));
+										})
+										.doOnSuccess(response ->
+												log.info("✅ 주문 생성 완료 - 주문번호: {}, 사용자: {}", response.getOrderNo(), command.getUserId()));
+							});
+				});
 
-				idempotencyCache.mark(idempotencyKey);
+	}
 
-				throw OrderException.duplicateIdempotencyKey();
 
-			}
 
+	private Mono<Void> checkIdempotency(String rawKey, String normalizedKey) {
+		if (normalizedKey == null) {
+			return Mono.empty();
 		}
-
-
-
-		// 2. Command → Domain 객체 변환
-
-		List<OrderItem> orderItems = convertToOrderItems(command.getItems());
-
-		OrderType orderType = OrderType.valueOf(command.getOrderType());
-
-
-
-		// 3. 검증 병렬 실행 (재고/유저/상품)
-
-		int totalQty = calculateTotalQuantity(orderItems);
-
-		try {
-
-			boolean validationResult = processOrderPort.validateOrder(
-
-					command.getUserId(),
-
-					command.getProductId(),
-
-					totalQty
-
-			).join();
-
-			if (!validationResult) {
-
-				throw OrderException.invalidRequest();
-
-			}
-
-		} catch (RuntimeException ex) {
-
-			log.error("❌ 검증 실패 - 사용자: {}, 상품: {}", command.getUserId(), command.getProductId());
-
-			throw ex;
-
+		if (idempotencyCache.isDuplicate(normalizedKey)) {
+			log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", normalizedKey);
+			return Mono.error(OrderException.duplicateIdempotencyKey());
 		}
-
-
-
-		// 4. 도메인 서비스를 통한 주문 생성 (비즈니스 로직)
-
-		Order order = orderDomainService.createOrder(
-
-				command.getUserId(),
-
-				command.getStoreId(),
-
-				command.getProductId(),
-
-				orderType,
-
-				orderItems,
-
-				command.getIdempotencyKey()
-
-		);
-
-
-
-		// 5. 주문 저장 (Infrastructure Layer)
-
-		Order savedOrder = saveOrderPort.save(order);
-
-		saveOrderPort.saveOrderItems(savedOrder.getOrderItems());
-
-		log.info("💾 주문 저장 완료 - 주문번호: {}, ID: {}", savedOrder.getOrderNo(), savedOrder.getId());
-
-
-
-		if (idempotencyKey != null) {
-
-			idempotencyCache.mark(idempotencyKey);
-
-		}
-
-
-
-		// 6. 주문 생성 이벤트 발행 (AFTER_COMMIT 비동기 후처리)
-
-		eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder));
-
-
-
-		// 7. 응답 객체 생성
-
-		CreateOrderResponse response = CreateOrderResponse.fromOrder(savedOrder);
-
-		log.info("✅ 주문 생성 완료 - 주문번호: {}, 사용자: {}", response.getOrderNo(), command.getUserId());
-
-
-
-		return response;
-
+		return findOrderPort.findByIdempotencyKey(rawKey)
+				.flatMap(existingOrder -> {
+					if (orderDomainService.isDuplicateOrder(Optional.of(existingOrder), rawKey)) {
+						log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", rawKey);
+						idempotencyCache.mark(normalizedKey);
+						return Mono.<Void>error(OrderException.duplicateIdempotencyKey());
+					}
+					return Mono.<Void>empty();
+				})
+				.then();
 	}
 
 
@@ -223,13 +178,10 @@ public class CreateOrderUseCase {
 
 		*/
 
-	private List<OrderItem> convertToOrderItems(List<CreateOrderCommand.OrderItemCommand> itemCommands) {
+	private Flux<OrderItem> convertToOrderItems(List<CreateOrderCommand.OrderItemCommand> itemCommands) {
 
-		return itemCommands.stream()
-
-				.map(this::convertToOrderItem)
-
-				.toList();
+		return Flux.fromIterable(itemCommands)
+				.flatMap(this::convertToOrderItem);
 
 	}
 
@@ -241,49 +193,43 @@ public class CreateOrderUseCase {
 
 		*/
 
-	private OrderItem convertToOrderItem(CreateOrderCommand.OrderItemCommand itemCommand) {
-		Integer unitPrice = resolveUnitPrice(itemCommand);
-		Integer lineAmount = unitPrice * itemCommand.getQty();
-
-		return OrderItem.builder()
-
-				.orderItemType(itemCommand.getOrderItemType())
-
-				.qty(itemCommand.getQty())
-
-				.unitPrice(unitPrice)
-
-				.lineAmount(lineAmount)
-
-				.sessionOptionId(itemCommand.getOptionId())
-
-				.merchVariantId(itemCommand.getMerchVariantId())
-
-				.build();
+	private Mono<OrderItem> convertToOrderItem(CreateOrderCommand.OrderItemCommand itemCommand) {
+		return resolveUnitPrice(itemCommand)
+				.map(unitPrice -> {
+					Integer lineAmount = unitPrice * itemCommand.getQty();
+					return OrderItem.builder()
+							.orderItemType(itemCommand.getOrderItemType())
+							.qty(itemCommand.getQty())
+							.unitPrice(unitPrice)
+							.lineAmount(lineAmount)
+							.sessionOptionId(itemCommand.getOptionId())
+							.merchVariantId(itemCommand.getMerchVariantId())
+							.build();
+				});
 
 	}
 
 
 
-	private Integer resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
+	private Mono<Integer> resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
 		OrderItemType orderItemType = itemCommand.getOrderItemType();
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
-			Long optionId = itemCommand.getOptionId();
-			if (optionId == null || optionId <= 0) {
-				throw OrderException.optionNotFound();
+			UUID optionId = itemCommand.getOptionId();
+			if (optionId == null) {
+				return Mono.error(OrderException.optionNotFound());
 			}
 			return findOrderItemPricePort.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderException::optionNotFound);
+					.switchIfEmpty(Mono.error(OrderException.optionNotFound()));
 		}
 		if (OrderItemType.MERCH.equals(orderItemType)) {
-			Long merchVariantId = itemCommand.getMerchVariantId();
-			if (merchVariantId == null || merchVariantId <= 0) {
-				throw OrderException.merchVariantNotFound();
+			UUID merchVariantId = itemCommand.getMerchVariantId();
+			if (merchVariantId == null) {
+				return Mono.error(OrderException.merchVariantNotFound());
 			}
 			return findOrderItemPricePort.findMerchVariantPrice(merchVariantId)
-					.orElseThrow(OrderException::merchVariantNotFound);
+					.switchIfEmpty(Mono.error(OrderException.merchVariantNotFound()));
 		}
-		throw OrderException.invalidRequest();
+		return Mono.error(OrderException.invalidRequest());
 	}
 
 

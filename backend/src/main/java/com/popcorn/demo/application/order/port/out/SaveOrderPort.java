@@ -2,8 +2,11 @@ package com.popcorn.demo.application.order.port.out;
 
 import java.util.List;
 
+import reactor.core.publisher.Mono;
+
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
+import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 
 /**
 
@@ -37,7 +40,7 @@ public interface SaveOrderPort {
 
 		*/
 
-	Order save(Order order);
+	Mono<Order> save(Order order);
 
 
 
@@ -47,7 +50,7 @@ public interface SaveOrderPort {
 		* @param orderItems 저장할 주문 항목들
 		*/
 
-	void saveOrderItems(List<OrderItem> orderItems);
+	Mono<Void> saveOrderItems(List<OrderItem> orderItems);
 
 	/**
 		* 주문 상태 변경 이력을 저장합니다.
@@ -55,6 +58,6 @@ public interface SaveOrderPort {
 		* @param history 저장할 상태 변경 이력
 		*/
 
-	void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history);
+	Mono<Void> saveStatusHistory(OrderStatusHistory history);
 
 }

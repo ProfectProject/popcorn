@@ -1,6 +1,7 @@
 package com.popcorn.demo.application.order.event;
 
-import org.springframework.scheduling.annotation.Async;
+import java.util.UUID;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -28,15 +29,13 @@ public class OrderPostProcessingListener {
 
 
 
-	@Async("orderTaskExecutor")
-
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 
 	public void handle(OrderCreatedEvent event) {
 
 		Order order = event.order();
 
-		Long orderId = order.getId();
+		UUID orderId = order.getId();
 
 
 
@@ -45,20 +44,11 @@ public class OrderPostProcessingListener {
 
 
 		processOrderPort.processOrderPostActions(orderId)
-
-				.exceptionally(throwable -> {
-
-					log.error("❌ 주문 후처리 작업 실패 - 주문ID: {}, 에러: {}", orderId, throwable.getMessage());
-
-					return null;
-
-				});
-
-
-
-		notifyOrderPort.notifyOrderCreated(order);
-
-		log.info("📣 주문 생성 알림 전송 완료 - 주문ID: {}", orderId);
+				.doOnError(throwable ->
+						log.error("❌ 주문 후처리 작업 실패 - 주문ID: {}, 에러: {}", orderId, throwable.getMessage()))
+				.then(notifyOrderPort.notifyOrderCreated(order))
+				.doOnSuccess(ignored -> log.info("📣 주문 생성 알림 전송 완료 - 주문ID: {}", orderId))
+				.subscribe();
 
 	}
 

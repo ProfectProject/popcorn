@@ -1,6 +1,7 @@
 package com.popcorn.demo.application.order.port.in;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 
@@ -33,9 +34,9 @@ public class CreateOrderCommand {
 
 	private final Long userId;
 
-	private final Long storeId;
+	private final UUID storeId;
 
-	private final Long productId;
+	private final UUID productId;
 
 	private final String orderType;
 
@@ -59,11 +60,11 @@ public class CreateOrderCommand {
 
 		private final OrderItemType orderItemType;
 
-		private final Long sessionId;
+		private final UUID sessionId;
 
-		private final Long optionId;
+		private final UUID optionId;
 
-		private final Long merchVariantId;
+		private final UUID merchVariantId;
 
 		private final Integer qty;
 

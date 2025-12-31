@@ -1,6 +1,8 @@
 package com.popcorn.demo.application.order.port.out;
 
-import java.util.Optional;
+import java.util.UUID;
+
+import reactor.core.publisher.Mono;
 
 /**
 	* 주문 항목 단가 조회 포트
@@ -9,7 +11,7 @@ import java.util.Optional;
 	*/
 public interface FindOrderItemPricePort {
 
-	Optional<Integer> findSessionOptionPrice(Long sessionOptionId);
+	Mono<Integer> findSessionOptionPrice(UUID sessionOptionId);
 
-	Optional<Integer> findMerchVariantPrice(Long merchVariantId);
+	Mono<Integer> findMerchVariantPrice(UUID merchVariantId);
 }

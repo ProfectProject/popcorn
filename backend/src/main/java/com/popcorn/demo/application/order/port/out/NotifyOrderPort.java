@@ -1,5 +1,7 @@
 package com.popcorn.demo.application.order.port.out;
 
+import reactor.core.publisher.Mono;
+
 import com.popcorn.demo.domain.order.entity.Order;
 
 /**
@@ -32,7 +34,7 @@ public interface NotifyOrderPort {
 
 		*/
 
-	void notifyOrderCreated(Order order);
+	Mono<Void> notifyOrderCreated(Order order);
 
 
 
@@ -46,7 +48,7 @@ public interface NotifyOrderPort {
 
 		*/
 
-	void notifyOrderStatusChanged(Order order);
+	Mono<Void> notifyOrderStatusChanged(Order order);
 
 
 
@@ -60,7 +62,6 @@ public interface NotifyOrderPort {
 
 		*/
 
-	void notifyOrderCancelled(Order order);
+	Mono<Void> notifyOrderCancelled(Order order);
 
 }
-

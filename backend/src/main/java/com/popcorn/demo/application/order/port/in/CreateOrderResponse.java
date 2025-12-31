@@ -2,6 +2,7 @@ package com.popcorn.demo.application.order.port.in;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
@@ -33,7 +34,7 @@ public class CreateOrderResponse {
 
 
 
-	private final Long orderId;
+	private final UUID orderId;
 
 	private final String orderNo;
 
@@ -41,9 +42,9 @@ public class CreateOrderResponse {
 
 	private final String status;
 
-	private final Long storeId;
+	private final UUID storeId;
 
-	private final Long productId;
+	private final UUID productId;
 
 	private final Integer totalAmount;
 
@@ -67,7 +68,7 @@ public class CreateOrderResponse {
 
 	public static class OrderItemResponse {
 
-		private final Long itemId;
+		private final UUID itemId;
 
 		private final String orderItemType;
 
@@ -150,4 +151,3 @@ public class CreateOrderResponse {
 	}
 
 }
-

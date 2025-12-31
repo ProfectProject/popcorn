@@ -1,6 +1,8 @@
 package com.popcorn.demo.application.order.port.out;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
+
+import reactor.core.publisher.Mono;
 
 /**
 
@@ -30,11 +32,11 @@ public interface ProcessOrderPort {
 
 		* @param orderId 주문 ID
 
-		* @return 작업 완료 Future
+		* @return 작업 완료 Mono
 
 		*/
 
-	CompletableFuture<Void> processOrderPostActions(Long orderId);
+	Mono<Void> processOrderPostActions(UUID orderId);
 
 
 
@@ -50,11 +52,11 @@ public interface ProcessOrderPort {
 
 		* @param quantity 수량
 
-		* @return 검증 결과 Future
+		* @return 검증 결과 Mono
 
 		*/
 
-	CompletableFuture<Boolean> validateOrder(Long userId, Long productId, Integer quantity);
+	Mono<Boolean> validateOrder(Long userId, UUID productId, Integer quantity);
 
 
 
@@ -66,11 +68,11 @@ public interface ProcessOrderPort {
 
 		* @param orderId 주문 ID
 
-		* @return 차감 결과 Future
+		* @return 차감 결과 Mono
 
 		*/
 
-	CompletableFuture<Boolean> deductStock(Long orderId);
+	Mono<Boolean> deductStock(UUID orderId);
 
 
 
@@ -84,11 +86,10 @@ public interface ProcessOrderPort {
 
 		* @param paymentInfo 결제 정보
 
-		* @return 결제 결과 Future
+		* @return 결제 결과 Mono
 
 		*/
 
-	CompletableFuture<Boolean> processPayment(Long orderId, String paymentInfo);
+	Mono<Boolean> processPayment(UUID orderId, String paymentInfo);
 
 }
-
