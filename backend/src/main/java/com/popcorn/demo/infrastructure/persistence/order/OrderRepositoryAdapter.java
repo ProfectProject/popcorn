@@ -96,4 +96,9 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	}
 
+	@Override
+	public void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history) {
+		orderRepository.saveStatusHistory(history);
+	}
+
 }

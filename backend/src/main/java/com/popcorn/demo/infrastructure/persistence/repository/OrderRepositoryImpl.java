@@ -34,6 +34,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	private final JpaOrderItemRepository jpaOrderItemRepository;
 	private final JpaOrderRepository jpaOrderRepository;
+	private final JpaOrderStatusHistoryRepository jpaOrderStatusHistoryRepository;
 
 
 
@@ -49,10 +50,12 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public OrderRepositoryImpl(
 			JpaOrderItemRepository jpaOrderItemRepository,
-			JpaOrderRepository jpaOrderRepository) {
+			JpaOrderRepository jpaOrderRepository,
+			JpaOrderStatusHistoryRepository jpaOrderStatusHistoryRepository) {
 
 		this.jpaOrderItemRepository = jpaOrderItemRepository;
 		this.jpaOrderRepository = jpaOrderRepository;
+		this.jpaOrderStatusHistoryRepository = jpaOrderStatusHistoryRepository;
 
 	}
 
@@ -298,6 +301,14 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 		return jpaOrderRepository.existsByIdempotencyKey(idempotencyKey);
 
+	}
+
+	@Override
+	public void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history) {
+		if (history == null) {
+			return;
+		}
+		jpaOrderStatusHistoryRepository.save(history);
 	}
 
 }

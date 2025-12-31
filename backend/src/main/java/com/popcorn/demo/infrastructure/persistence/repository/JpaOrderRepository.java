@@ -220,11 +220,7 @@ public interface JpaOrderRepository extends JpaRepository<Order, Long> {
 
 		* 멱등성 키로 주문 조회
 
-		* 향후 idempotencyKey 필드 추가 시 활성화
-
 		*/
-
-	// Optional<Order> findByIdempotencyKey(String idempotencyKey);
 
 	Optional<Order> findByIdempotencyKey(String idempotencyKey);
 
@@ -234,11 +230,7 @@ public interface JpaOrderRepository extends JpaRepository<Order, Long> {
 
 		* 멱등성 키 존재 여부 확인
 
-		* 향후 idempotencyKey 필드 추가 시 활성화
-
 		*/
-
-	// boolean existsByIdempotencyKey(String idempotencyKey);
 
 	boolean existsByIdempotencyKey(String idempotencyKey);
 

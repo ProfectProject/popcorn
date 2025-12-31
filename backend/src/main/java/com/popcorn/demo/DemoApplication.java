@@ -1,6 +1,6 @@
 package com.popcorn.demo;
 
-import com.popcorn.demo.order.OrderApplication;
+import com.popcorn.demo.application.order.OrderApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
