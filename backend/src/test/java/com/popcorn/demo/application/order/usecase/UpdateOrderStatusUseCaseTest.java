@@ -1,6 +1,7 @@
 package com.popcorn.demo.application.order.usecase;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -142,5 +143,66 @@ class UpdateOrderStatusUseCaseTest {
 				})
 				.verify();
 		log.info("✅ 주문 상태 변경 유스케이스 상태값 오류 테스트 완료");
+	}
+
+	@Test
+	void updateStatus_ownerAcceptedToConfirmed_success() {
+		log.info("🧪 주문 상태 변경 유스케이스 OWNER_ACCEPTED -> CONFIRMED 테스트 시작");
+		UUID orderId = UUID.randomUUID();
+		Order order = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.OWNER_ACCEPTED)
+				.build();
+
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
+		when(saveOrderPort.save(order)).thenReturn(Mono.just(order));
+		when(saveOrderPort.saveStatusHistory(org.mockito.ArgumentMatchers.any())).thenReturn(Mono.empty());
+
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "CONFIRMED", "confirmed"))
+				.assertNext(result -> assertThat(result.getStatus()).isEqualTo(OrderStatus.CONFIRMED))
+				.verifyComplete();
+		log.info("✅ 주문 상태 변경 유스케이스 OWNER_ACCEPTED -> CONFIRMED 테스트 완료");
+	}
+
+	@Test
+	void updateStatus_confirmedToPreparing_success() {
+		log.info("🧪 주문 상태 변경 유스케이스 CONFIRMED -> PREPARING 테스트 시작");
+		UUID orderId = UUID.randomUUID();
+		Order order = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.CONFIRMED)
+				.build();
+
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
+		when(saveOrderPort.save(order)).thenReturn(Mono.just(order));
+		when(saveOrderPort.saveStatusHistory(org.mockito.ArgumentMatchers.any())).thenReturn(Mono.empty());
+
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "PREPARING", "preparing"))
+				.assertNext(result -> assertThat(result.getStatus()).isEqualTo(OrderStatus.PREPARING))
+				.verifyComplete();
+		log.info("✅ 주문 상태 변경 유스케이스 CONFIRMED -> PREPARING 테스트 완료");
+	}
+
+	@Test
+	void updateStatus_invalidTransition_logsDetailedError() {
+		log.info("🧪 주문 상태 변경 유스케이스 전이 오류 로그 테스트 시작");
+		UUID orderId = UUID.randomUUID();
+		Order order = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.REQUESTED)
+				.build();
+
+		when(findOrderPort.findById(orderId)).thenReturn(Mono.just(order));
+
+		StepVerifier.create(updateOrderStatusUseCase.updateStatus(orderId, "READY", "invalid"))
+				.expectErrorSatisfies(ex -> {
+					assertThat(ex).isInstanceOf(OrderException.class);
+					assertThat(((OrderException) ex).getResponseCode()).isEqualTo(ResponseCode.INVALID_STATUS_TRANSITION);
+				})
+				.verify();
+
+		verify(saveOrderPort, never()).save(order);
+		verify(saveOrderPort, never()).saveStatusHistory(org.mockito.ArgumentMatchers.any());
+		log.info("✅ 주문 상태 변경 유스케이스 전이 오류 로그 테스트 완료");
 	}
 }

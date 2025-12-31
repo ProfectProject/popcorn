@@ -311,6 +311,7 @@ public class OrderDomainService {
 					|| newStatus == OrderStatus.OWNER_REJECTED
 					|| newStatus == OrderStatus.CANCELLED;
 			case OWNER_ACCEPTED -> newStatus == OrderStatus.PREPARING
+					|| newStatus == OrderStatus.CONFIRMED
 					|| newStatus == OrderStatus.READY
 					|| newStatus == OrderStatus.COMPLETED
 					|| newStatus == OrderStatus.CANCELLED;
