@@ -243,6 +243,7 @@ public class CreateOrderUseCase {
 
 	private OrderItem convertToOrderItem(CreateOrderCommand.OrderItemCommand itemCommand) {
 		Integer unitPrice = resolveUnitPrice(itemCommand);
+		Integer lineAmount = unitPrice * itemCommand.getQty();
 
 		return OrderItem.builder()
 
@@ -251,6 +252,8 @@ public class CreateOrderUseCase {
 				.qty(itemCommand.getQty())
 
 				.unitPrice(unitPrice)
+
+				.lineAmount(lineAmount)
 
 				.sessionOptionId(itemCommand.getOptionId())
 

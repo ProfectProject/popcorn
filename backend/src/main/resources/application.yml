@@ -121,7 +121,7 @@ spring:
 
   # PostgreSQL 설정 (CI 서비스 사용)
   datasource:
-    url: jdbc:postgresql://localhost:5432/testdb
+    url: jdbc:postgresql://localhost:5432/popcorn_db
     username: testuser
     password: testpass
     driver-class-name: org.postgresql.Driver
