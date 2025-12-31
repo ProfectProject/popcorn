@@ -14,6 +14,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -59,5 +60,14 @@ public class MerchController extends BaseController {
             @Valid @RequestBody MerchStatusUpdateRequest request
     ) {
         return ok(merchService.updateStatus(productId, merchId, request));
+    }
+
+    @DeleteMapping("/{merchId}")
+    public ResponseEntity<BaseResponse<Void>> delete(
+            @PathVariable UUID productId,
+            @PathVariable UUID merchId
+    ) {
+        merchService.delete(productId, merchId);
+        return ok(null);
     }
 }

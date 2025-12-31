@@ -71,6 +71,12 @@ public class MerchService {
         return new MerchStatusResponse(merch.getId(), merch.isHidden());
     }
 
+    @Transactional
+    public void delete(UUID productId, UUID merchId) {
+        MerchVariant merch = getMerch(productId, merchId);
+        merch.softDelete();
+    }
+
     private MerchVariant getMerch(UUID productId, UUID merchId) {
         return merchVariantRepository
                 .findByIdAndProductIdAndDeletedAtIsNull(merchId, productId)
