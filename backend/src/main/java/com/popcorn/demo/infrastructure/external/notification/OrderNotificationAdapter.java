@@ -2,6 +2,8 @@ package com.popcorn.demo.infrastructure.external.notification;
 
 import org.springframework.stereotype.Component;
 
+import reactor.core.publisher.Mono;
+
 import com.popcorn.demo.application.order.port.out.NotifyOrderPort;
 import com.popcorn.demo.domain.order.entity.Order;
 
@@ -33,15 +35,13 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 
 	@Override
 
-	public void notifyOrderCreated(Order order) {
+	public Mono<Void> notifyOrderCreated(Order order) {
 
-		log.info("📢 주문 생성 알림 - 주문번호: {}, 고객: {}, 금액: {}원",
-
-				order.getOrderNo(),
-
-				order.getCustomerId(),
-
-				order.getTotalAmount());
+		return Mono.fromRunnable(() ->
+				log.info("📢 주문 생성 알림 - 주문번호: {}, 고객: {}, 금액: {}원",
+						order.getOrderNo(),
+						order.getCustomerId(),
+						order.getTotalAmount()));
 
 	}
 
@@ -49,45 +49,29 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 
 	@Override
 
-	public void notifyOrderStatusChanged(Order order) {
+	public Mono<Void> notifyOrderStatusChanged(Order order) {
 
-		log.info("📢 주문 상태 변경 알림 - 주문번호: {}, 상태: {}, 고객: {}",
+		return Mono.fromRunnable(() -> {
+			log.info("📢 주문 상태 변경 알림 - 주문번호: {}, 상태: {}, 고객: {}",
+					order.getOrderNo(),
+					order.getStatus(),
+					order.getCustomerId());
 
-				order.getOrderNo(),
-
-				order.getStatus(),
-
-				order.getCustomerId());
-
-
-
-		// 예시: 상태별 차별화된 알림
-
-		switch (order.getStatus()) {
-
-			case COMPLETED:
-
-				notifyOrderCompleted(order);
-
-				break;
-
-			case CANCELLED:
-
-				notifyOrderCancelled(order);
-
-				break;
-
-			case REFUNDED:
-
-				notifyOrderRefunded(order);
-
-				break;
-
-			default:
-
-				break;
-
-		}
+			// 예시: 상태별 차별화된 알림
+			switch (order.getStatus()) {
+				case COMPLETED:
+					notifyOrderCompleted(order);
+					break;
+				case CANCELLED:
+					notifyOrderCancelled(order);
+					break;
+				case REFUNDED:
+					notifyOrderRefunded(order);
+					break;
+				default:
+					break;
+			}
+		});
 
 	}
 
@@ -95,15 +79,13 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 
 	@Override
 
-	public void notifyOrderCancelled(Order order) {
+	public Mono<Void> notifyOrderCancelled(Order order) {
 
-		log.info("📢 주문 취소 알림 - 주문번호: {}, 고객: {}, 취소시간: {}",
-
-				order.getOrderNo(),
-
-				order.getCustomerId(),
-
-				order.getUpdatedAt());
+		return Mono.fromRunnable(() ->
+				log.info("📢 주문 취소 알림 - 주문번호: {}, 고객: {}, 취소시간: {}",
+						order.getOrderNo(),
+						order.getCustomerId(),
+						order.getUpdatedAt()));
 
 	}
 
@@ -144,4 +126,3 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 	}
 
 }
-

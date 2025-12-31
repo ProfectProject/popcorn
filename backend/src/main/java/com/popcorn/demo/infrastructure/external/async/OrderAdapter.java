@@ -1,8 +1,10 @@
 package com.popcorn.demo.infrastructure.external.async;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 
 import org.springframework.stereotype.Component;
+
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.application.order.port.out.ProcessOrderPort;
 import com.popcorn.demo.domain.order.service.OrderService;
@@ -49,14 +51,10 @@ public class OrderAdapter implements ProcessOrderPort {
 
 	@Override
 
-	public CompletableFuture<Void> processOrderPostActions(Long orderId) {
-
-		if (orderId == null || orderId <= 0) {
-
-			throw new IllegalArgumentException("Order ID must be positive");
-
+	public Mono<Void> processOrderPostActions(UUID orderId) {
+		if (orderId == null) {
+			return Mono.error(new IllegalArgumentException("Order ID cannot be null"));
 		}
-
 		return orderService.processOrderPostActions(orderId);
 
 	}
@@ -65,7 +63,7 @@ public class OrderAdapter implements ProcessOrderPort {
 
 	@Override
 
-	public CompletableFuture<Boolean> validateOrder(Long userId, Long productId, Integer quantity) {
+	public Mono<Boolean> validateOrder(Long userId, UUID productId, Integer quantity) {
 
 		return orderService.validateOrderAsync(userId, productId, quantity);
 
@@ -75,27 +73,11 @@ public class OrderAdapter implements ProcessOrderPort {
 
 	@Override
 
-	public CompletableFuture<Boolean> deductStock(Long orderId) {
-
-		// 재고 차감 로직을 OrderService를 통해 실행
+	public Mono<Boolean> deductStock(UUID orderId) {
 
 		return orderService.processOrderPostActions(orderId)
-
-				.thenApply(result -> {
-
-					// 후처리 작업이 성공했다면 재고 차감도 성공한 것으로 간주
-
-					return true;
-
-				})
-
-				.exceptionally(throwable -> {
-
-					// 실패 시 false 반환
-
-					return false;
-
-				});
+				.thenReturn(true)
+				.onErrorReturn(false);
 
 	}
 
@@ -103,19 +85,12 @@ public class OrderAdapter implements ProcessOrderPort {
 
 	@Override
 
-	public CompletableFuture<Boolean> processPayment(Long orderId, String paymentInfo) {
-
-		// 결제 처리는 향후 구현 예정
-
-		// 현재는 기본 후처리 작업을 통해 처리
+	public Mono<Boolean> processPayment(UUID orderId, String paymentInfo) {
 
 		return orderService.processOrderPostActions(orderId)
-
-				.thenApply(result -> true)
-
-				.exceptionally(throwable -> false);
+				.thenReturn(true)
+				.onErrorReturn(false);
 
 	}
 
 }
-

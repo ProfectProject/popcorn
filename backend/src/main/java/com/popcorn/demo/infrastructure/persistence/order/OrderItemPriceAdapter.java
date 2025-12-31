@@ -1,13 +1,14 @@
 package com.popcorn.demo.infrastructure.persistence.order;
 
-import java.util.Optional;
+import java.util.UUID;
 
+import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Component;
+
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.application.order.port.out.FindOrderItemPricePort;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.NoResultException;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -19,12 +20,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrderItemPriceAdapter implements FindOrderItemPricePort {
 
-	private final EntityManager entityManager;
+	private final DatabaseClient databaseClient;
 
 	@Override
-	public Optional<Integer> findSessionOptionPrice(Long sessionOptionId) {
-		if (sessionOptionId == null || sessionOptionId <= 0) {
-			return Optional.empty();
+	public Mono<Integer> findSessionOptionPrice(UUID sessionOptionId) {
+		if (sessionOptionId == null) {
+			return Mono.empty();
 		}
 		return findPrice(
 				"SELECT price FROM p_session_options WHERE id = :id AND deleted_at IS NULL",
@@ -33,9 +34,9 @@ public class OrderItemPriceAdapter implements FindOrderItemPricePort {
 	}
 
 	@Override
-	public Optional<Integer> findMerchVariantPrice(Long merchVariantId) {
-		if (merchVariantId == null || merchVariantId <= 0) {
-			return Optional.empty();
+	public Mono<Integer> findMerchVariantPrice(UUID merchVariantId) {
+		if (merchVariantId == null) {
+			return Mono.empty();
 		}
 		return findPrice(
 				"SELECT price FROM p_merch_variants WHERE id = :id AND deleted_at IS NULL",
@@ -43,17 +44,13 @@ public class OrderItemPriceAdapter implements FindOrderItemPricePort {
 		);
 	}
 
-	private Optional<Integer> findPrice(String sql, Long id) {
-		try {
-			Object result = entityManager.createNativeQuery(sql)
-					.setParameter("id", id)
-					.getSingleResult();
-			if (result instanceof Number number) {
-				return Optional.of(number.intValue());
-			}
-			return Optional.empty();
-		} catch (NoResultException ex) {
-			return Optional.empty();
-		}
+	private Mono<Integer> findPrice(String sql, UUID id) {
+		return databaseClient.sql(sql)
+				.bind("id", id)
+				.map((row, metadata) -> {
+					Number value = row.get("price", Number.class);
+					return value == null ? null : value.intValue();
+				})
+				.one();
 	}
 }

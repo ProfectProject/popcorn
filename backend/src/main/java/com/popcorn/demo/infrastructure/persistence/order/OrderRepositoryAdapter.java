@@ -1,14 +1,17 @@
 package com.popcorn.demo.infrastructure.persistence.order;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Component;
+
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
 import com.popcorn.demo.application.order.port.out.SaveOrderPort;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
+import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.OrderSummaryView;
 
@@ -44,11 +47,11 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	@Override
 
-	public Optional<Order> findByIdempotencyKey(String idempotencyKey) {
+	public Mono<Order> findByIdempotencyKey(String idempotencyKey) {
 
 		if (idempotencyKey == null || idempotencyKey.trim().isEmpty()) {
 
-			return Optional.empty();
+			return Mono.empty();
 
 		}
 
@@ -60,7 +63,7 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	@Override
 
-	public Optional<Order> findById(Long orderId) {
+	public Mono<Order> findById(UUID orderId) {
 
 		return orderRepository.findById(orderId);
 
@@ -70,7 +73,7 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	@Override
 
-	public Optional<OrderSummaryView> findSummaryById(Long orderId) {
+	public Mono<OrderSummaryView> findSummaryById(UUID orderId) {
 
 		return orderRepository.findSummaryById(orderId);
 
@@ -80,7 +83,7 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	@Override
 
-	public Order save(Order order) {
+	public Mono<Order> save(Order order) {
 
 		return orderRepository.save(order);
 
@@ -90,15 +93,15 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 	@Override
 
-	public void saveOrderItems(List<OrderItem> orderItems) {
+	public Mono<Void> saveOrderItems(List<OrderItem> orderItems) {
 
-		orderRepository.saveOrderItems(orderItems);
+		return orderRepository.saveOrderItems(orderItems);
 
 	}
 
 	@Override
-	public void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history) {
-		orderRepository.saveStatusHistory(history);
+	public Mono<Void> saveStatusHistory(OrderStatusHistory history) {
+		return orderRepository.saveStatusHistory(history);
 	}
 
 }
