@@ -4,7 +4,7 @@ CREATE TABLE p_users (
     password VARCHAR(255) NOT NULL,
     phone VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL,
-    role user_role VARCHAR(50) NOT NULL,
+    role user_role NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by BIGINT,
