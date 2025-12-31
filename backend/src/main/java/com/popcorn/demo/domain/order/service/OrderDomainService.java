@@ -175,14 +175,10 @@ public class OrderDomainService {
 
 		LocalDateTime now = LocalDateTime.now();
 
-		switch (orderType) {
-			case RESERVATION:
-				return now.plusDays(1); // 예약형: 1일 후까지 취소 가능
-			case PURCHASE:
-				return now.plusHours(1); // 구매형: 1시간 후까지 취소 가능
-			default:
-				throw OrderException.invalidRequest();
-		}
+		return switch (orderType) {
+			case RESERVATION -> now.plusDays(1); // 예약형: 1일 후까지 취소 가능
+			case PURCHASE -> now.plusHours(1); // 구매형: 1시간 후까지 취소 가능
+		};
 
 	}
 
@@ -307,22 +303,13 @@ public class OrderDomainService {
 
 	public boolean canChangeStatus(OrderStatus currentStatus, OrderStatus newStatus) {
 
-		switch (currentStatus) {
-			case REQUESTED:
-				return newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED;
-			case CONFIRMED:
-				return newStatus == OrderStatus.PREPARING || newStatus == OrderStatus.CANCELLED;
-			case PREPARING:
-				return newStatus == OrderStatus.READY || newStatus == OrderStatus.CANCELLED;
-			case READY:
-				return newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.CANCELLED;
-			case CANCELLED:
-			case REFUNDED:
-			case COMPLETED:
-				return false; // 최종 상태에서는 변경 불가
-			default:
-				return false;
-		}
+		return switch (currentStatus) {
+			case REQUESTED -> newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED;
+			case CONFIRMED -> newStatus == OrderStatus.PREPARING || newStatus == OrderStatus.CANCELLED;
+			case PREPARING -> newStatus == OrderStatus.READY || newStatus == OrderStatus.CANCELLED;
+			case READY -> newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.CANCELLED;
+			case CANCELLED, REFUNDED, COMPLETED -> false; // 최종 상태에서는 변경 불가
+		};
 
 	}
 

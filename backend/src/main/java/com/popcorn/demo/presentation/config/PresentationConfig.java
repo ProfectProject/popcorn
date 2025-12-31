@@ -96,9 +96,7 @@ public class PresentationConfig implements WebMvcConfigurer {
 
 		for (HttpMessageConverter<?> converter : converters) {
 
-			if (converter instanceof MappingJackson2HttpMessageConverter) {
-				MappingJackson2HttpMessageConverter jacksonConverter =
-						(MappingJackson2HttpMessageConverter) converter;
+			if (converter instanceof MappingJackson2HttpMessageConverter jacksonConverter) {
 				jacksonConverter.setObjectMapper(objectMapper());
 				return;
 			}

@@ -34,7 +34,7 @@ public class OrderPostProcessingListener {
 
 	public void handle(OrderCreatedEvent event) {
 
-		Order order = event.getOrder();
+		Order order = event.order();
 
 		Long orderId = order.getId();
 
@@ -63,4 +63,3 @@ public class OrderPostProcessingListener {
 	}
 
 }
-

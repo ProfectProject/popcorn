@@ -17,9 +17,9 @@ public abstract class BaseController {
 
 	protected ResponseEntity<BaseResponse<Void>> error(ResponseCode responseCode) {
 
-		return ResponseEntity.badRequest().body(BaseResponse.error(responseCode));
+		return ResponseEntity.status(responseCode.getHttpStatus())
+				.body(BaseResponse.error(responseCode));
 
 	}
 
 }
-

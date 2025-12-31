@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 import com.popcorn.demo.domain.order.entity.Order;
@@ -50,7 +51,8 @@ public interface JpaOrderRepository extends JpaRepository<Order, Long> {
 
 
 	@EntityGraph(attributePaths = "orderItems")
-	Optional<Order> findById(Long orderId);
+	@NonNull
+	Optional<Order> findById(@NonNull Long orderId);
 
 
 

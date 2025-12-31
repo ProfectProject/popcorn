@@ -12,11 +12,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 
 @ComponentScan(basePackages = {
-
-	"com.popcorn.demo.application.usecase",
-
-	"com.popcorn.demo.application.service"
-
+	"com.popcorn.demo.application"
 })
 
 public class ApplicationConfig {
@@ -24,4 +20,3 @@ public class ApplicationConfig {
 	// Use Case와 Application Service Bean 스캔
 
 }
-

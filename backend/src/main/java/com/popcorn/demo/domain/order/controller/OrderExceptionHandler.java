@@ -1,6 +1,5 @@
 package com.popcorn.demo.domain.order.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,7 +47,7 @@ public class OrderExceptionHandler {
 
 		BaseResponse<Void> response = BaseResponse.error(ex.getResponseCode());
 
-		return ResponseEntity.badRequest().body(response);
+		return ResponseEntity.status(ex.getResponseCode().getHttpStatus()).body(response);
 
 	}
 
@@ -84,7 +83,7 @@ public class OrderExceptionHandler {
 
 		);
 
-		return ResponseEntity.badRequest().body(response);
+		return ResponseEntity.status(ResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
 
 	}
 
@@ -102,7 +101,7 @@ public class OrderExceptionHandler {
 
 		BaseResponse<Void> response = BaseResponse.error(ResponseCode.INTERNAL_ERROR);
 
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+		return ResponseEntity.status(ResponseCode.INTERNAL_ERROR.getHttpStatus()).body(response);
 
 	}
 

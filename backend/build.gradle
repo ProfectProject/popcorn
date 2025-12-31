@@ -57,6 +57,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'com.h2database:h2'
+	testImplementation 'org.junit.platform:junit-platform-suite'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -75,7 +76,7 @@ tasks.register('orderTest', Test) {
 }
 
 checkstyle {
-	toolVersion = '8.24'
+	toolVersion = '10.12.3'
 	configFile = file('config/checkstyle/naver-checkstyle-rules.xml')
 	configProperties = [
 		'suppressionFile': file('config/checkstyle/naver-checkstyle-suppressions.xml')
