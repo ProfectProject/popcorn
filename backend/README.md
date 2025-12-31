@@ -143,15 +143,6 @@ docker run --name popcorn-postgres \
 ./gradlew build
 ```
 
-### 2-1. Docker 빌드 및 실행
-```bash
-# 이미지 빌드
-docker build -t popcorn-backend .
-
-# 컨테이너 실행
-docker run --rm -p 8080:8080 popcorn-backend
-```
-
 ### 3. 애플리케이션 접속
 - **서버**: http://localhost:8080
 - **H2 Console** (개발용): http://localhost:8080/h2-console
@@ -193,3 +184,4 @@ docker run --rm -p 8080:8080 popcorn-backend
 - **Database**: 환경변수로 설정
 - **Profile**: `prod`
 - **DDL**: `validate`
+

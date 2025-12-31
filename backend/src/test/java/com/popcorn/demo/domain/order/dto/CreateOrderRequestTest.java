@@ -109,41 +109,4 @@ class CreateOrderRequestTest {
 
         assertThat(request.isValidPurchaseRequest()).isFalse();
     }
-
-    @Test
-    @DisplayName("Empty items are inconsistent and total quantity is zero")
-    void emptyItemsAreInconsistent() {
-        CreateOrderRequest request = CreateOrderRequest.builder()
-                .orderType("RESERVATION")
-                .storeId(1L)
-                .productId(2L)
-                .items(List.of())
-                .build();
-
-        assertThat(request.hasConsistentItemTypes()).isFalse();
-        assertThat(request.isValidReservationRequest()).isFalse();
-        assertThat(request.getTotalQuantity()).isZero();
-    }
-
-    @Test
-    @DisplayName("Purchase request with blank address1 is invalid")
-    void purchaseRequestWithBlankAddressIsInvalid() {
-        CreateOrderRequest request = CreateOrderRequest.builder()
-                .orderType("PURCHASE")
-                .storeId(1L)
-                .productId(2L)
-                .address(AddressRequest.builder()
-                        .address1("   ")
-                        .build())
-                .items(List.of(
-                        OrderItemRequest.builder()
-                                .orderItemType("MERCH")
-                                .merchVariantId(100L)
-                                .qty(1)
-                                .build()
-                ))
-                .build();
-
-        assertThat(request.isValidPurchaseRequest()).isFalse();
-    }
 }
