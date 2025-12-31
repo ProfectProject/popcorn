@@ -39,5 +39,3 @@ ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_qrcodes_deleted_by_fkey
 ALTER TABLE p_managers_store DROP CONSTRAINT IF EXISTS p_managers_created_by_fkey;
 ALTER TABLE p_managers_store DROP CONSTRAINT IF EXISTS p_managers_updated_by_fkey;
 ALTER TABLE p_managers_store DROP CONSTRAINT IF EXISTS p_managers_deleted_by_fkey;
-
-ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_order_qr_codes_created_by_fkey;
