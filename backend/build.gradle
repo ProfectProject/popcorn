@@ -88,3 +88,7 @@ checkstyle {
 		'suppressionFile': file('config/checkstyle/naver-checkstyle-suppressions.xml')
 	]
 }
+
+springBoot {
+	mainClass = 'com.popcorn.demo.DemoApplication'
+}
