@@ -4,34 +4,17 @@ import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.EntityListeners;
-import jakarta.persistence.MappedSuperclass;
+import org.springframework.data.relational.core.mapping.Column;
 import lombok.Getter;
 
 @Getter
-
-@MappedSuperclass
-
-@EntityListeners(AuditingEntityListener.class)
-
 public abstract class BaseEntity {
 
 	@CreatedDate
-
-	@Column(nullable = false, updatable = false)
-
+	@Column("created_at")
 	private LocalDateTime createdAt;
 
-
-
 	@LastModifiedDate
-
-	@Column(nullable = false)
-
+	@Column("updated_at")
 	private LocalDateTime updatedAt;
-
 }
-
