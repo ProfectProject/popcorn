@@ -28,7 +28,7 @@ public class UpdateOrderStatusUseCase {
 	private final FindOrderPort findOrderPort;
 	private final SaveOrderPort saveOrderPort;
 
-	@Transactional
+	@Transactional(transactionManager = "connectionFactoryTransactionManager")
 	public Mono<Order> updateStatus(UUID orderId, String status, String reason) {
 		log.info("🧾 주문 상태 변경 요청 - 주문ID: {}, 변경상태: {}, 사유: {}", orderId, status, reason);
 
@@ -48,6 +48,8 @@ public class UpdateOrderStatusUseCase {
 					}
 
 					if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
+						log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}, 요청상태: {}, 사유: {}",
+							orderId, currentStatus, newStatus, reason);
 						return Mono.error(OrderException.invalidStatusTransition());
 					}
 

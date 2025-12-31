@@ -71,8 +71,42 @@ public class OrderRepositoryImpl implements OrderRepository {
 	@Override
 
 	public Mono<Order> save(Order order) {
-
-		return orderRepository.save(order);
+		if (order == null) {
+			return Mono.empty();
+		}
+		if (order.getId() == null) {
+			return orderRepository.insertOrder(
+					order.getOrderNo(),
+					order.getCustomerId(),
+					order.getStoreId(),
+					order.getProductId(),
+					order.getOrderType().name(),
+					order.getStatus().name(),
+					order.getCancelableUntil(),
+					order.getTotalAmount(),
+					order.getIdempotencyKey(),
+					order.getVersion() == null ? 0L : order.getVersion()
+			).map(savedOrder -> {
+				savedOrder.setOrderItems(order.getOrderItems());
+				return savedOrder;
+			});
+		}
+		return orderRepository.updateOrder(
+				order.getId(),
+				order.getOrderNo(),
+				order.getCustomerId(),
+				order.getStoreId(),
+				order.getProductId(),
+				order.getOrderType().name(),
+				order.getStatus().name(),
+				order.getCancelableUntil(),
+				order.getTotalAmount(),
+				order.getIdempotencyKey(),
+				order.getVersion() == null ? 0L : order.getVersion()
+		).map(savedOrder -> {
+			savedOrder.setOrderItems(order.getOrderItems());
+			return savedOrder;
+		});
 
 	}
 
@@ -85,7 +119,17 @@ public class OrderRepositoryImpl implements OrderRepository {
 		if (orderItems == null || orderItems.isEmpty()) {
 			return Mono.empty();
 		}
-		return orderItemRepository.saveAll(orderItems).then();
+		return Flux.fromIterable(orderItems)
+				.flatMap(item -> orderItemRepository.insertOrderItem(
+						item.getOrderId(),
+						item.getOrderItemType().name(),
+						item.getSessionOptionId(),
+						item.getMerchVariantId(),
+						item.getQty(),
+						item.getUnitPrice(),
+						item.getLineAmount()
+				))
+				.then();
 
 	}
 
@@ -304,7 +348,14 @@ public class OrderRepositoryImpl implements OrderRepository {
 		if (history == null) {
 			return Mono.empty();
 		}
-		return orderStatusHistoryRepository.save(history).then();
+		String fromStatus = history.getFromStatus() == null ? null : history.getFromStatus().name();
+		return orderStatusHistoryRepository.insertStatusHistory(
+				history.getOrderId(),
+				fromStatus,
+				history.getToStatus().name(),
+				history.getReason(),
+				history.getChangedAt()
+		).then();
 	}
 
 }

@@ -85,7 +85,7 @@ public class CreateOrderUseCase {
 
 		*/
 
-	@Transactional
+	@Transactional(transactionManager = "connectionFactoryTransactionManager")
 
 	public Mono<CreateOrderResponse> createOrder(CreateOrderCommand command) {
 

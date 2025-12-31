@@ -323,15 +323,88 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 				required = true,
 				content = @Content(
 					schema = @Schema(implementation = UpdateOrderStatusRequest.class),
-					examples = @ExampleObject(
-						name = "운영 승인 예시",
-						value = """
-							{
-							  "status": "OWNER_ACCEPTED",
-							  "reason": "운영 승인"
-							}
-							"""
-					)
+					examples = {
+						@ExampleObject(
+							name = "운영 승인",
+							summary = "운영자가 주문을 승인하는 경우",
+							value = """
+								{
+								  "status": "OWNER_ACCEPTED",
+								  "reason": "운영 승인"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "운영 거절",
+							summary = "운영자가 주문을 거절하는 경우",
+							value = """
+								{
+								  "status": "OWNER_REJECTED",
+								  "reason": "재고 부족으로 인한 거절"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "주문 확인",
+							summary = "주문이 확인되는 경우",
+							value = """
+								{
+								  "status": "CONFIRMED",
+								  "reason": "주문 확인 완료"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "준비 중",
+							summary = "주문 준비를 시작하는 경우",
+							value = """
+								{
+								  "status": "PREPARING",
+								  "reason": "주문 준비 시작"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "준비 완료",
+							summary = "주문 준비가 완료된 경우",
+							value = """
+								{
+								  "status": "READY",
+								  "reason": "주문 준비 완료"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "완료",
+							summary = "주문이 완료된 경우",
+							value = """
+								{
+								  "status": "COMPLETED",
+								  "reason": "서비스 완료"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "취소",
+							summary = "주문을 취소하는 경우",
+							value = """
+								{
+								  "status": "CANCELLED",
+								  "reason": "고객 요청에 의한 취소"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "환불",
+							summary = "주문을 환불하는 경우",
+							value = """
+								{
+								  "status": "REFUNDED",
+								  "reason": "결제 환불 처리"
+								}
+								"""
+						)
+					}
 				)
 			)
 			@Valid @RequestBody UpdateOrderStatusRequest request) {

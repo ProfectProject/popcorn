@@ -2,6 +2,8 @@ package com.popcorn.demo.common.config;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -22,10 +24,12 @@ public class TransactionManagerConfig {
 	/**
 	 * R2DBC Transaction Manager
 	 * 리액티브 데이터베이스 작업용
+	 * R2DBC가 활성화된 경우에만 생성됨
 	 */
 	@Bean
 	@Primary
-	public ReactiveTransactionManager reactiveTransactionManager(ConnectionFactory connectionFactory) {
+	@ConditionalOnBean(ConnectionFactory.class)
+	public ReactiveTransactionManager reactiveTransactionManager(@Autowired(required = false) ConnectionFactory connectionFactory) {
 		return new R2dbcTransactionManager(connectionFactory);
 	}
 
@@ -34,6 +38,7 @@ public class TransactionManagerConfig {
 	 * JDBC Template과 Flyway 등의 동기 작업용
 	 */
 	@Bean
+	@ConditionalOnBean(DataSource.class)
 	public PlatformTransactionManager jdbcTransactionManager(DataSource dataSource) {
 		return new DataSourceTransactionManager(dataSource);
 	}

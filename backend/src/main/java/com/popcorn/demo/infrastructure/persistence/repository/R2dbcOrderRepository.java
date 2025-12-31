@@ -57,4 +57,77 @@ public interface R2dbcOrderRepository extends ReactiveCrudRepository<Order, UUID
 
 	@Query("SELECT id AS id, order_no AS orderNo, status AS status, total_amount AS totalAmount, created_at AS createdAt FROM p_orders WHERE id = :orderId")
 	Mono<OrderSummaryView> findSummaryById(@Param("orderId") UUID orderId);
+
+	@Query("""
+		INSERT INTO p_orders (
+			order_no,
+			customer_id,
+			store_id,
+			product_id,
+			order_type,
+			status,
+			cancelable_until,
+			total_amount,
+			idempotency_key,
+			version,
+			created_at,
+			updated_at
+		) VALUES (
+			:orderNo,
+			:customerId,
+			:storeId,
+			:productId,
+			CAST(:orderType AS order_type),
+			CAST(:status AS order_status),
+			:cancelableUntil,
+			:totalAmount,
+			:idempotencyKey,
+			:version,
+			NOW(),
+			NOW()
+		)
+		RETURNING *
+		""")
+	Mono<Order> insertOrder(
+			@Param("orderNo") String orderNo,
+			@Param("customerId") Long customerId,
+			@Param("storeId") UUID storeId,
+			@Param("productId") UUID productId,
+			@Param("orderType") String orderType,
+			@Param("status") String status,
+			@Param("cancelableUntil") LocalDateTime cancelableUntil,
+			@Param("totalAmount") Integer totalAmount,
+			@Param("idempotencyKey") String idempotencyKey,
+			@Param("version") Long version
+	);
+
+	@Query("""
+		UPDATE p_orders
+		SET order_no = :orderNo,
+			customer_id = :customerId,
+			store_id = :storeId,
+			product_id = :productId,
+			order_type = CAST(:orderType AS order_type),
+			status = CAST(:status AS order_status),
+			cancelable_until = :cancelableUntil,
+			total_amount = :totalAmount,
+			idempotency_key = :idempotencyKey,
+			version = :version,
+			updated_at = NOW()
+		WHERE id = :id
+		RETURNING *
+		""")
+	Mono<Order> updateOrder(
+			@Param("id") UUID id,
+			@Param("orderNo") String orderNo,
+			@Param("customerId") Long customerId,
+			@Param("storeId") UUID storeId,
+			@Param("productId") UUID productId,
+			@Param("orderType") String orderType,
+			@Param("status") String status,
+			@Param("cancelableUntil") LocalDateTime cancelableUntil,
+			@Param("totalAmount") Integer totalAmount,
+			@Param("idempotencyKey") String idempotencyKey,
+			@Param("version") Long version
+	);
 }

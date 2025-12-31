@@ -46,7 +46,13 @@ public class OrderExceptionHandler {
 	@ExceptionHandler(BaseException.class)
 
 	public ResponseEntity<BaseResponse<Void>> handleBaseException(BaseException ex) {
-		log.warn("Order error handled: code={}, message={}", ex.getResponseCode(), ex.getMessage());
+		// 상태 전이 에러인 경우 더 상세한 로그 출력
+		if (ex.getResponseCode().name().contains("STATUS_TRANSITION")) {
+			log.warn("❌ 주문 상태 전이 실패: code={}, message={}, cause={}",
+				ex.getResponseCode(), ex.getMessage(), ex.getCause() != null ? ex.getCause().getMessage() : "N/A");
+		} else {
+			log.warn("Order error handled: code={}, message={}", ex.getResponseCode(), ex.getMessage());
+		}
 
 		BaseResponse<Void> response = BaseResponse.error(ex.getResponseCode());
 
