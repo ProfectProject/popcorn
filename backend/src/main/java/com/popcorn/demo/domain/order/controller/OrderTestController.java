@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.order.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
@@ -48,21 +51,21 @@ public class OrderTestController extends BaseController {
 
 	@PostMapping("/{userId}")
 
-	public ResponseEntity<BaseResponse<OrderCreatedDto>> createTestOrder(
+	public Mono<ResponseEntity<BaseResponse<OrderCreatedDto>>> createTestOrder(
 
 			@PathVariable Long userId,
 
 			@RequestParam(defaultValue = "RESERVATION") String orderType,
 
-			@RequestParam(defaultValue = "1") Long storeId,
+			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
 
-			@RequestParam(defaultValue = "1") Long productId,
+			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
 
-			@RequestParam(required = false) Long sessionId,
+			@RequestParam(required = false) UUID sessionId,
 
-			@RequestParam(required = false) Long optionId,
+			@RequestParam(required = false) UUID optionId,
 
-			@RequestParam(required = false) Long merchVariantId,
+			@RequestParam(required = false) UUID merchVariantId,
 
 			@RequestParam(defaultValue = "1") Integer qty,
 
@@ -106,13 +109,10 @@ public class OrderTestController extends BaseController {
 
 
 
-		CreateOrderResponse response = createOrderUseCase.createOrder(command);
-
-		OrderCreatedDto orderCreatedDto = convertToOrderCreatedDto(response);
-
-		BaseResponse<OrderCreatedDto> baseResponse = BaseResponse.success(orderCreatedDto);
-
-		return new ResponseEntity<>(baseResponse, HttpStatus.CREATED);
+		return createOrderUseCase.createOrder(command)
+				.map(this::convertToOrderCreatedDto)
+				.map(BaseResponse::success)
+				.map(baseResponse -> new ResponseEntity<>(baseResponse, HttpStatus.CREATED));
 
 	}
 

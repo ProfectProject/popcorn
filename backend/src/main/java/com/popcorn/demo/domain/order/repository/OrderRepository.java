@@ -2,11 +2,15 @@ package com.popcorn.demo.domain.order.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 
 /**
 
@@ -38,7 +42,7 @@ public interface OrderRepository {
 
 		*/
 
-	Order save(Order order);
+	Mono<Order> save(Order order);
 
 
 
@@ -47,7 +51,7 @@ public interface OrderRepository {
 		* @param orderItems 저장할 주문 항목들
 		*/
 
-	void saveOrderItems(List<OrderItem> orderItems);
+	Mono<Void> saveOrderItems(List<OrderItem> orderItems);
 
 
 
@@ -61,7 +65,7 @@ public interface OrderRepository {
 
 		*/
 
-	Optional<Order> findById(Long orderId);
+	Mono<Order> findById(UUID orderId);
 
 
 
@@ -75,7 +79,7 @@ public interface OrderRepository {
 
 		*/
 
-	Optional<OrderSummaryView> findSummaryById(Long orderId);
+	Mono<OrderSummaryView> findSummaryById(UUID orderId);
 
 
 
@@ -89,7 +93,7 @@ public interface OrderRepository {
 
 		*/
 
-	Optional<Order> findByOrderNo(String orderNo);
+	Mono<Order> findByOrderNo(String orderNo);
 
 
 
@@ -101,7 +105,7 @@ public interface OrderRepository {
 
 		*/
 
-	void deleteById(Long orderId);
+	Mono<Void> deleteById(UUID orderId);
 
 
 
@@ -115,7 +119,7 @@ public interface OrderRepository {
 
 		*/
 
-	boolean existsById(Long orderId);
+	Mono<Boolean> existsById(UUID orderId);
 
 
 
@@ -133,7 +137,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findByCustomerId(Long customerId);
+	Flux<Order> findByCustomerId(Long customerId);
 
 
 
@@ -151,7 +155,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findByCustomerId(Long customerId, int offset, int limit);
+	Flux<Order> findByCustomerId(Long customerId, int offset, int limit);
 
 
 
@@ -165,7 +169,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findByStoreId(Long storeId);
+	Flux<Order> findByStoreId(UUID storeId);
 
 
 
@@ -181,7 +185,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findByStoreIdAndStatus(Long storeId, OrderStatus status);
+	Flux<Order> findByStoreIdAndStatus(UUID storeId, OrderStatus status);
 
 
 
@@ -195,7 +199,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findByProductId(Long productId);
+	Flux<Order> findByProductId(UUID productId);
 
 
 
@@ -213,7 +217,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findByStatus(OrderStatus status);
+	Flux<Order> findByStatus(OrderStatus status);
 
 
 
@@ -227,7 +231,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findCancelableOrders(LocalDateTime currentTime);
+	Flux<Order> findCancelableOrders(LocalDateTime currentTime);
 
 
 
@@ -241,7 +245,7 @@ public interface OrderRepository {
 
 		*/
 
-	List<Order> findExpiredCancelableOrders(LocalDateTime currentTime);
+	Flux<Order> findExpiredCancelableOrders(LocalDateTime currentTime);
 
 
 
@@ -259,7 +263,7 @@ public interface OrderRepository {
 
 		*/
 
-	long countByCustomerId(Long customerId);
+	Mono<Long> countByCustomerId(Long customerId);
 
 
 
@@ -273,7 +277,7 @@ public interface OrderRepository {
 
 		*/
 
-	long countByStoreId(Long storeId);
+	Mono<Long> countByStoreId(UUID storeId);
 
 
 
@@ -289,7 +293,7 @@ public interface OrderRepository {
 
 		*/
 
-	long countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
+	Mono<Long> countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
 
 
 
@@ -307,7 +311,7 @@ public interface OrderRepository {
 
 		*/
 
-	long sumTotalAmountByCustomerIdAndCreatedAtBetween(Long customerId, LocalDateTime startDate, LocalDateTime endDate);
+	Mono<Long> sumTotalAmountByCustomerIdAndCreatedAtBetween(Long customerId, LocalDateTime startDate, LocalDateTime endDate);
 
 
 
@@ -325,7 +329,7 @@ public interface OrderRepository {
 
 		*/
 
-	Optional<Order> findByIdempotencyKey(String idempotencyKey);
+	Mono<Order> findByIdempotencyKey(String idempotencyKey);
 
 
 
@@ -339,7 +343,8 @@ public interface OrderRepository {
 
 		*/
 
-	boolean existsByIdempotencyKey(String idempotencyKey);
+	Mono<Boolean> existsByIdempotencyKey(String idempotencyKey);
+
 
 	/**
 		* 주문 상태 변경 이력을 저장합니다.
@@ -347,6 +352,6 @@ public interface OrderRepository {
 		* @param history 저장할 상태 변경 이력
 		*/
 
-	void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history);
+	Mono<Void> saveStatusHistory(OrderStatusHistory history);
 
 }

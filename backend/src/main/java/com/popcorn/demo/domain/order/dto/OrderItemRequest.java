@@ -1,5 +1,7 @@
 package com.popcorn.demo.domain.order.dto;
 
+import java.util.UUID;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -82,7 +84,7 @@ public class OrderItemRequest {
 
 		*/
 
-	private Long sessionId;
+	private UUID sessionId;
 
 
 
@@ -94,7 +96,7 @@ public class OrderItemRequest {
 
 		*/
 
-	private Long optionId;
+	private UUID optionId;
 
 
 
@@ -110,7 +112,7 @@ public class OrderItemRequest {
 
 		*/
 
-	private Long merchVariantId;
+	private UUID merchVariantId;
 
 
 
@@ -307,11 +309,11 @@ public class OrderItemRequest {
 
 		if (isReservationType()) {
 
-			return String.format("예약 (세션: %d, 옵션: %d) x %d개", sessionId, optionId, qty);
+			return String.format("예약 (세션: %s, 옵션: %s) x %d개", sessionId, optionId, qty);
 
 		} else if (isMerchType()) {
 
-			return String.format("굿즈 (변형: %d) x %d개", merchVariantId, qty);
+			return String.format("굿즈 (변형: %s) x %d개", merchVariantId, qty);
 
 		}
 

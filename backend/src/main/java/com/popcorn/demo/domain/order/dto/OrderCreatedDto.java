@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.order.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -50,7 +51,7 @@ public class OrderCreatedDto {
 
 		*/
 
-	private Long id;
+	private UUID id;
 
 
 
@@ -100,7 +101,7 @@ public class OrderCreatedDto {
 
 		*/
 
-	private Long storeId;
+	private UUID storeId;
 
 
 
@@ -112,7 +113,7 @@ public class OrderCreatedDto {
 
 		*/
 
-	private Long productId;
+	private UUID productId;
 
 
 
@@ -202,7 +203,7 @@ public class OrderCreatedDto {
 
 			*/
 
-		private Long id;
+		private UUID id;
 
 
 
@@ -263,4 +264,3 @@ public class OrderCreatedDto {
 	}
 
 }
-

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
 import com.popcorn.demo.application.order.usecase.CreateOrderUseCase;
@@ -22,9 +24,12 @@ import com.popcorn.demo.domain.order.dto.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 
+import reactor.core.publisher.Mono;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -122,16 +127,67 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 	@PostMapping("/{userId}")
 
-	public ResponseEntity<BaseResponse<OrderCreatedDto>> createOrder(
+	public Mono<ResponseEntity<BaseResponse<OrderCreatedDto>>> createOrder(
 
-			@Parameter(description = "주문 생성 사용자 ID", required = true)
+			@Parameter(description = "주문 생성 사용자 ID", required = true, example = "1001")
 
 			@PathVariable Long userId,
 
 
 
-			@Parameter(description = "주문 생성 요청 데이터", required = true)
-
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+				description = "주문 생성 요청 데이터",
+				required = true,
+				content = @Content(
+					schema = @Schema(implementation = CreateOrderRequest.class),
+					examples = {
+						@ExampleObject(
+							name = "예약형 주문",
+							summary = "예약 세션 + 옵션 기반 주문",
+							value = """
+								{
+								  "orderType": "RESERVATION",
+								  "storeId": "00000000-0000-0000-0000-000000000001",
+								  "productId": "00000000-0000-0000-0000-000000000101",
+								  "items": [
+								    {
+								      "orderItemType": "RESERVATION",
+								      "sessionId": "00000000-0000-0000-0000-000000000201",
+								      "optionId": "00000000-0000-0000-0000-000000000301",
+								      "qty": 2
+								    }
+								  ]
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "구매형 주문",
+							summary = "굿즈 구매 + 배송지 포함",
+							value = """
+								{
+								  "orderType": "PURCHASE",
+								  "storeId": "00000000-0000-0000-0000-000000000001",
+								  "productId": "00000000-0000-0000-0000-000000000101",
+								  "reservationId": "00000000-0000-0000-0000-000000000601",
+								  "items": [
+								    {
+								      "orderItemType": "MERCH",
+								      "merchVariantId": "00000000-0000-0000-0000-000000000401",
+								      "qty": 2
+								    }
+								  ],
+								  "address": {
+								    "address1": "서울특별시 강남구 테헤란로 123",
+								    "address2": "ABC빌딩 12층 1201호",
+								    "receiverName": "홍길동",
+								    "phone": "010-1234-5678"
+								  }
+								}
+								"""
+						)
+					}
+				)
+			)
 			@Valid @RequestBody CreateOrderRequest request,
 
 
@@ -180,25 +236,10 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 
 
-		// UseCase 실행
-
-		CreateOrderResponse response = createOrderUseCase.createOrder(command);
-
-
-
-		// Response를 DTO로 변환
-
-		OrderCreatedDto orderCreatedDto = convertToOrderCreatedDto(response);
-
-
-
-		// BaseResponse 사용하여 성공 응답 생성
-
-		BaseResponse<OrderCreatedDto> baseResponse = BaseResponse.success(orderCreatedDto);
-
-
-
-		return new ResponseEntity<>(baseResponse, HttpStatus.CREATED);
+		return createOrderUseCase.createOrder(command)
+				.map(this::convertToOrderCreatedDto)
+				.map(BaseResponse::success)
+				.map(baseResponse -> new ResponseEntity<>(baseResponse, HttpStatus.CREATED));
 
 	}
 
@@ -270,26 +311,44 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@ApiResponse(responseCode = "409", description = "이미 취소된 주문")
 	@PatchMapping("/{orderId}/status")
-	public ResponseEntity<BaseResponse<UpdateOrderStatusResponse>> updateOrderStatus(
-			@Parameter(description = "주문 ID", required = true)
-			@PathVariable Long orderId,
+	public Mono<ResponseEntity<BaseResponse<UpdateOrderStatusResponse>>> updateOrderStatus(
+			@Parameter(
+				description = "주문 ID",
+				required = true,
+				example = "00000000-0000-0000-0000-000000001001"
+			)
+			@PathVariable UUID orderId,
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+				description = "주문 상태 변경 요청",
+				required = true,
+				content = @Content(
+					schema = @Schema(implementation = UpdateOrderStatusRequest.class),
+					examples = @ExampleObject(
+						name = "운영 승인 예시",
+						value = """
+							{
+							  "status": "OWNER_ACCEPTED",
+							  "reason": "운영 승인"
+							}
+							"""
+					)
+				)
+			)
 			@Valid @RequestBody UpdateOrderStatusRequest request) {
 
 		// 상태 변경 규칙은 유스케이스에서 처리해 비즈니스 규칙을 보장합니다.
-		var updatedOrder = updateOrderStatusUseCase.updateStatus(
-				orderId,
-				request.getStatus(),
-				request.getReason()
-		);
-
-		UpdateOrderStatusResponse response = UpdateOrderStatusResponse.builder()
-				.id(updatedOrder.getId())
-				.status(updatedOrder.getStatus().name())
-				.updatedAt(updatedOrder.getUpdatedAt())
-				.build();
-
-		BaseResponse<UpdateOrderStatusResponse> baseResponse = BaseResponse.success(response);
-		return ResponseEntity.ok(baseResponse);
+		return updateOrderStatusUseCase.updateStatus(
+					orderId,
+					request.getStatus(),
+					request.getReason()
+				)
+				.map(updatedOrder -> UpdateOrderStatusResponse.builder()
+						.id(updatedOrder.getId())
+						.status(updatedOrder.getStatus().name())
+						.updatedAt(updatedOrder.getUpdatedAt())
+						.build())
+				.map(BaseResponse::success)
+				.map(ResponseEntity::ok);
 	}
 
 
@@ -314,9 +373,9 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*   "orderType": "RESERVATION",
 
-		*   "storeId": 10,
+		*   "storeId": "00000000-0000-0000-0000-000000000001",
 
-		*   "productId": 55,
+		*   "productId": "00000000-0000-0000-0000-000000000101",
 
 		*   "items": [
 
@@ -324,9 +383,9 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*       "orderItemType": "RESERVATION",
 
-		*       "sessionId": 777,
+		*       "sessionId": "00000000-0000-0000-0000-000000000201",
 
-		*       "optionId": 88,
+		*       "optionId": "00000000-0000-0000-0000-000000000301",
 
 		*       "qty": 2
 
@@ -350,11 +409,11 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*   "orderType": "PURCHASE",
 
-		*   "storeId": 10,
+		*   "storeId": "00000000-0000-0000-0000-000000000001",
 
-		*   "productId": 55,
+		*   "productId": "00000000-0000-0000-0000-000000000101",
 
-		*   "reservationId": 999,
+		*   "reservationId": "00000000-0000-0000-0000-000000000601",
 
 		*   "items": [
 
@@ -362,7 +421,7 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*       "orderItemType": "MERCH",
 
-		*       "merchVariantId": 456,
+		*       "merchVariantId": "00000000-0000-0000-0000-000000000401",
 
 		*       "qty": 2
 
@@ -400,7 +459,7 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*   "data": {
 
-		*     "id": 501,
+		*     "id": "00000000-0000-0000-0000-000000001001",
 
 		*     "orderNo": "O20251230-000501",
 
@@ -408,9 +467,9 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*     "status": "REQUESTED",
 
-		*     "storeId": 10,
+		*     "storeId": "00000000-0000-0000-0000-000000000001",
 
-		*     "productId": 55,
+		*     "productId": "00000000-0000-0000-0000-000000000101",
 
 		*     "totalAmount": 29000,
 
@@ -422,7 +481,7 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*       {
 
-		*         "id": 90001,
+		*         "id": "00000000-0000-0000-0000-000000009001",
 
 		*         "orderItemType": "MERCH",
 

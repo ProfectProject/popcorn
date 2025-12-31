@@ -1,19 +1,12 @@
 package com.popcorn.demo.domain.order.entity;
 
+import java.util.UUID;
+
 import com.popcorn.demo.common.entity.BaseEntity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.SequenceGenerator;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,15 +15,13 @@ import lombok.Setter;
 
 /**
 
-	* 주문 아이템 엔티티 (JPA)
+	* 주문 아이템 엔티티 (R2DBC)
 
 	* p_order_items 테이블과 매핑
 
 	*/
 
-@Entity
-
-@Table(name = "p_order_items")
+@Table("p_order_items")
 
 @Getter
 
@@ -47,60 +38,46 @@ public class OrderItem extends BaseEntity {
 
 
 	@Id
-
-	@SequenceGenerator(
-			name = "order_item_seq",
-			sequenceName = "p_order_items_id_seq",
-			allocationSize = 1
-	)
-
-	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_item_seq")
-
-	private Long id;
+	private UUID id;
 
 
 
-	@ManyToOne(fetch = FetchType.LAZY)
-
-	@JoinColumn(name = "order_id", nullable = false)
-
-	private Order order;
+	@Column("order_id")
+	private UUID orderId;
 
 
 
-	@Enumerated(EnumType.STRING)
-
-	@Column(name = "order_item_type", nullable = false, length = 20)
+	@Column("order_item_type")
 
 	private OrderItemType orderItemType;
 
 
 
-	@Column(name = "session_option_id")
+	@Column("session_option_id")
 
-	private Long sessionOptionId;
-
-
-
-	@Column(name = "merch_variant_id")
-
-	private Long merchVariantId;
+	private UUID sessionOptionId;
 
 
 
-	@Column(name = "qty", nullable = false)
+	@Column("merch_variant_id")
+
+	private UUID merchVariantId;
+
+
+
+	@Column("qty")
 
 	private Integer qty;
 
 
 
-	@Column(name = "unit_price", nullable = false)
+	@Column("unit_price")
 
 	private Integer unitPrice;
 
 
 
-	@Column(name = "line_amount", nullable = false)
+	@Column("line_amount")
 
 	private Integer lineAmount;
 

@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -85,7 +86,7 @@ public class OrderDomainService {
 
 		*/
 
-	public void validateOrderCreation(Long customerId, Long storeId, Long productId,
+	public void validateOrderCreation(Long customerId, UUID storeId, UUID productId,
 
 			List<OrderItem> orderItems) {
 
@@ -97,7 +98,7 @@ public class OrderDomainService {
 
 
 
-		if (storeId == null || storeId <= 0) {
+		if (storeId == null) {
 
 			throw OrderException.storeNotFound();
 
@@ -105,7 +106,7 @@ public class OrderDomainService {
 
 
 
-		if (productId == null || productId <= 0) {
+		if (productId == null) {
 
 			throw OrderException.productNotFound();
 
@@ -230,7 +231,7 @@ public class OrderDomainService {
 
 		*/
 
-	public Order createOrder(Long customerId, Long storeId, Long productId,
+	public Order createOrder(Long customerId, UUID storeId, UUID productId,
 
 			OrderType orderType, List<OrderItem> orderItems,
 

@@ -1,12 +1,12 @@
 package com.popcorn.demo.domain.order.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -63,10 +63,7 @@ public class CreateOrderRequest {
 		*/
 
 	@NotNull(message = "스토어 ID는 필수입니다.")
-
-	@Positive(message = "스토어 ID는 양수여야 합니다.")
-
-	private Long storeId;
+	private UUID storeId;
 
 
 
@@ -77,10 +74,7 @@ public class CreateOrderRequest {
 		*/
 
 	@NotNull(message = "상품 ID는 필수입니다.")
-
-	@Positive(message = "상품 ID는 양수여야 합니다.")
-
-	private Long productId;
+	private UUID productId;
 
 
 
@@ -90,7 +84,7 @@ public class CreateOrderRequest {
 
 		*/
 
-	private Long reservationId;
+	private UUID reservationId;
 
 
 
@@ -282,4 +276,3 @@ public class CreateOrderRequest {
 	}
 
 }
-

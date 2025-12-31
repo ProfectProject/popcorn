@@ -1,5 +1,7 @@
 package com.popcorn.demo.domain.order.entity;
 
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,7 +45,7 @@ public class ReservationDetail {
 
 		*/
 
-	private Long sessionOptionId;
+	private UUID sessionOptionId;
 
 
 
@@ -57,7 +59,7 @@ public class ReservationDetail {
 
 		*/
 
-	private Long sessionId;
+	private UUID sessionId;
 
 
 
@@ -71,7 +73,7 @@ public class ReservationDetail {
 
 		*/
 
-	private Long optionId;
+	private UUID optionId;
 
 
 
@@ -91,7 +93,7 @@ public class ReservationDetail {
 
 		*/
 
-	public static ReservationDetail of(Long sessionOptionId) {
+	public static ReservationDetail of(UUID sessionOptionId) {
 
 		validateSessionOptionId(sessionOptionId);
 
@@ -123,7 +125,7 @@ public class ReservationDetail {
 
 		*/
 
-	public static ReservationDetail of(Long sessionOptionId, Long sessionId, Long optionId) {
+	public static ReservationDetail of(UUID sessionOptionId, UUID sessionId, UUID optionId) {
 
 		validateSessionOptionId(sessionOptionId);
 
@@ -157,7 +159,7 @@ public class ReservationDetail {
 
 		*/
 
-	private static void validateSessionOptionId(Long sessionOptionId) {
+	private static void validateSessionOptionId(UUID sessionOptionId) {
 
 		if (sessionOptionId == null) {
 
@@ -199,7 +201,7 @@ public class ReservationDetail {
 
 		*/
 
-	public boolean belongsToSession(Long sessionId) {
+	public boolean belongsToSession(UUID sessionId) {
 
 		return this.sessionId != null && this.sessionId.equals(sessionId);
 
@@ -217,11 +219,10 @@ public class ReservationDetail {
 
 		*/
 
-	public boolean hasOption(Long optionId) {
+	public boolean hasOption(UUID optionId) {
 
 		return this.optionId != null && this.optionId.equals(optionId);
 
 	}
 
 }
-

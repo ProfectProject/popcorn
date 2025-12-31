@@ -1,13 +1,13 @@
 package com.popcorn.demo.domain.order.service;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.time.Duration;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import reactor.core.publisher.Mono;
 
 /**
 
@@ -33,16 +33,6 @@ public class OrderService {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-	private final Executor validationExecutor;
-
-
-
-	public OrderService(@Qualifier("orderValidationTaskExecutor") Executor validationExecutor) {
-
-		this.validationExecutor = validationExecutor;
-
-	}
-
 
 
 	/**
@@ -59,49 +49,19 @@ public class OrderService {
 
 		* @param orderId 주문 ID
 
-		* @return 처리 결과를 담은 CompletableFuture
+		* @return 처리 완료 Mono
 
 		*/
 
-	@Async("orderTaskExecutor")
+	public Mono<Void> processOrderPostActions(UUID orderId) {
 
-	public CompletableFuture<Void> processOrderPostActions(Long orderId) {
-
-		try {
-
-			// 1. 재고 차감 (시뮬레이션)
-
-			Thread.sleep(100);
-
-			log.info("주문 {} 재고 차감 완료", orderId);
-
-
-
-			// 2. 알림 발송 (시뮬레이션)
-
-			Thread.sleep(50);
-
-			log.info("주문 {} 고객 알림 발송 완료", orderId);
-
-
-
-			// 3. 이벤트 발행 (시뮬레이션)
-
-			Thread.sleep(30);
-
-			log.info("주문 {} 이벤트 발행 완료", orderId);
-
-
-
-			return CompletableFuture.completedFuture(null);
-
-		} catch (InterruptedException e) {
-
-			Thread.currentThread().interrupt();
-
-			return CompletableFuture.failedFuture(e);
-
-		}
+		return Mono.delay(Duration.ofMillis(100))
+				.doOnNext(ignored -> log.info("주문 {} 재고 차감 완료", orderId))
+				.then(Mono.delay(Duration.ofMillis(50))
+						.doOnNext(ignored -> log.info("주문 {} 고객 알림 발송 완료", orderId)))
+				.then(Mono.delay(Duration.ofMillis(30))
+						.doOnNext(ignored -> log.info("주문 {} 이벤트 발행 완료", orderId)))
+				.then();
 
 	}
 
@@ -125,51 +85,22 @@ public class OrderService {
 
 		* @param qty 수량
 
-		* @return 검증 결과를 담은 CompletableFuture
+		* @return 검증 결과 Mono
 
 		*/
 
-	@Async("orderValidationTaskExecutor")
+	public Mono<Boolean> validateOrderAsync(Long userId, UUID productId, Integer qty) {
 
-	public CompletableFuture<Boolean> validateOrderAsync(Long userId, Long productId, Integer qty) {
+		Mono<Boolean> stock = validateStock(qty);
+		Mono<Boolean> user = validateCustomer(userId);
+		Mono<Boolean> product = validateProduct(productId);
 
-		CompletableFuture<Boolean> stockFuture = CompletableFuture.supplyAsync(
-
-				() -> validateStock(qty), validationExecutor
-
-		);
-
-		CompletableFuture<Boolean> userFuture = CompletableFuture.supplyAsync(
-
-				() -> validateCustomer(userId), validationExecutor
-
-		);
-
-		CompletableFuture<Boolean> productFuture = CompletableFuture.supplyAsync(
-
-				() -> validateProduct(productId), validationExecutor
-
-		);
-
-
-
-		return CompletableFuture.allOf(stockFuture, userFuture, productFuture)
-
-				.thenApply(ignored -> stockFuture.join() && userFuture.join() && productFuture.join())
-
-				.whenComplete((result, throwable) -> {
-
-					if (throwable != null) {
-
-						log.error("주문 검증 실패 - 사용자: {}, 상품: {}, 에러: {}", userId, productId, throwable.getMessage());
-
-					} else {
-
-						log.info("주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, productId, result);
-
-					}
-
-				});
+		return Mono.zip(stock, user, product)
+				.map(tuple -> tuple.getT1() && tuple.getT2() && tuple.getT3())
+				.doOnSuccess(result ->
+						log.info("주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, productId, result))
+				.doOnError(ex ->
+						log.error("주문 검증 실패 - 사용자: {}, 상품: {}, 에러: {}", userId, productId, ex.getMessage()));
 
 	}
 
@@ -189,107 +120,37 @@ public class OrderService {
 
 		* @param amount 결제 금액
 
-		* @return 결제 결과를 담은 CompletableFuture
+		* @return 결제 결과 Mono
 
 		*/
 
-	@Async("orderTaskExecutor")
+	public Mono<String> processPaymentAsync(UUID orderId, Integer amount) {
 
-	public CompletableFuture<String> processPaymentAsync(Long orderId, Integer amount) {
-
-		try {
-
-			// 외부 결제 게이트웨이 호출 시뮬레이션
-
-			Thread.sleep(200);
-
-
-
-			// 성공률 90% 시뮬레이션
-
-			boolean paymentSuccess = Math.random() > 0.1;
-
-
-
-			String paymentId = paymentSuccess ? "PAY-" + System.currentTimeMillis() : null;
-
-			log.info("주문 {} 결제 처리 {}", orderId,
-
-					paymentSuccess ? "성공: " + paymentId : "실패");
-
-
-
-			return CompletableFuture.completedFuture(paymentId);
-
-		} catch (InterruptedException e) {
-
-			Thread.currentThread().interrupt();
-
-			return CompletableFuture.failedFuture(e);
-
-		}
+		return Mono.delay(Duration.ofMillis(200))
+				.map(ignored -> {
+					boolean paymentSuccess = Math.random() > 0.1;
+					String paymentId = paymentSuccess ? "PAY-" + System.currentTimeMillis() : null;
+					log.info("주문 {} 결제 처리 {}", orderId,
+							paymentSuccess ? "성공: " + paymentId : "실패");
+					return paymentId;
+				});
 
 	}
 
 
 
-	private boolean validateStock(Integer qty) {
-
-		try {
-
-			Thread.sleep(50);
-
-		} catch (InterruptedException e) {
-
-			Thread.currentThread().interrupt();
-
-			throw new IllegalStateException("stock validation interrupted", e);
-
-		}
-
-		return qty != null && qty > 0 && qty <= 100;
-
+	private Mono<Boolean> validateStock(Integer qty) {
+		return Mono.delay(Duration.ofMillis(50))
+				.map(ignored -> qty != null && qty > 0);
 	}
 
-
-
-	private boolean validateCustomer(Long userId) {
-
-		try {
-
-			Thread.sleep(30);
-
-		} catch (InterruptedException e) {
-
-			Thread.currentThread().interrupt();
-
-			throw new IllegalStateException("customer validation interrupted", e);
-
-		}
-
-		return userId != null && userId > 0;
-
+	private Mono<Boolean> validateCustomer(Long userId) {
+		return Mono.delay(Duration.ofMillis(40))
+				.map(ignored -> userId != null && userId > 0);
 	}
 
-
-
-	private boolean validateProduct(Long productId) {
-
-		try {
-
-			Thread.sleep(30);
-
-		} catch (InterruptedException e) {
-
-			Thread.currentThread().interrupt();
-
-			throw new IllegalStateException("product validation interrupted", e);
-
-		}
-
-		return productId != null && productId > 0;
-
+	private Mono<Boolean> validateProduct(UUID productId) {
+		return Mono.delay(Duration.ofMillis(30))
+				.map(ignored -> productId != null);
 	}
-
 }
-
