@@ -3,6 +3,7 @@ package com.popcorn.demo.infrastructure.persistence.repository;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.order.repository.OrderSummaryView;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
@@ -21,26 +22,37 @@ import java.util.Optional;
 public class OrderRepositoryImpl implements OrderRepository {
 
     private final JpaOrderRepository jpaOrderRepository;
+    private final JpaOrderItemRepository jpaOrderItemRepository;
 
     /**
      * 생성자 기반 의존성 주입
      * @param jpaOrderRepository JPA Repository
      */
     @Autowired
-    public OrderRepositoryImpl(JpaOrderRepository jpaOrderRepository) {
+    public OrderRepositoryImpl(JpaOrderRepository jpaOrderRepository, JpaOrderItemRepository jpaOrderItemRepository) {
         this.jpaOrderRepository = jpaOrderRepository;
+        this.jpaOrderItemRepository = jpaOrderItemRepository;
     }
 
     // ========================= 기본 CRUD 메서드 =========================
 
     @Override
     public Order save(Order order) {
-        return jpaOrderRepository.save(order);
+        Order savedOrder = jpaOrderRepository.save(order);
+        if (savedOrder.getOrderItems() != null && !savedOrder.getOrderItems().isEmpty()) {
+            jpaOrderItemRepository.saveAll(savedOrder.getOrderItems());
+        }
+        return savedOrder;
     }
 
     @Override
     public Optional<Order> findById(Long orderId) {
         return jpaOrderRepository.findById(orderId);
+    }
+
+    @Override
+    public Optional<OrderSummaryView> findSummaryById(Long orderId) {
+        return jpaOrderRepository.findSummaryById(orderId);
     }
 
     @Override
@@ -132,13 +144,11 @@ public class OrderRepositoryImpl implements OrderRepository {
 
     @Override
     public Optional<Order> findByIdempotencyKey(String idempotencyKey) {
-        // TODO: Order 엔티티에 idempotencyKey 필드 추가 후 구현
-        return Optional.empty();
+        return jpaOrderRepository.findByIdempotencyKey(idempotencyKey);
     }
 
     @Override
     public boolean existsByIdempotencyKey(String idempotencyKey) {
-        // TODO: Order 엔티티에 idempotencyKey 필드 추가 후 구현
-        return false;
+        return jpaOrderRepository.existsByIdempotencyKey(idempotencyKey);
     }
 }

@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.popcorn.demo.domain.order.repository.OrderSummaryView;
+
 /**
  * JPA 기반 주문 레포지토리 구현체
  * - Spring Data JPA 활용
@@ -27,6 +29,14 @@ public interface JpaOrderRepository extends JpaRepository<Order, Long> {
      * JPA 메서드 네이밍 컨벤션 활용
      */
     Optional<Order> findByOrderNo(String orderNo);
+
+    /**
+     * 주문 요약 조회 (필요 컬럼만)
+     */
+    @Query("SELECT o.id AS id, o.orderNo AS orderNo, o.status AS status, " +
+           "o.totalAmount AS totalAmount, o.createdAt AS createdAt " +
+           "FROM Order o WHERE o.id = :orderId")
+    Optional<OrderSummaryView> findSummaryById(@Param("orderId") Long orderId);
 
     // ========================= 비즈니스 조회 메서드 =========================
 
@@ -107,12 +117,14 @@ public interface JpaOrderRepository extends JpaRepository<Order, Long> {
      * 향후 idempotencyKey 필드 추가 시 활성화
      */
     // Optional<Order> findByIdempotencyKey(String idempotencyKey);
+    Optional<Order> findByIdempotencyKey(String idempotencyKey);
 
     /**
      * 멱등성 키 존재 여부 확인
      * 향후 idempotencyKey 필드 추가 시 활성화
      */
     // boolean existsByIdempotencyKey(String idempotencyKey);
+    boolean existsByIdempotencyKey(String idempotencyKey);
 
     // ========================= 페이징 조회 메서드 =========================
 
