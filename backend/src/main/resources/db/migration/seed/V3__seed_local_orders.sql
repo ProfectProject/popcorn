@@ -101,7 +101,7 @@ BEGIN
 			'00000000-0000-0000-0000-000000003001'::uuid,
 			'00000000-0000-0000-0000-000000001001'::uuid,
 			NULL,
-			'REQUESTED',
+			'PENDING',
 			'Seed order created',
 			NOW(),
 			NOW()

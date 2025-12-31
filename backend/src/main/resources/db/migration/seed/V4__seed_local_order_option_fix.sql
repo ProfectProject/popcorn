@@ -10,7 +10,7 @@ BEGIN
 			'00000000-0000-0000-0000-000000000101'::uuid,
 			NOW() - INTERVAL '1 day',
 			NOW() + INTERVAL '7 days',
-			'ACTIVE',
+			'OPEN',
 			NOW(),
 			NOW()
 		WHERE EXISTS (

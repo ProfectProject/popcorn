@@ -1,14 +1,11 @@
 package com.popcorn.demo.infrastructure.config;
 
-import java.util.concurrent.Executor;
-
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.r2dbc.config.EnableR2dbcAuditing;
+import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 import com.popcorn.demo.application.order.port.out.FindOrderItemPricePort;
@@ -63,9 +60,8 @@ import com.popcorn.demo.infrastructure.persistence.order.OrderRepositoryAdapter;
 
 })
 
-@EnableJpaAuditing
-
-@EnableJpaRepositories(basePackages = "com.popcorn.demo.infrastructure.persistence.repository")
+@EnableR2dbcAuditing
+@EnableR2dbcRepositories(basePackages = "com.popcorn.demo.infrastructure.persistence.repository")
 
 @EnableAsync
 
@@ -160,28 +156,6 @@ public class InfrastructureConfig {
 		return new OrderAdapter(orderService);
 
 	}
-
-
-
-	/**
-
-		* 주문 비동기 서비스 Bean
-
-		* Domain Layer의 비동기 처리 서비스
-
-		*/
-
-	@Bean
-
-	public OrderService orderService(
-
-			@Qualifier("orderValidationTaskExecutor") Executor validationExecutor) {
-
-		return new OrderService(validationExecutor);
-
-	}
-
-
 
 	/**
 
