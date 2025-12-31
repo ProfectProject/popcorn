@@ -1,5 +1,10 @@
 package com.popcorn.demo.domain.order.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,6 +19,10 @@ import java.util.List;
  * - 메타 정보 (createdAt)
  * - 주문 아이템 목록 (items[])
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderCreatedDto {
 
     /**
@@ -80,61 +89,16 @@ public class OrderCreatedDto {
      */
     private List<OrderItemDto> items;
 
-    // 기본 생성자
-    public OrderCreatedDto() {}
 
-    // 전체 필드 생성자
-    public OrderCreatedDto(Long id, String orderNo, String orderType, String status,
-                           Long storeId, Long productId, Integer totalAmount,
-                           LocalDateTime cancelableUntil, LocalDateTime createdAt,
-                           List<OrderItemDto> items) {
-        this.id = id;
-        this.orderNo = orderNo;
-        this.orderType = orderType;
-        this.status = status;
-        this.storeId = storeId;
-        this.productId = productId;
-        this.totalAmount = totalAmount;
-        this.cancelableUntil = cancelableUntil;
-        this.createdAt = createdAt;
-        this.items = items;
-    }
-
-    // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getOrderNo() { return orderNo; }
-    public void setOrderNo(String orderNo) { this.orderNo = orderNo; }
-
-    public String getOrderType() { return orderType; }
-    public void setOrderType(String orderType) { this.orderType = orderType; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public Long getStoreId() { return storeId; }
-    public void setStoreId(Long storeId) { this.storeId = storeId; }
-
-    public Long getProductId() { return productId; }
-    public void setProductId(Long productId) { this.productId = productId; }
-
-    public Integer getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(Integer totalAmount) { this.totalAmount = totalAmount; }
-
-    public LocalDateTime getCancelableUntil() { return cancelableUntil; }
-    public void setCancelableUntil(LocalDateTime cancelableUntil) { this.cancelableUntil = cancelableUntil; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public List<OrderItemDto> getItems() { return items; }
-    public void setItems(List<OrderItemDto> items) { this.items = items; }
 
     /**
      * 주문 아이템 정보 DTO
      * 주문에 포함된 개별 아이템의 상세 정보를 담는 내부 클래스
      */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class OrderItemDto {
 
         /**
@@ -170,33 +134,5 @@ public class OrderCreatedDto {
          */
         private Integer lineAmount;
 
-        // 기본 생성자
-        public OrderItemDto() {}
-
-        // 전체 필드 생성자
-        public OrderItemDto(Long id, String orderItemType, Integer qty,
-                            Integer unitPrice, Integer lineAmount) {
-            this.id = id;
-            this.orderItemType = orderItemType;
-            this.qty = qty;
-            this.unitPrice = unitPrice;
-            this.lineAmount = lineAmount;
-        }
-
-        // Getters and Setters
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-
-        public String getOrderItemType() { return orderItemType; }
-        public void setOrderItemType(String orderItemType) { this.orderItemType = orderItemType; }
-
-        public Integer getQty() { return qty; }
-        public void setQty(Integer qty) { this.qty = qty; }
-
-        public Integer getUnitPrice() { return unitPrice; }
-        public void setUnitPrice(Integer unitPrice) { this.unitPrice = unitPrice; }
-
-        public Integer getLineAmount() { return lineAmount; }
-        public void setLineAmount(Integer lineAmount) { this.lineAmount = lineAmount; }
     }
 }

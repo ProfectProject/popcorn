@@ -2,7 +2,9 @@ package com.popcorn.demo.domain.order.controller;
 
 import com.popcorn.demo.domain.order.dto.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.OrderCreatedDto;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.application.order.usecase.CreateOrderUseCase;
+import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
+import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.controller.BaseController;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,10 +39,10 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/orders")
 public class OrderController extends BaseController {
 
-    private final OrderService orderService;
+    private final CreateOrderUseCase createOrderUseCase;
 
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
+    public OrderController(CreateOrderUseCase createOrderUseCase) {
+        this.createOrderUseCase = createOrderUseCase;
     }
 
     /**
@@ -82,16 +84,63 @@ public class OrderController extends BaseController {
             @Parameter(description = "주문 생성 요청 데이터", required = true)
             @Valid @RequestBody CreateOrderRequest request,
 
-            @Parameter(description = "멱등성 키 (중복 요청 방지)", required = false)
+            @Parameter(hidden = true)
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 
-        // 서비스 호출하여 주문 생성
-        OrderCreatedDto orderCreatedDto = orderService.createOrder(userId, request, idempotencyKey);
+        // Clean Architecture: Command 객체 생성
+        CreateOrderCommand command = CreateOrderCommand.builder()
+                .userId(userId)
+                .storeId(request.getStoreId())
+                .productId(request.getProductId())
+                .orderType(request.getOrderType())
+                .idempotencyKey(idempotencyKey)
+                .items(request.getItems().stream()
+                        .map(item -> CreateOrderCommand.OrderItemCommand.builder()
+                                .orderItemType(com.popcorn.demo.domain.order.entity.OrderItemType.valueOf(item.getOrderItemType()))
+                                .sessionId(item.getSessionId())
+                                .merchVariantId(item.getMerchVariantId())
+                                .qty(item.getQty())
+                                .build())
+                        .toList())
+                .build();
+
+        // UseCase 실행
+        CreateOrderResponse response = createOrderUseCase.createOrder(command);
+
+        // Response를 DTO로 변환
+        OrderCreatedDto orderCreatedDto = convertToOrderCreatedDto(response);
 
         // BaseResponse 사용하여 성공 응답 생성
-        BaseResponse<OrderCreatedDto> response = BaseResponse.success(orderCreatedDto);
+        BaseResponse<OrderCreatedDto> baseResponse = BaseResponse.success(orderCreatedDto);
 
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        return new ResponseEntity<>(baseResponse, HttpStatus.CREATED);
+    }
+
+    /**
+     * CreateOrderResponse를 OrderCreatedDto로 변환하는 헬퍼 메서드
+     * Clean Architecture의 Response를 Controller Layer의 DTO로 변환
+     */
+    private OrderCreatedDto convertToOrderCreatedDto(CreateOrderResponse response) {
+        return new OrderCreatedDto(
+                response.getOrderId(),
+                response.getOrderNo(),
+                response.getOrderType(),
+                response.getStatus(),
+                response.getStoreId(),
+                response.getProductId(),
+                response.getTotalAmount(),
+                response.getCancelableUntil(),
+                response.getCreatedAt(),
+                response.getItems().stream()
+                        .map(item -> new OrderCreatedDto.OrderItemDto(
+                                item.getItemId(),
+                                item.getOrderItemType(),
+                                item.getQty(),
+                                item.getUnitPrice(),
+                                item.getLineAmount()
+                        ))
+                        .toList()
+        );
     }
 
     /*

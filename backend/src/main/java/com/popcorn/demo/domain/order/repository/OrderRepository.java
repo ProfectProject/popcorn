@@ -30,6 +30,13 @@ public interface OrderRepository {
      * @return 주문 엔티티 (Optional)
      */
     Optional<Order> findById(Long orderId);
+
+    /**
+     * 주문 요약 조회 (필요 컬럼만)
+     * @param orderId 주문 ID
+     * @return 주문 요약 정보
+     */
+    Optional<OrderSummaryView> findSummaryById(Long orderId);
     
     /**
      * 주문 번호로 조회
