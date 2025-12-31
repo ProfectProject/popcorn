@@ -83,4 +83,19 @@ class OrderItemRequestTest {
         assertThat(reservationWithMerch.hasUnnecessaryFields()).isTrue();
         assertThat(merchWithReservationFields.hasUnnecessaryFields()).isTrue();
     }
+
+    @Test
+    @DisplayName("Unknown type returns safe defaults")
+    void unknownTypeReturnsSafeDefaults() {
+        OrderItemRequest item = OrderItemRequest.builder()
+                .orderItemType("UNKNOWN")
+                .qty(1)
+                .build();
+
+        assertThat(item.hasRequiredFields()).isFalse();
+        assertThat(item.hasUnnecessaryFields()).isFalse();
+        assertThat(item.getSessionOptionKey()).isNull();
+        assertThat(item.getStockIdentifier()).isNull();
+        assertThat(item.getDisplayDescription()).contains("UNKNOWN");
+    }
 }

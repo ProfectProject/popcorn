@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.*;
@@ -205,6 +206,23 @@ class OrderServiceTest {
 
             // 주소 정보는 현재 Order 엔티티에 없음
             verify(orderRepository).save(any(Order.class));
+        }
+
+        @Test
+        @DisplayName("멱등성 키로 기존 주문이 있으면 저장하지 않고 반환")
+        void createOrder_IdempotencyKey_ReturnsExistingOrder() {
+            // Given
+            when(orderRepository.findByIdempotencyKey("dedupe-key"))
+                    .thenReturn(Optional.of(mockSavedOrder));
+
+            // When
+            OrderCreatedDto result = orderService.createOrder(1001L, reservationRequest, "dedupe-key");
+
+            // Then
+            assertThat(result.getId()).isEqualTo(1L);
+            verify(orderRepository, never()).save(any(Order.class));
+            verify(orderAsyncService, never()).validateOrderAsync(anyLong(), anyLong(), anyInt());
+            verify(orderAsyncService, never()).processOrderPostActions(anyLong());
         }
     }
 

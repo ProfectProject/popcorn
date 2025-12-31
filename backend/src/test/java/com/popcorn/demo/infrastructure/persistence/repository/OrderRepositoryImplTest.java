@@ -1,20 +1,15 @@
 package com.popcorn.demo.infrastructure.persistence.repository;
 
-import com.popcorn.demo.DemoApplication;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
@@ -24,16 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({OrderRepositoryImpl.class, OrderRepositoryImplTest.JpaTestConfig.class})
+@Import({OrderRepositoryImpl.class, OrderRepositoryImplTest.AuditingTestConfig.class})
 class OrderRepositoryImplTest {
 
     @TestConfiguration
-    @AutoConfigurationPackage(basePackageClasses = DemoApplication.class)
-    @EnableAutoConfiguration
-    @EntityScan(basePackages = "com.popcorn.demo.domain.order.entity")
-    @EnableJpaRepositories(basePackages = "com.popcorn.demo.infrastructure.persistence.repository")
     @EnableJpaAuditing
-    static class JpaTestConfig {
+    static class AuditingTestConfig {
     }
 
     @Autowired
