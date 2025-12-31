@@ -19,3 +19,6 @@ CREATE TYPE order_status AS ENUM ('PENDING', 'PAID', 'CANCELED', 'REFUNDED', 'FA
 -- payment
 CREATE TYPE payment_method AS ENUM ('CARD', 'CASH', 'VIRTUAL');
 CREATE TYPE payment_status AS ENUM ('READY', 'APPROVED', 'FAILED', 'CANCELED');
+
+-- CHECK-IN
+CREATE TYPE checkin_status AS ENUM ('CHECKED_IN', 'CANCELED');
