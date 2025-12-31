@@ -36,13 +36,13 @@ import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.service.OrderDomainService;
 
 /**
- * CreateOrderUseCase 단위 테스트
- *
- * Clean Architecture의 Application Layer 테스트
- * - 비즈니스 흐름 조율 검증
- * - Port들의 상호작용 검증
- * - 외부 의존성을 Mock으로 대체
- */
+	* CreateOrderUseCase 단위 테스트
+	*
+	* Clean Architecture의 Application Layer 테스트
+	* - 비즈니스 흐름 조율 검증
+	* - Port들의 상호작용 검증
+	* - 외부 의존성을 Mock으로 대체
+	*/
 @ExtendWith(MockitoExtension.class)
 @DisplayName("주문 생성 유스케이스 테스트")
 class CreateOrderUseCaseTest {

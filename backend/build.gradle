@@ -65,6 +65,12 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.named('processResources') {
+	doFirst {
+		delete(destinationDir)
+	}
+}
+
 tasks.named('build') {
 	dependsOn 'checkstyleMain'
 	dependsOn 'checkstyleTest'

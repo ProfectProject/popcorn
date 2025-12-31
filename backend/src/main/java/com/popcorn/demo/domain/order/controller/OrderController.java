@@ -94,49 +94,27 @@ public class OrderController extends BaseController {
 		*/
 
 	@Operation(
-
-		summary = "주문 생성",
-
-		description = "새로운 주문을 생성합니다. 예약형(RESERVATION) 또는 구매형(PURCHASE) 주문을 지원합니다."
-
+			summary = "주문 생성",
+			description = "새로운 주문을 생성합니다. 예약형(RESERVATION) 또는 구매형(PURCHASE) 주문을 지원합니다."
 	)
-
 	@ApiResponses({
-
 		@ApiResponse(
-
 			responseCode = "201",
-
 			description = "주문 생성 성공",
-
 			content = @Content(schema = @Schema(implementation = OrderCreatedDto.class))
-
 		),
-
 		@ApiResponse(
-
 			responseCode = "400",
-
 			description = "잘못된 요청 (필수값 누락, 형식 오류, 비즈니스 검증 실패)"
-
 		),
-
 		@ApiResponse(
-
 			responseCode = "404",
-
 			description = "리소스 없음 (스토어, 상품, 세션, 옵션, 굿즈변형)"
-
 		),
-
 		@ApiResponse(
-
 			responseCode = "409",
-
 			description = "비즈니스 규칙 위반 (재고부족, 정원초과, 상태오류 등)"
-
 		)
-
 	})
 
 	@PostMapping("/{userId}")
