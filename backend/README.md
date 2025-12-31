@@ -126,7 +126,7 @@ java -version
 docker run --name popcorn-postgres \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=1234 \
-  -e POSTGRES_DB=ttalkak_db \
+  -e POSTGRES_DB=popcorn_db \
   -p 5432:5432 \
   -d postgres:15
 ```
@@ -184,4 +184,3 @@ docker run --name popcorn-postgres \
 - **Database**: 환경변수로 설정
 - **Profile**: `prod`
 - **DDL**: `validate`
-

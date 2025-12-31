@@ -1,4 +1,6 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
@@ -11,7 +13,7 @@ spring:
     show-sql: true
 
   flyway:
-    enabled: false  # 테스트에서는 Flyway 비활성화
+    enabled: true  # 테스트에서는 Flyway 비활성화
 
   h2:
     console:
