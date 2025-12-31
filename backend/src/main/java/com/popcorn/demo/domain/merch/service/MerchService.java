@@ -4,6 +4,8 @@ import com.popcorn.demo.domain.merch.dto.MerchCreateRequest;
 import com.popcorn.demo.domain.merch.dto.MerchIdResponse;
 import com.popcorn.demo.domain.merch.dto.MerchItemResponse;
 import com.popcorn.demo.domain.merch.dto.MerchListResponse;
+import com.popcorn.demo.domain.merch.dto.MerchStatusResponse;
+import com.popcorn.demo.domain.merch.dto.MerchStatusUpdateRequest;
 import com.popcorn.demo.domain.merch.dto.MerchUpdateRequest;
 import com.popcorn.demo.domain.merch.entity.MerchVariant;
 import com.popcorn.demo.domain.merch.exception.MerchNotFoundException;
@@ -56,6 +58,17 @@ public class MerchService {
                 request.getIsHidden()
         );
         return new MerchIdResponse(merch.getId());
+    }
+
+    @Transactional
+    public MerchStatusResponse updateStatus(
+            UUID productId,
+            UUID merchId,
+            MerchStatusUpdateRequest request
+    ) {
+        MerchVariant merch = getMerch(productId, merchId);
+        merch.updateStatus(request.getIsHidden());
+        return new MerchStatusResponse(merch.getId(), merch.isHidden());
     }
 
     private MerchVariant getMerch(UUID productId, UUID merchId) {
