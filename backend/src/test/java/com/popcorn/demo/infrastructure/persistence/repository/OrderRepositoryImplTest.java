@@ -1,8 +1,15 @@
 package com.popcorn.demo.infrastructure.persistence.repository;
 
-import com.popcorn.demo.domain.order.entity.Order;
-import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.entity.OrderType;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,15 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.entity.OrderType;
 
 @ExtendWith(MockitoExtension.class)
 class OrderRepositoryImplTest {
@@ -26,11 +27,14 @@ class OrderRepositoryImplTest {
     @Mock
     private JpaOrderRepository jpaOrderRepository;
 
+    @Mock
+    private JpaOrderItemRepository jpaOrderItemRepository;
+
     private OrderRepositoryImpl orderRepository;
 
     @BeforeEach
     void setUp() {
-        orderRepository = new OrderRepositoryImpl(jpaOrderRepository);
+        orderRepository = new OrderRepositoryImpl(jpaOrderItemRepository, jpaOrderRepository);
     }
 
     @Test

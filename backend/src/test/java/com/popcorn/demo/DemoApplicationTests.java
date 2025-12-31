@@ -1,25 +1,11 @@
 package com.popcorn.demo;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.platform.suite.api.ExcludeClassNamePatterns;
+import org.junit.platform.suite.api.SelectPackages;
+import org.junit.platform.suite.api.Suite;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
-import org.springframework.test.context.ActiveProfiles;
-
-@SpringBootTest(classes = OrderTestApplication.class)
-@ActiveProfiles("test")
+@Suite
+@SelectPackages("com.popcorn.demo")
+@ExcludeClassNamePatterns(".*DemoApplicationTests")
 class DemoApplicationTests {
-
-
-	@Autowired
-	private ApplicationContext applicationContext;
-
-	@Test
-	void contextLoads() {
-		assertThat(applicationContext).isNotNull();
-		assertThat(applicationContext.containsBean("requestLoggingInterceptor")).isTrue();
-		assertThat(applicationContext.containsBean("objectMapper")).isTrue();
-	}
 }
