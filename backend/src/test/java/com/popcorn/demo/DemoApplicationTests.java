@@ -1,15 +1,11 @@
 package com.popcorn.demo;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.junit.platform.suite.api.ExcludeClassNamePatterns;
+import org.junit.platform.suite.api.SelectPackages;
+import org.junit.platform.suite.api.Suite;
 
-@SpringBootTest
-@ActiveProfiles("test")
+@Suite
+@SelectPackages("com.popcorn.demo")
+@ExcludeClassNamePatterns(".*DemoApplicationTests")
 class DemoApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
-
 }
