@@ -1,10 +1,13 @@
 package com.popcorn.demo.common.dto;
 
+import com.popcorn.demo.common.context.RequestContext;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.OffsetDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -14,9 +17,22 @@ public class BaseResponse<T> {
     private String code;
     private String message;
     private T data;
+    private String traceId;
+    private String path;
+    private OffsetDateTime timestamp;
 
     public static <T> BaseResponse<T> of(String code, String message, T data) {
-        return BaseResponse.<T>builder().code(code).message(message).data(data).build();
+        RequestContext.RequestMetadata metadata = RequestContext.get();
+        String traceId = metadata != null ? metadata.traceId() : null;
+        String path = metadata != null ? metadata.path() : null;
+        return BaseResponse.<T>builder()
+                .code(code)
+                .message(message)
+                .data(data)
+                .traceId(traceId)
+                .path(path)
+                .timestamp(OffsetDateTime.now())
+                .build();
     }
 
     public static <T> BaseResponse<T> from(ResponseCode responseCode, T data) {
