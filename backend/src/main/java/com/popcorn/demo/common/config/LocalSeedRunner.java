@@ -27,6 +27,7 @@ public class LocalSeedRunner implements ApplicationRunner {
 		seedProductSessions();
 		seedSessionOptions();
 		seedMerchVariants();
+		seedTestOrder();
 
 		log.info("LocalSeedRunner completed local JPA seeding.");
 	}
@@ -122,6 +123,18 @@ public class LocalSeedRunner implements ApplicationRunner {
 				"SELECT 1 FROM p_products p WHERE p.id = v.product_id" +
 				") AND NOT EXISTS (" +
 				"SELECT 1 FROM p_merch_variants mv WHERE mv.sku = v.sku" +
+				")")
+			.executeUpdate();
+	}
+
+	private void seedTestOrder() {
+		syncSequence("p_orders", "id");
+		entityManager.createNativeQuery(
+				"INSERT INTO p_orders " +
+				"(id, order_no, customer_id, store_id, product_id, order_type, status, cancelable_until, total_amount, created_at, updated_at, idempotency_key, version) " +
+				"SELECT 1001, 'O20251231-001001', 1, 10, 55, 'RESERVATION', 'REQUESTED', NOW() + INTERVAL '1 day', 2000, NOW(), NOW(), NULL, 0 " +
+				"WHERE NOT EXISTS (" +
+				"SELECT 1 FROM p_orders o WHERE o.id = 1001" +
 				")")
 			.executeUpdate();
 	}

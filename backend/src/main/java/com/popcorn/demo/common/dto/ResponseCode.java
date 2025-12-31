@@ -50,7 +50,13 @@ public enum ResponseCode {
 
 	DUPLICATE_IDEMPOTENCY_KEY(409, 409, "중복된 요청입니다."),
 
-	FORBIDDEN(403, 403, "권한이 없습니다.");
+	FORBIDDEN(403, 403, "권한이 없습니다."),
+
+	ORDER_NOT_FOUND(404, 404, "주문을 찾을 수 없습니다."),
+
+	INVALID_STATUS_TRANSITION(400, 400, "허용되지 않은 상태 변경입니다."),
+
+	ALREADY_CANCELED(409, 409, "이미 취소된 주문입니다.");
 
 
 
