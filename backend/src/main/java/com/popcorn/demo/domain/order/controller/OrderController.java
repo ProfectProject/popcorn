@@ -79,7 +79,7 @@ public class OrderController extends BaseController {
     @PostMapping("/{userId}")
     public ResponseEntity<BaseResponse<OrderCreatedDto>> createOrder(
             @Parameter(description = "주문 생성 사용자 ID", required = true)
-            @PathVariable("userId") Long userId,
+            @PathVariable Long userId,
 
             @Parameter(description = "주문 생성 요청 데이터", required = true)
             @Valid @RequestBody CreateOrderRequest request,

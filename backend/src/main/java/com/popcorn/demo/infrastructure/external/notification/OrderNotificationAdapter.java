@@ -21,16 +21,10 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 
 	@Override
 	public void notifyOrderCreated(Order order) {
-		// 실제 환경에서는 외부 알림 서비스와 연동
 		log.info("📢 주문 생성 알림 - 주문번호: {}, 고객: {}, 금액: {}원",
 				order.getOrderNo(),
 				order.getCustomerId(),
 				order.getTotalAmount());
-
-		// 예시: 실제 알림 서비스 호출
-		// smsService.sendOrderCreatedNotification(order);
-		// emailService.sendOrderConfirmationEmail(order);
-		// pushNotificationService.sendOrderAlert(order);
 	}
 
 	@Override

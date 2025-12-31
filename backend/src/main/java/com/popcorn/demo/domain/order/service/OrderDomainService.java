@@ -97,7 +97,6 @@ public class OrderDomainService {
 		return switch (orderType) {
 			case RESERVATION -> now.plusDays(1); // 예약형: 1일 후까지 취소 가능
 			case PURCHASE -> now.plusHours(1); // 구매형: 1시간 후까지 취소 가능
-			default -> throw new IllegalArgumentException("Unsupported order type: " + orderType);
 		};
 	}
 
@@ -169,7 +168,6 @@ public class OrderDomainService {
 			case PREPARING -> newStatus == OrderStatus.READY || newStatus == OrderStatus.CANCELLED;
 			case READY -> newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.CANCELLED;
 			case CANCELLED, REFUNDED, COMPLETED -> false; // 최종 상태에서는 변경 불가
-			default -> throw new IllegalArgumentException("Unsupported order status: " + currentStatus);
 		};
 	}
 
