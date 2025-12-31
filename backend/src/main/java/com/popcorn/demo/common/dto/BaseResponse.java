@@ -21,6 +21,9 @@ public class BaseResponse<T> {
     private String path;
     private OffsetDateTime timestamp;
 
+    /**
+     * 공통 응답 포맷 생성 (요청 메타데이터 포함)
+     */
     public static <T> BaseResponse<T> of(String code, String message, T data) {
         RequestContext.RequestMetadata metadata = RequestContext.get();
         String traceId = metadata != null ? metadata.traceId() : null;

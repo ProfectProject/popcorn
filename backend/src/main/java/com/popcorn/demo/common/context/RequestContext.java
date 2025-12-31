@@ -18,6 +18,9 @@ public final class RequestContext {
         CONTEXT.remove();
     }
 
+    /**
+     * 요청 단위 식별 정보 (필수 최소 정보만 보관)
+     */
     public record RequestMetadata(String traceId, String path) {
     }
 }

@@ -18,6 +18,9 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 
     private static final String TRACE_ID_KEY = "traceId";
 
+    /**
+     * 요청 단위 추적 ID 생성 및 컨텍스트/MDC에 주입
+     */
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,

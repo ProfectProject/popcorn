@@ -14,10 +14,16 @@ public class IdempotencyCache {
             .expireAfterWrite(Duration.ofMinutes(10))
             .build();
 
+    /**
+     * 멱등성 키 중복 여부 확인
+     */
     public boolean isDuplicate(String key) {
         return cache.getIfPresent(key) != null;
     }
 
+    /**
+     * 멱등성 키 기록
+     */
     public void mark(String key) {
         cache.put(key, Boolean.TRUE);
     }
