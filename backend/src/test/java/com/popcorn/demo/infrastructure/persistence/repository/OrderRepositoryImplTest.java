@@ -30,11 +30,18 @@ class OrderRepositoryImplTest {
 	@Mock
 	private JpaOrderItemRepository jpaOrderItemRepository;
 
+	@Mock
+	private JpaOrderStatusHistoryRepository jpaOrderStatusHistoryRepository;
+
 	private OrderRepositoryImpl orderRepository;
 
 	@BeforeEach
 	void setUp() {
-		orderRepository = new OrderRepositoryImpl(jpaOrderItemRepository, jpaOrderRepository);
+		orderRepository = new OrderRepositoryImpl(
+				jpaOrderItemRepository,
+				jpaOrderRepository,
+				jpaOrderStatusHistoryRepository
+		);
 	}
 
 	@Test
