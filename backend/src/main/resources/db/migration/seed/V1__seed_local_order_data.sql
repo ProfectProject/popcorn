@@ -1,3 +1,4 @@
+-- noinspection SqlResolve
 DO $$
 DECLARE
 	required_cols integer;
