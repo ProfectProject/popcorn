@@ -3,9 +3,9 @@ server:
   shutdown: immediate
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/ttalkak_db
-    username: postgres
-    password: 1234
+    url: ${DB_URL_LOCAL}
+    username: ${DB_USER_LOCAL}
+    password: ${DB_PASSWORD_LOCAL}
     driver-class-name: org.postgresql.Driver
  
   jpa:
