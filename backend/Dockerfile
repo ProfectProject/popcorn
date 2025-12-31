@@ -14,5 +14,12 @@ WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar app.jar
 
+ENV SPRING_PROFILES_ACTIVE=local \
+    DB_HOST=host.docker.internal \
+    DB_PORT=5432 \
+    DB_NAME=ttalkak_db \
+    DB_USERNAME=postgres \
+    DB_PASSWORD=1234
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

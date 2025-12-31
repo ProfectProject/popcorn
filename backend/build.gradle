@@ -64,6 +64,11 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.named('build') {
+	dependsOn 'checkstyleMain'
+	dependsOn 'checkstyleTest'
+}
+
 tasks.register('orderTest', Test) {
 	useJUnitPlatform()
 	include '**/*Order*'
