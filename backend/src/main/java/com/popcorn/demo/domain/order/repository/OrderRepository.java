@@ -341,4 +341,12 @@ public interface OrderRepository {
 
 	boolean existsByIdempotencyKey(String idempotencyKey);
 
+	/**
+		* 주문 상태 변경 이력을 저장합니다.
+		*
+		* @param history 저장할 상태 변경 이력
+		*/
+
+	void saveStatusHistory(com.popcorn.demo.domain.order.entity.OrderStatusHistory history);
+
 }

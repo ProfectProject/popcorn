@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -12,10 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
 import com.popcorn.demo.application.order.usecase.CreateOrderUseCase;
+import com.popcorn.demo.application.order.usecase.UpdateOrderStatusUseCase;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.OrderCreatedDto;
+import com.popcorn.demo.domain.order.dto.UpdateOrderStatusRequest;
+import com.popcorn.demo.domain.order.dto.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +27,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -65,15 +68,17 @@ public class OrderController extends BaseController {
 
 
 
-	private final CreateOrderUseCase createOrderUseCase;
+private final CreateOrderUseCase createOrderUseCase;
+private final UpdateOrderStatusUseCase updateOrderStatusUseCase;
 
 
 
-	public OrderController(CreateOrderUseCase createOrderUseCase) {
+public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusUseCase updateOrderStatusUseCase) {
 
-		this.createOrderUseCase = createOrderUseCase;
+	this.createOrderUseCase = createOrderUseCase;
+	this.updateOrderStatusUseCase = updateOrderStatusUseCase;
 
-	}
+}
 
 
 
@@ -97,25 +102,23 @@ public class OrderController extends BaseController {
 			summary = "주문 생성",
 			description = "새로운 주문을 생성합니다. 예약형(RESERVATION) 또는 구매형(PURCHASE) 주문을 지원합니다."
 	)
-	@ApiResponses({
-		@ApiResponse(
-			responseCode = "201",
-			description = "주문 생성 성공",
-			content = @Content(schema = @Schema(implementation = OrderCreatedDto.class))
-		),
-		@ApiResponse(
-			responseCode = "400",
-			description = "잘못된 요청 (필수값 누락, 형식 오류, 비즈니스 검증 실패)"
-		),
-		@ApiResponse(
-			responseCode = "404",
-			description = "리소스 없음 (스토어, 상품, 세션, 옵션, 굿즈변형)"
-		),
-		@ApiResponse(
-			responseCode = "409",
-			description = "비즈니스 규칙 위반 (재고부족, 정원초과, 상태오류 등)"
-		)
-	})
+	@ApiResponse(
+		responseCode = "201",
+		description = "주문 생성 성공",
+		content = @Content(schema = @Schema(implementation = OrderCreatedDto.class))
+	)
+	@ApiResponse(
+		responseCode = "400",
+		description = "잘못된 요청 (필수값 누락, 형식 오류, 비즈니스 검증 실패)"
+	)
+	@ApiResponse(
+		responseCode = "404",
+		description = "리소스 없음 (스토어, 상품, 세션, 옵션, 굿즈변형)"
+	)
+	@ApiResponse(
+		responseCode = "409",
+		description = "비즈니스 규칙 위반 (재고부족, 정원초과, 상태오류 등)"
+	)
 
 	@PostMapping("/{userId}")
 
@@ -251,6 +254,42 @@ public class OrderController extends BaseController {
 
 		);
 
+	}
+
+	@Operation(
+			summary = "주문 상태 변경",
+			description = "운영(OWNER/MANAGER)에서 주문 상태를 변경합니다."
+	)
+	@ApiResponse(
+		responseCode = "200",
+		description = "주문 상태 변경 성공",
+		content = @Content(schema = @Schema(implementation = UpdateOrderStatusResponse.class))
+	)
+	@ApiResponse(responseCode = "400", description = "잘못된 요청 또는 상태 변경 불가")
+	@ApiResponse(responseCode = "403", description = "권한 없음")
+	@ApiResponse(responseCode = "404", description = "주문 없음")
+	@ApiResponse(responseCode = "409", description = "이미 취소된 주문")
+	@PatchMapping("/{orderId}/status")
+	public ResponseEntity<BaseResponse<UpdateOrderStatusResponse>> updateOrderStatus(
+			@Parameter(description = "주문 ID", required = true)
+			@PathVariable Long orderId,
+			@Valid @RequestBody UpdateOrderStatusRequest request) {
+
+		// 상태 변경 규칙은 유스케이스에서 처리해 비즈니스 규칙을 보장합니다.
+		var updatedOrder = updateOrderStatusUseCase.updateStatus(
+				orderId,
+				request.getStatus(),
+				request.getReason()
+		);
+
+		UpdateOrderStatusResponse response = UpdateOrderStatusResponse.builder()
+				.id(updatedOrder.getId())
+				.status(updatedOrder.getStatus().name())
+				.updatedAt(updatedOrder.getUpdatedAt())
+				.build();
+
+		BaseResponse<UpdateOrderStatusResponse> baseResponse = BaseResponse.success(response);
+		return ResponseEntity.ok(baseResponse);
 	}
 
 

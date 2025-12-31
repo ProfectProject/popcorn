@@ -195,5 +195,22 @@ public class OrderException extends BaseException {
 
 	}
 
-}
+	public static OrderException orderNotFound() {
 
+		return new OrderException(ResponseCode.ORDER_NOT_FOUND);
+
+	}
+
+	public static OrderException invalidStatusTransition() {
+
+		return new OrderException(ResponseCode.INVALID_STATUS_TRANSITION);
+
+	}
+
+	public static OrderException alreadyCanceled() {
+
+		return new OrderException(ResponseCode.ALREADY_CANCELED);
+
+	}
+
+}

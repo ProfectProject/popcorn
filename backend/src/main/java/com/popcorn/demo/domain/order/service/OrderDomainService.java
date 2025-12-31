@@ -303,12 +303,20 @@ public class OrderDomainService {
 
 	public boolean canChangeStatus(OrderStatus currentStatus, OrderStatus newStatus) {
 
+		// 상태 전이 규칙을 한곳에 모아 일관성을 유지합니다.
 		return switch (currentStatus) {
-			case REQUESTED -> newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED;
+			case REQUESTED -> newStatus == OrderStatus.CONFIRMED
+					|| newStatus == OrderStatus.OWNER_ACCEPTED
+					|| newStatus == OrderStatus.OWNER_REJECTED
+					|| newStatus == OrderStatus.CANCELLED;
+			case OWNER_ACCEPTED -> newStatus == OrderStatus.PREPARING
+					|| newStatus == OrderStatus.READY
+					|| newStatus == OrderStatus.COMPLETED
+					|| newStatus == OrderStatus.CANCELLED;
 			case CONFIRMED -> newStatus == OrderStatus.PREPARING || newStatus == OrderStatus.CANCELLED;
 			case PREPARING -> newStatus == OrderStatus.READY || newStatus == OrderStatus.CANCELLED;
 			case READY -> newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.CANCELLED;
-			case CANCELLED, REFUNDED, COMPLETED -> false; // 최종 상태에서는 변경 불가
+			case OWNER_REJECTED, CANCELLED, REFUNDED, COMPLETED -> false; // 최종 상태에서는 변경 불가
 		};
 
 	}
