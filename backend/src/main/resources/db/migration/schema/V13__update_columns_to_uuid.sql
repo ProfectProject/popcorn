@@ -32,9 +32,9 @@ ALTER TABLE p_payments DROP CONSTRAINT IF EXISTS p_payments_created_by_fkey;
 ALTER TABLE p_payments DROP CONSTRAINT IF EXISTS p_payments_updated_by_fkey;
 ALTER TABLE p_payments DROP CONSTRAINT IF EXISTS p_payments_deleted_by_fkey;
 
-ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_qrcodes_created_by_fkey;
-ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_qrcodes_updated_by_fkey;
-ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_qrcodes_deleted_by_fkey;
+ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_order_qr_codes_created_by_fkey;
+ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_order_qr_codes_updated_by_fkey;
+ALTER TABLE p_order_qr_codes DROP CONSTRAINT IF EXISTS p_order_qr_codes_deleted_by_fkey;
 
 ALTER TABLE p_managers_store DROP CONSTRAINT IF EXISTS p_managers_created_by_fkey;
 ALTER TABLE p_managers_store DROP CONSTRAINT IF EXISTS p_managers_updated_by_fkey;
