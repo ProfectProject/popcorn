@@ -1,3 +1,14 @@
+FROM eclipse-temurin:17-jdk AS ci
+WORKDIR /app
+
+COPY gradlew gradlew
+COPY gradle gradle
+COPY build.gradle settings.gradle ./
+COPY src src
+
+RUN chmod +x gradlew
+RUN ./gradlew clean build --no-daemon
+
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app
 

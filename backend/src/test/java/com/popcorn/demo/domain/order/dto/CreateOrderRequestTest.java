@@ -22,12 +22,14 @@ class CreateOrderRequestTest {
 								.sessionId(10L)
 								.optionId(20L)
 								.qty(2)
+								.unitPrice(1000)
 								.build(),
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
 								.sessionId(11L)
 								.optionId(21L)
 								.qty(1)
+								.unitPrice(1200)
 								.build()
 				))
 				.build();
@@ -55,6 +57,7 @@ class CreateOrderRequestTest {
 								.orderItemType("MERCH")
 								.merchVariantId(100L)
 								.qty(1)
+								.unitPrice(1500)
 								.build()
 				))
 				.build();
@@ -78,11 +81,13 @@ class CreateOrderRequestTest {
 								.sessionId(10L)
 								.optionId(20L)
 								.qty(1)
+								.unitPrice(1000)
 								.build(),
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
 								.merchVariantId(100L)
 								.qty(1)
+								.unitPrice(1500)
 								.build()
 				))
 				.build();
@@ -103,6 +108,7 @@ class CreateOrderRequestTest {
 								.orderItemType("MERCH")
 								.merchVariantId(100L)
 								.qty(1)
+								.unitPrice(1500)
 								.build()
 				))
 				.build();

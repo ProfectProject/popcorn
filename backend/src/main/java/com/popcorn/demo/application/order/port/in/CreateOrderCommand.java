@@ -61,6 +61,8 @@ public class CreateOrderCommand {
 
 		private final Long sessionId;
 
+		private final Long optionId;
+
 		private final Long merchVariantId;
 
 		private final Integer qty;
@@ -70,4 +72,3 @@ public class CreateOrderCommand {
 	}
 
 }
-

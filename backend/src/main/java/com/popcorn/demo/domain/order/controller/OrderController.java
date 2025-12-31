@@ -161,9 +161,13 @@ public class OrderController extends BaseController {
 
 								.sessionId(item.getSessionId())
 
+								.optionId(item.getOptionId())
+
 								.merchVariantId(item.getMerchVariantId())
 
 								.qty(item.getQty())
+
+								.unitPrice(item.getUnitPrice())
 
 								.build())
 

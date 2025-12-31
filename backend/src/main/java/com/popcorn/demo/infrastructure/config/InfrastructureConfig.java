@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
+import com.popcorn.demo.application.order.port.out.FindOrderItemPricePort;
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
 import com.popcorn.demo.application.order.port.out.NotifyOrderPort;
 import com.popcorn.demo.application.order.port.out.ProcessOrderPort;
@@ -202,6 +203,8 @@ public class InfrastructureConfig {
 
 			ProcessOrderPort processOrderPort,
 
+			FindOrderItemPricePort findOrderItemPricePort,
+
 			IdempotencyCache idempotencyCache,
 
 			ApplicationEventPublisher eventPublisher) {
@@ -216,6 +219,8 @@ public class InfrastructureConfig {
 
 				processOrderPort,
 
+				findOrderItemPricePort,
+
 				idempotencyCache,
 
 				eventPublisher
@@ -225,4 +230,3 @@ public class InfrastructureConfig {
 	}
 
 }
-

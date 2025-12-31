@@ -24,6 +24,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
+import com.popcorn.demo.application.order.port.out.FindOrderItemPricePort;
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
 import com.popcorn.demo.application.order.port.out.ProcessOrderPort;
 import com.popcorn.demo.application.order.port.out.SaveOrderPort;
@@ -56,6 +57,8 @@ class CreateOrderUseCaseTest {
 	@Mock
 	private ProcessOrderPort processOrderPort;
 	@Mock
+	private FindOrderItemPricePort findOrderItemPricePort;
+	@Mock
 	private IdempotencyCache idempotencyCache;
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
@@ -69,6 +72,7 @@ class CreateOrderUseCaseTest {
 				findOrderPort,
 				saveOrderPort,
 				processOrderPort,
+				findOrderItemPricePort,
 				idempotencyCache,
 				eventPublisher
 		);
@@ -85,6 +89,7 @@ class CreateOrderUseCaseTest {
 		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 		when(orderDomainService.isDuplicateOrder(any(), anyString())).thenReturn(false);
 		when(processOrderPort.validateOrder(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+		when(findOrderItemPricePort.findSessionOptionPrice(any())).thenReturn(Optional.of(14500));
 		when(orderDomainService.createOrder(any(), any(), any(), any(), any(), anyString())).thenReturn(mockOrder);
 		when(saveOrderPort.save(any(Order.class))).thenReturn(savedOrder);
 
@@ -145,6 +150,7 @@ class CreateOrderUseCaseTest {
 		Order savedOrder = createSavedOrder();
 
 		when(processOrderPort.validateOrder(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+		when(findOrderItemPricePort.findSessionOptionPrice(any())).thenReturn(Optional.of(14500));
 		when(orderDomainService.createOrder(any(), any(), any(), any(), any(), any())).thenReturn(mockOrder);
 		when(saveOrderPort.save(any(Order.class))).thenReturn(savedOrder);
 
@@ -174,6 +180,7 @@ class CreateOrderUseCaseTest {
 		when(findOrderPort.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 		when(orderDomainService.isDuplicateOrder(any(), anyString())).thenReturn(false);
 		when(processOrderPort.validateOrder(any(), any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+		when(findOrderItemPricePort.findSessionOptionPrice(any())).thenReturn(Optional.of(14500));
 		when(orderDomainService.createOrder(any(), any(), any(), any(), any(), any()))
 				.thenThrow(OrderException.invalidRequest());
 
@@ -203,6 +210,7 @@ class CreateOrderUseCaseTest {
 				CreateOrderCommand.OrderItemCommand.builder()
 						.orderItemType(OrderItemType.RESERVATION)
 						.sessionId(1L)
+						.optionId(10L)
 						.qty(2)
 						.unitPrice(14500)
 						.build()

@@ -15,6 +15,7 @@ class OrderItemRequestTest {
 				.sessionId(10L)
 				.optionId(20L)
 				.qty(2)
+				.unitPrice(1000)
 				.build();
 
 		assertThat(item.isReservationType()).isTrue();
@@ -33,6 +34,7 @@ class OrderItemRequestTest {
 				.orderItemType("MERCH")
 				.merchVariantId(100L)
 				.qty(1)
+				.unitPrice(1500)
 				.build();
 
 		assertThat(item.isReservationType()).isFalse();
@@ -50,11 +52,13 @@ class OrderItemRequestTest {
 		OrderItemRequest reservationItem = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
 				.qty(1)
+				.unitPrice(1000)
 				.build();
 
 		OrderItemRequest merchItem = OrderItemRequest.builder()
 				.orderItemType("MERCH")
 				.qty(1)
+				.unitPrice(1500)
 				.build();
 
 		assertThat(reservationItem.hasRequiredFields()).isFalse();
@@ -70,6 +74,7 @@ class OrderItemRequestTest {
 				.optionId(20L)
 				.merchVariantId(100L)
 				.qty(1)
+				.unitPrice(1000)
 				.build();
 
 		OrderItemRequest merchWithReservationFields = OrderItemRequest.builder()
@@ -78,6 +83,7 @@ class OrderItemRequestTest {
 				.optionId(20L)
 				.merchVariantId(100L)
 				.qty(1)
+				.unitPrice(1500)
 				.build();
 
 		assertThat(reservationWithMerch.hasUnnecessaryFields()).isTrue();

@@ -60,6 +60,8 @@ public class OrderTestController extends BaseController {
 
 			@RequestParam(required = false) Long sessionId,
 
+			@RequestParam(required = false) Long optionId,
+
 			@RequestParam(required = false) Long merchVariantId,
 
 			@RequestParam(defaultValue = "1") Integer qty,
@@ -75,6 +77,8 @@ public class OrderTestController extends BaseController {
 				.orderItemType(itemType)
 
 				.sessionId(sessionId)
+
+				.optionId(optionId)
 
 				.merchVariantId(merchVariantId)
 

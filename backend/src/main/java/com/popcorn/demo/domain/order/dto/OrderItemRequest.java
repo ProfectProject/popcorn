@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.order.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -62,6 +61,12 @@ public class OrderItemRequest {
 	@Min(value = 1, message = "수량은 1 이상이어야 합니다.")
 
 	private Integer qty;
+
+	/**
+		* 단가 (1 이상)
+		*/
+
+	private Integer unitPrice;
 
 
 
@@ -315,4 +320,3 @@ public class OrderItemRequest {
 	}
 
 }
-

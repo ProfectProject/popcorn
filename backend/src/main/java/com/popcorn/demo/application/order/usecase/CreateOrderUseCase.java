@@ -10,12 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.demo.application.order.event.OrderCreatedEvent;
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
+import com.popcorn.demo.application.order.port.out.FindOrderItemPricePort;
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
 import com.popcorn.demo.application.order.port.out.ProcessOrderPort;
 import com.popcorn.demo.application.order.port.out.SaveOrderPort;
 import com.popcorn.demo.common.cache.IdempotencyCache;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
+import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.service.OrderDomainService;
@@ -58,6 +60,8 @@ public class CreateOrderUseCase {
 	private final SaveOrderPort saveOrderPort;
 
 	private final ProcessOrderPort processOrderPort;
+
+	private final FindOrderItemPricePort findOrderItemPricePort;
 
 	private final IdempotencyCache idempotencyCache;
 
@@ -238,6 +242,7 @@ public class CreateOrderUseCase {
 		*/
 
 	private OrderItem convertToOrderItem(CreateOrderCommand.OrderItemCommand itemCommand) {
+		Integer unitPrice = resolveUnitPrice(itemCommand);
 
 		return OrderItem.builder()
 
@@ -245,14 +250,37 @@ public class CreateOrderUseCase {
 
 				.qty(itemCommand.getQty())
 
-				.unitPrice(itemCommand.getUnitPrice())
+				.unitPrice(unitPrice)
 
-				.sessionOptionId(itemCommand.getSessionId())
+				.sessionOptionId(itemCommand.getOptionId())
 
 				.merchVariantId(itemCommand.getMerchVariantId())
 
 				.build();
 
+	}
+
+
+
+	private Integer resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
+		OrderItemType orderItemType = itemCommand.getOrderItemType();
+		if (OrderItemType.RESERVATION.equals(orderItemType)) {
+			Long optionId = itemCommand.getOptionId();
+			if (optionId == null || optionId <= 0) {
+				throw OrderException.optionNotFound();
+			}
+			return findOrderItemPricePort.findSessionOptionPrice(optionId)
+					.orElseThrow(OrderException::optionNotFound);
+		}
+		if (OrderItemType.MERCH.equals(orderItemType)) {
+			Long merchVariantId = itemCommand.getMerchVariantId();
+			if (merchVariantId == null || merchVariantId <= 0) {
+				throw OrderException.merchVariantNotFound();
+			}
+			return findOrderItemPricePort.findMerchVariantPrice(merchVariantId)
+					.orElseThrow(OrderException::merchVariantNotFound);
+		}
+		throw OrderException.invalidRequest();
 	}
 
 
