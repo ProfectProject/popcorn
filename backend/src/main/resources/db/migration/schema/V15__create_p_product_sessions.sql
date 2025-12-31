@@ -1,4 +1,4 @@
-CREATE TABLE p_product_sessions (
+CREATE TABLE IF NOT EXISTS p_product_sessions (
     id BIGSERIAL PRIMARY KEY,
     product_id BIGINT NOT NULL,
     start_at TIMESTAMP NOT NULL,

@@ -7,7 +7,7 @@ COPY build.gradle settings.gradle ./
 COPY src src
 
 RUN chmod +x gradlew
-RUN ./gradlew clean build --no-daemon
+RUN ./gradlew clean test --no-daemon
 
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app

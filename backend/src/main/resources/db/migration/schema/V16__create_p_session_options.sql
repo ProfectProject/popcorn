@@ -1,4 +1,4 @@
-CREATE TABLE p_session_options (
+CREATE TABLE IF NOT EXISTS p_session_options (
     id BIGSERIAL PRIMARY KEY,
     session_id BIGINT NOT NULL,
     name VARCHAR(100) NOT NULL,
