@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
     branches: ['*']
+  push:
+    branches: [main, develop]  # merge 시에도 실행
 
 jobs:
   test-and-build:

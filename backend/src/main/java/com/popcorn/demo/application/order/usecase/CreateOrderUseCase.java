@@ -55,8 +55,8 @@ public class CreateOrderUseCase {
 		log.info("🎯 주문 생성 시작 - 사용자: {}, 멱등성키: {}", command.getUserId(), command.getIdempotencyKey());
 
 		// 1. 멱등성 검증 (중복 주문 방지)
-		if (command.getIdempotencyKey() != null && !command.getIdempotencyKey().trim().isEmpty()) {
-			String idempotencyKey = command.getIdempotencyKey();
+		String idempotencyKey = normalizeIdempotencyKey(command.getIdempotencyKey());
+		if (idempotencyKey != null) {
 			if (idempotencyCache.isDuplicate(idempotencyKey)) {
 				log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", idempotencyKey);
 				throw OrderException.duplicateIdempotencyKey();
@@ -74,11 +74,12 @@ public class CreateOrderUseCase {
 		OrderType orderType = OrderType.valueOf(command.getOrderType());
 
 		// 3. 검증 병렬 실행 (재고/유저/상품)
+		int totalQty = calculateTotalQuantity(orderItems);
 		try {
 			boolean validationResult = processOrderPort.validateOrder(
 					command.getUserId(),
 					command.getProductId(),
-					orderItems.stream().mapToInt(OrderItem::getQty).sum()
+					totalQty
 			).join();
 			if (!validationResult) {
 				throw OrderException.invalidRequest();
@@ -102,8 +103,8 @@ public class CreateOrderUseCase {
 		Order savedOrder = saveOrderPort.save(order);
 		log.info("💾 주문 저장 완료 - 주문번호: {}, ID: {}", savedOrder.getOrderNo(), savedOrder.getId());
 
-		if (command.getIdempotencyKey() != null && !command.getIdempotencyKey().trim().isEmpty()) {
-			idempotencyCache.mark(command.getIdempotencyKey());
+		if (idempotencyKey != null) {
+			idempotencyCache.mark(idempotencyKey);
 		}
 
 		// 6. 주문 생성 이벤트 발행 (AFTER_COMMIT 비동기 후처리)
@@ -136,5 +137,19 @@ public class CreateOrderUseCase {
 				.sessionOptionId(itemCommand.getSessionId())
 				.merchVariantId(itemCommand.getMerchVariantId())
 				.build();
+	}
+
+	private String normalizeIdempotencyKey(String idempotencyKey) {
+		if (idempotencyKey == null) {
+			return null;
+		}
+		String trimmed = idempotencyKey.trim();
+		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	private int calculateTotalQuantity(List<OrderItem> orderItems) {
+		return orderItems.stream()
+				.mapToInt(OrderItem::getQty)
+				.sum();
 	}
 }

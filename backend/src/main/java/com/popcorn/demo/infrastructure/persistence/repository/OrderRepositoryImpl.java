@@ -22,27 +22,21 @@ import java.util.Optional;
 public class OrderRepositoryImpl implements OrderRepository {
 
     private final JpaOrderRepository jpaOrderRepository;
-    private final JpaOrderItemRepository jpaOrderItemRepository;
 
     /**
      * 생성자 기반 의존성 주입
      * @param jpaOrderRepository JPA Repository
      */
     @Autowired
-    public OrderRepositoryImpl(JpaOrderRepository jpaOrderRepository, JpaOrderItemRepository jpaOrderItemRepository) {
+    public OrderRepositoryImpl(JpaOrderRepository jpaOrderRepository) {
         this.jpaOrderRepository = jpaOrderRepository;
-        this.jpaOrderItemRepository = jpaOrderItemRepository;
     }
 
     // ========================= 기본 CRUD 메서드 =========================
 
     @Override
     public Order save(Order order) {
-        Order savedOrder = jpaOrderRepository.save(order);
-        if (savedOrder.getOrderItems() != null && !savedOrder.getOrderItems().isEmpty()) {
-            jpaOrderItemRepository.saveAll(savedOrder.getOrderItems());
-        }
-        return savedOrder;
+        return jpaOrderRepository.save(order);
     }
 
     @Override

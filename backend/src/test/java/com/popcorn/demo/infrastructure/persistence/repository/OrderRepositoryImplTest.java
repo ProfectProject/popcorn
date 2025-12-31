@@ -26,19 +26,16 @@ class OrderRepositoryImplTest {
     @Mock
     private JpaOrderRepository jpaOrderRepository;
 
-    @Mock
-    private JpaOrderItemRepository jpaOrderItemRepository;
-
     private OrderRepositoryImpl orderRepository;
 
     @BeforeEach
     void setUp() {
-        orderRepository = new OrderRepositoryImpl(jpaOrderRepository, jpaOrderItemRepository);
+        orderRepository = new OrderRepositoryImpl(jpaOrderRepository);
     }
 
     @Test
-    @DisplayName("Save - JpaOrderRepository와 JpaOrderItemRepository 모두 호출")
-    void save_CallsBothRepositories() {
+    @DisplayName("Save - JpaOrderRepository delegate")
+    void save_DelegatesToJpaOrderRepository() {
         // given
         Order order = buildOrder("O-1001", 1001L, 10L, 55L, OrderStatus.REQUESTED, 29000, null);
         Order savedOrder = buildOrder("O-1001", 1001L, 10L, 55L, OrderStatus.REQUESTED, 29000, null);
