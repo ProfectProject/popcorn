@@ -48,6 +48,7 @@ logging:
   level:
     com.popcorn.demo: DEBUG
     org.springframework.security: DEBUG
+    org.flywaydb: ERROR
     org.springframework.data.r2dbc: DEBUG
 
 # Actuator 설정
