@@ -2,6 +2,7 @@ package com.popcorn.demo.application.order.port.out;
 
 import java.util.UUID;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.domain.order.entity.Order;
@@ -72,5 +73,7 @@ public interface FindOrderPort {
 		*/
 
 	Mono<OrderSummaryView> findSummaryById(UUID orderId);
+
+	Flux<OrderSummaryView> findSummariesByCustomerId(Long customerId, int offset, int limit);
 
 }

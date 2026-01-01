@@ -237,9 +237,10 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 
 		return createOrderUseCase.createOrder(command)
-				.map(this::convertToOrderCreatedDto)
-				.map(BaseResponse::success)
-				.map(baseResponse -> new ResponseEntity<>(baseResponse, HttpStatus.CREATED));
+				.map(response -> {
+					OrderCreatedDto dto = convertToOrderCreatedDto(response);
+					return new ResponseEntity<>(BaseResponse.success(dto), HttpStatus.CREATED);
+				});
 
 	}
 
@@ -415,13 +416,14 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 					request.getStatus(),
 					request.getReason()
 				)
-				.map(updatedOrder -> UpdateOrderStatusResponse.builder()
-						.id(updatedOrder.getId())
-						.status(updatedOrder.getStatus().name())
-						.updatedAt(updatedOrder.getUpdatedAt())
-						.build())
-				.map(BaseResponse::success)
-				.map(ResponseEntity::ok);
+				.map(updatedOrder -> {
+					UpdateOrderStatusResponse response = UpdateOrderStatusResponse.builder()
+							.id(updatedOrder.getId())
+							.status(updatedOrder.getStatus().name())
+							.updatedAt(updatedOrder.getUpdatedAt())
+							.build();
+					return ResponseEntity.ok(BaseResponse.success(response));
+				});
 	}
 
 

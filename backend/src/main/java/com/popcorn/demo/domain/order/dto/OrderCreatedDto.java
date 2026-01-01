@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,13 +35,21 @@ import lombok.Setter;
 	*/
 
 @Getter
-
 @Setter
-
 @NoArgsConstructor
-
 @AllArgsConstructor
-
+@JsonPropertyOrder({
+		"orderId",
+		"orderNo",
+		"orderType",
+		"status",
+		"storeId",
+		"productId",
+		"totalAmount",
+		"cancelableUntil",
+		"createdAt",
+		"items"
+})
 public class OrderCreatedDto {
 
 
@@ -51,7 +62,13 @@ public class OrderCreatedDto {
 
 		*/
 
+	@JsonIgnore
 	private UUID id;
+
+	@JsonProperty("orderId")
+	public UUID getOrderId() {
+		return id;
+	}
 
 
 

@@ -3,6 +3,7 @@ package com.popcorn.demo.common.filter;
 import java.util.UUID;
 
 import org.slf4j.MDC;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -19,7 +20,8 @@ public class RequestTraceFilter implements WebFilter {
 	 * 요청 단위 추적 ID 생성 및 MDC에 주입
 	 */
 	@Override
-	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+	@NonNull
+	public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
 		String traceId = UUID.randomUUID().toString();
 		MDC.put(TRACE_ID_KEY, traceId);
 		return chain.filter(exchange)

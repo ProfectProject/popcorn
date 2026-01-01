@@ -131,10 +131,7 @@ public class CreateOrderUseCase {
 											}
 
 											List<OrderItem> itemsWithOrderId = savedOrder.getOrderItems().stream()
-													.map(item -> {
-														item.setOrderId(savedOrder.getId());
-														return item;
-													})
+													.peek(item -> item.setOrderId(savedOrder.getId()))
 													.toList();
 
 											return saveOrderPort.saveOrderItems(itemsWithOrderId)
@@ -163,9 +160,9 @@ public class CreateOrderUseCase {
 					if (orderDomainService.isDuplicateOrder(Optional.of(existingOrder), rawKey)) {
 						log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", rawKey);
 						idempotencyCache.mark(normalizedKey);
-						return Mono.<Void>error(OrderException.duplicateIdempotencyKey());
+						return Mono.error(OrderException.duplicateIdempotencyKey());
 					}
-					return Mono.<Void>empty();
+					return Mono.empty();
 				})
 				.then();
 	}
@@ -198,6 +195,7 @@ public class CreateOrderUseCase {
 				.map(unitPrice -> {
 					Integer lineAmount = unitPrice * itemCommand.getQty();
 					return OrderItem.builder()
+							.id(java.util.UUID.randomUUID())
 							.orderItemType(itemCommand.getOrderItemType())
 							.qty(itemCommand.getQty())
 							.unitPrice(unitPrice)

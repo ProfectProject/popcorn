@@ -32,12 +32,13 @@ public class FlywaySeedConfig {
 
 				.baselineOnMigrate(true)
 
-				.outOfOrder(true)
+				.outOfOrder(false)
 
 				.load();
 
 
 
+		flyway.repair();
 		flyway.migrate();
 
 		return flyway;
@@ -45,4 +46,3 @@ public class FlywaySeedConfig {
 	}
 
 }
-

@@ -127,12 +127,12 @@ public class OrderService {
 	public Mono<String> processPaymentAsync(UUID orderId, Integer amount) {
 
 		return Mono.delay(Duration.ofMillis(200))
-				.map(ignored -> {
+				.flatMap(ignored -> {
 					boolean paymentSuccess = Math.random() > 0.1;
 					String paymentId = paymentSuccess ? "PAY-" + System.currentTimeMillis() : null;
 					log.info("주문 {} 결제 처리 {}", orderId,
 							paymentSuccess ? "성공: " + paymentId : "실패");
-					return paymentId;
+					return paymentSuccess ? Mono.just(paymentId) : Mono.empty();
 				});
 
 	}

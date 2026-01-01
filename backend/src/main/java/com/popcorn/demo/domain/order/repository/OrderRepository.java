@@ -157,6 +157,15 @@ public interface OrderRepository {
 
 	Flux<Order> findByCustomerId(Long customerId, int offset, int limit);
 
+	/**
+		* 고객 주문 요약 목록 조회 (페이징)
+		* @param customerId 고객 ID
+		* @param offset 시작 위치
+		* @param limit 조회 개수
+		* @return 고객 주문 요약 목록
+		*/
+	Flux<OrderSummaryView> findSummariesByCustomerId(Long customerId, int offset, int limit);
+
 
 
 	/**

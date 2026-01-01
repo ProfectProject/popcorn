@@ -37,6 +37,43 @@ import com.popcorn.demo.domain.order.exception.OrderException;
 @Service
 
 public class OrderDomainService {
+	private static final java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> STATUS_TRANSITIONS =
+			buildStatusTransitions();
+
+	private static java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> buildStatusTransitions() {
+		java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> transitions =
+				new java.util.EnumMap<>(OrderStatus.class);
+		transitions.put(OrderStatus.REQUESTED, java.util.EnumSet.of(
+				OrderStatus.CONFIRMED,
+				OrderStatus.OWNER_ACCEPTED,
+				OrderStatus.OWNER_REJECTED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.OWNER_ACCEPTED, java.util.EnumSet.of(
+				OrderStatus.PREPARING,
+				OrderStatus.CONFIRMED,
+				OrderStatus.READY,
+				OrderStatus.COMPLETED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.CONFIRMED, java.util.EnumSet.of(
+				OrderStatus.PREPARING,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.PREPARING, java.util.EnumSet.of(
+				OrderStatus.READY,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.READY, java.util.EnumSet.of(
+				OrderStatus.COMPLETED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.OWNER_REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.REFUNDED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.COMPLETED, java.util.EnumSet.noneOf(OrderStatus.class));
+		return transitions;
+	}
 
 
 
@@ -304,22 +341,8 @@ public class OrderDomainService {
 
 	public boolean canChangeStatus(OrderStatus currentStatus, OrderStatus newStatus) {
 
-		// 상태 전이 규칙을 한곳에 모아 일관성을 유지합니다.
-		return switch (currentStatus) {
-			case REQUESTED -> newStatus == OrderStatus.CONFIRMED
-					|| newStatus == OrderStatus.OWNER_ACCEPTED
-					|| newStatus == OrderStatus.OWNER_REJECTED
-					|| newStatus == OrderStatus.CANCELLED;
-			case OWNER_ACCEPTED -> newStatus == OrderStatus.PREPARING
-					|| newStatus == OrderStatus.CONFIRMED
-					|| newStatus == OrderStatus.READY
-					|| newStatus == OrderStatus.COMPLETED
-					|| newStatus == OrderStatus.CANCELLED;
-			case CONFIRMED -> newStatus == OrderStatus.PREPARING || newStatus == OrderStatus.CANCELLED;
-			case PREPARING -> newStatus == OrderStatus.READY || newStatus == OrderStatus.CANCELLED;
-			case READY -> newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.CANCELLED;
-			case OWNER_REJECTED, CANCELLED, REFUNDED, COMPLETED -> false; // 최종 상태에서는 변경 불가
-		};
+		java.util.EnumSet<OrderStatus> allowed = STATUS_TRANSITIONS.get(currentStatus);
+		return allowed != null && allowed.contains(newStatus);
 
 	}
 
