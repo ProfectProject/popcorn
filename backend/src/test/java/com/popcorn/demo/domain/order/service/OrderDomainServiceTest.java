@@ -208,6 +208,48 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - OWNER_ACCEPTED에서 CONFIRMED로 변경 가능")
+	void canChangeStatus_OwnerAcceptedToConfirmed_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.OWNER_ACCEPTED;
+		OrderStatus newStatus = OrderStatus.CONFIRMED;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - CONFIRMED에서 PREPARING으로 변경 가능")
+	void canChangeStatus_ConfirmedToPreparing_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.CONFIRMED;
+		OrderStatus newStatus = OrderStatus.PREPARING;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 READY로 변경 불가")
+	void canChangeStatus_RequestedToReady_ReturnsFalse() {
+		// given
+		OrderStatus currentStatus = OrderStatus.REQUESTED;
+		OrderStatus newStatus = OrderStatus.READY;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isFalse();
+	}
+
+	@Test
 	@DisplayName("주문 상태 변경 가능 검증 - COMPLETED에서 변경 불가")
 	void canChangeStatus_CompletedToAny_ReturnsFalse() {
 		// given

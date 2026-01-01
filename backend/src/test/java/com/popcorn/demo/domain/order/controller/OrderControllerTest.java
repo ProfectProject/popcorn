@@ -107,8 +107,9 @@ class OrderControllerTest {
 				.expectStatus().isCreated()
 				.expectBody()
 				.jsonPath("$.code").isEqualTo(200)
-				.jsonPath("$.data.id").isEqualTo(orderId.toString())
-				.jsonPath("$.data.status").isEqualTo("REQUESTED");
+				.jsonPath("$.data.orderId").isEqualTo(orderId.toString())
+				.jsonPath("$.data.status").isEqualTo("REQUESTED")
+				.jsonPath("$.data.items[0].id").isEqualTo(itemId.toString());
 		log.info("✅ 주문 생성 컨트롤러 테스트 완료");
 	}
 
@@ -121,7 +122,7 @@ class OrderControllerTest {
 				.status(OrderStatus.OWNER_ACCEPTED)
 				.build();
 
-		when(updateOrderStatusUseCase.updateStatus(eq(orderId), eq("OWNER_ACCEPTED"), eq("approved")))
+		when(updateOrderStatusUseCase.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
 				.thenReturn(Mono.just(updatedOrder));
 
 		String body = """
@@ -148,7 +149,7 @@ class OrderControllerTest {
 	void updateOrderStatus_invalidTransition() {
 		log.info("🧪 주문 상태 변경 실패 케이스 테스트 시작");
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-		when(updateOrderStatusUseCase.updateStatus(eq(orderId), eq("READY"), eq("reason")))
+		when(updateOrderStatusUseCase.updateStatus(orderId, "READY", "reason"))
 				.thenReturn(Mono.error(OrderException.invalidStatusTransition()));
 
 		String body = """
@@ -167,6 +168,90 @@ class OrderControllerTest {
 				.expectBody()
 				.jsonPath("$.code").isEqualTo(400);
 		log.info("✅ 주문 상태 변경 실패 케이스 테스트 완료");
+	}
+
+	@Test
+	void createOrder_then_updateStatus_success() {
+		log.info("🧪 주문 생성 → 상태 변경 ATDD 시나리오 테스트 시작");
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000002001");
+		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000020");
+
+		CreateOrderResponse response = CreateOrderResponse.builder()
+				.orderId(orderId)
+				.orderNo("O20260101-000001")
+				.orderType("RESERVATION")
+				.status("REQUESTED")
+				.storeId(storeId)
+				.productId(productId)
+				.totalAmount(2000)
+				.cancelableUntil(LocalDateTime.now())
+				.createdAt(LocalDateTime.now())
+				.items(List.of(
+						CreateOrderResponse.OrderItemResponse.builder()
+								.itemId(itemId)
+								.orderItemType(OrderItemType.RESERVATION.name())
+								.qty(2)
+								.unitPrice(1000)
+								.lineAmount(2000)
+								.build()
+				))
+				.build();
+
+		when(createOrderUseCase.createOrder(any())).thenReturn(Mono.just(response));
+
+		Order updatedOrder = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.OWNER_ACCEPTED)
+				.build();
+
+		when(updateOrderStatusUseCase.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+				.thenReturn(Mono.just(updatedOrder));
+
+		String createBody = """
+				{
+				  "orderType": "RESERVATION",
+				  "storeId": "00000000-0000-0000-0000-000000000001",
+				  "productId": "00000000-0000-0000-0000-000000000101",
+				  "items": [
+				    {
+				      "orderItemType": "RESERVATION",
+				      "sessionId": "00000000-0000-0000-0000-000000000201",
+				      "optionId": "00000000-0000-0000-0000-000000000301",
+				      "qty": 2
+				    }
+				  ]
+				}
+				""";
+
+		webTestClient.post()
+				.uri("/api/v1/orders/1001")
+				.contentType(MediaType.APPLICATION_JSON)
+				.bodyValue(createBody)
+				.exchange()
+				.expectStatus().isCreated()
+				.expectBody()
+				.jsonPath("$.data.orderId").isEqualTo(orderId.toString())
+				.jsonPath("$.data.items[0].id").isEqualTo(itemId.toString());
+
+		String statusBody = """
+				{
+				  "status": "OWNER_ACCEPTED",
+				  "reason": "approved"
+				}
+				""";
+
+		webTestClient.patch()
+				.uri("/api/v1/orders/" + orderId + "/status")
+				.contentType(MediaType.APPLICATION_JSON)
+				.bodyValue(statusBody)
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody()
+				.jsonPath("$.data.id").isEqualTo(orderId.toString())
+				.jsonPath("$.data.status").isEqualTo("OWNER_ACCEPTED");
+		log.info("✅ 주문 생성 → 상태 변경 ATDD 시나리오 테스트 완료");
 	}
 
 	@TestConfiguration

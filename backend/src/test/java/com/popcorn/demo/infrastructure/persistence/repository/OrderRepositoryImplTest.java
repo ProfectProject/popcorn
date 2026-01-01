@@ -27,6 +27,7 @@ import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.entity.OrderType;
+import com.popcorn.demo.domain.order.repository.OrderSummaryView;
 
 @ExtendWith(MockitoExtension.class)
 class OrderRepositoryImplTest {
@@ -250,11 +251,59 @@ class OrderRepositoryImplTest {
 	}
 
 	@Test
+	@DisplayName("FindSummariesByCustomerId - 요약 쿼리 호출")
+	void findSummariesByCustomerId_DelegatesToSummaryQuery() {
+		// given
+		Long customerId = 1001L;
+		OrderSummaryView summary = new OrderSummaryView() {
+			@Override
+			public UUID getId() {
+				return UUID.randomUUID();
+			}
+
+			@Override
+			public String getOrderNo() {
+				return "O-1001";
+			}
+
+			@Override
+			public String getStatus() {
+				return OrderStatus.REQUESTED.name();
+			}
+
+			@Override
+			public Integer getTotalAmount() {
+				return 12000;
+			}
+
+			@Override
+			public java.time.LocalDateTime getCreatedAt() {
+				return java.time.LocalDateTime.now();
+			}
+		};
+
+		when(orderRepository.findSummariesByCustomerIdWithPaging(customerId, 0L, 20))
+				.thenReturn(reactor.core.publisher.Flux.just(summary));
+
+		// when
+		reactor.core.publisher.Flux<OrderSummaryView> result =
+				orderRepositoryImpl.findSummariesByCustomerId(customerId, 0, 20);
+
+		// then
+		reactor.test.StepVerifier.create(result)
+				.expectNext(summary)
+				.verifyComplete();
+		verify(orderRepository).findSummariesByCustomerIdWithPaging(customerId, 0L, 20);
+	}
+
+	@Test
 	@DisplayName("SaveOrderItems - insertOrderItem 호출")
 	void saveOrderItems_InsertsItems() {
 		// given
 		UUID orderId = UUID.randomUUID();
+		UUID itemId = UUID.randomUUID();
 		OrderItem item = OrderItem.builder()
+				.id(itemId)
 				.orderId(orderId)
 				.orderItemType(OrderItemType.RESERVATION)
 				.sessionOptionId(UUID.randomUUID())
@@ -264,13 +313,14 @@ class OrderRepositoryImplTest {
 				.build();
 
 		when(orderItemRepository.insertOrderItem(
-				any(),
-				any(),
-				any(),
-				any(),
-				any(),
-				any(),
-				any()
+				any(UUID.class),
+				any(UUID.class),
+				any(String.class),
+				any(UUID.class),
+				org.mockito.ArgumentMatchers.isNull(),
+				any(Integer.class),
+				any(Integer.class),
+				any(Integer.class)
 		)).thenReturn(Mono.just(item));
 
 		// when
@@ -280,6 +330,7 @@ class OrderRepositoryImplTest {
 		StepVerifier.create(result)
 				.verifyComplete();
 		verify(orderItemRepository).insertOrderItem(
+				itemId,
 				orderId,
 				OrderItemType.RESERVATION.name(),
 				item.getSessionOptionId(),
