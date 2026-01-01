@@ -3,6 +3,7 @@ package com.popcorn.demo.presentation.interceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.lang.NonNull;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
@@ -15,7 +16,8 @@ public class RequestLoggingInterceptor implements WebFilter {
 	private static final String START_TIME_ATTR = "requestStartTime";
 
 	@Override
-	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+	@NonNull
+	public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
 		exchange.getAttributes().put(START_TIME_ATTR, System.currentTimeMillis());
 
 		log.info("Incoming request: {} {} traceId={}",

@@ -59,6 +59,22 @@ public interface R2dbcOrderRepository extends ReactiveCrudRepository<Order, UUID
 	Mono<OrderSummaryView> findSummaryById(@Param("orderId") UUID orderId);
 
 	@Query("""
+		SELECT id AS id,
+		       order_no AS orderNo,
+		       status AS status,
+		       total_amount AS totalAmount,
+		       created_at AS createdAt
+		FROM p_orders
+		WHERE customer_id = :customerId
+		ORDER BY created_at DESC
+		LIMIT :limit OFFSET :offset
+		""")
+	Flux<OrderSummaryView> findSummariesByCustomerIdWithPaging(
+			@Param("customerId") Long customerId,
+			@Param("offset") long offset,
+			@Param("limit") int limit);
+
+	@Query("""
 		INSERT INTO p_orders (
 			order_no,
 			customer_id,

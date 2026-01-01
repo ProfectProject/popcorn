@@ -121,6 +121,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 		}
 		return Flux.fromIterable(orderItems)
 				.flatMap(item -> orderItemRepository.insertOrderItem(
+						item.getId(),
 						item.getOrderId(),
 						item.getOrderItemType().name(),
 						item.getSessionOptionId(),
@@ -207,6 +208,13 @@ public class OrderRepositoryImpl implements OrderRepository {
 		int safeLimit = Math.max(1, limit);
 		return orderRepository.findByCustomerIdWithPaging(customerId, safeOffset, safeLimit);
 
+	}
+
+	@Override
+	public Flux<OrderSummaryView> findSummariesByCustomerId(Long customerId, int offset, int limit) {
+		long safeOffset = Math.max(0, offset);
+		int safeLimit = Math.max(1, limit);
+		return orderRepository.findSummariesByCustomerIdWithPaging(customerId, safeOffset, safeLimit);
 	}
 
 

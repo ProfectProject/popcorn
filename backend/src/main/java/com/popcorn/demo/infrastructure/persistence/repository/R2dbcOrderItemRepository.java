@@ -13,6 +13,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 public interface R2dbcOrderItemRepository extends ReactiveCrudRepository<OrderItem, UUID> {
 	@Query("""
 		INSERT INTO p_order_items (
+			id,
 			order_id,
 			order_item_type,
 			session_option_id,
@@ -23,6 +24,7 @@ public interface R2dbcOrderItemRepository extends ReactiveCrudRepository<OrderIt
 			created_at,
 			updated_at
 		) VALUES (
+			:id,
 			:orderId,
 			CAST(:orderItemType AS order_item_type),
 			:sessionOptionId,
@@ -36,6 +38,7 @@ public interface R2dbcOrderItemRepository extends ReactiveCrudRepository<OrderIt
 		RETURNING *
 		""")
 	Mono<OrderItem> insertOrderItem(
+			@Param("id") UUID id,
 			@Param("orderId") UUID orderId,
 			@Param("orderItemType") String orderItemType,
 			@Param("sessionOptionId") UUID sessionOptionId,

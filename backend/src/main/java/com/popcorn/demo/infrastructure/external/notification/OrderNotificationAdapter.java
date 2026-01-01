@@ -51,27 +51,12 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 
 	public Mono<Void> notifyOrderStatusChanged(Order order) {
 
-		return Mono.fromRunnable(() -> {
-			log.info("📢 주문 상태 변경 알림 - 주문번호: {}, 상태: {}, 고객: {}",
-					order.getOrderNo(),
-					order.getStatus(),
-					order.getCustomerId());
-
-			// 예시: 상태별 차별화된 알림
-			switch (order.getStatus()) {
-				case COMPLETED:
-					notifyOrderCompleted(order);
-					break;
-				case CANCELLED:
-					notifyOrderCancelled(order);
-					break;
-				case REFUNDED:
-					notifyOrderRefunded(order);
-					break;
-				default:
-					break;
-			}
-		});
+		return Mono.fromRunnable(() ->
+				log.info("📢 주문 상태 변경 알림 - 주문번호: {}, 상태: {}, 고객: {}",
+						order.getOrderNo(),
+						order.getStatus(),
+						order.getCustomerId()))
+				.then(statusSpecificNotification(order));
 
 	}
 
@@ -100,9 +85,7 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 	private void notifyOrderCompleted(Order order) {
 
 		log.info("✅ 주문 완료 알림 - 주문번호: {}, 주문금액: {}원",
-
 				order.getOrderNo(),
-
 				order.getTotalAmount());
 
 	}
@@ -118,11 +101,18 @@ public class OrderNotificationAdapter implements NotifyOrderPort {
 	private void notifyOrderRefunded(Order order) {
 
 		log.info("💰 환불 완료 알림 - 주문번호: {}, 환불금액: {}원",
-
 				order.getOrderNo(),
-
 				order.getTotalAmount());
 
+	}
+
+	private Mono<Void> statusSpecificNotification(Order order) {
+		return switch (order.getStatus()) {
+			case COMPLETED -> Mono.fromRunnable(() -> notifyOrderCompleted(order));
+			case CANCELLED -> notifyOrderCancelled(order);
+			case REFUNDED -> Mono.fromRunnable(() -> notifyOrderRefunded(order));
+			default -> Mono.empty();
+		};
 	}
 
 }

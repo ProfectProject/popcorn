@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import com.popcorn.demo.application.order.port.out.FindOrderPort;
@@ -77,6 +78,11 @@ public class OrderRepositoryAdapter implements FindOrderPort, SaveOrderPort {
 
 		return orderRepository.findSummaryById(orderId);
 
+	}
+
+	@Override
+	public Flux<OrderSummaryView> findSummariesByCustomerId(Long customerId, int offset, int limit) {
+		return orderRepository.findSummariesByCustomerId(customerId, offset, limit);
 	}
 
 
