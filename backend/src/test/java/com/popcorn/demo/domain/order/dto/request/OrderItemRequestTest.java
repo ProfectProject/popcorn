@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.dto;
+package com.popcorn.demo.domain.order.dto.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
