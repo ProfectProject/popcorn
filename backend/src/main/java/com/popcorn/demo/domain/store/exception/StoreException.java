@@ -1,77 +1,100 @@
 package com.popcorn.demo.domain.store.exception;
 
-import com.popcorn.demo.common.dto.ResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.demo.domain.store.dto.StoreResponseCode;
+import com.popcorn.demo.global.exception.BaseException;
 
 /**
  * 스토어 도메인 예외 클래스
- * - ResponseCode 기반의 예외 처리
- * - 정적 팩토리 메서드로 예외 생성
+ * Global 패키지의 BaseException을 상속받아 표준화된 예외 처리를 제공합니다.
+ *
+ * 제공하는 정적 팩토리 메서드들:
+ * - 검증 실패 예외들 (400 Bad Request)
+ * - 리소스 없음 예외들 (404 Not Found)
+ * - 비즈니스 규칙 위반 예외들 (409 Conflict)
  */
 public class StoreException extends BaseException {
 
-    private StoreException(ResponseCode responseCode) {
+    // 공통 응답 코드 생성자
+    private StoreException(CommonResponseCode responseCode) {
         super(responseCode);
     }
 
-    private StoreException(ResponseCode responseCode, Throwable cause) {
+    private StoreException(CommonResponseCode responseCode, Throwable cause) {
         super(responseCode, cause);
     }
 
-    // ========================= 기본 예외 =========================
+    // Store 도메인 응답 코드 생성자
+    private StoreException(StoreResponseCode responseCode) {
+        super(responseCode);
+    }
+
+    private StoreException(StoreResponseCode responseCode, Throwable cause) {
+        super(responseCode, cause);
+    }
+
+    // ================ 검증 실패 예외들 (400 Bad Request) ================
 
     public static StoreException invalidRequest() {
-        return new StoreException(ResponseCode.INVALID_REQUEST);
+        return new StoreException(CommonResponseCode.INVALID_REQUEST);
     }
 
     public static StoreException emptyName() {
-        return new StoreException(ResponseCode.EMPTY_NAME);
+        return new StoreException(StoreResponseCode.EMPTY_NAME);
     }
 
-    public static StoreException ownerNotFound() {
-        return new StoreException(ResponseCode.OWNER_NOT_FOUND);
-    }
-
-    // ========================= 스토어 생성 관련 예외 =========================
-
-    public static StoreException duplicateStoreName(String storeName) {
-        return new StoreException(ResponseCode.DUPLICATE_STORE_NAME);
-    }
-
-    public static StoreException ownerNotAuthorized(Long ownerId) {
-        return new StoreException(ResponseCode.OWNER_NOT_AUTHORIZED);
+    public static StoreException invalidNameLength(int actualLength, int minLength, int maxLength) {
+        return new StoreException(StoreResponseCode.INVALID_NAME_LENGTH);
     }
 
     public static StoreException invalidNameFormat(String storeName) {
-        return new StoreException(ResponseCode.INVALID_NAME_FORMAT);
+        return new StoreException(StoreResponseCode.INVALID_NAME_FORMAT);
     }
 
-    // ========================= 비동기 처리 관련 예외 =========================
-
-    public static StoreException validationTimeout() {
-        return new StoreException(ResponseCode.VALIDATION_TIMEOUT);
+    public static StoreException storeCreationLimitExceeded(Long ownerId, int maxStores) {
+        return new StoreException(StoreResponseCode.STORE_CREATION_LIMIT_EXCEEDED);
     }
 
-    public static StoreException validationInterrupted() {
-        return new StoreException(ResponseCode.VALIDATION_INTERRUPTED);
-    }
+    // ================ 리소스 없음 예외들 (404 Not Found) ================
 
-    public static StoreException validationFailed(String message, Throwable cause) {
-        return new StoreException(ResponseCode.VALIDATION_FAILED, cause);
+    public static StoreException ownerNotFound() {
+        return new StoreException(StoreResponseCode.OWNER_NOT_FOUND);
     }
-
-    // ========================= 스토어 조회/수정/삭제 관련 예외 =========================
 
     public static StoreException storeNotFound(Object storeId) {
-        return new StoreException(ResponseCode.STORE_NOT_FOUND);
+        return new StoreException(StoreResponseCode.STORE_NOT_FOUND);
     }
 
-    public static StoreException storeAlreadyDeleted(Object storeId) {
-        return new StoreException(ResponseCode.STORE_ALREADY_DELETED);
+    // ================ 비즈니스 규칙 위반 예외들 (409 Conflict) ================
+
+    public static StoreException duplicateStoreName(String storeName) {
+        return new StoreException(StoreResponseCode.DUPLICATE_STORE_NAME);
+    }
+
+    public static StoreException ownerNotAuthorized(Long ownerId) {
+        return new StoreException(StoreResponseCode.OWNER_NOT_AUTHORIZED);
     }
 
     public static StoreException accessDenied(Long userId, Object storeId) {
-        return new StoreException(ResponseCode.ACCESS_DENIED);
+        return new StoreException(StoreResponseCode.ACCESS_DENIED);
+    }
+
+    public static StoreException storeAlreadyDeleted(Object storeId) {
+        return new StoreException(StoreResponseCode.STORE_ALREADY_DELETED);
+    }
+
+    // ================ 시스템 오류 예외들 (500 Internal Server Error) ================
+
+    public static StoreException validationTimeout() {
+        return new StoreException(StoreResponseCode.VALIDATION_TIMEOUT);
+    }
+
+    public static StoreException validationInterrupted() {
+        return new StoreException(StoreResponseCode.VALIDATION_INTERRUPTED);
+    }
+
+    public static StoreException validationFailed(String message, Throwable cause) {
+        return new StoreException(StoreResponseCode.VALIDATION_FAILED, cause);
     }
 
 }

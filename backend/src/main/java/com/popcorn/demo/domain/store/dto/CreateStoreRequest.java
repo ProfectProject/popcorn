@@ -36,24 +36,4 @@ public class CreateStoreRequest {
     @Positive(message = "오너 ID는 양수여야 합니다.")
     private Long ownerId;
 
-    // ========================= 검증 메서드 =========================
-
-    /**
-     * 오너 권한 확인
-     * @param userId 확인할 사용자 ID
-     * @return 오너이면 true
-     */
-    public boolean isOwner(Long userId) {
-        return this.ownerId.equals(userId);
-    }
-
-    /**
-     * 요청 데이터 유효성 검증
-     * @return 모든 필수 데이터가 유효하면 true
-     */
-    public boolean isValidRequest() {
-        return name != null && !name.trim().isEmpty() 
-            && ownerId != null && ownerId > 0;
-    }
-
 }

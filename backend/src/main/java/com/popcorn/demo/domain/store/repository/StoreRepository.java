@@ -4,13 +4,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.entity.Store;
+import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 
 /**
  * 스토어 레포지토리 인터페이스
- * - 클린 아키텍처: 도메인 계층에서 인터페이스 정의
- * - 인프라스트럭처 계층에서 구현체 제공
+ * - 도메인 계층에서 인터페이스 정의
+ * - JPA 구현체에서 실제 구현 제공
  * - 도메인 엔티티 Store를 다루는 데이터 액세스 추상화
  */
 public interface StoreRepository {
@@ -90,5 +90,4 @@ public interface StoreRepository {
      * @return 해당 상태의 스토어 수
      */
     long countByPublishStatus(StorePublishStatus status);
-
 }
