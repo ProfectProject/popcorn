@@ -14,6 +14,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM
 
   flyway:
     url: ${DATABASE_URL}
