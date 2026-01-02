@@ -1,5 +1,7 @@
 package com.popcorn.demo.domain.order.entity;
 
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,7 +45,7 @@ public class MerchDetail {
 
 		*/
 
-	private Long merchVariantId;
+	private UUID merchVariantId;
 
 
 
@@ -101,7 +103,7 @@ public class MerchDetail {
 
 		*/
 
-	public static MerchDetail of(Long merchVariantId) {
+	public static MerchDetail of(UUID merchVariantId) {
 
 		validateMerchVariantId(merchVariantId);
 
@@ -135,7 +137,7 @@ public class MerchDetail {
 
 		*/
 
-	public static MerchDetail of(Long merchVariantId, String sku, String productName, String variantName) {
+	public static MerchDetail of(UUID merchVariantId, String sku, String productName, String variantName) {
 
 		validateMerchVariantId(merchVariantId);
 
@@ -171,7 +173,7 @@ public class MerchDetail {
 
 		*/
 
-	private static void validateMerchVariantId(Long merchVariantId) {
+	private static void validateMerchVariantId(UUID merchVariantId) {
 
 		if (merchVariantId == null) {
 
@@ -213,7 +215,7 @@ public class MerchDetail {
 
 		*/
 
-	public boolean isSameVariant(Long merchVariantId) {
+	public boolean isSameVariant(UUID merchVariantId) {
 
 		return this.merchVariantId != null && this.merchVariantId.equals(merchVariantId);
 
@@ -294,4 +296,3 @@ public class MerchDetail {
 	}
 
 }
-

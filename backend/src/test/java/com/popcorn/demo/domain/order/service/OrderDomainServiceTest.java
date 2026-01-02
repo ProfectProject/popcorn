@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -70,8 +71,8 @@ class OrderDomainServiceTest {
 	void validateOrderCreation_ValidOrder_DoesNotThrow() {
 		// given
 		Long customerId = 1001L;
-		Long storeId = 1L;
-		Long productId = 1L;
+		UUID storeId = UUID.randomUUID();
+		UUID productId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
 		// when & then
@@ -88,8 +89,8 @@ class OrderDomainServiceTest {
 	void validateOrderCreation_NullCustomerId_ThrowsException() {
 		// given
 		Long customerId = null;
-		Long storeId = 1L;
-		Long productId = 1L;
+		UUID storeId = UUID.randomUUID();
+		UUID productId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
 		// when & then
@@ -102,8 +103,8 @@ class OrderDomainServiceTest {
 	void validateOrderCreation_EmptyItems_ThrowsException() {
 		// given
 		Long customerId = 1001L;
-		Long storeId = 1L;
-		Long productId = 1L;
+		UUID storeId = UUID.randomUUID();
+		UUID productId = UUID.randomUUID();
 		List<OrderItem> orderItems = new ArrayList<>();
 
 		// when & then
@@ -162,8 +163,8 @@ class OrderDomainServiceTest {
 	void createOrder_ValidInput_CreatesOrderWithCorrectFields() {
 		// given
 		Long customerId = 1001L;
-		Long storeId = 1L;
-		Long productId = 1L;
+		UUID storeId = UUID.randomUUID();
+		UUID productId = UUID.randomUUID();
 		OrderType orderType = OrderType.RESERVATION;
 		List<OrderItem> orderItems = createSampleOrderItems();
 		String idempotencyKey = "test-key-001";
@@ -207,6 +208,48 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - OWNER_ACCEPTED에서 CONFIRMED로 변경 가능")
+	void canChangeStatus_OwnerAcceptedToConfirmed_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.OWNER_ACCEPTED;
+		OrderStatus newStatus = OrderStatus.CONFIRMED;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - CONFIRMED에서 PREPARING으로 변경 가능")
+	void canChangeStatus_ConfirmedToPreparing_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.CONFIRMED;
+		OrderStatus newStatus = OrderStatus.PREPARING;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 READY로 변경 불가")
+	void canChangeStatus_RequestedToReady_ReturnsFalse() {
+		// given
+		OrderStatus currentStatus = OrderStatus.REQUESTED;
+		OrderStatus newStatus = OrderStatus.READY;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isFalse();
+	}
+
+	@Test
 	@DisplayName("주문 상태 변경 가능 검증 - COMPLETED에서 변경 불가")
 	void canChangeStatus_CompletedToAny_ReturnsFalse() {
 		// given
@@ -223,11 +266,11 @@ class OrderDomainServiceTest {
 	// Helper methods
 	private Order createSampleOrder() {
 		return Order.builder()
-				.id(1L)
+				.id(UUID.randomUUID())
 				.orderNo("O20231230-000001")
 				.customerId(1001L)
-				.storeId(1L)
-				.productId(1L)
+				.storeId(UUID.randomUUID())
+				.productId(UUID.randomUUID())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(29000)
@@ -248,7 +291,7 @@ class OrderDomainServiceTest {
 				.qty(qty)
 				.unitPrice(unitPrice)
 				.lineAmount(unitPrice * qty)
-				.sessionOptionId(1L)
+				.sessionOptionId(UUID.randomUUID())
 				.build();
 	}
 }
