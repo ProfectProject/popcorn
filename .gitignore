@@ -46,3 +46,6 @@ out/
 
 ### Codex ###
 .claude/
+
+# Environment variables
+.env

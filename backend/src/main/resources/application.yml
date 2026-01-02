@@ -11,7 +11,7 @@ spring:
 # Local 환경 설정 (보안 설정 분리)
 spring:
   config:
-    import: classpath:security/application-local.yml
+    import: classpath:security/application-local.yml,optional:file:.env[.properties]
     activate:
       on-profile: local
 

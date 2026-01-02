@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
+import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.service.OrderService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
@@ -394,6 +396,30 @@ public OrderController(OrderService orderService, ObjectMapper objectMapper) {
 				.updatedAt(updatedOrder.getUpdatedAt())
 				.build();
 		return ResponseEntity.ok(BaseResponse.success(response));
+	}
+
+	@Operation(
+			summary = "주문 상세 조회",
+			description = "주문 상세 정보를 조회합니다. CUSTOMER는 본인 주문만 조회할 수 있습니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "주문 상세 조회 성공",
+			content = @Content(schema = @Schema(implementation = OrderDetailDto.class))
+	)
+	@ApiResponse(responseCode = "403", description = "권한 없음")
+	@ApiResponse(responseCode = "404", description = "주문 없음")
+	@GetMapping("/{orderId}")
+	public ResponseEntity<BaseResponse<OrderDetailDto>> getOrderDetail(
+			@Parameter(
+					description = "주문 ID",
+					required = true,
+					example = "00000000-0000-0000-0000-000000001001"
+			)
+			@PathVariable UUID orderId) {
+
+		OrderDetailDto detail = orderService.getOrderDetail(orderId, null, null);
+		return ResponseEntity.ok(BaseResponse.success(detail));
 	}
 	private void logRequestDebug(String label, Object request) {
 		if (!log.isDebugEnabled()) {
