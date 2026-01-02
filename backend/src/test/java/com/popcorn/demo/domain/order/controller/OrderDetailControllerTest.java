@@ -10,8 +10,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.Mockito;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,16 +26,23 @@ import com.popcorn.demo.domain.order.service.OrderService;
 import com.popcorn.demo.global.config.SecurityConfig;
 
 @WebMvcTest(controllers = OrderController.class)
-@Import({OrderExceptionHandler.class, SecurityConfig.class})
+@Import({OrderExceptionHandler.class, SecurityConfig.class, OrderDetailControllerTest.TestConfig.class})
 @ActiveProfiles("local")
-@SuppressWarnings("removal")
 class OrderDetailControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
-	@MockBean
+	@Autowired
 	private OrderService orderService;
+
+	@TestConfiguration
+	static class TestConfig {
+		@Bean
+		OrderService orderService() {
+			return Mockito.mock(OrderService.class);
+		}
+	}
 
 	@Test
 	@DisplayName("주문 상세 조회 성공")

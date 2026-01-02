@@ -544,7 +544,7 @@ public class OrderService {
 			params.add(productId);
 		}
 		if (status != null && !status.isBlank()) {
-			where.append(" AND o.status = CAST(? AS order_status)");
+			where.append(" AND o.status = ?");
 			params.add(status);
 		}
 		if (from != null) {
@@ -568,11 +568,11 @@ public class OrderService {
 		List<Object> params = new java.util.ArrayList<>();
 		params.add(customerId);
 		if (orderType != null && !orderType.isBlank() && !"ALL".equalsIgnoreCase(orderType)) {
-			where.append(" AND o.order_type = CAST(? AS order_type)");
+			where.append(" AND o.order_type = ?");
 			params.add(orderType.toUpperCase(Locale.ROOT));
 		}
 		if (status != null && !status.isBlank()) {
-			where.append(" AND o.status = CAST(? AS order_status)");
+			where.append(" AND o.status = ?");
 			params.add(status);
 		}
 		if (from != null) {

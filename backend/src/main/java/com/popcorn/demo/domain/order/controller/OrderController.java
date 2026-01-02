@@ -33,7 +33,9 @@ import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
+import com.popcorn.demo.domain.order.entity.OrderStatus;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,17 +51,11 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/v1/orders")
 @Slf4j
+@RequiredArgsConstructor
 public class OrderController extends BaseController {
 
 	private final OrderService orderService;
-private final ObjectMapper objectMapper;
-
-
-
-public OrderController(OrderService orderService, ObjectMapper objectMapper) {
-	this.orderService = orderService;
-	this.objectMapper = objectMapper;
-}
+	private final ObjectMapper objectMapper;
 
 
 
@@ -446,8 +442,9 @@ public OrderController(OrderService orderService, ObjectMapper objectMapper) {
 					example = "00000000-0000-0000-0000-000000000101")
 			@RequestParam(required = false,
 					defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
-			@Parameter(description = "주문 상태", required = false, example = "REQUESTED")
-			@RequestParam(required = false, defaultValue = "REQUESTED") String status,
+			@Parameter(description = "주문 상태", required = false,
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
 			@Parameter(description = "조회 시작 시각", required = false)
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -460,7 +457,7 @@ public OrderController(OrderService orderService, ObjectMapper objectMapper) {
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
 		StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
-				storeId, productId, status, from, to, page, size
+				storeId, productId, status.name(), from, to, page, size
 		);
 		return ResponseEntity.ok(BaseResponse.success(response));
 	}
@@ -480,8 +477,9 @@ public OrderController(OrderService orderService, ObjectMapper objectMapper) {
 			@RequestParam(required = false) Long customerId,
 			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)", required = false)
 			@RequestParam(required = false, defaultValue = "ALL") String orderType,
-			@Parameter(description = "주문 상태", required = false)
-			@RequestParam(required = false) String status,
+			@Parameter(description = "주문 상태", required = false,
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false) OrderStatus status,
 			@Parameter(description = "조회 시작 시각", required = false)
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -494,7 +492,7 @@ public OrderController(OrderService orderService, ObjectMapper objectMapper) {
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
 		MyOrderTimelineResponse response = orderService.getMyOrderTimeline(
-				customerId, orderType, status, from, to, page, size
+				customerId, orderType, status == null ? null : status.name(), from, to, page, size
 		);
 		return ResponseEntity.ok(BaseResponse.success(response));
 	}
