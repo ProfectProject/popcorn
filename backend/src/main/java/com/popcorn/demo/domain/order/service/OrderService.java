@@ -230,29 +230,15 @@ public class OrderService {
 		}
 
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
-		switch (normalizedRole) {
-			case "ADMIN" -> {
-				return;
-			}
-			case "OWNER" -> {
-				if (orderRow.storeOwnerId != null && orderRow.storeOwnerId.equals(userId)) {
-					return;
-				}
-				throw OrderException.forbidden();
-			}
-			case "MANAGER" -> {
-				if (isStoreManager(userId, orderRow.storeId)) {
-					return;
-				}
-				throw OrderException.forbidden();
-			}
-			case "CUSTOMER", "USER" -> {
-				if (orderRow.customerId != null && orderRow.customerId.equals(userId)) {
-					return;
-				}
-				throw OrderException.forbidden();
-			}
-			default -> throw OrderException.forbidden();
+		boolean allowed = switch (normalizedRole) {
+			case "ADMIN" -> true;
+			case "OWNER" -> orderRow.storeOwnerId != null && orderRow.storeOwnerId.equals(userId);
+			case "MANAGER" -> isStoreManager(userId, orderRow.storeId);
+			case "CUSTOMER", "USER" -> orderRow.customerId != null && orderRow.customerId.equals(userId);
+			default -> false;
+		};
+		if (!allowed) {
+			throw OrderException.forbidden();
 		}
 	}
 

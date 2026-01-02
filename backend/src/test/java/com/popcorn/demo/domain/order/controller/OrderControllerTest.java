@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 @Import({OrderExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("local")
 @Slf4j
+@SuppressWarnings("removal")
 class OrderControllerTest {
 
 	@Autowired
@@ -157,6 +158,65 @@ class OrderControllerTest {
 	}
 
 	@Test
+	@DisplayName("주문 생성 실패 - 상품 없음")
+	void createOrder_fail_productNotFound() throws Exception {
+		when(orderService.createOrder(any())).thenThrow(OrderException.productNotFound());
+
+		String jsonRequest = """
+				{
+					"orderType": "RESERVATION",
+					"storeId": "00000000-0000-0000-0000-000000000001",
+					"productId": "00000000-0000-0000-0000-000000000999",
+					"items": [
+						{
+							"orderItemType": "RESERVATION",
+							"sessionId": "00000000-0000-0000-0000-000000000201",
+							"optionId": "00000000-0000-0000-0000-000000000301",
+							"qty": 1
+						}
+					]
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isNotFound())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1102))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("상품을 찾을 수 없습니다."));
+	}
+
+	@Test
+	@DisplayName("주문 생성 실패 - 멱등성 키 중복")
+	void createOrder_fail_duplicateIdempotency() throws Exception {
+		when(orderService.createOrder(any())).thenThrow(OrderException.duplicateIdempotencyKey());
+
+		String jsonRequest = """
+				{
+					"orderType": "RESERVATION",
+					"storeId": "00000000-0000-0000-0000-000000000001",
+					"productId": "00000000-0000-0000-0000-000000000101",
+					"items": [
+						{
+							"orderItemType": "RESERVATION",
+							"sessionId": "00000000-0000-0000-0000-000000000201",
+							"optionId": "00000000-0000-0000-0000-000000000301",
+							"qty": 1
+						}
+					]
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+						.contentType(MediaType.APPLICATION_JSON)
+						.header("Idempotency-Key", "test-key-dup")
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isConflict())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1302))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("중복된 요청입니다."));
+	}
+
+	@Test
 	@DisplayName("주문 상태 변경 성공")
 	void updateOrderStatus_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001111");
@@ -185,6 +245,62 @@ class OrderControllerTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 변경 성공 - OWNER_ACCEPTED → CONFIRMED")
+	void updateOrderStatus_ownerAcceptedToConfirmed() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001115");
+		Order updatedOrder = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.CONFIRMED)
+				.build();
+
+		when(orderService.updateStatus(orderId, "CONFIRMED", "confirmed"))
+				.thenReturn(updatedOrder);
+
+		String jsonRequest = """
+				{
+					"status": "CONFIRMED",
+					"reason": "confirmed"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("CONFIRMED"));
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 성공 - CONFIRMED → PREPARING")
+	void updateOrderStatus_confirmedToPreparing() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001116");
+		Order updatedOrder = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.PREPARING)
+				.build();
+
+		when(orderService.updateStatus(orderId, "PREPARING", "preparing"))
+				.thenReturn(updatedOrder);
+
+		String jsonRequest = """
+				{
+					"status": "PREPARING",
+					"reason": "preparing"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PREPARING"));
+	}
+
+	@Test
 	@DisplayName("주문 상태 변경 실패 - 허용되지 않은 전이")
 	void updateOrderStatus_invalidTransition() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
@@ -204,6 +320,72 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isBadRequest())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1201))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("허용되지 않은 상태 변경입니다."));
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 실패 - 주문 없음")
+	void updateOrderStatus_notFound() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
+		when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+				.thenThrow(OrderException.orderNotFound());
+
+		String jsonRequest = """
+				{
+					"status": "OWNER_ACCEPTED",
+					"reason": "reason"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isNotFound())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1100))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("주문을 찾을 수 없습니다."));
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 실패 - 이미 취소됨")
+	void updateOrderStatus_alreadyCanceled() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001113");
+		when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+				.thenThrow(OrderException.alreadyCanceled());
+
+		String jsonRequest = """
+				{
+					"status": "OWNER_ACCEPTED",
+					"reason": "reason"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isConflict())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1303))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("이미 취소된 주문입니다."));
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 실패 - 상태값 오류")
+	void updateOrderStatus_invalidStatus() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001114");
+		when(orderService.updateStatus(orderId, "NOT_A_STATUS", "reason"))
+				.thenThrow(OrderException.invalidRequest());
+
+		String jsonRequest = """
+				{
+					"status": "NOT_A_STATUS",
+					"reason": "reason"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isBadRequest())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(400))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("잘못된 요청입니다."));
 	}
 
 	@Test
