@@ -1,21 +1,18 @@
-package com.popcorn.demo.domain.store.repository;
+package com.popcorn.demo.domain.store.repository.jpa;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 
 /**
- * Store JPA Repository 구현체
+ * Store JPA Repository
  * - Spring Data JPA 기반 데이터 액세스
- * - StoreRepository 인터페이스의 JPA 구현
  */
-@Repository
 public interface JpaStoreRepository extends JpaRepository<Store, UUID> {
 
     /**

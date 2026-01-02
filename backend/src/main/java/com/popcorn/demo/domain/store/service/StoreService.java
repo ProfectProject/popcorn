@@ -6,9 +6,6 @@ import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,10 +24,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 스토어 애플리케이션 서비스
- * - 유스케이스 조정 및 트랜잭션 관리
- * - 비동기 검증 처리
- * - 인프라스트럭처 의존성 관리
+ * 스토어 서비스 (통합)
+ * - 비즈니스 로직과 애플리케이션 로직을 모두 포함
+ * - domain/order 구조를 참고한 Layered Architecture
  */
 @Service
 public class StoreService {
@@ -38,28 +34,21 @@ public class StoreService {
     private static final Logger log = LoggerFactory.getLogger(StoreService.class);
     private static final int MAX_STORES_PER_OWNER = 10;
     private static final int VALIDATION_TIMEOUT_SECONDS = 5;
+    private static final int MAX_STORE_NAME_LENGTH = 100;
+    private static final int MIN_STORE_NAME_LENGTH = 1;
 
-    private final StoreDomainService storeDomainService;
     private final StoreRepository storeRepository;
     private final Executor validationExecutor;
-    private final MeterRegistry meterRegistry;
 
     public StoreService(
-            StoreDomainService storeDomainService,
             StoreRepository storeRepository,
-            @Qualifier("storeValidationTaskExecutor") Executor validationExecutor,
-            MeterRegistry meterRegistry) {
-        this.storeDomainService = storeDomainService;
+            @Qualifier("storeValidationTaskExecutor") Executor validationExecutor) {
         this.storeRepository = storeRepository;
         this.validationExecutor = validationExecutor;
-        this.meterRegistry = meterRegistry;
     }
 
     /**
-     * 스토어 생성 메인 메서드
-     * - 비동기 검증 처리
-     * - 트랜잭션 관리
-     * - 성능 모니터링
+     * 스토어 생성
      */
     @Transactional(
         isolation = Isolation.READ_COMMITTED,
@@ -67,25 +56,18 @@ public class StoreService {
         rollbackFor = {Exception.class},
         timeout = 30
     )
-    public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request, String idempotencyKey) {
+    public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
         long startTime = System.currentTimeMillis();
         String correlationId = UUID.randomUUID().toString();
         
         log.info("[STORE_CREATE_START] correlationId={}, ownerId={}, storeName={}", 
                  correlationId, ownerId, request.getName());
         
-        Timer timer = Timer.builder("store.creation.duration")
-            .description("Store creation duration")
-            .tag("owner", String.valueOf(ownerId))
-            .register(meterRegistry);
-        
-        long startNanos = System.nanoTime();
-        
         try {
-            // 1단계: 동기 기본 검증 (빠른 실패)
-            storeDomainService.validateStoreCreation(ownerId, request.getName());
+            // 1단계: 기본 검증
+            validateStoreCreation(ownerId, request.getName());
             
-            // 2단계: 비동기 복합 검증 실행 및 대기
+            // 2단계: 비동기 복합 검증
             ValidationResult validationResult = validateStoreCreationAsync(request, ownerId)
                 .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 
@@ -96,9 +78,7 @@ public class StoreService {
             // 3단계: 스토어 생성 및 저장
             StoreCreatedDto result = performStoreCreation(ownerId, request, correlationId);
             
-            // 4단계: 비즈니스 메트릭 수집
-            recordBusinessMetrics(result);
-            
+            // 4단계: 성공 로깅
             long duration = System.currentTimeMillis() - startTime;
             log.info("[STORE_CREATE_SUCCESS] correlationId={}, storeId={}, duration={}ms", 
                      correlationId, result.getId(), duration);
@@ -109,14 +89,12 @@ public class StoreService {
             long duration = System.currentTimeMillis() - startTime;
             log.error("[STORE_CREATE_BUSINESS_ERROR] correlationId={}, ownerId={}, error={}, duration={}ms", 
                       correlationId, ownerId, e.getMessage(), duration, e);
-            incrementErrorCounter("business_error", e.getClass().getSimpleName());
             throw e;
             
         } catch (TimeoutException e) {
             long duration = System.currentTimeMillis() - startTime;
             log.error("[STORE_CREATE_TIMEOUT] correlationId={}, ownerId={}, duration={}ms", 
                       correlationId, ownerId, duration);
-            incrementErrorCounter("timeout", "ValidationTimeout");
             throw StoreException.validationTimeout();
             
         } catch (ExecutionException e) {
@@ -125,12 +103,10 @@ public class StoreService {
             if (cause instanceof StoreException) {
                 log.error("[STORE_CREATE_ASYNC_ERROR] correlationId={}, ownerId={}, error={}, duration={}ms", 
                           correlationId, ownerId, cause.getMessage(), duration, cause);
-                incrementErrorCounter("async_validation", cause.getClass().getSimpleName());
                 throw (StoreException) cause;
             }
             log.error("[STORE_CREATE_EXECUTION_ERROR] correlationId={}, ownerId={}, duration={}ms", 
                       correlationId, ownerId, duration, e);
-            incrementErrorCounter("execution", "ExecutionException");
             throw StoreException.validationFailed("Validation failed", cause);
             
         } catch (InterruptedException e) {
@@ -138,33 +114,78 @@ public class StoreService {
             long duration = System.currentTimeMillis() - startTime;
             log.error("[STORE_CREATE_INTERRUPTED] correlationId={}, ownerId={}, duration={}ms", 
                       correlationId, ownerId, duration);
-            incrementErrorCounter("interrupted", "InterruptedException");
             throw StoreException.validationInterrupted();
             
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
             log.error("[STORE_CREATE_SYSTEM_ERROR] correlationId={}, ownerId={}, duration={}ms", 
                       correlationId, ownerId, duration, e);
-            incrementErrorCounter("system", e.getClass().getSimpleName());
             throw StoreException.validationFailed("스토어 생성 중 시스템 오류가 발생했습니다.", e);
-        } finally {
-            long durationNanos = System.nanoTime() - startNanos;
-            timer.record(durationNanos, TimeUnit.NANOSECONDS);
+        }
+    }
+
+    // ========================= 검증 로직 =========================
+
+    /**
+     * 기본 입력값 검증
+     */
+    private void validateStoreCreation(Long ownerId, String name) {
+        validateStoreName(name);
+        validateOwnerId(ownerId);
+    }
+
+    /**
+     * 스토어 이름 검증
+     */
+    private void validateStoreName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw StoreException.emptyName();
+        }
+        
+        String trimmedName = name.trim();
+        if (trimmedName.length() < MIN_STORE_NAME_LENGTH || trimmedName.length() > MAX_STORE_NAME_LENGTH) {
+            throw StoreException.invalidNameLength(trimmedName.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
+        }
+        
+        if (containsInvalidCharacters(trimmedName)) {
+            throw StoreException.invalidNameFormat(trimmedName);
         }
     }
 
     /**
-     * 비동기 검증 로직 - 병렬 처리로 성능 최적화
+     * 오너 ID 검증
+     */
+    private void validateOwnerId(Long ownerId) {
+        if (ownerId == null || ownerId <= 0) {
+            throw StoreException.ownerNotFound();
+        }
+    }
+
+    /**
+     * 유효하지 않은 문자 포함 여부 확인
+     */
+    private boolean containsInvalidCharacters(String name) {
+        String invalidChars = "<>\"'&;";
+        return name.chars().anyMatch(c -> invalidChars.indexOf(c) >= 0);
+    }
+
+    /**
+     * 중복 스토어 판단
+     */
+    private boolean isDuplicateStore(Optional<Store> existingStore) {
+        return existingStore.isPresent() && !existingStore.get().isDeleted();
+    }
+
+    /**
+     * 비동기 검증 로직
      */
     private CompletableFuture<ValidationResult> validateStoreCreationAsync(CreateStoreRequest request, Long ownerId) {
-        // 병렬 비동기 검증 실행
         CompletableFuture<Boolean> duplicateCheck = CompletableFuture.supplyAsync(() -> {
             Optional<Store> existingStore = storeRepository.findByName(request.getName());
-            return storeDomainService.isDuplicateStore(existingStore, null);
+            return isDuplicateStore(existingStore);
         }, validationExecutor);
         
         CompletableFuture<Boolean> permissionCheck = CompletableFuture.supplyAsync(() -> {
-            // 외부 API 호출 시뮬레이션 (실제로는 UserServiceClient 사용)
             return validateOwnerPermissionExternal(ownerId);
         }, validationExecutor);
         
@@ -172,7 +193,6 @@ public class StoreService {
             return (int) storeRepository.countByOwnerId(ownerId);
         }, validationExecutor);
         
-        // 모든 비동기 작업 완료 대기 및 결과 조합
         return CompletableFuture.allOf(duplicateCheck, permissionCheck, storeCountCheck)
             .thenApply(v -> {
                 try {
@@ -180,7 +200,6 @@ public class StoreService {
                     boolean hasPermission = permissionCheck.get();
                     int storeCount = storeCountCheck.get();
                     
-                    // Domain Service로 비즈니스 검증 위임
                     validateBusinessRules(request.getName(), ownerId, isDuplicate, hasPermission, storeCount);
                     
                     return ValidationResult.success();
@@ -198,7 +217,7 @@ public class StoreService {
     }
 
     /**
-     * 비즈니스 규칙 검증 (Domain Service 활용)
+     * 비즈니스 규칙 검증
      */
     private void validateBusinessRules(String name, Long ownerId, boolean isDuplicate, boolean hasPermission, int storeCount) {
         if (isDuplicate) {
@@ -208,20 +227,23 @@ public class StoreService {
         if (!hasPermission) {
             throw StoreException.ownerNotAuthorized(ownerId);
         }
-
+        
+        if (storeCount >= MAX_STORES_PER_OWNER) {
+            throw StoreException.storeCreationLimitExceeded(ownerId, MAX_STORES_PER_OWNER);
+        }
     }
 
     /**
-     * 외부 권한 검증 (실제로는 외부 서비스 호출)
+     * 외부 권한 검증
      */
     private boolean validateOwnerPermissionExternal(Long ownerId) {
-        // 실제 구현에서는 UserServiceClient.validateUser(ownerId) 호출
-        // 현재는 시뮬레이션
         return ownerId != null && ownerId > 0;
     }
 
+    // ========================= 스토어 생성 로직 =========================
+
     /**
-     * 실제 스토어 생성 로직
+     * 스토어 생성 및 저장
      */
     private StoreCreatedDto performStoreCreation(Long ownerId, CreateStoreRequest request, String correlationId) {
         log.debug("[STORE_CREATE_ENTITY] correlationId={}, creating store entity", correlationId);
@@ -248,33 +270,10 @@ public class StoreService {
                 .build();
     }
 
-    /**
-     * 비즈니스 메트릭 수집
-     */
-    private void recordBusinessMetrics(StoreCreatedDto createdStore) {
-        // 스토어 생성 카운터
-        Counter.builder("store.created.total")
-            .description("Total stores created")
-            .tag("status", createdStore.getPublishStatus().name())
-            .tag("owner", String.valueOf(createdStore.getOwnerId()))
-            .register(meterRegistry)
-            .increment();
-    }
+    // ========================= 내부 클래스 =========================
 
     /**
-     * 에러 카운터 증가
-     */
-    private void incrementErrorCounter(String errorType, String errorClass) {
-        Counter.builder("store.creation.errors")
-            .description("Store creation errors")
-            .tag("type", errorType)
-            .tag("class", errorClass)
-            .register(meterRegistry)
-            .increment();
-    }
-
-    /**
-     * 검증 결과를 담는 내부 클래스
+     * 검증 결과
      */
     private static class ValidationResult {
         private final boolean success;
