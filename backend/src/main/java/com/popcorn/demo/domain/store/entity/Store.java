@@ -44,13 +44,13 @@ public class Store extends BaseEntity {
     private LocalDateTime deletedAt;
     
     @Column(name = "deleted_by")
-    private UUID deletedBy;
+    private Long deletedBy;
 
     @Column(name = "created_by")
-    private UUID createdBy;
+    private Long createdBy;
     
     @Column(name = "updated_by")
-    private UUID updatedBy;
+    private Long updatedBy;
 
     // =================== 비즈니스 메서드 구현 =====================
     /**
@@ -70,7 +70,7 @@ public class Store extends BaseEntity {
     /**
      * 스토어 삭제(soft delete)
      */
-    public void delete(UUID deletedBy) {
+    public void delete(Long deletedBy) {
         this.deletedAt = LocalDateTime.now();
         this.deletedBy = deletedBy;
     }
@@ -78,7 +78,7 @@ public class Store extends BaseEntity {
     /**
      * 스토어의 오너인지 확인
      */
-    public boolean isOwner(UUID userId) {
+    public boolean isOwner(Long userId) {
         return this.ownerId.equals(userId);
     }
     

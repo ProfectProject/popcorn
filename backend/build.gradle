@@ -32,18 +32,32 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+	// Swagger/OpenAPI 3 (Spring Boot 3.5.x 호환 버전)
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
+
+	// JPA Auditing을 위한 설정
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+
 	// DB설정
 	runtimeOnly 'org.postgresql:postgresql'
+
 	// Flyway
     implementation 'org.flywaydb:flyway-core'
     // PostgreSQL 전용 확장
     implementation 'org.flywaydb:flyway-database-postgresql'
 
+	// Async 처리를 위한 의존성들
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'com.h2database:h2'
+	testImplementation 'com.h2database:h2'
+	testImplementation 'org.junit.platform:junit-platform-suite'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -51,10 +65,30 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.named('processResources') {
+	doFirst {
+		delete(destinationDir)
+	}
+}
+
+tasks.named('build') {
+	dependsOn 'checkstyleMain'
+	dependsOn 'checkstyleTest'
+}
+
+tasks.register('orderTest', Test) {
+	useJUnitPlatform()
+	include '**/*Order*'
+}
+
 checkstyle {
-	toolVersion = '8.24'
+	toolVersion = '10.12.3'
 	configFile = file('config/checkstyle/naver-checkstyle-rules.xml')
 	configProperties = [
 		'suppressionFile': file('config/checkstyle/naver-checkstyle-suppressions.xml')
 	]
+}
+
+springBoot {
+	mainClass = 'com.popcorn.demo.DemoApplication'
 }

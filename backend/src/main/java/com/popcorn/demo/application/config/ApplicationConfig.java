@@ -4,13 +4,19 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Application Layer DI 설정
- */
+
+	* Application Layer DI 설정
+
+	*/
+
 @Configuration
+
 @ComponentScan(basePackages = {
-    "com.popcorn.demo.application.usecase",
-    "com.popcorn.demo.application.service"
+	"com.popcorn.demo.application"
 })
+
 public class ApplicationConfig {
-    // Use Case와 Application Service Bean 스캔
+
+	// Use Case와 Application Service Bean 스캔
+
 }
