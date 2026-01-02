@@ -15,6 +15,15 @@ public enum ResponseCode {
 	INTERNAL_ERROR(500, 500, "서버 오류가 발생했습니다."),
 
 
+	// Store creation specific error codes
+
+	EMPTY_NAME(400, 400, "이름이 비어있습니다."),
+
+	EMPTY_OWNER_ID(400, 400, "오너 ID가 비어있습니다."),
+
+	DUPLICATE_NAME(409, 409, "이미 존재하는 이름입니다."),
+
+	OWNER_NOT_FOUND(404, 404, "오너를 찾을 수 없습니다."),
 
 	// Order creation specific error codes
 
