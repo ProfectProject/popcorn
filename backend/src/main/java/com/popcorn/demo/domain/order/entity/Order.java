@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 
@@ -11,13 +12,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
+
+import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -47,7 +48,6 @@ import lombok.Setter;
 	*/
 
 @Entity
-
 @Table(name = "p_orders")
 
 @Getter
@@ -71,16 +71,15 @@ public class Order extends BaseEntity {
 	/** 주문 ID (Primary Key) */
 
 	@Id
-
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-
-	private Long id;
+	@GeneratedValue
+	@UuidGenerator
+	private UUID id;
 
 
 
 	/** 주문 번호 (고유 식별자) */
 
-	@Column(name = "order_no", nullable = false, unique = true, length = 32)
+	@Column(name = "order_no")
 
 	private String orderNo;
 
@@ -88,7 +87,7 @@ public class Order extends BaseEntity {
 
 	/** 고객 ID */
 
-	@Column(name = "customer_id", nullable = false)
+	@Column(name = "customer_id")
 
 	private Long customerId;
 
@@ -96,25 +95,24 @@ public class Order extends BaseEntity {
 
 	/** 스토어 ID */
 
-	@Column(name = "store_id", nullable = false)
+	@Column(name = "store_id")
 
-	private Long storeId;
+	private UUID storeId;
 
 
 
 	/** 상품 ID */
 
-	@Column(name = "product_id", nullable = false)
+	@Column(name = "product_id")
 
-	private Long productId;
+	private UUID productId;
 
 
 
 	/** 주문 타입 (예약형/구매형) */
 
 	@Enumerated(EnumType.STRING)
-
-	@Column(name = "order_type", nullable = false, length = 20)
+	@Column(name = "order_type")
 
 	private OrderType orderType;
 
@@ -123,8 +121,7 @@ public class Order extends BaseEntity {
 	/** 주문 상태 */
 
 	@Enumerated(EnumType.STRING)
-
-	@Column(name = "status", nullable = false, length = 20)
+	@Column(name = "status")
 
 	private OrderStatus status;
 
@@ -140,7 +137,7 @@ public class Order extends BaseEntity {
 
 	/** 총 주문 금액 (원 단위) */
 
-	@Column(name = "total_amount", nullable = false)
+	@Column(name = "total_amount")
 
 	private Integer totalAmount;
 
@@ -148,15 +145,14 @@ public class Order extends BaseEntity {
 
 	/** 멱등성 키 (중복 주문 방지용) */
 
-	@Column(name = "idempotency_key", unique = true, length = 128)
+	@Column(name = "idempotency_key")
 
 	private String idempotencyKey;
 
 	/** 낙관적 락 버전 */
 
 	@Version
-
-	@Column(name = "version", nullable = false)
+	@Column(name = "version")
 
 	private Long version;
 
@@ -170,7 +166,7 @@ public class Order extends BaseEntity {
 
 	/** 주문 항목 목록 */
 
-	@OneToMany(mappedBy = "order", fetch = FetchType.LAZY, orphanRemoval = true)
+	@Transient
 
 	@Builder.Default
 
@@ -273,7 +269,7 @@ public class Order extends BaseEntity {
 
 
 	/**
-		* 주문 항목 추가 (양방향 연관관계 유지)
+		* 주문 항목 추가 (리액티브 환경에서는 연관관계를 컬렉션으로만 유지)
 		*/
 
 	public void addOrderItem(OrderItem orderItem) {
@@ -281,7 +277,6 @@ public class Order extends BaseEntity {
 			return;
 		}
 		orderItems.add(orderItem);
-		orderItem.setOrder(this);
 	}
 
 
@@ -295,6 +290,37 @@ public class Order extends BaseEntity {
 			return;
 		}
 		items.forEach(this::addOrderItem);
+	}
+
+	/**
+	 * 주문 상태 변경 이력 생성
+	 * @param reason 변경 사유
+	 * @return 주문 상태 이력 객체
+	 */
+	public OrderStatusHistory toHistory(String reason) {
+		return OrderStatusHistory.builder()
+				.orderId(this.id)
+				.fromStatus(this.status)  // 현재 상태를 fromStatus로 (변경 전 상태)
+				.toStatus(this.status)    // 현재 상태를 toStatus로 (변경 후 상태)
+				.reason(reason)
+				.changedAt(LocalDateTime.now())
+				.build();
+	}
+
+	/**
+	 * 주문 상태 변경 이력 생성 (이전 상태 명시)
+	 * @param fromStatus 변경 전 상태
+	 * @param reason 변경 사유
+	 * @return 주문 상태 이력 객체
+	 */
+	public OrderStatusHistory toHistory(OrderStatus fromStatus, String reason) {
+		return OrderStatusHistory.builder()
+				.orderId(this.id)
+				.fromStatus(fromStatus)   // 변경 전 상태
+				.toStatus(this.status)    // 현재 상태 (변경 후 상태)
+				.reason(reason)
+				.changedAt(LocalDateTime.now())
+				.build();
 	}
 
 }

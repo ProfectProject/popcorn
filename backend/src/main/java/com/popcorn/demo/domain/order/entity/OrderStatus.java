@@ -6,6 +6,10 @@ public enum OrderStatus {
 
 	REQUESTED,     // 주문 요청됨
 
+	OWNER_ACCEPTED, // 운영 수락됨
+
+	OWNER_REJECTED, // 운영 거절됨
+
 	CONFIRMED,     // 주문 확인됨
 
 	PREPARING,     // 준비 중
@@ -19,4 +23,3 @@ public enum OrderStatus {
 	REFUNDED       // 환불됨
 
 }
-

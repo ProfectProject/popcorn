@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -36,6 +37,43 @@ import com.popcorn.demo.domain.order.exception.OrderException;
 @Service
 
 public class OrderDomainService {
+	private static final java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> STATUS_TRANSITIONS =
+			buildStatusTransitions();
+
+	private static java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> buildStatusTransitions() {
+		java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> transitions =
+				new java.util.EnumMap<>(OrderStatus.class);
+		transitions.put(OrderStatus.REQUESTED, java.util.EnumSet.of(
+				OrderStatus.CONFIRMED,
+				OrderStatus.OWNER_ACCEPTED,
+				OrderStatus.OWNER_REJECTED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.OWNER_ACCEPTED, java.util.EnumSet.of(
+				OrderStatus.PREPARING,
+				OrderStatus.CONFIRMED,
+				OrderStatus.READY,
+				OrderStatus.COMPLETED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.CONFIRMED, java.util.EnumSet.of(
+				OrderStatus.PREPARING,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.PREPARING, java.util.EnumSet.of(
+				OrderStatus.READY,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.READY, java.util.EnumSet.of(
+				OrderStatus.COMPLETED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.OWNER_REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.REFUNDED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.COMPLETED, java.util.EnumSet.noneOf(OrderStatus.class));
+		return transitions;
+	}
 
 
 
@@ -85,7 +123,7 @@ public class OrderDomainService {
 
 		*/
 
-	public void validateOrderCreation(Long customerId, Long storeId, Long productId,
+	public void validateOrderCreation(Long customerId, UUID storeId, UUID productId,
 
 			List<OrderItem> orderItems) {
 
@@ -97,7 +135,7 @@ public class OrderDomainService {
 
 
 
-		if (storeId == null || storeId <= 0) {
+		if (storeId == null) {
 
 			throw OrderException.storeNotFound();
 
@@ -105,7 +143,7 @@ public class OrderDomainService {
 
 
 
-		if (productId == null || productId <= 0) {
+		if (productId == null) {
 
 			throw OrderException.productNotFound();
 
@@ -175,6 +213,8 @@ public class OrderDomainService {
 
 		LocalDateTime now = LocalDateTime.now();
 
+		// 주문 타입별 취소 가능 시간을 계산합니다.
+		// 예약형은 비교적 여유를 주고, 구매형은 짧게 설정합니다.
 		return switch (orderType) {
 			case RESERVATION -> now.plusDays(1); // 예약형: 1일 후까지 취소 가능
 			case PURCHASE -> now.plusHours(1); // 구매형: 1시간 후까지 취소 가능
@@ -198,6 +238,7 @@ public class OrderDomainService {
 
 	public int calculateTotalAmount(List<OrderItem> orderItems) {
 
+		// 각 아이템의 (단가 * 수량)을 합산해 총액을 계산합니다.
 		return orderItems.stream()
 
 				.mapToInt(item -> item.getUnitPrice() * item.getQty())
@@ -230,7 +271,7 @@ public class OrderDomainService {
 
 		*/
 
-	public Order createOrder(Long customerId, Long storeId, Long productId,
+	public Order createOrder(Long customerId, UUID storeId, UUID productId,
 
 			OrderType orderType, List<OrderItem> orderItems,
 
@@ -238,13 +279,13 @@ public class OrderDomainService {
 
 
 
-		// 1. 검증
+		// 1. 검증: 필수 값과 아이템 조건을 사전에 체크합니다.
 
 		validateOrderCreation(customerId, storeId, productId, orderItems);
 
 
 
-		// 2. 비즈니스 룰 적용
+		// 2. 비즈니스 룰 적용: 취소 가능 시간/총액 계산
 
 		LocalDateTime cancelableUntil = calculateCancelableUntil(orderType);
 
@@ -252,7 +293,7 @@ public class OrderDomainService {
 
 
 
-		// 3. 주문 엔티티 생성
+		// 3. 주문 엔티티 생성: 기본 상태는 REQUESTED
 
 		Order order = Order.builder()
 
@@ -303,13 +344,9 @@ public class OrderDomainService {
 
 	public boolean canChangeStatus(OrderStatus currentStatus, OrderStatus newStatus) {
 
-		return switch (currentStatus) {
-			case REQUESTED -> newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED;
-			case CONFIRMED -> newStatus == OrderStatus.PREPARING || newStatus == OrderStatus.CANCELLED;
-			case PREPARING -> newStatus == OrderStatus.READY || newStatus == OrderStatus.CANCELLED;
-			case READY -> newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.CANCELLED;
-			case CANCELLED, REFUNDED, COMPLETED -> false; // 최종 상태에서는 변경 불가
-		};
+		// 현재 상태 기준으로 허용된 전이 목록에 포함되는지 확인합니다.
+		java.util.EnumSet<OrderStatus> allowed = STATUS_TRANSITIONS.get(currentStatus);
+		return allowed != null && allowed.contains(newStatus);
 
 	}
 
@@ -329,6 +366,7 @@ public class OrderDomainService {
 
 	public boolean canCancelOrder(Order order) {
 
+		// 취소 가능 시간 + 상태 전이 가능 여부를 동시에 확인합니다.
 		return order.isCancelable()
 
 				&& canChangeStatus(order.getStatus(), OrderStatus.CANCELLED);
