@@ -4,9 +4,15 @@ import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,13 +21,14 @@ import lombok.Setter;
 
 /**
 
-	* 주문 아이템 엔티티 (R2DBC)
+	* 주문 아이템 엔티티 (JPA)
 
 	* p_order_items 테이블과 매핑
 
 	*/
 
-@Table("p_order_items")
+@Entity
+@Table(name = "p_order_items")
 
 @Getter
 
@@ -38,46 +45,49 @@ public class OrderItem extends BaseEntity {
 
 
 	@Id
+	@GeneratedValue
+	@UuidGenerator
 	private UUID id;
 
 
 
-	@Column("order_id")
+	@Column(name = "order_id")
 	private UUID orderId;
 
 
 
-	@Column("order_item_type")
+	@Enumerated(EnumType.STRING)
+	@Column(name = "order_item_type")
 
 	private OrderItemType orderItemType;
 
 
 
-	@Column("session_option_id")
+	@Column(name = "session_option_id")
 
 	private UUID sessionOptionId;
 
 
 
-	@Column("merch_variant_id")
+	@Column(name = "merch_variant_id")
 
 	private UUID merchVariantId;
 
 
 
-	@Column("qty")
+	@Column(name = "qty")
 
 	private Integer qty;
 
 
 
-	@Column("unit_price")
+	@Column(name = "unit_price")
 
 	private Integer unitPrice;
 
 
 
-	@Column("line_amount")
+	@Column(name = "line_amount")
 
 	private Integer lineAmount;
 

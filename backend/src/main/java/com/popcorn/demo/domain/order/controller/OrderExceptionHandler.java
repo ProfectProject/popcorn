@@ -4,12 +4,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.validation.BindException;
 
 import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.dto.ResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.demo.domain.order.dto.OrderResponseCode;
+import com.popcorn.demo.global.exception.BaseException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -48,7 +49,7 @@ public class OrderExceptionHandler {
 
 	public ResponseEntity<BaseResponse<BaseError>> handleBaseException(BaseException ex) {
 		// 상태 전이 에러인 경우 더 상세한 로그 출력
-		if (ex.getResponseCode().name().contains("STATUS_TRANSITION")) {
+		if (ex.getResponseCode() == OrderResponseCode.INVALID_STATUS_TRANSITION) {
 			log.warn("❌ 주문 상태 전이 실패: code={}, message={}, cause={}",
 				ex.getResponseCode(), ex.getMessage(), ex.getCause() != null ? ex.getCause().getMessage() : "N/A");
 		} else {
@@ -84,26 +85,26 @@ public class OrderExceptionHandler {
 
 
 
-		BaseError error = BaseError.of(ResponseCode.INVALID_REQUEST, message);
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
 		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(ResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
 
 	}
 
 	/**
-		* WebFlux Validation 오류 처리 (400 Bad Request)
+		* Binding 오류 처리 (400 Bad Request)
 		*/
-	@ExceptionHandler(WebExchangeBindException.class)
-	public ResponseEntity<BaseResponse<BaseError>> handleWebFluxValidationException(WebExchangeBindException ex) {
-		log.warn("Order validation error (WebFlux): {}", ex.getMessage());
+	@ExceptionHandler(BindException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleBindException(BindException ex) {
+		log.warn("Order validation error (Bind): {}", ex.getMessage());
 		String message = ex.getBindingResult().getFieldErrors().stream()
 				.map(error -> error.getField() + ": " + error.getDefaultMessage())
 				.findFirst()
 				.orElse("입력값이 올바르지 않습니다.");
 
-		BaseError error = BaseError.of(ResponseCode.INVALID_REQUEST, message);
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
 		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(ResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
 	}
 
 
@@ -119,9 +120,9 @@ public class OrderExceptionHandler {
 	public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex) {
 		log.error("Unhandled order error", ex);
 
-		BaseResponse<BaseError> response = BaseResponse.error(ResponseCode.INTERNAL_ERROR, ex.getMessage());
+		BaseResponse<BaseError> response = BaseResponse.error(CommonResponseCode.INTERNAL_ERROR, ex.getMessage());
 
-		return ResponseEntity.status(ResponseCode.INTERNAL_ERROR.getHttpStatus()).body(response);
+		return ResponseEntity.status(CommonResponseCode.INTERNAL_ERROR.getHttpStatus()).body(response);
 
 	}
 

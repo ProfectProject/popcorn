@@ -1,0 +1,65 @@
+package com.popcorn.demo.domain.order.dto.response;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
+
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+public class CreateOrderResponse {
+	private final UUID orderId;
+	private final String orderNo;
+	private final String orderType;
+	private final String status;
+	private final UUID storeId;
+	private final UUID productId;
+	private final Integer totalAmount;
+	private final LocalDateTime cancelableUntil;
+	private final LocalDateTime createdAt;
+	private final List<OrderItemResponse> items;
+
+	@Getter
+	@Builder
+	public static class OrderItemResponse {
+		private final UUID itemId;
+		private final String orderItemType;
+		private final Integer qty;
+		private final Integer unitPrice;
+		private final Integer lineAmount;
+	}
+
+	public static CreateOrderResponse fromOrder(Order order) {
+		List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
+				.map(CreateOrderResponse::fromOrderItem)
+				.toList();
+
+		return CreateOrderResponse.builder()
+				.orderId(order.getId())
+				.orderNo(order.getOrderNo())
+				.orderType(order.getOrderType().name())
+				.status(order.getStatus().name())
+				.storeId(order.getStoreId())
+				.productId(order.getProductId())
+				.totalAmount(order.getTotalAmount())
+				.cancelableUntil(order.getCancelableUntil())
+				.createdAt(order.getCreatedAt())
+				.items(itemResponses)
+				.build();
+	}
+
+	private static OrderItemResponse fromOrderItem(OrderItem item) {
+		return OrderItemResponse.builder()
+				.itemId(item.getId())
+				.orderItemType(item.getOrderItemType().name())
+				.qty(item.getQty())
+				.unitPrice(item.getUnitPrice())
+				.lineAmount(item.getLineAmount())
+				.build();
+	}
+}

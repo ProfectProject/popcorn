@@ -5,16 +5,23 @@ import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Table("p_order_status_histories")
+@Entity
+@Table(name = "p_order_status_histories")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,23 +31,27 @@ public class OrderStatusHistory extends BaseEntity {
 
 	// 상태 전이를 1건씩 기록해 감사 추적에 활용합니다.
 	@Id
+	@GeneratedValue
+	@UuidGenerator
 	private UUID id;
 
-	@Column("order_id")
+	@Column(name = "order_id")
 	private UUID orderId;
 
-	@Column("from_status")
+	@Enumerated(EnumType.STRING)
+	@Column(name = "from_status")
 	private OrderStatus fromStatus;
 
-	@Column("to_status")
+	@Enumerated(EnumType.STRING)
+	@Column(name = "to_status")
 	private OrderStatus toStatus;
 
-	@Column("changed_by")
+	@Column(name = "changed_by")
 	private Long changedBy;
 
-	@Column("reason")
+	@Column(name = "reason")
 	private String reason;
 
-	@Column("changed_at")
+	@Column(name = "changed_at")
 	private LocalDateTime changedAt;
 }

@@ -213,6 +213,8 @@ public class OrderDomainService {
 
 		LocalDateTime now = LocalDateTime.now();
 
+		// 주문 타입별 취소 가능 시간을 계산합니다.
+		// 예약형은 비교적 여유를 주고, 구매형은 짧게 설정합니다.
 		return switch (orderType) {
 			case RESERVATION -> now.plusDays(1); // 예약형: 1일 후까지 취소 가능
 			case PURCHASE -> now.plusHours(1); // 구매형: 1시간 후까지 취소 가능
@@ -236,6 +238,7 @@ public class OrderDomainService {
 
 	public int calculateTotalAmount(List<OrderItem> orderItems) {
 
+		// 각 아이템의 (단가 * 수량)을 합산해 총액을 계산합니다.
 		return orderItems.stream()
 
 				.mapToInt(item -> item.getUnitPrice() * item.getQty())
@@ -276,13 +279,13 @@ public class OrderDomainService {
 
 
 
-		// 1. 검증
+		// 1. 검증: 필수 값과 아이템 조건을 사전에 체크합니다.
 
 		validateOrderCreation(customerId, storeId, productId, orderItems);
 
 
 
-		// 2. 비즈니스 룰 적용
+		// 2. 비즈니스 룰 적용: 취소 가능 시간/총액 계산
 
 		LocalDateTime cancelableUntil = calculateCancelableUntil(orderType);
 
@@ -290,7 +293,7 @@ public class OrderDomainService {
 
 
 
-		// 3. 주문 엔티티 생성
+		// 3. 주문 엔티티 생성: 기본 상태는 REQUESTED
 
 		Order order = Order.builder()
 

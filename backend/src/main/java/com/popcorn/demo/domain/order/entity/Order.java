@@ -8,11 +8,17 @@ import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
-import org.springframework.data.annotation.Version;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
+
+import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,7 +27,7 @@ import lombok.Setter;
 
 /**
 
-	* 주문 엔티티 (R2DBC)
+	* 주문 엔티티 (JPA)
 
 	* BaseEntity를 상속받아 표준화된 감사 필드를 포함합니다.
 
@@ -41,7 +47,8 @@ import lombok.Setter;
 
 	*/
 
-@Table("p_orders")
+@Entity
+@Table(name = "p_orders")
 
 @Getter
 
@@ -64,13 +71,15 @@ public class Order extends BaseEntity {
 	/** 주문 ID (Primary Key) */
 
 	@Id
+	@GeneratedValue
+	@UuidGenerator
 	private UUID id;
 
 
 
 	/** 주문 번호 (고유 식별자) */
 
-	@Column("order_no")
+	@Column(name = "order_no")
 
 	private String orderNo;
 
@@ -78,7 +87,7 @@ public class Order extends BaseEntity {
 
 	/** 고객 ID */
 
-	@Column("customer_id")
+	@Column(name = "customer_id")
 
 	private Long customerId;
 
@@ -86,7 +95,7 @@ public class Order extends BaseEntity {
 
 	/** 스토어 ID */
 
-	@Column("store_id")
+	@Column(name = "store_id")
 
 	private UUID storeId;
 
@@ -94,7 +103,7 @@ public class Order extends BaseEntity {
 
 	/** 상품 ID */
 
-	@Column("product_id")
+	@Column(name = "product_id")
 
 	private UUID productId;
 
@@ -102,7 +111,8 @@ public class Order extends BaseEntity {
 
 	/** 주문 타입 (예약형/구매형) */
 
-	@Column("order_type")
+	@Enumerated(EnumType.STRING)
+	@Column(name = "order_type")
 
 	private OrderType orderType;
 
@@ -110,7 +120,8 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 
-	@Column("status")
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status")
 
 	private OrderStatus status;
 
@@ -118,7 +129,7 @@ public class Order extends BaseEntity {
 
 	/** 취소 가능 시간 */
 
-	@Column("cancelable_until")
+	@Column(name = "cancelable_until")
 
 	private LocalDateTime cancelableUntil;
 
@@ -126,7 +137,7 @@ public class Order extends BaseEntity {
 
 	/** 총 주문 금액 (원 단위) */
 
-	@Column("total_amount")
+	@Column(name = "total_amount")
 
 	private Integer totalAmount;
 
@@ -134,14 +145,14 @@ public class Order extends BaseEntity {
 
 	/** 멱등성 키 (중복 주문 방지용) */
 
-	@Column("idempotency_key")
+	@Column(name = "idempotency_key")
 
 	private String idempotencyKey;
 
 	/** 낙관적 락 버전 */
 
 	@Version
-	@Column("version")
+	@Column(name = "version")
 
 	private Long version;
 
@@ -279,6 +290,37 @@ public class Order extends BaseEntity {
 			return;
 		}
 		items.forEach(this::addOrderItem);
+	}
+
+	/**
+	 * 주문 상태 변경 이력 생성
+	 * @param reason 변경 사유
+	 * @return 주문 상태 이력 객체
+	 */
+	public OrderStatusHistory toHistory(String reason) {
+		return OrderStatusHistory.builder()
+				.orderId(this.id)
+				.fromStatus(this.status)  // 현재 상태를 fromStatus로 (변경 전 상태)
+				.toStatus(this.status)    // 현재 상태를 toStatus로 (변경 후 상태)
+				.reason(reason)
+				.changedAt(LocalDateTime.now())
+				.build();
+	}
+
+	/**
+	 * 주문 상태 변경 이력 생성 (이전 상태 명시)
+	 * @param fromStatus 변경 전 상태
+	 * @param reason 변경 사유
+	 * @return 주문 상태 이력 객체
+	 */
+	public OrderStatusHistory toHistory(OrderStatus fromStatus, String reason) {
+		return OrderStatusHistory.builder()
+				.orderId(this.id)
+				.fromStatus(fromStatus)   // 변경 전 상태
+				.toStatus(this.status)    // 현재 상태 (변경 후 상태)
+				.reason(reason)
+				.changedAt(LocalDateTime.now())
+				.build();
 	}
 
 }

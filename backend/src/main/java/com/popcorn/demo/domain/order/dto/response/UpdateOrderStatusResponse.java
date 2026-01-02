@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.dto;
+package com.popcorn.demo.domain.order.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
