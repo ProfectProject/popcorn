@@ -40,6 +40,7 @@ public class UpdateOrderStatusUseCase {
 						return Mono.error(OrderException.alreadyCanceled());
 					}
 
+					// 문자열 상태 값을 도메인 enum으로 안전하게 변환합니다.
 					OrderStatus newStatus;
 					try {
 						newStatus = OrderStatus.valueOf(status);
@@ -47,12 +48,14 @@ public class UpdateOrderStatusUseCase {
 						return Mono.error(OrderException.invalidRequest());
 					}
 
+					// 도메인 규칙 기반 상태 전이 가능 여부를 체크합니다.
 					if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
 						log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}, 요청상태: {}, 사유: {}",
 							orderId, currentStatus, newStatus, reason);
 						return Mono.error(OrderException.invalidStatusTransition());
 					}
 
+					// 상태 변경과 히스토리 저장은 같은 트랜잭션으로 처리합니다.
 					order.setStatus(newStatus);
 					return saveOrderPort.save(order)
 							.flatMap(savedOrder -> {

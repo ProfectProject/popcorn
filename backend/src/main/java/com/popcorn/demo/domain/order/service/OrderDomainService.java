@@ -341,6 +341,7 @@ public class OrderDomainService {
 
 	public boolean canChangeStatus(OrderStatus currentStatus, OrderStatus newStatus) {
 
+		// 현재 상태 기준으로 허용된 전이 목록에 포함되는지 확인합니다.
 		java.util.EnumSet<OrderStatus> allowed = STATUS_TRANSITIONS.get(currentStatus);
 		return allowed != null && allowed.contains(newStatus);
 
@@ -362,6 +363,7 @@ public class OrderDomainService {
 
 	public boolean canCancelOrder(Order order) {
 
+		// 취소 가능 시간 + 상태 전이 가능 여부를 동시에 확인합니다.
 		return order.isCancelable()
 
 				&& canChangeStatus(order.getStatus(), OrderStatus.CANCELLED);

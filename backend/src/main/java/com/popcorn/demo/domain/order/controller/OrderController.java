@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.popcorn.demo.application.order.port.in.CreateOrderCommand;
 import com.popcorn.demo.application.order.port.in.CreateOrderResponse;
 import com.popcorn.demo.application.order.usecase.CreateOrderUseCase;
@@ -24,6 +27,7 @@ import com.popcorn.demo.domain.order.dto.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,19 +73,23 @@ import jakarta.validation.Valid;
 
 @RequestMapping("/api/v1/orders")
 
+@Slf4j
 public class OrderController extends BaseController {
 
 
 
 private final CreateOrderUseCase createOrderUseCase;
 private final UpdateOrderStatusUseCase updateOrderStatusUseCase;
+private final ObjectMapper objectMapper;
 
 
 
-public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusUseCase updateOrderStatusUseCase) {
+public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusUseCase updateOrderStatusUseCase,
+		ObjectMapper objectMapper) {
 
 	this.createOrderUseCase = createOrderUseCase;
 	this.updateOrderStatusUseCase = updateOrderStatusUseCase;
+	this.objectMapper = objectMapper;
 
 }
 
@@ -198,9 +206,10 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 
 
-		// Clean Architecture: Command 객체 생성
+	logRequestDebug("주문 생성 요청", request);
+	// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
 
-		CreateOrderCommand command = CreateOrderCommand.builder()
+	CreateOrderCommand command = CreateOrderCommand.builder()
 
 				.userId(userId)
 
@@ -236,6 +245,7 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 
 
+		// 유스케이스 결과를 표준 응답으로 감싸서 반환합니다.
 		return createOrderUseCase.createOrder(command)
 				.map(response -> {
 					OrderCreatedDto dto = convertToOrderCreatedDto(response);
@@ -410,6 +420,7 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 			)
 			@Valid @RequestBody UpdateOrderStatusRequest request) {
 
+		logRequestDebug("주문 상태 변경 요청", request);
 		// 상태 변경 규칙은 유스케이스에서 처리해 비즈니스 규칙을 보장합니다.
 		return updateOrderStatusUseCase.updateStatus(
 					orderId,
@@ -584,10 +595,21 @@ public OrderController(CreateOrderUseCase createOrderUseCase, UpdateOrderStatusU
 
 		*   "message": "수량은 1 이상이어야 합니다.",
 
-		*   "data": null
+	*   "data": null
 
-		* }
+	* }
 
-		*/
+	*/
+
+	private void logRequestDebug(String label, Object request) {
+		if (!log.isDebugEnabled()) {
+			return;
+		}
+		try {
+			log.debug("{}: {}", label, objectMapper.writeValueAsString(request));
+		} catch (JsonProcessingException ex) {
+			log.debug("{}: <failed to serialize request>", label, ex);
+		}
+	}
 
 }

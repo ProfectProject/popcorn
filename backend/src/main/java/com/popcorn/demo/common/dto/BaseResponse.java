@@ -65,4 +65,20 @@ public class BaseResponse<T> {
 
 	}
 
+	public static BaseResponse<BaseError> error(ResponseCode responseCode, String detail) {
+		return BaseResponse.<BaseError>builder()
+				.code(responseCode.getCode())
+				.message(responseCode.getMessage())
+				.data(BaseError.of(responseCode, detail))
+				.build();
+	}
+
+	public static BaseResponse<BaseError> error(BaseError error) {
+		return BaseResponse.<BaseError>builder()
+				.code(error.getCode())
+				.message(error.getMessage())
+				.data(error)
+				.build();
+	}
+
 }

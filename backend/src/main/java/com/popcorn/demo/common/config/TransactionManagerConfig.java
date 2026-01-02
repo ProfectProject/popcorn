@@ -30,6 +30,7 @@ public class TransactionManagerConfig {
 	@Primary
 	@ConditionalOnBean(ConnectionFactory.class)
 	public ReactiveTransactionManager reactiveTransactionManager(@Autowired(required = false) ConnectionFactory connectionFactory) {
+		// WebFlux/R2DBC용 리액티브 트랜잭션 매니저입니다.
 		return new R2dbcTransactionManager(connectionFactory);
 	}
 
@@ -40,6 +41,7 @@ public class TransactionManagerConfig {
 	@Bean
 	@ConditionalOnBean(DataSource.class)
 	public PlatformTransactionManager jdbcTransactionManager(DataSource dataSource) {
+		// JDBC/JPA/Flyway 같은 블로킹 작업용 트랜잭션 매니저입니다.
 		return new DataSourceTransactionManager(dataSource);
 	}
 }

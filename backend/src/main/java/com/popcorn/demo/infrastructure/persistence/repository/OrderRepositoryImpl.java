@@ -140,6 +140,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public Mono<Order> findById(UUID orderId) {
 
+		// 단건 상세 조회는 기본 ID 조회로 처리합니다.
 		return orderRepository.findById(orderId);
 
 	}
@@ -150,6 +151,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public Mono<OrderSummaryView> findSummaryById(UUID orderId) {
 
+		// 상세 화면이 아닌 요약 화면에서 사용하는 조회입니다.
 		return orderRepository.findSummaryById(orderId);
 
 	}
@@ -194,6 +196,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public Flux<Order> findByCustomerId(Long customerId) {
 
+		// 고객 기준 주문 목록을 최신순으로 조회합니다.
 		return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
 
 	}
@@ -204,6 +207,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public Flux<Order> findByCustomerId(Long customerId, int offset, int limit) {
 
+		// 페이징 파라미터는 음수 방지를 위해 보정합니다.
 		long safeOffset = Math.max(0, offset);
 		int safeLimit = Math.max(1, limit);
 		return orderRepository.findByCustomerIdWithPaging(customerId, safeOffset, safeLimit);
@@ -212,6 +216,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	@Override
 	public Flux<OrderSummaryView> findSummariesByCustomerId(Long customerId, int offset, int limit) {
+		// 목록 화면 전용으로 필요한 컬럼만 조회합니다.
 		long safeOffset = Math.max(0, offset);
 		int safeLimit = Math.max(1, limit);
 		return orderRepository.findSummariesByCustomerIdWithPaging(customerId, safeOffset, safeLimit);
@@ -223,6 +228,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public Flux<Order> findByStoreId(UUID storeId) {
 
+		// 스토어 기준 주문 목록을 조회합니다.
 		return orderRepository.findByStoreId(storeId);
 
 	}
@@ -233,6 +239,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
 	public Flux<Order> findByStoreIdAndStatus(UUID storeId, OrderStatus status) {
 
+		// 스토어 + 상태 필터로 주문 목록을 조회합니다.
 		return orderRepository.findByStoreIdAndStatus(storeId, status);
 
 	}

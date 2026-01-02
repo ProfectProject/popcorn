@@ -92,9 +92,9 @@ public class CreateOrderUseCase {
 		log.info("🎯 주문 생성 시작 - 사용자: {}, 멱등성키: {}", command.getUserId(), command.getIdempotencyKey());
 
 		String idempotencyKey = normalizeIdempotencyKey(command.getIdempotencyKey());
-
+		// 멱등성 키 중복 요청을 선제 차단합니다.
 		Mono<Void> idempotencyCheck = checkIdempotency(command.getIdempotencyKey(), idempotencyKey);
-
+		// 요청 아이템을 도메인 모델로 변환해 이후 검증/저장에 사용합니다.
 		Mono<List<OrderItem>> orderItemsMono = convertToOrderItems(command.getItems()).collectList();
 
 		return idempotencyCheck
@@ -103,11 +103,13 @@ public class CreateOrderUseCase {
 					OrderType orderType = OrderType.valueOf(command.getOrderType());
 					int totalQty = calculateTotalQuantity(orderItems);
 
+					// 외부/비동기 검증 결과까지 반영해 주문 생성 가능 여부를 확정합니다.
 					return processOrderPort.validateOrder(command.getUserId(), command.getProductId(), totalQty)
 							.flatMap(result -> {
 								if (!result) {
 									return Mono.error(OrderException.invalidRequest());
 								}
+								// 도메인 규칙 검증은 생성 전에 한번 더 수행합니다.
 								orderDomainService.validateOrderCreation(
 										command.getUserId(),
 										command.getStoreId(),
@@ -124,6 +126,7 @@ public class CreateOrderUseCase {
 										command.getIdempotencyKey()
 								);
 
+								// 주문 저장 후, 주문 아이템/이벤트 처리까지 이어집니다.
 								return saveOrderPort.save(order)
 										.flatMap(savedOrder -> {
 											if (idempotencyKey != null) {

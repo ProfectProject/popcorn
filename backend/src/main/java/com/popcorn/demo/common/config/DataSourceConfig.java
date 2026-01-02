@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 @ConditionalOnProperty(prefix = "spring.datasource", name = "url")
 public class DataSourceConfig {
 
+	// JDBC/Flyway/JdbcTemplate 등 동기 작업용 DataSource 설정입니다.
 	@Bean
 	@Primary
 	@ConfigurationProperties("spring.datasource")
