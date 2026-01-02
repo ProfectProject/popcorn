@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.demo.common.cache.IdempotencyCache;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
+import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
+import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.event.OrderCreatedEvent;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
@@ -133,6 +135,158 @@ public class OrderService {
 				.items(items)
 				.address(address)
 				.payment(payment)
+				.build();
+	}
+
+	@Transactional(readOnly = true, transactionManager = "jdbcTransactionManager")
+	public StoreOrderReservationListResponse getStoreOrderReservations(
+			UUID storeId,
+			UUID productId,
+			String status,
+			LocalDateTime from,
+			LocalDateTime to,
+			Integer page,
+			Integer size) {
+
+		int safePage = normalizePage(page);
+		int safeSize = normalizeSize(size);
+		long offset = (long) (safePage - 1) * safeSize;
+
+		SqlCondition condition = buildStoreCondition(storeId, productId, status, from, to);
+		String countSql = "SELECT COUNT(1) FROM p_orders o" + condition.whereClause;
+		long total = jdbcTemplate.queryForObject(countSql, Long.class, condition.params.toArray());
+
+		String listSql = """
+				SELECT o.id,
+				       o.order_no,
+				       o.status,
+				       o.total_amount,
+				       o.cancelable_until,
+				       o.created_at
+				  FROM p_orders o
+				""" + condition.whereClause + """
+				 ORDER BY o.created_at DESC
+				 LIMIT ? OFFSET ?
+				""";
+
+		List<Object> listParams = new java.util.ArrayList<>(condition.params);
+		listParams.add(safeSize);
+		listParams.add(offset);
+
+		List<StoreOrderReservationListResponse.ItemDto> items = jdbcTemplate.query(
+				listSql,
+				(rs, rowNum) -> {
+					LocalDateTime createdAt = rs.getTimestamp("created_at").toLocalDateTime();
+					LocalDateTime cancelableUntil = rs.getTimestamp("cancelable_until") == null
+							? createdAt.plusMinutes(30)
+							: rs.getTimestamp("cancelable_until").toLocalDateTime();
+					return StoreOrderReservationListResponse.ItemDto.builder()
+							.id(UUID.fromString(rs.getString("id")))
+							.reservationNo(rs.getString("order_no"))
+							.status(rs.getString("status"))
+							.totalAmount(rs.getInt("total_amount"))
+							.cancelableUntil(cancelableUntil)
+							.createdAt(createdAt)
+							.build();
+				},
+				listParams.toArray()
+		);
+
+		return StoreOrderReservationListResponse.builder()
+				.items(items)
+				.page(safePage)
+				.size(safeSize)
+				.total(total)
+				.build();
+	}
+
+	@Transactional(readOnly = true, transactionManager = "jdbcTransactionManager")
+	public MyOrderTimelineResponse getMyOrderTimeline(
+			Long customerId,
+			String orderType,
+			String status,
+			LocalDateTime from,
+			LocalDateTime to,
+			Integer page,
+			Integer size) {
+
+		Long safeCustomerId = customerId != null ? customerId : 1001L;
+		int safePage = normalizePage(page);
+		int safeSize = normalizeSize(size);
+		long offset = (long) (safePage - 1) * safeSize;
+
+		SqlCondition condition = buildCustomerCondition(safeCustomerId, orderType, status, from, to);
+		String countSql = "SELECT COUNT(1) FROM p_orders o" + condition.whereClause;
+		long total = jdbcTemplate.queryForObject(countSql, Long.class, condition.params.toArray());
+
+		String listSql = """
+				SELECT o.id,
+				       o.order_no,
+				       o.order_type,
+				       o.status,
+				       o.total_amount,
+				       o.cancelable_until,
+				       o.created_at,
+				       o.product_id,
+				       o.store_id,
+				       p.title AS product_title,
+				       MIN(ps.start_at) AS session_start_at,
+				       MAX(pl.name) AS location_name,
+				       MAX(pl.address1) AS location_address1,
+				       MAX(pl.address2) AS location_address2
+				  FROM p_orders o
+				  LEFT JOIN p_products p ON p.id = o.product_id
+				  LEFT JOIN p_product_locations pl ON pl.product_id = p.id AND pl.deleted_at IS NULL
+				  LEFT JOIN p_order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL
+				  LEFT JOIN p_session_options so ON oi.session_option_id = so.id
+				  LEFT JOIN p_product_sessions ps ON so.session_id = ps.id
+				""" + condition.whereClause + """
+				 GROUP BY o.id, o.order_no, o.order_type, o.status, o.total_amount,
+				          o.cancelable_until, o.created_at, o.product_id, o.store_id, p.title
+				 ORDER BY o.created_at DESC
+				 LIMIT ? OFFSET ?
+				""";
+
+		List<Object> listParams = new java.util.ArrayList<>(condition.params);
+		listParams.add(safeSize);
+		listParams.add(offset);
+
+		List<MyOrderTimelineResponse.ItemDto> items = jdbcTemplate.query(
+				listSql,
+				(rs, rowNum) -> MyOrderTimelineResponse.ItemDto.builder()
+						.type(rs.getString("order_type"))
+						.id(UUID.fromString(rs.getString("id")))
+						.orderNo(rs.getString("order_no"))
+						.status(rs.getString("status"))
+						.totalAmount(rs.getInt("total_amount"))
+						.cancelableUntil(rs.getTimestamp("cancelable_until") == null
+								? null
+								: rs.getTimestamp("cancelable_until").toLocalDateTime())
+						.createdAt(rs.getTimestamp("created_at").toLocalDateTime())
+						.productId(rs.getString("product_id") == null
+								? null
+								: UUID.fromString(rs.getString("product_id")))
+						.storeId(rs.getString("store_id") == null
+								? null
+								: UUID.fromString(rs.getString("store_id")))
+						.title(rs.getString("product_title"))
+						.sessionStartAt(rs.getTimestamp("session_start_at") == null
+								? null
+								: rs.getTimestamp("session_start_at").toLocalDateTime())
+						.location(buildLocation(
+								rs.getString("location_name"),
+								rs.getString("location_address1"),
+								rs.getString("location_address2")
+						))
+						.build(),
+				listParams.toArray()
+		);
+
+		return MyOrderTimelineResponse.builder()
+				.items(items)
+				.page(safePage)
+				.size(safeSize)
+				.total(total)
 				.build();
 	}
 	@Transactional(transactionManager = "jdbcTransactionManager")
@@ -362,6 +516,93 @@ public class OrderService {
 		return rows.get(0);
 	}
 
+	private MyOrderTimelineResponse.LocationDto buildLocation(String name, String address1, String address2) {
+		if (name == null && address1 == null && address2 == null) {
+			return null;
+		}
+		return MyOrderTimelineResponse.LocationDto.builder()
+				.name(name)
+				.address1(address1)
+				.address2(address2)
+				.build();
+	}
+
+	private SqlCondition buildStoreCondition(
+			UUID storeId,
+			UUID productId,
+			String status,
+			LocalDateTime from,
+			LocalDateTime to) {
+		StringBuilder where = new StringBuilder(" WHERE o.deleted_at IS NULL");
+		List<Object> params = new java.util.ArrayList<>();
+		if (storeId != null) {
+			where.append(" AND o.store_id = ?");
+			params.add(storeId);
+		}
+		if (productId != null) {
+			where.append(" AND o.product_id = ?");
+			params.add(productId);
+		}
+		if (status != null && !status.isBlank()) {
+			where.append(" AND o.status = CAST(? AS order_status)");
+			params.add(status);
+		}
+		if (from != null) {
+			where.append(" AND o.created_at >= ?");
+			params.add(from);
+		}
+		if (to != null) {
+			where.append(" AND o.created_at <= ?");
+			params.add(to);
+		}
+		return new SqlCondition(where.toString(), params);
+	}
+
+	private SqlCondition buildCustomerCondition(
+			Long customerId,
+			String orderType,
+			String status,
+			LocalDateTime from,
+			LocalDateTime to) {
+		StringBuilder where = new StringBuilder(" WHERE o.deleted_at IS NULL AND o.customer_id = ?");
+		List<Object> params = new java.util.ArrayList<>();
+		params.add(customerId);
+		if (orderType != null && !orderType.isBlank() && !"ALL".equalsIgnoreCase(orderType)) {
+			where.append(" AND o.order_type = CAST(? AS order_type)");
+			params.add(orderType.toUpperCase(Locale.ROOT));
+		}
+		if (status != null && !status.isBlank()) {
+			where.append(" AND o.status = CAST(? AS order_status)");
+			params.add(status);
+		}
+		if (from != null) {
+			where.append(" AND o.created_at >= ?");
+			params.add(from);
+		}
+		if (to != null) {
+			where.append(" AND o.created_at <= ?");
+			params.add(to);
+		}
+		return new SqlCondition(where.toString(), params);
+	}
+
+	private int normalizePage(Integer page) {
+		if (page == null || page < 1) {
+			return 1;
+		}
+		return page;
+	}
+
+	private int normalizeSize(Integer size) {
+		if (size == null || size < 1) {
+			return 20;
+		}
+		return size;
+	}
+
+	private record SqlCondition(String whereClause, List<Object> params) {
+	}
+
 	@lombok.Builder
 	private static class OrderDetailRow {
 		private UUID orderId;
@@ -455,7 +696,6 @@ public class OrderService {
 		Integer unitPrice = resolveUnitPrice(itemCommand);
 		Integer lineAmount = unitPrice * itemCommand.getQty();
 		return OrderItem.builder()
-				.id(UUID.randomUUID())
 				.orderItemType(itemCommand.getOrderItemType())
 				.qty(itemCommand.getQty())
 				.unitPrice(unitPrice)

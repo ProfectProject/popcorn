@@ -12,7 +12,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,6 +59,7 @@ public class OrderItem extends BaseEntity {
 
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "order_item_type")
 
 	private OrderItemType orderItemType;

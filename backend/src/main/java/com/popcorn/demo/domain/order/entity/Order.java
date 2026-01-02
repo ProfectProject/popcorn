@@ -18,7 +18,9 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -112,6 +114,7 @@ public class Order extends BaseEntity {
 	/** 주문 타입 (예약형/구매형) */
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "order_type")
 
 	private OrderType orderType;
@@ -121,6 +124,7 @@ public class Order extends BaseEntity {
 	/** 주문 상태 */
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "status")
 
 	private OrderStatus status;

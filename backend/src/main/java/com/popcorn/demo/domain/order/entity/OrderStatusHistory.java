@@ -13,7 +13,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -39,10 +41,12 @@ public class OrderStatusHistory extends BaseEntity {
 	private UUID orderId;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "from_status")
 	private OrderStatus fromStatus;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "to_status")
 	private OrderStatus toStatus;
 
