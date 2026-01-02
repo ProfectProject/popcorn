@@ -1,4 +1,4 @@
-package com.popcorn.demo.common.config;
+package com.popcorn.demo.global.config;
 
 import javax.sql.DataSource;
 

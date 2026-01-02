@@ -53,7 +53,7 @@ public class BaseResponse<T> {
 
 	public static <T> BaseResponse<T> success(T data) {
 
-		return from(ResponseCode.SUCCESS, data);
+		return from(CommonResponseCode.SUCCESS, data);
 
 	}
 

@@ -1,10 +1,8 @@
-package com.popcorn.demo.common.util;
+package com.popcorn.demo.global.util;
 
 import java.util.function.Supplier;
 
 import org.springframework.transaction.support.TransactionTemplate;
-
-import reactor.core.publisher.Mono;
 
 public class BlockingTxExecutor {
 	private final BlockingExecutor blockingExecutor;
@@ -17,17 +15,19 @@ public class BlockingTxExecutor {
 
 	/**
 	 * 사용 예시:
-	 * - JPA 같은 블로킹 호출을 WebFlux에서 안전하게 실행할 때 사용합니다.
-	 * - 트랜잭션 내부에서 실행되며, boundedElastic 스레드 풀로 위임됩니다.
+	 * - JPA 같은 블로킹 호출을 전용 스레드 풀과 트랜잭션 안에서 실행합니다.
+	 * - 저장/수정 같은 쓰기 작업도 동일한 방식으로 실행합니다.
+	 * - 트랜잭션 경계는 TransactionTemplate이 관리합니다.
 	 *
 	 * 예:
 	 * blockingTxExecutor.execute(() -> jpaRepository.findById(id).orElse(null));
 	 */
-	public <T> Mono<T> execute(Supplier<T> supplier) {
+	public <T> T execute(Supplier<T> supplier) {
 		return blockingExecutor.execute(() -> transactionTemplate.execute(status -> supplier.get()));
 	}
 
-	public Mono<Void> run(Runnable runnable) {
-		return blockingExecutor.run(() -> transactionTemplate.executeWithoutResult(status -> runnable.run()));
+	public void run(Runnable runnable) {
+		// 트랜잭션을 열고, 예외 발생 시 자동으로 롤백됩니다.
+		blockingExecutor.run(() -> transactionTemplate.executeWithoutResult(status -> runnable.run()));
 	}
 }

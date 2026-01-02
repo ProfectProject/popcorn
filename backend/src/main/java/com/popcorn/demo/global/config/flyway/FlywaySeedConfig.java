@@ -1,4 +1,4 @@
-package com.popcorn.demo.common.config.flyway;
+package com.popcorn.demo.global.config.flyway;
 
 import javax.sql.DataSource;
 

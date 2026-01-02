@@ -1,4 +1,4 @@
-package com.popcorn.demo.common.exception;
+package com.popcorn.demo.global.exception;
 
 import com.popcorn.demo.common.dto.ResponseCode;
 
