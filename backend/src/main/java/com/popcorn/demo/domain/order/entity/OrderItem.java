@@ -1,19 +1,18 @@
 package com.popcorn.demo.domain.order.entity;
 
+import java.util.UUID;
+
 import com.popcorn.demo.common.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+
+import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,7 +28,6 @@ import lombok.Setter;
 	*/
 
 @Entity
-
 @Table(name = "p_order_items")
 
 @Getter
@@ -47,30 +45,19 @@ public class OrderItem extends BaseEntity {
 
 
 	@Id
-
-	@SequenceGenerator(
-			name = "order_item_seq",
-			sequenceName = "p_order_items_id_seq",
-			allocationSize = 1
-	)
-
-	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_item_seq")
-
-	private Long id;
+	@GeneratedValue
+	@UuidGenerator
+	private UUID id;
 
 
 
-	@ManyToOne(fetch = FetchType.LAZY)
-
-	@JoinColumn(name = "order_id", nullable = false)
-
-	private Order order;
+	@Column(name = "order_id")
+	private UUID orderId;
 
 
 
 	@Enumerated(EnumType.STRING)
-
-	@Column(name = "order_item_type", nullable = false, length = 20)
+	@Column(name = "order_item_type")
 
 	private OrderItemType orderItemType;
 
@@ -78,29 +65,29 @@ public class OrderItem extends BaseEntity {
 
 	@Column(name = "session_option_id")
 
-	private Long sessionOptionId;
+	private UUID sessionOptionId;
 
 
 
 	@Column(name = "merch_variant_id")
 
-	private Long merchVariantId;
+	private UUID merchVariantId;
 
 
 
-	@Column(name = "qty", nullable = false)
+	@Column(name = "qty")
 
 	private Integer qty;
 
 
 
-	@Column(name = "unit_price", nullable = false)
+	@Column(name = "unit_price")
 
 	private Integer unitPrice;
 
 
 
-	@Column(name = "line_amount", nullable = false)
+	@Column(name = "line_amount")
 
 	private Integer lineAmount;
 

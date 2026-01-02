@@ -1,10 +1,11 @@
 package com.popcorn.demo.domain.order.repository;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public interface OrderSummaryView {
 
-	Long getId();
+	UUID getId();
 
 
 
@@ -23,4 +24,3 @@ public interface OrderSummaryView {
 	LocalDateTime getCreatedAt();
 
 }
-

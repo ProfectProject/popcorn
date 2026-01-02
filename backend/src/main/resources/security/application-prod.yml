@@ -2,18 +2,31 @@ server:
   port: 8080
   shutdown: immediate
 spring:
+  config:
+    activate:
+      on-profile: prod
   datasource:
-    url: ${DB_URL_PROD}
-    username: ${DB_USER_PROD}
-    password: ${DB_PASSWORD_PROD}
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
- 
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
 
   flyway:
+    url: ${DATABASE_URL}
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     enabled: true
-    baseline-on-migrate: true     
-    locations: classpath:db/migration/schema
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    default-schema: public
+    schemas: public
 
+logging:
+  level:
+    com.popcorn.demo: WARN
+    org.springframework.security: ERROR
