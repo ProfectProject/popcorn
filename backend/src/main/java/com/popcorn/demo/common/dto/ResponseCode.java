@@ -3,7 +3,6 @@ package com.popcorn.demo.common.dto;
 import lombok.Getter;
 
 @Getter
-
 public enum ResponseCode {
 
 	SUCCESS(200, 200, "요청이 성공했습니다."),
@@ -16,69 +15,45 @@ public enum ResponseCode {
 
 
 	// Store creation specific error codes
-
 	EMPTY_NAME(400, 400, "이름이 비어있습니다."),
-
 	EMPTY_OWNER_ID(400, 400, "오너 ID가 비어있습니다."),
-
-	DUPLICATE_NAME(409, 409, "이미 존재하는 이름입니다."),
-
 	OWNER_NOT_FOUND(404, 404, "오너를 찾을 수 없습니다."),
+	DUPLICATE_STORE_NAME(409, 409, "중복된 스토어 이름입니다."),
+	OWNER_NOT_AUTHORIZED(403, 403, "스토어 생성 권한이 없습니다."),
+	INVALID_NAME_FORMAT(400, 400, "스토어 이름 형식이 유효하지 않습니다."),
+	VALIDATION_TIMEOUT(408, 408, "검증 시간이 초과되었습니다."),
+	VALIDATION_INTERRUPTED(500, 500, "검증이 중단되었습니다."),
+	VALIDATION_FAILED(500, 500, "검증에 실패했습니다."),
+	STORE_NOT_FOUND(404, 404, "스토어를 찾을 수 없습니다."),
+	STORE_ALREADY_DELETED(410, 410, "이미 삭제된 스토어입니다."),
+	ACCESS_DENIED(403, 403, "접근 권한이 없습니다."),
 
 	// Order creation specific error codes
-
 	EMPTY_ITEMS(400, 400, "주문 항목이 비어있습니다."),
-
 	INVALID_QTY(400, 400, "수량은 1 이상이어야 합니다."),
-
 	MIXED_ORDER_ITEMS_NOT_ALLOWED(400, 400, "예약과 구매 항목을 함께 주문할 수 없습니다."),
-
 	ORDER_TYPE_ITEM_MISMATCH(400, 400, "주문 타입과 항목 타입이 일치하지 않습니다."),
-
-	STORE_NOT_FOUND(404, 404, "스토어를 찾을 수 없습니다."),
-
 	PRODUCT_NOT_FOUND(404, 404, "상품을 찾을 수 없습니다."),
-
 	SESSION_NOT_FOUND(404, 404, "세션을 찾을 수 없습니다."),
-
 	OPTION_NOT_FOUND(404, 404, "옵션을 찾을 수 없습니다."),
-
 	MERCH_VARIANT_NOT_FOUND(404, 404, "상품 변형을 찾을 수 없습니다."),
-
 	PRODUCT_HIDDEN(403, 403, "숨김 처리된 상품입니다."),
-
 	SESSION_NOT_OPEN(400, 400, "세션이 열려있지 않습니다."),
-
 	OPTION_NOT_ALLOWED_FOR_SESSION(400, 400, "세션에 허용되지 않은 옵션입니다."),
-
 	CAPACITY_EXCEEDED(409, 409, "정원을 초과했습니다."),
-
 	OUT_OF_STOCK(409, 409, "재고가 부족합니다."),
-
 	CHECKIN_REQUIRED(400, 400, "체크인이 필요합니다."),
-
 	DUPLICATE_IDEMPOTENCY_KEY(409, 409, "중복된 요청입니다."),
-
 	FORBIDDEN(403, 403, "권한이 없습니다.");
 
-
-
 	private final int code;
-
 	private final int httpStatus;
-
 	private final String message;
 
-
-
 	ResponseCode(int code, int httpStatus, String message) {
-
 		this.code = code;
-
 		this.httpStatus = httpStatus;
-
 		this.message = message;
-
 	}
 
 }
