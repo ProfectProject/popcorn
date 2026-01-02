@@ -10,17 +10,14 @@ import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
 
-import lombok.RequiredArgsConstructor;
-
-/**
- * StoreRepository JPA 구현체
- * - JpaStoreRepository를 사용하여 실제 데이터 액세스 구현
- */
 @Repository
-@RequiredArgsConstructor
 public class StoreRepositoryImpl implements StoreRepository {
 
     private final JpaStoreRepository jpaStoreRepository;
+
+    public StoreRepositoryImpl(JpaStoreRepository jpaStoreRepository) {
+        this.jpaStoreRepository = jpaStoreRepository;
+    }
 
     @Override
     public Store save(Store store) {
@@ -44,31 +41,43 @@ public class StoreRepositoryImpl implements StoreRepository {
 
     @Override
     public List<Store> findAllByOwnerId(Long ownerId) {
-        return jpaStoreRepository.findAllByOwnerId(ownerId);
+        return jpaStoreRepository.findAll().stream()
+                .filter(store -> store.getOwnerId().equals(ownerId))
+                .toList();
     }
 
     @Override
     public List<Store> findAllByOwnerIdAndDeletedAtIsNull(Long ownerId) {
-        return jpaStoreRepository.findAllByOwnerIdAndDeletedAtIsNull(ownerId);
+        return jpaStoreRepository.findAll().stream()
+                .filter(store -> store.getOwnerId().equals(ownerId) && !store.isDeleted())
+                .toList();
     }
 
     @Override
     public List<Store> findByPublishStatusAndOwnerId(StorePublishStatus status, Long ownerId) {
-        return jpaStoreRepository.findByPublishStatusAndOwnerId(status, ownerId);
+        return jpaStoreRepository.findAll().stream()
+                .filter(store -> store.getPublishStatus().equals(status) && store.getOwnerId().equals(ownerId))
+                .toList();
     }
 
     @Override
     public Optional<Store> findByName(String name) {
-        return jpaStoreRepository.findByName(name);
+        return jpaStoreRepository.findAll().stream()
+                .filter(store -> store.getName().equals(name))
+                .findFirst();
     }
 
     @Override
     public long countByOwnerId(Long ownerId) {
-        return jpaStoreRepository.countByOwnerId(ownerId);
+        return jpaStoreRepository.findAll().stream()
+                .filter(store -> store.getOwnerId().equals(ownerId))
+                .count();
     }
 
     @Override
     public long countByPublishStatus(StorePublishStatus status) {
-        return jpaStoreRepository.countByPublishStatus(status);
+        return jpaStoreRepository.findAll().stream()
+                .filter(store -> store.getPublishStatus().equals(status))
+                .count();
     }
 }

@@ -1,49 +1,41 @@
 package com.popcorn.demo.domain.store.service;
 
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.popcorn.demo.domain.store.dto.CreateStoreRequest;
 import com.popcorn.demo.domain.store.dto.StoreCreatedDto;
 import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
-@Service
-public class StoreService {
-
-    private static final Logger log = LoggerFactory.getLogger(StoreService.class);
-    private static final int MAX_STORES_PER_OWNER = 10;
-    private static final int MAX_STORE_NAME_LENGTH = 100;
-    private static final int MIN_STORE_NAME_LENGTH = 1;
+@Service("simpleStoreService")
+public class SimpleStoreService {
 
     private final StoreRepository storeRepository;
 
-    public StoreService(StoreRepository storeRepository) {
+    public SimpleStoreService(StoreRepository storeRepository) {
         this.storeRepository = storeRepository;
     }
 
     @Transactional
     public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
-        log.info("Creating store: ownerId={}, storeName={}", ownerId, request.getName());
-        
         // 기본 검증
         validateStoreCreation(ownerId, request.getName());
         
         // 중복 검사
-        Optional<Store> existingStore = storeRepository.findByName(request.getName().trim());
+        Optional<Store> existingStore = storeRepository.findByName(request.getName());
         if (existingStore.isPresent() && !existingStore.get().isDeleted()) {
             throw StoreException.duplicateStoreName(request.getName());
         }
         
         // 한도 검사
         long storeCount = storeRepository.countByOwnerId(ownerId);
-        if (storeCount >= MAX_STORES_PER_OWNER) {
-            throw StoreException.storeCreationLimitExceeded(ownerId, MAX_STORES_PER_OWNER);
+        if (storeCount >= 10) {
+            throw StoreException.storeCreationLimitExceeded(ownerId, 10);
         }
         
         // 스토어 생성
@@ -56,8 +48,6 @@ public class StoreService {
                 .build();
 
         Store savedStore = storeRepository.save(store);
-        
-        log.info("Store created successfully: storeId={}", savedStore.getId());
 
         return StoreCreatedDto.builder()
                 .id(savedStore.getId())
@@ -70,28 +60,21 @@ public class StoreService {
     }
 
     private void validateStoreCreation(Long ownerId, String name) {
-        validateStoreName(name);
-        validateOwnerId(ownerId);
-    }
-
-    private void validateStoreName(String name) {
         if (name == null || name.trim().isEmpty()) {
             throw StoreException.emptyName();
         }
         
+        if (ownerId == null || ownerId <= 0) {
+            throw StoreException.ownerNotFound();
+        }
+        
         String trimmedName = name.trim();
-        if (trimmedName.length() < MIN_STORE_NAME_LENGTH || trimmedName.length() > MAX_STORE_NAME_LENGTH) {
-            throw StoreException.invalidNameLength(trimmedName.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
+        if (trimmedName.length() > 100) {
+            throw StoreException.invalidNameLength(trimmedName.length(), 1, 100);
         }
         
         if (containsInvalidCharacters(trimmedName)) {
             throw StoreException.invalidNameFormat(trimmedName);
-        }
-    }
-
-    private void validateOwnerId(Long ownerId) {
-        if (ownerId == null || ownerId <= 0) {
-            throw StoreException.ownerNotFound();
         }
     }
 
