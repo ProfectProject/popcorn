@@ -2,24 +2,18 @@ spring:
   main:
     allow-bean-definition-overriding: true
   datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password:
-
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
 
   flyway:
-    enabled: true  # 테스트에서는 Flyway 비활성화
-
-  h2:
-    console:
-      enabled: true
+    enabled: false
 
 logging:
   level:
     org.springframework.web: DEBUG
-    org.hibernate: DEBUG
+    org.hibernate.SQL: DEBUG
