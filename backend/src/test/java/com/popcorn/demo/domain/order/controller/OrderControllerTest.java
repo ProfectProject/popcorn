@@ -8,50 +8,45 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderService;
-import com.popcorn.demo.global.config.SecurityConfig;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderException;
 
-import lombok.extern.slf4j.Slf4j;
+import com.popcorn.demo.global.config.CommonConfig;
 
-@WebMvcTest(controllers = OrderController.class)
-@Import({OrderExceptionHandler.class, SecurityConfig.class, OrderControllerTest.TestConfig.class})
-@ActiveProfiles("local")
-@Slf4j
 class OrderControllerTest {
 
-	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired
 	private OrderService orderService;
 
-	@TestConfiguration
-	static class TestConfig {
-		@Bean
-		OrderService orderService() {
-			return Mockito.mock(OrderService.class);
-		}
+	private ObjectMapper objectMapper;
+
+	@BeforeEach
+	void setUp() {
+		orderService = Mockito.mock(OrderService.class);
+		objectMapper = new CommonConfig().objectMapper();
+		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+				.setControllerAdvice(new OrderExceptionHandler())
+				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+				.build();
 	}
 
 	@Test

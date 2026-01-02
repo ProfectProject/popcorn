@@ -6,42 +6,39 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.mockito.Mockito;
-import org.springframework.context.annotation.Import;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.service.OrderService;
-import com.popcorn.demo.global.config.SecurityConfig;
+import com.popcorn.demo.global.config.CommonConfig;
 
-@WebMvcTest(controllers = OrderController.class)
-@Import({OrderExceptionHandler.class, SecurityConfig.class, OrderDetailControllerTest.TestConfig.class})
-@ActiveProfiles("local")
 class OrderDetailControllerTest {
 
-	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired
 	private OrderService orderService;
 
-	@TestConfiguration
-	static class TestConfig {
-		@Bean
-		OrderService orderService() {
-			return Mockito.mock(OrderService.class);
-		}
+	private ObjectMapper objectMapper;
+
+	@BeforeEach
+	void setUp() {
+		orderService = Mockito.mock(OrderService.class);
+		objectMapper = new CommonConfig().objectMapper();
+		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+				.setControllerAdvice(new OrderExceptionHandler())
+				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+				.build();
 	}
 
 	@Test
