@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
+import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.common.dto.BaseResponse;
@@ -25,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -69,6 +71,44 @@ public class OrderQueryController {
 
 		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, null, null);
 		return ResponseEntity.ok(BaseResponse.success(detail));
+	}
+
+	@Operation(
+			summary = "주문/예약 상태 조회 (CUSTOMER)",
+			description = "결제 직후 상태 갱신용으로 주문 상태를 조회합니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "주문 상태 조회 성공",
+			content = @Content(
+					schema = @Schema(implementation = OrderStatusDto.class),
+					examples = @ExampleObject(value = """
+							{
+							  "code": 200,
+							  "message": "요청이 성공했습니다.",
+							  "data": {
+							    "orderId": "00000000-0000-0000-0000-000000001001",
+							    "orderNo": "O20251231-001001",
+							    "status": "REQUESTED",
+							    "paymentStatus": "READY",
+							    "cancelableUntil": "2025-01-01T10:30:00",
+							    "updatedAt": "2025-01-01T10:05:00"
+							  }
+							}
+							""")
+			)
+	)
+	@ApiResponse(responseCode = "404", description = "주문 없음")
+	@GetMapping("/{orderId}/status")
+	public ResponseEntity<BaseResponse<OrderStatusDto>> getOrderStatus(
+			@Parameter(description = "주문 ID", required = true,
+					example = "00000000-0000-0000-0000-000000001001")
+			@PathVariable UUID orderId,
+			@Parameter(hidden = true)
+			@RequestParam(required = false) Long customerId) {
+
+		OrderStatusDto response = orderQueryService.getOrderStatusForCustomer(orderId, customerId);
+		return ResponseEntity.ok(BaseResponse.success(response));
 	}
 
 	@Operation(

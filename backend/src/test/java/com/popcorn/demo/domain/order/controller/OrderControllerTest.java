@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
+import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
@@ -139,6 +140,30 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isBadRequest())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1000))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("주문 항목이 비어있습니다."));
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회 성공 (CUSTOMER)")
+	void getOrderStatus_success() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+		OrderStatusDto response = OrderStatusDto.builder()
+				.orderId(orderId)
+				.orderNo("O20251231-001001")
+				.status("REQUESTED")
+				.paymentStatus("READY")
+				.cancelableUntil(LocalDateTime.now().plusMinutes(15))
+				.updatedAt(LocalDateTime.now())
+				.build();
+
+		when(orderQueryService.getOrderStatusForCustomer(orderId, 1001L)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status", orderId)
+						.param("customerId", "1001")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.paymentStatus").value("READY"));
 	}
 
 	@Test

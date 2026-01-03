@@ -16,10 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.demo.domain.order.config.OrderProperties;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
+import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
 import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderStatusView;
 import com.popcorn.demo.domain.order.repository.view.OrderTimelineView;
 import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
 
@@ -151,6 +153,29 @@ public class OrderQueryService {
 				.page(currentPage)
 				.size(pageLimit)
 				.total(totalCount)
+				.build();
+	}
+
+	/**
+	 * 고객용 주문 상태 단건 조회
+	 */
+	public OrderStatusDto getOrderStatusForCustomer(UUID orderId, Long customerId) {
+		if (customerId == null) {
+			throw OrderException.forbidden();
+		}
+
+		OrderStatusView view = orderQueryRepository.findOrderStatus(orderId, customerId);
+		if (view == null) {
+			throw OrderException.orderNotFound();
+		}
+
+		return OrderStatusDto.builder()
+				.orderId(view.getOrderId())
+				.orderNo(view.getOrderNo())
+				.status(view.getStatus())
+				.paymentStatus(view.getPaymentStatus())
+				.cancelableUntil(view.getCancelableUntil())
+				.updatedAt(view.getUpdatedAt())
 				.build();
 	}
 

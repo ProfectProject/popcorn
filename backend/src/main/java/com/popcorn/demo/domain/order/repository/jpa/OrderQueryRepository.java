@@ -13,6 +13,7 @@ import com.popcorn.demo.domain.order.repository.view.OrderAddressView;
 import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
 import com.popcorn.demo.domain.order.repository.view.OrderItemDetailView;
 import com.popcorn.demo.domain.order.repository.view.OrderPaymentView;
+import com.popcorn.demo.domain.order.repository.view.OrderStatusView;
 import com.popcorn.demo.domain.order.repository.view.OrderTimelineView;
 import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
 
@@ -96,6 +97,22 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			 LIMIT 1
 			""", nativeQuery = true)
 	OrderPaymentView findPayment(@Param("orderId") UUID orderId);
+
+	@Query(value = """
+			SELECT o.id AS orderId,
+			       o.order_no AS orderNo,
+			       o.status AS status,
+			       p.status AS paymentStatus,
+			       o.cancelable_until AS cancelableUntil,
+			       o.updated_at AS updatedAt
+			  FROM p_orders o
+			  LEFT JOIN p_payments p ON p.order_id = o.id AND p.deleted_at IS NULL
+			 WHERE o.deleted_at IS NULL
+			   AND o.id = :orderId
+			   AND o.customer_id = :customerId
+			""", nativeQuery = true)
+	OrderStatusView findOrderStatus(@Param("orderId") UUID orderId,
+			@Param("customerId") Long customerId);
 
 	@Query(value = """
 			SELECT COUNT(1)
