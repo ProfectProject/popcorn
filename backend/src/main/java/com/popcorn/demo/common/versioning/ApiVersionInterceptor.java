@@ -47,7 +47,15 @@ public class ApiVersionInterceptor implements HandlerInterceptor {
         // 메서드/클래스의 @ApiVersion 어노테이션 확인
         ApiVersionConfig versionConfig = extractVersionConfig(handlerMethod);
         if (versionConfig == null) {
-            // 버전 어노테이션이 없는 경우 기본 버전으로 처리
+            String defaultVersion = versionManager.getDefaultVersion();
+            if (!defaultVersion.equals(requestedVersion)) {
+                VersionValidationResult validationResult = VersionValidationResult.unsupported(
+                    requestedVersion, new String[]{defaultVersion});
+                sendVersionError(response, validationResult);
+                return false;
+            }
+
+            response.setHeader("API-Version-Used", requestedVersion);
             log.debug("🔧 버전 어노테이션 없음 - 기본 버전 적용: {}", requestedVersion);
             return true;
         }

@@ -48,7 +48,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             );
 
             // Mock 설정 최적화 - 한 줄로 간소화
-            when(orderService.createOrder(any())).thenReturn(response);
+            when(orderCommandService.createOrder(any())).thenReturn(response);
 
             // When: 공통 JSON 헬퍼 메서드 활용
             String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 2);
@@ -67,7 +67,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                     );
 
             // 비즈니스 검증 최적화
-            verify(orderService, times(1)).createOrder(any());
+            verify(orderCommandService, times(1)).createOrder(any());
 
             logTestComplete("고객 팝콘 예약 성공");
         }
@@ -78,7 +78,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             logTestStart("매진된 시간대 예약 시도");
 
             // Given: 예외 상황 Mock 설정
-            when(orderService.createOrder(any()))
+            when(orderCommandService.createOrder(any()))
                     .thenThrow(OrderException.emptyItems());
 
             // When & Then: 한 번의 호출로 예외 검증
@@ -113,7 +113,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                     .status(OrderStatus.OWNER_ACCEPTED)
                     .build();
 
-            when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
+            when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
                     .thenReturn(approvedOrder);
 
             // When & Then: 공통 헬퍼 메서드 활용
@@ -130,7 +130,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                     );
 
             // 최적화된 검증
-            verify(orderService, times(1))
+            verify(orderCommandService, times(1))
                     .updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인");
 
             logTestComplete("점주 예약 승인");
@@ -143,7 +143,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
 
             // Given: 예외 Mock 설정
             UUID orderId = TestUUIDs.ORDER_ID;
-            when(orderService.updateStatus(orderId, "READY", "reason"))
+            when(orderCommandService.updateStatus(orderId, "READY", "reason"))
                     .thenThrow(OrderException.invalidStatusTransition());
 
             // When & Then
@@ -180,7 +180,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                     TestUUIDs.STORE_ID,
                     TestUUIDs.PRODUCT_ID
                 );
-                when(orderService.createOrder(any())).thenReturn(response);
+                when(orderCommandService.createOrder(any())).thenReturn(response);
 
                 String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 1);
 
