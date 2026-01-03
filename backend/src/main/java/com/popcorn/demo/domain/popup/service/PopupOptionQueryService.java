@@ -3,7 +3,9 @@ package com.popcorn.demo.domain.popup.service;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupOptionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse;
@@ -13,11 +15,13 @@ import com.popcorn.demo.domain.popup.repository.view.PopupOptionView;
 import lombok.RequiredArgsConstructor;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class PopupOptionQueryService {
 
 	private final PopupOptionQueryRepository popupOptionQueryRepository;
 
+	@Cacheable(value = "popupOptions", key = "#query.productId")
 	public PopupOptionListResponse getProductOptions(PopupOptionListQuery query) {
 		List<PopupOptionView> views = popupOptionQueryRepository.findProductOptions(query.getProductId());
 

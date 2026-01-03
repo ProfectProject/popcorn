@@ -25,6 +25,7 @@ public class PopupValidationService {
 			return PopupListQuery.builder()
 					.page(DEFAULT_PAGE)
 					.size(DEFAULT_SIZE)
+					.withTotal(true)
 					.build();
 		}
 
@@ -32,9 +33,11 @@ public class PopupValidationService {
 		Integer size = query.getSize();
 		Long regionId = query.getRegionId();
 		String category = normalizeCategory(query.getCategory());
+		Boolean withTotal = query.getWithTotal();
 
 		int normalizedPage = page == null || page < 1 ? DEFAULT_PAGE : page;
 		int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+		boolean normalizedWithTotal = withTotal == null || withTotal;
 
 		if (regionId != null && regionId <= 0) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
@@ -47,6 +50,7 @@ public class PopupValidationService {
 				.storeId(query.getStoreId())
 				.page(normalizedPage)
 				.size(normalizedSize)
+				.withTotal(normalizedWithTotal)
 				.build();
 	}
 

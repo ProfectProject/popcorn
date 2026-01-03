@@ -45,6 +45,7 @@ public class OrderQueryService {
 	private final OrderQueryRepository orderQueryRepository;
 	private final OrderProperties orderProperties;
 	private final OrderBatchQueryService orderBatchQueryService;
+	private final OrderAuthorizationService orderAuthorizationService;
 
 	/**
 	 * 점주용 주문 예약 목록 조회 (캐싱 적용)
@@ -192,8 +193,7 @@ public class OrderQueryService {
 			throw OrderException.orderNotFound();
 		}
 
-		// TODO: 권한 검증 로직 추가
-		// validateOrderAccess(view, requesterId, requesterType);
+		validateOrderAccessIfPresent(view.getOrderId(), requesterId, requesterType);
 
 		OrderDetailDto response = convertToOrderDetail(view);
 
@@ -210,8 +210,7 @@ public class OrderQueryService {
 	public OrderDetailDto getCompleteOrderDetail(UUID orderId, Long requesterId, String requesterType) {
 		log.info("📦 주문 완전 상세 조회 - 주문ID: {}, 요청자: {} ({})", orderId, requesterId, requesterType);
 
-		// TODO: 권한 검증 로직 추가
-		// validateOrderAccess(orderId, requesterId, requesterType);
+		validateOrderAccessIfPresent(orderId, requesterId, requesterType);
 
 		// 배치 쿼리 서비스 사용으로 N+1 문제 해결
 		OrderDetailDto response = orderBatchQueryService.getCompleteOrderDetail(orderId);
@@ -232,8 +231,7 @@ public class OrderQueryService {
 			return Map.of();
 		}
 
-		// TODO: 권한 검증 로직 추가 (배치용)
-		// validateBatchOrderAccess(orderIds, requesterId, requesterType);
+		validateBatchOrderAccessIfPresent(orderIds, requesterId, requesterType);
 
 		long startTime = System.currentTimeMillis();
 		Map<UUID, OrderDetailDto> response = orderBatchQueryService.getBatchOrderDetails(orderIds);
@@ -254,12 +252,12 @@ public class OrderQueryService {
 	 */
 	private StoreOrderReservationListResponse.ItemDto convertToOrderReservation(StoreOrderReservationView view) {
 		return StoreOrderReservationListResponse.ItemDto.builder()
-				.id(java.util.UUID.randomUUID()) // TODO: view.getId()로 교체
-				.reservationNo("ORDER-" + System.currentTimeMillis()) // TODO: view.getOrderNo()로 교체
-				.status("PENDING") // TODO: view.getStatus()로 교체
-				.totalAmount(1000) // TODO: view.getTotalAmount()로 교체
-				.cancelableUntil(java.time.LocalDateTime.now().plusMinutes(15))
-				.createdAt(java.time.LocalDateTime.now()) // TODO: view.getCreatedAt()로 교체
+				.id(view.getId())
+				.reservationNo(view.getOrderNo())
+				.status(view.getStatus())
+				.totalAmount(view.getTotalAmount())
+				.cancelableUntil(view.getCancelableUntil())
+				.createdAt(view.getCreatedAt())
 				.build();
 	}
 
@@ -269,18 +267,18 @@ public class OrderQueryService {
 	 */
 	private MyOrderTimelineResponse.ItemDto convertToOrderTimeline(OrderTimelineView view) {
 		return MyOrderTimelineResponse.ItemDto.builder()
-				.type("ORDER")
-				.id(java.util.UUID.randomUUID()) // TODO: view.getId()로 교체
-				.orderNo("ORDER-" + System.currentTimeMillis()) // TODO: view.getOrderNo()로 교체
-				.status("PENDING") // TODO: view.getStatus()로 교체
-				.totalAmount(1000) // TODO: view.getTotalAmount()로 교체
-				.cancelableUntil(java.time.LocalDateTime.now().plusMinutes(15))
-				.createdAt(java.time.LocalDateTime.now()) // TODO: view.getCreatedAt()로 교체
-				.productId(java.util.UUID.randomUUID()) // TODO: view.getProductId()로 교체
-				.storeId(java.util.UUID.randomUUID()) // TODO: view.getStoreId()로 교체
-				.title("Sample Product") // TODO: view.getProductName()로 교체
-				.sessionStartAt(java.time.LocalDateTime.now().plusDays(1))
-				.location(buildLocation("Sample Store", "Address1", "Address2")) // TODO: view fields로 교체
+				.type(view.getOrderType())
+				.id(view.getId())
+				.orderNo(view.getOrderNo())
+				.status(view.getStatus())
+				.totalAmount(view.getTotalAmount())
+				.cancelableUntil(view.getCancelableUntil())
+				.createdAt(view.getCreatedAt())
+				.productId(view.getProductId())
+				.storeId(view.getStoreId())
+				.title(view.getProductTitle())
+				.sessionStartAt(view.getSessionStartAt())
+				.location(buildLocation(view.getLocationName(), view.getLocationAddress1(), view.getLocationAddress2()))
 				.build();
 	}
 
@@ -289,8 +287,26 @@ public class OrderQueryService {
 	 * TODO: View 객체의 실제 필드명에 맞게 수정 필요
 	 */
 	private OrderDetailDto convertToOrderDetail(OrderDetailView view) {
-		// TODO: OrderDetailDto의 실제 필드와 builder 메서드에 맞게 수정
-		return new OrderDetailDto(); // 임시 구현 - 실제 OrderDetailDto 구조 확인 후 수정
+		return OrderDetailDto.builder()
+				.id(view.getOrderId())
+				.orderNo(view.getOrderNo())
+				.orderType(view.getOrderType())
+				.status(view.getStatus())
+				.customerId(view.getCustomerId())
+				.customer(OrderDetailDto.CustomerDto.builder()
+						.id(view.getCustomerId())
+						.role(view.getCustomerRole())
+						.build())
+				.storeId(view.getStoreId())
+				.productId(view.getProductId())
+				.totalAmount(view.getTotalAmount())
+				.cancelableUntil(view.getCancelableUntil())
+				.createdAt(view.getCreatedAt())
+				.updatedAt(view.getUpdatedAt())
+				.items(null)
+				.address(null)
+				.payment(null)
+				.build();
 	}
 
 	/**
@@ -305,5 +321,21 @@ public class OrderQueryService {
 				.address1(address1)
 				.address2(address2)
 				.build();
+	}
+
+	private void validateOrderAccessIfPresent(UUID orderId, Long requesterId, String requesterType) {
+		if (requesterId == null || requesterType == null || requesterType.isBlank()) {
+			return;
+		}
+		orderAuthorizationService.validateOrderAccess(orderId, requesterId, requesterType);
+	}
+
+	private void validateBatchOrderAccessIfPresent(Set<UUID> orderIds, Long requesterId, String requesterType) {
+		if (requesterId == null || requesterType == null || requesterType.isBlank()) {
+			return;
+		}
+		for (UUID orderId : orderIds) {
+			orderAuthorizationService.validateOrderAccess(orderId, requesterId, requesterType);
+		}
 	}
 }

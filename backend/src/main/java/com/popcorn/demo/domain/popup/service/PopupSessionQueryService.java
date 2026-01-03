@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
@@ -14,11 +16,13 @@ import com.popcorn.demo.domain.popup.repository.view.PopupSessionView;
 import lombok.RequiredArgsConstructor;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class PopupSessionQueryService {
 
 	private final PopupSessionQueryRepository popupSessionQueryRepository;
 
+	@Cacheable(value = "popupSessions", key = "#query.productId + '_' + #query.from + '_' + #query.to")
 	public PopupSessionListResponse getProductSessions(PopupSessionListQuery query) {
 		List<PopupSessionView> views = popupSessionQueryRepository.findProductSessions(
 				query.getProductId(), query.getFrom(), query.getTo());

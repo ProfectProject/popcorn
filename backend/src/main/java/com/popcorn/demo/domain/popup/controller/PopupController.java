@@ -93,7 +93,9 @@ public class PopupController extends BaseController {
 			@Parameter(description = "페이지(기본 1)", example = "1")
 			@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "1") Integer page,
 			@Parameter(description = "사이즈(기본 20, 최대 100)", example = "20")
-			@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "20") Integer size) {
+			@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "20") Integer size,
+			@Parameter(description = "전체 개수 포함 여부(기본 true)", example = "true")
+			@org.springframework.web.bind.annotation.RequestParam(required = false) Boolean withTotal) {
 
 		PopupListQuery requestQuery = PopupListQuery.builder()
 				.regionId(regionId)
@@ -102,6 +104,7 @@ public class PopupController extends BaseController {
 				.storeId(storeId)
 				.page(page)
 				.size(size)
+				.withTotal(withTotal)
 				.build();
 
 		PopupListResponse response = popupApplicationService.getPopups(requestQuery);

@@ -28,7 +28,8 @@ class OrderQueryServiceTest {
 		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
 		OrderProperties properties = new OrderProperties();
 		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
-		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService);
+		OrderAuthorizationService authorizationService = Mockito.mock(OrderAuthorizationService.class);
+		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
 
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		OrderException exception = assertThrows(OrderException.class,
@@ -43,7 +44,8 @@ class OrderQueryServiceTest {
 		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
 		OrderProperties properties = new OrderProperties();
 		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
-		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService);
+		OrderAuthorizationService authorizationService = Mockito.mock(OrderAuthorizationService.class);
+		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
 
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		when(repository.findOrderStatus(eq(orderId), eq(1001L))).thenReturn(null);
@@ -60,7 +62,8 @@ class OrderQueryServiceTest {
 		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
 		OrderProperties properties = new OrderProperties();
 		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
-		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService);
+		OrderAuthorizationService authorizationService = Mockito.mock(OrderAuthorizationService.class);
+		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
 
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		LocalDateTime cancelableUntil = LocalDateTime.of(2025, 1, 1, 10, 30);

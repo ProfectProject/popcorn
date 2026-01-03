@@ -29,6 +29,7 @@ class PopupValidationServiceTest {
 
 		assertEquals(1, normalized.getPage());
 		assertEquals(100, normalized.getSize());
+		assertEquals(true, normalized.getWithTotal());
 	}
 
 	@Test

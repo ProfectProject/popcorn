@@ -19,4 +19,5 @@ public class PopupListQuery {
 	private UUID storeId;
 	private Integer page;
 	private Integer size;
+	private Boolean withTotal;
 }
