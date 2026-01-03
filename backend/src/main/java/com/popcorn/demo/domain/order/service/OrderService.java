@@ -9,7 +9,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +28,14 @@ import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.service.OrderItemPriceService;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
+import com.popcorn.demo.domain.order.repository.view.OrderAddressView;
+import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderItemDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderPaymentView;
+import com.popcorn.demo.domain.order.repository.view.OrderTimelineView;
+import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
+import com.popcorn.demo.domain.order.config.OrderProperties;
 
 import lombok.RequiredArgsConstructor;
 
@@ -48,7 +55,8 @@ public class OrderService {
 	private final OrderItemPriceService orderItemPriceService;
 	private final IdempotencyCache idempotencyCache;
 	private final ApplicationEventPublisher eventPublisher;
-	private final JdbcTemplate jdbcTemplate;
+	private final OrderQueryRepository orderQueryRepository;
+	private final OrderProperties orderProperties;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public CreateOrderResponse createOrder(CreateOrderCommand command) {
@@ -109,29 +117,29 @@ public class OrderService {
 
 	@Transactional(readOnly = true, transactionManager = "jdbcTransactionManager")
 	public OrderDetailDto getOrderDetail(UUID orderId, Long userId, String role) {
-		OrderDetailRow orderRow = fetchOrderDetailRow(orderId);
+		OrderDetailView orderRow = fetchOrderDetailRow(orderId);
 		validateOrderAccess(userId, role, orderRow);
 
-		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, orderRow.productId);
-		OrderDetailDto.AddressDto address = fetchDefaultAddress(orderRow.customerId);
+		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, orderRow.getProductId());
+		OrderDetailDto.AddressDto address = fetchDefaultAddress(orderRow.getCustomerId());
 		OrderDetailDto.PaymentDto payment = fetchPayment(orderId);
 
 		return OrderDetailDto.builder()
-				.id(orderRow.orderId)
-				.orderNo(orderRow.orderNo)
-				.orderType(orderRow.orderType)
-				.status(orderRow.status)
-				.customerId(orderRow.customerId)
+				.id(orderRow.getOrderId())
+				.orderNo(orderRow.getOrderNo())
+				.orderType(orderRow.getOrderType())
+				.status(orderRow.getStatus())
+				.customerId(orderRow.getCustomerId())
 				.customer(OrderDetailDto.CustomerDto.builder()
-						.id(orderRow.customerId)
-						.role(orderRow.customerRole)
+						.id(orderRow.getCustomerId())
+						.role(orderRow.getCustomerRole())
 						.build())
-				.storeId(orderRow.storeId)
-				.productId(orderRow.productId)
-				.totalAmount(orderRow.totalAmount)
-				.cancelableUntil(orderRow.cancelableUntil)
-				.createdAt(orderRow.createdAt)
-				.updatedAt(orderRow.updatedAt)
+				.storeId(orderRow.getStoreId())
+				.productId(orderRow.getProductId())
+				.totalAmount(orderRow.getTotalAmount())
+				.cancelableUntil(orderRow.getCancelableUntil())
+				.createdAt(orderRow.getCreatedAt())
+				.updatedAt(orderRow.getUpdatedAt())
 				.items(items)
 				.address(address)
 				.payment(payment)
@@ -152,45 +160,41 @@ public class OrderService {
 		int safeSize = normalizeSize(size);
 		long offset = (long) (safePage - 1) * safeSize;
 
-		SqlCondition condition = buildStoreCondition(storeId, productId, status, from, to);
-		String countSql = "SELECT COUNT(1) FROM p_orders o" + condition.whereClause;
-		long total = jdbcTemplate.queryForObject(countSql, Long.class, condition.params.toArray());
+		String normalizedStatus = normalizeStatusFilter(status);
+		long total = orderQueryRepository.countStoreOrders(
+				storeId,
+				productId,
+				normalizedStatus,
+				from,
+				to
+		);
 
-		String listSql = """
-				SELECT o.id,
-				       o.order_no,
-				       o.status,
-				       o.total_amount,
-				       o.cancelable_until,
-				       o.created_at
-				  FROM p_orders o
-				""" + condition.whereClause + """
-				 ORDER BY o.created_at DESC
-				 LIMIT ? OFFSET ?
-				""";
+		List<StoreOrderReservationView> rows = orderQueryRepository.findStoreOrders(
+				storeId,
+				productId,
+				normalizedStatus,
+				from,
+				to,
+				safeSize,
+				offset
+		);
 
-		List<Object> listParams = new java.util.ArrayList<>(condition.params);
-		listParams.add(safeSize);
-		listParams.add(offset);
-
-		List<StoreOrderReservationListResponse.ItemDto> items = jdbcTemplate.query(
-				listSql,
-				(rs, rowNum) -> {
-					LocalDateTime createdAt = rs.getTimestamp("created_at").toLocalDateTime();
-					LocalDateTime cancelableUntil = rs.getTimestamp("cancelable_until") == null
+		List<StoreOrderReservationListResponse.ItemDto> items = rows.stream()
+				.map(row -> {
+					LocalDateTime createdAt = row.getCreatedAt();
+					LocalDateTime cancelableUntil = row.getCancelableUntil() == null
 							? createdAt.plusMinutes(30)
-							: rs.getTimestamp("cancelable_until").toLocalDateTime();
+							: row.getCancelableUntil();
 					return StoreOrderReservationListResponse.ItemDto.builder()
-							.id(UUID.fromString(rs.getString("id")))
-							.reservationNo(rs.getString("order_no"))
-							.status(rs.getString("status"))
-							.totalAmount(rs.getInt("total_amount"))
+							.id(row.getId())
+							.reservationNo(row.getOrderNo())
+							.status(row.getStatus())
+							.totalAmount(row.getTotalAmount())
 							.cancelableUntil(cancelableUntil)
 							.createdAt(createdAt)
 							.build();
-				},
-				listParams.toArray()
-		);
+				})
+				.toList();
 
 		return StoreOrderReservationListResponse.builder()
 				.items(items)
@@ -215,72 +219,46 @@ public class OrderService {
 		int safeSize = normalizeSize(size);
 		long offset = (long) (safePage - 1) * safeSize;
 
-		SqlCondition condition = buildCustomerCondition(safeCustomerId, orderType, status, from, to);
-		String countSql = "SELECT COUNT(1) FROM p_orders o" + condition.whereClause;
-		long total = jdbcTemplate.queryForObject(countSql, Long.class, condition.params.toArray());
-
-		String listSql = """
-				SELECT o.id,
-				       o.order_no,
-				       o.order_type,
-				       o.status,
-				       o.total_amount,
-				       o.cancelable_until,
-				       o.created_at,
-				       o.product_id,
-				       o.store_id,
-				       p.title AS product_title,
-				       MIN(ps.start_at) AS session_start_at,
-				       MAX(pl.name) AS location_name,
-				       MAX(pl.address1) AS location_address1,
-				       MAX(pl.address2) AS location_address2
-				  FROM p_orders o
-				  LEFT JOIN p_products p ON p.id = o.product_id
-				  LEFT JOIN p_product_locations pl ON pl.product_id = p.id AND pl.deleted_at IS NULL
-				  LEFT JOIN p_order_items oi ON oi.order_id = o.id AND oi.deleted_at IS NULL
-				  LEFT JOIN p_session_options so ON oi.session_option_id = so.id
-				  LEFT JOIN p_product_sessions ps ON so.session_id = ps.id
-				""" + condition.whereClause + """
-				 GROUP BY o.id, o.order_no, o.order_type, o.status, o.total_amount,
-				          o.cancelable_until, o.created_at, o.product_id, o.store_id, p.title
-				 ORDER BY o.created_at DESC
-				 LIMIT ? OFFSET ?
-				""";
-
-		List<Object> listParams = new java.util.ArrayList<>(condition.params);
-		listParams.add(safeSize);
-		listParams.add(offset);
-
-		List<MyOrderTimelineResponse.ItemDto> items = jdbcTemplate.query(
-				listSql,
-				(rs, rowNum) -> MyOrderTimelineResponse.ItemDto.builder()
-						.type(rs.getString("order_type"))
-						.id(UUID.fromString(rs.getString("id")))
-						.orderNo(rs.getString("order_no"))
-						.status(rs.getString("status"))
-						.totalAmount(rs.getInt("total_amount"))
-						.cancelableUntil(rs.getTimestamp("cancelable_until") == null
-								? null
-								: rs.getTimestamp("cancelable_until").toLocalDateTime())
-						.createdAt(rs.getTimestamp("created_at").toLocalDateTime())
-						.productId(rs.getString("product_id") == null
-								? null
-								: UUID.fromString(rs.getString("product_id")))
-						.storeId(rs.getString("store_id") == null
-								? null
-								: UUID.fromString(rs.getString("store_id")))
-						.title(rs.getString("product_title"))
-						.sessionStartAt(rs.getTimestamp("session_start_at") == null
-								? null
-								: rs.getTimestamp("session_start_at").toLocalDateTime())
-						.location(buildLocation(
-								rs.getString("location_name"),
-								rs.getString("location_address1"),
-								rs.getString("location_address2")
-						))
-						.build(),
-				listParams.toArray()
+		String normalizedOrderType = normalizeOrderTypeFilter(orderType);
+		String normalizedStatus = normalizeStatusFilter(status);
+		long total = orderQueryRepository.countCustomerOrders(
+				safeCustomerId,
+				normalizedOrderType,
+				normalizedStatus,
+				from,
+				to
 		);
+
+		List<OrderTimelineView> rows = orderQueryRepository.findCustomerOrders(
+				safeCustomerId,
+				normalizedOrderType,
+				normalizedStatus,
+				from,
+				to,
+				safeSize,
+				offset
+		);
+
+		List<MyOrderTimelineResponse.ItemDto> items = rows.stream()
+				.map(row -> MyOrderTimelineResponse.ItemDto.builder()
+						.type(row.getOrderType())
+						.id(row.getId())
+						.orderNo(row.getOrderNo())
+						.status(row.getStatus())
+						.totalAmount(row.getTotalAmount())
+						.cancelableUntil(row.getCancelableUntil())
+						.createdAt(row.getCreatedAt())
+						.productId(row.getProductId())
+						.storeId(row.getStoreId())
+						.title(row.getProductTitle())
+						.sessionStartAt(row.getSessionStartAt())
+						.location(buildLocation(
+								row.getLocationName(),
+								row.getLocationAddress1(),
+								row.getLocationAddress2()
+						))
+						.build())
+				.toList();
 
 		return MyOrderTimelineResponse.builder()
 				.items(items)
@@ -331,54 +309,15 @@ public class OrderService {
 		return savedOrder;
 	}
 
-	private OrderDetailRow fetchOrderDetailRow(UUID orderId) {
-		String sql = """
-				SELECT o.id,
-				       o.order_no,
-				       o.order_type,
-				       o.status,
-				       o.customer_id,
-				       u.role AS customer_role,
-				       u.phone AS customer_phone,
-				       o.store_id,
-				       s.owner_id AS store_owner_id,
-				       o.product_id,
-				       o.total_amount,
-				       o.cancelable_until,
-				       o.created_at,
-				       o.updated_at
-				  FROM p_orders o
-				  JOIN p_users u ON u.id = o.customer_id
-				  JOIN p_stores s ON s.id = o.store_id
-				 WHERE o.id = ?
-				""";
-
-		List<OrderDetailRow> rows = jdbcTemplate.query(sql, (rs, rowNum) -> OrderDetailRow.builder()
-				.orderId(UUID.fromString(rs.getString("id")))
-				.orderNo(rs.getString("order_no"))
-				.orderType(rs.getString("order_type"))
-				.status(rs.getString("status"))
-				.customerId(rs.getLong("customer_id"))
-				.customerRole(rs.getString("customer_role"))
-				.customerPhone(rs.getString("customer_phone"))
-				.storeId(UUID.fromString(rs.getString("store_id")))
-				.storeOwnerId(rs.getLong("store_owner_id"))
-				.productId(rs.getString("product_id") == null ? null : UUID.fromString(rs.getString("product_id")))
-				.totalAmount(rs.getInt("total_amount"))
-				.cancelableUntil(rs.getTimestamp("cancelable_until") == null
-						? null
-						: rs.getTimestamp("cancelable_until").toLocalDateTime())
-				.createdAt(rs.getTimestamp("created_at").toLocalDateTime())
-				.updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
-				.build(), orderId);
-
-		if (rows.isEmpty()) {
+	private OrderDetailView fetchOrderDetailRow(UUID orderId) {
+		OrderDetailView row = orderQueryRepository.findOrderDetail(orderId);
+		if (row == null) {
 			throw OrderException.orderNotFound();
 		}
-		return rows.get(0);
+		return row;
 	}
 
-	private void validateOrderAccess(Long userId, String role, OrderDetailRow orderRow) {
+	private void validateOrderAccess(Long userId, String role, OrderDetailView orderRow) {
 		if (userId == null || role == null || role.isBlank()) {
 			return;
 		}
@@ -386,9 +325,9 @@ public class OrderService {
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
 		boolean allowed = switch (normalizedRole) {
 			case "ADMIN" -> true;
-			case "OWNER" -> orderRow.storeOwnerId != null && orderRow.storeOwnerId.equals(userId);
-			case "MANAGER" -> isStoreManager(userId, orderRow.storeId);
-			case "CUSTOMER", "USER" -> orderRow.customerId != null && orderRow.customerId.equals(userId);
+			case "OWNER" -> orderRow.getStoreOwnerId() != null && orderRow.getStoreOwnerId().equals(userId);
+			case "MANAGER" -> isStoreManager(userId, orderRow.getStoreId());
+			case "CUSTOMER", "USER" -> orderRow.getCustomerId() != null && orderRow.getCustomerId().equals(userId);
 			default -> false;
 		};
 		if (!allowed) {
@@ -397,123 +336,58 @@ public class OrderService {
 	}
 
 	private boolean isStoreManager(Long userId, UUID storeId) {
-		String sql = """
-				SELECT COUNT(1)
-				  FROM p_managers_store
-				 WHERE user_id = ?
-				   AND store_id = ?
-				   AND COALESCE(is_user_stop, FALSE) = FALSE
-				   AND COALESCE(is_owner_stop, FALSE) = FALSE
-				   AND COALESCE(is_force_stop, FALSE) = FALSE
-				""";
-		Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId, storeId);
-		return count != null && count > 0;
+		return orderQueryRepository.countStoreManager(userId, storeId) > 0;
 	}
 
 	private List<OrderDetailDto.ItemDto> fetchOrderItems(UUID orderId, UUID fallbackProductId) {
-		String sql = """
-				SELECT oi.id AS order_item_id,
-				       oi.order_item_type,
-				       oi.session_option_id,
-				       oi.merch_variant_id,
-				       oi.qty,
-				       oi.unit_price,
-				       oi.line_amount,
-				       so.session_id,
-				       ps.start_at AS session_start_at,
-				       ps.end_at AS session_end_at,
-				       mv.name AS merch_variant_name,
-				       mv.sku AS merch_sku,
-				       p.id AS product_id,
-				       p.title AS product_title,
-				       p.category AS product_category,
-				       p.status AS product_status
-				  FROM p_order_items oi
-				  LEFT JOIN p_session_options so ON oi.session_option_id = so.id
-				  LEFT JOIN p_product_sessions ps ON so.session_id = ps.id
-				  LEFT JOIN p_merch_variants mv ON oi.merch_variant_id = mv.id
-				  LEFT JOIN p_products p ON p.id = COALESCE(ps.product_id, mv.product_id, ?)
-				 WHERE oi.order_id = ?
-				   AND oi.deleted_at IS NULL
-				""";
-
-		return jdbcTemplate.query(sql, (rs, rowNum) -> OrderDetailDto.ItemDto.builder()
-				.id(UUID.fromString(rs.getString("order_item_id")))
-				.orderItemType(rs.getString("order_item_type"))
-				.productId(rs.getString("product_id") == null ? null : UUID.fromString(rs.getString("product_id")))
-				.productTitle(rs.getString("product_title"))
-				.productCategory(rs.getString("product_category"))
-				.productStatus(rs.getString("product_status"))
-				.sessionId(rs.getString("session_id") == null ? null : UUID.fromString(rs.getString("session_id")))
-				.optionId(rs.getString("session_option_id") == null ? null : UUID.fromString(rs.getString("session_option_id")))
-				.sessionStartAt(rs.getTimestamp("session_start_at") == null
-						? null
-						: rs.getTimestamp("session_start_at").toLocalDateTime())
-				.sessionEndAt(rs.getTimestamp("session_end_at") == null
-						? null
-						: rs.getTimestamp("session_end_at").toLocalDateTime())
-				.merchVariantId(rs.getString("merch_variant_id") == null
-						? null
-						: UUID.fromString(rs.getString("merch_variant_id")))
-				.merchVariantName(rs.getString("merch_variant_name"))
-				.merchSku(rs.getString("merch_sku"))
-				.qty(rs.getInt("qty"))
-				.unitPrice(rs.getInt("unit_price"))
-				.lineAmount(rs.getInt("line_amount"))
-				.build(), fallbackProductId, orderId);
+		List<OrderItemDetailView> rows = orderQueryRepository.findOrderItems(orderId, fallbackProductId);
+		return rows.stream()
+				.map(row -> OrderDetailDto.ItemDto.builder()
+						.id(row.getOrderItemId())
+						.orderItemType(row.getOrderItemType())
+						.productId(row.getProductId())
+						.productTitle(row.getProductTitle())
+						.productCategory(row.getProductCategory())
+						.productStatus(row.getProductStatus())
+						.sessionId(row.getSessionId())
+						.optionId(row.getSessionOptionId())
+						.sessionStartAt(row.getSessionStartAt())
+						.sessionEndAt(row.getSessionEndAt())
+						.merchVariantId(row.getMerchVariantId())
+						.merchVariantName(row.getMerchVariantName())
+						.merchSku(row.getMerchSku())
+						.qty(row.getQty())
+						.unitPrice(row.getUnitPrice())
+						.lineAmount(row.getLineAmount())
+						.build())
+				.toList();
 	}
 
 	private OrderDetailDto.AddressDto fetchDefaultAddress(Long userId) {
-		String sql = """
-				SELECT ua.address1,
-				       ua.address2,
-				       ua.name AS receiver_name,
-				       u.phone
-				  FROM p_user_addresses ua
-				  JOIN p_users u ON u.id = ua.user_id
-				 WHERE ua.user_id = ?
-				   AND ua.is_default = TRUE
-				   AND ua.deleted_at IS NULL
-				 ORDER BY ua.created_at DESC
-				 LIMIT 1
-				""";
-
-		List<OrderDetailDto.AddressDto> rows = jdbcTemplate.query(sql, (rs, rowNum) -> OrderDetailDto.AddressDto.builder()
-				.address1(rs.getString("address1"))
-				.address2(rs.getString("address2"))
-				.receiverName(rs.getString("receiver_name"))
-				.phone(rs.getString("phone"))
-				.build(), userId);
-
-		if (rows.isEmpty()) {
+		OrderAddressView row = orderQueryRepository.findDefaultAddress(userId);
+		if (row == null) {
 			return null;
 		}
-		return rows.get(0);
+		return OrderDetailDto.AddressDto.builder()
+				.address1(row.getAddress1())
+				.address2(row.getAddress2())
+				.receiverName(row.getReceiverName())
+				.phone(row.getPhone())
+				.build();
 	}
 
 	private OrderDetailDto.PaymentDto fetchPayment(UUID orderId) {
-		String sql = """
-				SELECT id, method, status, amount, approved_at
-				  FROM p_payments
-				 WHERE order_id = ?
-				   AND deleted_at IS NULL
-				 LIMIT 1
-				""";
-
-		List<OrderDetailDto.PaymentDto> rows = jdbcTemplate.query(sql, (rs, rowNum) -> OrderDetailDto.PaymentDto.builder()
-				.id(UUID.fromString(rs.getString("id")))
-				.method(rs.getString("method"))
-				.status(rs.getString("status"))
-				.amount(rs.getInt("amount"))
-				.approvedAt(rs.getTimestamp("approved_at") == null
-						? null
-						: rs.getTimestamp("approved_at").toLocalDateTime())
-				.build(), orderId);
-
-		if (rows.isEmpty()) {
+		OrderPaymentView row = orderQueryRepository.findPayment(orderId);
+		if (row == null) {
 			return null;
 		}
-		return rows.get(0);
+		return OrderDetailDto.PaymentDto.builder()
+				.id(row.getPaymentId()) // getId() -> getPaymentId()로 수정
+				.method(row.getMethod())
+				.status(row.getStatus())
+				.amount(row.getAmount())
+				.approvedAt(row.getApprovedAt())
+				.build();
 	}
 
 	private MyOrderTimelineResponse.LocationDto buildLocation(String name, String address1, String address2) {
@@ -525,65 +399,6 @@ public class OrderService {
 				.address1(address1)
 				.address2(address2)
 				.build();
-	}
-
-	private SqlCondition buildStoreCondition(
-			UUID storeId,
-			UUID productId,
-			String status,
-			LocalDateTime from,
-			LocalDateTime to) {
-		StringBuilder where = new StringBuilder(" WHERE o.deleted_at IS NULL");
-		List<Object> params = new java.util.ArrayList<>();
-		if (storeId != null) {
-			where.append(" AND o.store_id = ?");
-			params.add(storeId);
-		}
-		if (productId != null) {
-			where.append(" AND o.product_id = ?");
-			params.add(productId);
-		}
-		if (status != null && !status.isBlank()) {
-			where.append(" AND o.status = ?");
-			params.add(status);
-		}
-		if (from != null) {
-			where.append(" AND o.created_at >= ?");
-			params.add(from);
-		}
-		if (to != null) {
-			where.append(" AND o.created_at <= ?");
-			params.add(to);
-		}
-		return new SqlCondition(where.toString(), params);
-	}
-
-	private SqlCondition buildCustomerCondition(
-			Long customerId,
-			String orderType,
-			String status,
-			LocalDateTime from,
-			LocalDateTime to) {
-		StringBuilder where = new StringBuilder(" WHERE o.deleted_at IS NULL AND o.customer_id = ?");
-		List<Object> params = new java.util.ArrayList<>();
-		params.add(customerId);
-		if (orderType != null && !orderType.isBlank() && !"ALL".equalsIgnoreCase(orderType)) {
-			where.append(" AND o.order_type = ?");
-			params.add(orderType.toUpperCase(Locale.ROOT));
-		}
-		if (status != null && !status.isBlank()) {
-			where.append(" AND o.status = ?");
-			params.add(status);
-		}
-		if (from != null) {
-			where.append(" AND o.created_at >= ?");
-			params.add(from);
-		}
-		if (to != null) {
-			where.append(" AND o.created_at <= ?");
-			params.add(to);
-		}
-		return new SqlCondition(where.toString(), params);
 	}
 
 	private int normalizePage(Integer page) {
@@ -600,25 +415,19 @@ public class OrderService {
 		return size;
 	}
 
-	private record SqlCondition(String whereClause, List<Object> params) {
+	private String normalizeOrderTypeFilter(String orderType) {
+		if (orderType == null || orderType.isBlank()) {
+			return null;
+		}
+		String normalized = orderType.trim().toUpperCase(Locale.ROOT);
+		return "ALL".equals(normalized) ? null : normalized;
 	}
 
-	@lombok.Builder
-	private static class OrderDetailRow {
-		private UUID orderId;
-		private String orderNo;
-		private String orderType;
-		private String status;
-		private Long customerId;
-		private String customerRole;
-		private String customerPhone;
-		private UUID storeId;
-		private Long storeOwnerId;
-		private UUID productId;
-		private Integer totalAmount;
-		private LocalDateTime cancelableUntil;
-		private LocalDateTime createdAt;
-		private LocalDateTime updatedAt;
+	private String normalizeStatusFilter(String status) {
+		if (status == null || status.isBlank()) {
+			return null;
+		}
+		return status.trim().toUpperCase(Locale.ROOT);
 	}
 
 	/**
@@ -652,7 +461,7 @@ public class OrderService {
 	 * 결제 처리 시뮬레이션
 	 */
 	public String processPaymentAsync(UUID orderId, Integer amount) {
-		boolean paymentSuccess = Math.random() > 0.1;
+		boolean paymentSuccess = Math.random() < orderProperties.getPaymentSuccessRate();
 		String paymentId = paymentSuccess ? "PAY-" + System.currentTimeMillis() : null;
 		log.info("주문 {} 결제 처리 {}", orderId, paymentSuccess ? "성공: " + paymentId : "실패");
 		return paymentId;
