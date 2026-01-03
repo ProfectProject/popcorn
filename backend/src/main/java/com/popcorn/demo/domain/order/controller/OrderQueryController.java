@@ -122,26 +122,26 @@ public class OrderQueryController {
 	)
 	@GetMapping("/store")
 	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrders(
-			@Parameter(description = "스토어 ID", required = false,
+			@Parameter(description = "스토어 ID",
 					example = "00000000-0000-0000-0000-000000000001")
 			@RequestParam(required = false,
 					defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
-			@Parameter(description = "상품 ID", required = false,
+			@Parameter(description = "상품 ID",
 					example = "00000000-0000-0000-0000-000000000101")
 			@RequestParam(required = false,
 					defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
-			@Parameter(description = "주문 상태", required = false,
+			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
-			@Parameter(description = "조회 시작 시각", required = false)
+			@Parameter(description = "조회 시작 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-			@Parameter(description = "조회 종료 시각", required = false)
+			@Parameter(description = "조회 종료 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-			@Parameter(description = "페이지 (기본 1)", required = false)
+			@Parameter(description = "페이지 (기본 1)")
 			@RequestParam(required = false, defaultValue = "1") Integer page,
-			@Parameter(description = "사이즈 (기본 20)", required = false)
+			@Parameter(description = "사이즈 (기본 20)")
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
 		// page/size를 limit/offset으로 변환
@@ -165,20 +165,20 @@ public class OrderQueryController {
 	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
 			@Parameter(hidden = true)
 			@RequestParam(required = false) Long customerId,
-			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)", required = false)
+			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)")
 			@RequestParam(required = false, defaultValue = "ALL") String orderType,
-			@Parameter(description = "주문 상태", required = false,
+			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false) OrderStatus status,
-			@Parameter(description = "조회 시작 시각", required = false)
+			@Parameter(description = "조회 시작 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-			@Parameter(description = "조회 종료 시각", required = false)
+			@Parameter(description = "조회 종료 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-			@Parameter(description = "페이지 (기본 1)", required = false)
+			@Parameter(description = "페이지 (기본 1)")
 			@RequestParam(required = false, defaultValue = "1") Integer page,
-			@Parameter(description = "사이즈 (기본 20)", required = false)
+			@Parameter(description = "사이즈 (기본 20)")
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
 		// page/size를 limit/offset으로 변환하고 파라미터명 맞춤

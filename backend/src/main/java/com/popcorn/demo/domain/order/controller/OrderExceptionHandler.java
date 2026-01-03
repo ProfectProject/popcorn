@@ -110,10 +110,13 @@ public class OrderExceptionHandler {
 	 */
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	public ResponseEntity<BaseResponse<BaseError>> handleTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+		String requiredTypeName = ex.getRequiredType() != null
+				? ex.getRequiredType().getSimpleName()
+				: "알 수 없는 타입";
 		log.warn("Order parameter type mismatch: parameter={}, value={}, requiredType={}",
-				ex.getName(), ex.getValue(), ex.getRequiredType().getSimpleName());
+				ex.getName(), ex.getValue(), requiredTypeName);
 
-		String message = String.format("잘못된 %s 형식입니다: %s", ex.getRequiredType().getSimpleName(), ex.getValue());
+		String message = String.format("잘못된 %s 형식입니다: %s", requiredTypeName, ex.getValue());
 
 		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
 		BaseResponse<BaseError> response = BaseResponse.error(error);
@@ -183,8 +186,7 @@ public class OrderExceptionHandler {
 	 */
 	private String getUserFriendlyMessage(BaseException ex) {
 		// OrderResponseCode 기반 사용자 친화적 메시지 변환
-		if (ex.getResponseCode() instanceof OrderResponseCode) {
-			OrderResponseCode orderCode = (OrderResponseCode) ex.getResponseCode();
+		if (ex.getResponseCode() instanceof OrderResponseCode orderCode) {
 			return switch (orderCode) {
 				case EMPTY_ITEMS -> "주문 항목을 추가해 주세요.";
 				case INVALID_QTY -> "주문 수량을 확인해 주세요.";

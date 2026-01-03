@@ -26,6 +26,13 @@ repositories {
 	mavenCentral()
 }
 
+dependencyManagement {
+	dependencies {
+		dependency 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
+		dependency 'org.apache.commons:commons-lang3:3.17.0'
+	}
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -34,7 +41,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 
 	// Swagger/OpenAPI 3 (Spring Boot 3.5.x 호환 버전)
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui'
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 

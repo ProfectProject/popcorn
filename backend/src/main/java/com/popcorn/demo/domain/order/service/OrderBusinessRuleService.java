@@ -206,8 +206,6 @@ public class OrderBusinessRuleService {
 						  to == OrderStatus.CANCELLED;
 
 			case OWNER_REJECTED, CANCELLED, COMPLETED, REFUNDED -> false; // 최종 상태들
-
-			default -> false;
 		};
 	}
 

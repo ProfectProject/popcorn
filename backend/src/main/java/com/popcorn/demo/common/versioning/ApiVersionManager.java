@@ -2,6 +2,7 @@ package com.popcorn.demo.common.versioning;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -127,7 +128,7 @@ public class ApiVersionManager {
     public List<ApiVersionInfo> getAllVersions() {
         return registeredVersions.values()
                 .stream()
-                .sorted((v1, v2) -> v2.getReleaseDate().compareTo(v1.getReleaseDate()))
+                .sorted(Comparator.comparing(ApiVersionInfo::getReleaseDate).reversed())
                 .collect(Collectors.toList());
     }
 
@@ -138,7 +139,7 @@ public class ApiVersionManager {
         return registeredVersions.values()
                 .stream()
                 .filter(ApiVersionInfo::isAvailable)
-                .sorted((v1, v2) -> v2.getReleaseDate().compareTo(v1.getReleaseDate()))
+                .sorted(Comparator.comparing(ApiVersionInfo::getReleaseDate).reversed())
                 .collect(Collectors.toList());
     }
 
@@ -157,7 +158,7 @@ public class ApiVersionManager {
         return registeredVersions.values()
                 .stream()
                 .filter(v -> v.getStatus() == ApiVersionInfo.ApiVersionStatus.STABLE)
-                .max((v1, v2) -> v1.getReleaseDate().compareTo(v2.getReleaseDate()))
+                .max(Comparator.comparing(ApiVersionInfo::getReleaseDate))
                 .map(ApiVersionInfo::getVersion)
                 .orElse(DEFAULT_VERSION);
     }
