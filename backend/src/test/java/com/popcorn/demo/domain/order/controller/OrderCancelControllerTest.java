@@ -24,7 +24,7 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderException;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 /**
@@ -41,7 +41,7 @@ import com.popcorn.demo.global.config.CommonConfig;
 class OrderCancelControllerTest {
 
 	private MockMvc mockMvc;
-	private OrderService orderService;
+	private OrderCommandService orderCommandService;
 	private ObjectMapper objectMapper;
 
 	private UUID testOrderId;
@@ -49,9 +49,12 @@ class OrderCancelControllerTest {
 
 	@BeforeEach
 	void setUp() {
-		orderService = Mockito.mock(OrderService.class);
+		orderCommandService = Mockito.mock(OrderCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
-		mockMvc = MockMvcBuilders.standaloneSetup(new OrderCommandController(orderService, objectMapper))
+
+		// 주문 취소는 Command 작업이므로 OrderCommandController를 사용
+		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -66,7 +69,7 @@ class OrderCancelControllerTest {
 		// Given: REQUESTED 상태의 주문이 있고, 취소 요청이 들어왔을 때
 		Order cancelledOrder = createMockOrder(testOrderId, OrderStatus.CANCELLED);
 
-		when(orderService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
+		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
 				.thenReturn(cancelledOrder);
 
 		// When: 주문 취소 API 호출

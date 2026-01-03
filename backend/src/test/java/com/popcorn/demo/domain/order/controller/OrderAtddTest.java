@@ -39,7 +39,10 @@ class OrderAtddTest {
 	void setUp() {
 		orderService = Mockito.mock(OrderService.class);
 		objectMapper = new CommonConfig().objectMapper();
-		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+
+		// ATDD 테스트 - 주문 생성과 상태 변경은 Command 작업이므로 OrderCommandController를 사용
+		OrderCommandController commandController = new OrderCommandController(orderService, objectMapper);
+		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();

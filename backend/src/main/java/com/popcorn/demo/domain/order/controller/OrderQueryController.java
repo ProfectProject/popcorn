@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 
@@ -36,14 +36,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * - 내 주문 목록 조회
  * - 가게 주문 목록 조회
  */
-@Tag(name = "Order Queries", description = "주문 조회 API")
+@Tag(name = "Order", description = "주문 관련 API")
 @RestController
 @RequestMapping("/api/v1/orders")
 @Slf4j
 @RequiredArgsConstructor
 public class OrderQueryController {
 
-	private final OrderService orderService;
+	private final OrderQueryService orderQueryService;
 
 	@Operation(
 			summary = "주문 상세 조회",
@@ -65,7 +65,7 @@ public class OrderQueryController {
 			)
 			@PathVariable UUID orderId) {
 
-		OrderDetailDto detail = orderService.getOrderDetail(orderId, null, null);
+		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, null, null);
 		return ResponseEntity.ok(BaseResponse.success(detail));
 	}
 
@@ -102,7 +102,7 @@ public class OrderQueryController {
 			@Parameter(description = "사이즈 (기본 20)", required = false)
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
-		StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
+		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
 				storeId, productId, status.name(), from, to, page, size
 		);
 		return ResponseEntity.ok(BaseResponse.success(response));
@@ -137,7 +137,7 @@ public class OrderQueryController {
 			@Parameter(description = "사이즈 (기본 20)", required = false)
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
-		MyOrderTimelineResponse response = orderService.getMyOrderTimeline(
+		MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
 				customerId, orderType, status == null ? null : status.name(), from, to, page, size
 		);
 		return ResponseEntity.ok(BaseResponse.success(response));

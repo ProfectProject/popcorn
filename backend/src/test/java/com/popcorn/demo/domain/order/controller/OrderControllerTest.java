@@ -43,7 +43,11 @@ class OrderControllerTest {
 	void setUp() {
 		orderService = Mockito.mock(OrderService.class);
 		objectMapper = new CommonConfig().objectMapper();
-		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+
+		// Command와 Query 작업을 모두 테스트하므로 두 컨트롤러 모두 설정
+		OrderCommandController commandController = new OrderCommandController(orderService, objectMapper);
+		OrderQueryController queryController = new OrderQueryController(orderService);
+		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();

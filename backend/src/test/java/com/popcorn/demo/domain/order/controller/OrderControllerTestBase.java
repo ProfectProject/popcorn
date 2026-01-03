@@ -13,7 +13,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 import lombok.extern.slf4j.Slf4j;
@@ -34,17 +35,19 @@ public abstract class OrderControllerTestBase {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected MockMvc mockMvc;
     protected ObjectMapper objectMapper;
-    protected OrderService orderService;
+    protected OrderCommandService orderCommandService;
+    protected OrderQueryService orderQueryService;
 
     @BeforeEach
     void setUpBase() {
         // 공통 설정을 한 번만 수행하여 성능 최적화
-        orderService = Mockito.mock(OrderService.class);
+        orderCommandService = Mockito.mock(OrderCommandService.class);
+        orderQueryService = Mockito.mock(OrderQueryService.class);
         objectMapper = createOptimizedObjectMapper();
         mockMvc = createOptimizedMockMvc();
 
         // 각 테스트 간 격리를 위한 Mock 초기화
-        Mockito.reset(orderService);
+        Mockito.reset(orderCommandService, orderQueryService);
     }
 
     /**
@@ -55,10 +58,14 @@ public abstract class OrderControllerTestBase {
     }
 
     /**
-     * 최적화된 MockMvc 생성 (재사용 가능한 설정)
+     * 최적화된 MockMvc 생성 (CQRS 컨트롤러 지원)
+     * Command와 Query 컨트롤러를 모두 설정하여 테스트 가능
      */
     private MockMvc createOptimizedMockMvc() {
-        return MockMvcBuilders.standaloneSetup(new OrderCommandController(orderService, objectMapper))
+        OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+        OrderQueryController queryController = new OrderQueryController(orderQueryService);
+
+        return MockMvcBuilders.standaloneSetup(commandController, queryController)
                 .setControllerAdvice(new OrderExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .alwaysDo(result -> log.debug("테스트 실행 결과: {}",

@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CancelOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
@@ -50,14 +50,14 @@ import jakarta.validation.Valid;
  * - 주문 상태 변경
  * - 주문 취소
  */
-@Tag(name = "Order Commands", description = "주문 명령 API")
+@Tag(name = "Order", description = "주문 관련 API")
 @RestController
 @RequestMapping("/api/v1/orders")
 @Slf4j
 @RequiredArgsConstructor
 public class OrderCommandController extends BaseController {
 
-	private final OrderService orderService;
+	private final OrderCommandService orderCommandService;
 	private final ObjectMapper objectMapper;
 
 	/**
@@ -174,7 +174,7 @@ public class OrderCommandController extends BaseController {
 				.build();
 
 		// 유스케이스 결과를 표준 응답으로 감싸서 반환합니다.
-		CreateOrderResponse response = orderService.createOrder(command);
+		CreateOrderResponse response = orderCommandService.createOrder(command);
 		OrderCreatedDto dto = convertToOrderCreatedDto(response);
 		return new ResponseEntity<>(BaseResponse.success(dto), HttpStatus.CREATED);
 	}
@@ -295,7 +295,7 @@ public class OrderCommandController extends BaseController {
 		logRequestDebug("주문 상태 변경 요청", request);
 
 		// 상태 변경 규칙은 유스케이스에서 처리해 비즈니스 규칙을 보장합니다.
-		Order updatedOrder = orderService.updateStatus(
+		Order updatedOrder = orderCommandService.updateStatus(
 					orderId,
 					request.getStatus(),
 					request.getReason()
@@ -332,7 +332,7 @@ public class OrderCommandController extends BaseController {
 			@PathVariable UUID orderId) {
 
 		// 주문을 CANCELLED 상태로 변경
-		Order cancelledOrder = orderService.updateStatus(
+		Order cancelledOrder = orderCommandService.updateStatus(
 				orderId,
 				OrderStatus.CANCELLED.name(),
 				"고객 요청에 의한 취소"
