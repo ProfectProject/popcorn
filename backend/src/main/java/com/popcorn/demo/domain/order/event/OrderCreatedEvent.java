@@ -24,7 +24,7 @@ public class OrderCreatedEvent extends BaseOrderEvent {
         super(
             order.getId(),
             "order_created",
-            order.getUserId(),
+            order.getCustomerId(),
             Map.of(
                 "orderType", order.getOrderType().name(),
                 "status", order.getStatus().name(),

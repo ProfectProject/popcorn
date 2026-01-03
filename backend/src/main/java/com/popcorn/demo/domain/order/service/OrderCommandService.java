@@ -20,6 +20,9 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.event.OrderCreatedEvent;
+import com.popcorn.demo.domain.order.event.OrderStatusChangedEvent;
+import com.popcorn.demo.domain.order.event.OrderCancelledEvent;
+import com.popcorn.demo.domain.order.event.OrderCompletedEvent;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 
@@ -116,8 +119,8 @@ public class OrderCommandService {
 				.toList();
 		orderRepository.saveOrderItems(itemsWithOrderId);
 
-		// 🚀 비동기 후처리 (최적화된 이벤트 발행)
-		asyncEventPublisher.publishEventAsync(new OrderCreatedEvent(savedOrder))
+		// 🚀 비동기 후처리 (향상된 이벤트 발행)
+		asyncEventPublisher.publishEventAsync(new OrderCreatedEvent(savedOrder, command.getIdempotencyKey()))
 				.whenComplete((result, throwable) -> {
 					if (throwable == null) {
 						log.debug("✅ 주문 생성 이벤트 발행 완료 - 주문ID: {}", savedOrder.getId());
@@ -174,6 +177,45 @@ public class OrderCommandService {
 				.changedAt(java.time.LocalDateTime.now())
 				.build();
 		orderRepository.saveStatusHistory(statusHistory);
+
+		// 🚀 상태 변경 이벤트 발행
+		asyncEventPublisher.publishEventAsync(new OrderStatusChangedEvent(
+				savedOrder.getId(),
+				savedOrder.getCustomerId(),
+				currentStatus,
+				newStatus,
+				reason,
+				"SYSTEM" // 변경 주체 - 실제로는 현재 사용자 정보를 사용
+		)).whenComplete((result, throwable) -> {
+			if (throwable == null) {
+				log.debug("✅ 주문 상태 변경 이벤트 발행 완료 - 주문ID: {}, {} → {}",
+						savedOrder.getId(), currentStatus, newStatus);
+			} else {
+				log.error("❌ 주문 상태 변경 이벤트 발행 실패 - 주문ID: {}", savedOrder.getId(), throwable);
+			}
+		});
+
+		// 특별한 상태 변경의 경우 추가 이벤트 발행
+		if (newStatus == OrderStatus.CANCELLED) {
+			asyncEventPublisher.publishEventAsync(new OrderCancelledEvent(
+					savedOrder.getId(),
+					savedOrder.getCustomerId(),
+					currentStatus,
+					reason,
+					"SYSTEM",
+					null // 환불 금액은 별도 계산 필요
+			));
+		} else if (newStatus == OrderStatus.COMPLETED) {
+			asyncEventPublisher.publishEventAsync(new OrderCompletedEvent(
+					savedOrder.getId(),
+					savedOrder.getCustomerId(),
+					savedOrder.getStoreId(),
+					savedOrder.getCreatedAt(),
+					"SYSTEM",
+					savedOrder.getTotalAmount(),
+					savedOrder.getOrderItems().size()
+			));
+		}
 
 		log.info("✅ 주문 상태 변경 완료 - 주문ID: {}, 이전상태: {}, 변경상태: {}",
 				savedOrder.getId(), currentStatus, newStatus);
