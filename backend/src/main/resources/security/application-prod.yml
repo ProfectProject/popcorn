@@ -17,7 +17,7 @@ spring:
     properties:
       hibernate:
         type:
-          preferred_enum_jdbc_type: NAMED_ENUM
+          preferred_enum_jdbc_type: VARCHAR
 
   flyway:
     url: ${DATABASE_URL}

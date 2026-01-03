@@ -22,12 +22,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 
 import com.popcorn.demo.common.cache.IdempotencyCache;
-import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.demo.domain.order.config.OrderProperties;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
@@ -39,6 +38,10 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
+import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderTimelineView;
+import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -59,7 +62,10 @@ class OrderServiceTest {
 	private ApplicationEventPublisher eventPublisher;
 
 	@Mock
-	private JdbcTemplate jdbcTemplate;
+	private OrderQueryRepository orderQueryRepository;
+
+	@Mock
+	private OrderProperties orderProperties;
 
 	private OrderService orderService;
 
@@ -71,7 +77,8 @@ class OrderServiceTest {
 				orderItemPriceService,
 				idempotencyCache,
 				eventPublisher,
-				jdbcTemplate
+				orderQueryRepository,
+				orderProperties
 		);
 	}
 
@@ -315,10 +322,20 @@ class OrderServiceTest {
 							.build()
 			);
 
-			when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
-					.thenReturn(1L);
-			when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
-					.thenReturn(items);
+			StoreOrderReservationView view = org.mockito.Mockito.mock(StoreOrderReservationView.class);
+			when(view.getId()).thenReturn(items.get(0).getId());
+			when(view.getOrderNo()).thenReturn(items.get(0).getReservationNo());
+			when(view.getStatus()).thenReturn(items.get(0).getStatus());
+			when(view.getTotalAmount()).thenReturn(items.get(0).getTotalAmount());
+			when(view.getCancelableUntil()).thenReturn(items.get(0).getCancelableUntil());
+			when(view.getCreatedAt()).thenReturn(items.get(0).getCreatedAt());
+
+			when(orderQueryRepository.countStoreOrders(
+					any(UUID.class), any(UUID.class), any(String.class), any(), any()
+			)).thenReturn(1L);
+			when(orderQueryRepository.findStoreOrders(
+					any(UUID.class), any(UUID.class), any(String.class), any(), any(), any(Integer.class), any(Long.class)
+			)).thenReturn(List.of(view));
 
 			StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
 					storeId, productId, "REQUESTED", null, null, null, null
@@ -346,10 +363,21 @@ class OrderServiceTest {
 							.build()
 			);
 
-			when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
-					.thenReturn(1L);
-			when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
-					.thenReturn(items);
+			OrderTimelineView view = org.mockito.Mockito.mock(OrderTimelineView.class);
+			when(view.getOrderType()).thenReturn(items.get(0).getType());
+			when(view.getId()).thenReturn(items.get(0).getId());
+			when(view.getOrderNo()).thenReturn(items.get(0).getOrderNo());
+			when(view.getStatus()).thenReturn(items.get(0).getStatus());
+			when(view.getTotalAmount()).thenReturn(items.get(0).getTotalAmount());
+			when(view.getCancelableUntil()).thenReturn(items.get(0).getCancelableUntil());
+			when(view.getCreatedAt()).thenReturn(items.get(0).getCreatedAt());
+
+			when(orderQueryRepository.countCustomerOrders(
+					any(Long.class), any(), any(), any(), any()
+			)).thenReturn(1L);
+			when(orderQueryRepository.findCustomerOrders(
+					any(Long.class), any(), any(), any(), any(), any(Integer.class), any(Long.class)
+			)).thenReturn(List.of(view));
 
 			MyOrderTimelineResponse response = orderService.getMyOrderTimeline(
 					1001L, "ALL", null, null, null, null, null
@@ -366,8 +394,7 @@ class OrderServiceTest {
 		void getOrderDetail_notFound() {
 			UUID orderId = UUID.randomUUID();
 
-			when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
-					.thenReturn(List.of());
+			when(orderQueryRepository.findOrderDetail(orderId)).thenReturn(null);
 
 			assertThatThrownBy(() -> orderService.getOrderDetail(orderId, 1001L, "CUSTOMER"))
 					.isInstanceOf(OrderException.class)

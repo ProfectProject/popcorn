@@ -13,11 +13,11 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         type:
-          preferred_enum_jdbc_type: NAMED_ENUM
+          preferred_enum_jdbc_type: VARCHAR
 
   flyway:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
