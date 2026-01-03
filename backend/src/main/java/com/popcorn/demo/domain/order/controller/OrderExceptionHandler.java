@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.validation.BindException;
 
 import com.popcorn.demo.common.dto.BaseError;
@@ -101,6 +102,22 @@ public class OrderExceptionHandler {
 				.map(error -> error.getField() + ": " + error.getDefaultMessage())
 				.findFirst()
 				.orElse("입력값이 올바르지 않습니다.");
+
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
+		BaseResponse<BaseError> response = BaseResponse.error(error);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+	}
+
+	/**
+	 * 잘못된 타입 변환 오류 처리 (400 Bad Request)
+	 * 예: 잘못된 UUID 형식
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+		log.warn("Order parameter type mismatch: parameter={}, value={}, requiredType={}",
+				ex.getName(), ex.getValue(), ex.getRequiredType().getSimpleName());
+
+		String message = String.format("잘못된 %s 형식입니다: %s", ex.getRequiredType().getSimpleName(), ex.getValue());
 
 		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
 		BaseResponse<BaseError> response = BaseResponse.error(error);

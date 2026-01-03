@@ -1,29 +1,24 @@
 package com.popcorn.demo.domain.order.controller;
 
 import java.util.UUID;
-import java.time.LocalDateTime;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
+import com.popcorn.demo.domain.order.dto.response.CancelOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
-import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
-import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
-import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
@@ -47,34 +42,32 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-@Tag(name = "Orders", description = "주문 관리 API")
+/**
+ * 주문 명령 전용 컨트롤러 (Command - CQRS)
+ *
+ * 주문 관련 쓰기 작업만 담당:
+ * - 주문 생성
+ * - 주문 상태 변경
+ * - 주문 취소
+ */
+@Tag(name = "Order Commands", description = "주문 명령 API")
 @RestController
 @RequestMapping("/api/v1/orders")
 @Slf4j
 @RequiredArgsConstructor
-public class OrderController extends BaseController {
+public class OrderCommandController extends BaseController {
 
 	private final OrderService orderService;
 	private final ObjectMapper objectMapper;
 
-
-
 	/**
-
-		* 새로운 주문을 생성합니다.
-
-		*
-
-		* @param userId 주문 생성 사용자 ID
-
-		* @param request 주문 생성 요청 데이터
-
-		* @param idempotencyKey 멱등성을 위한 키 (선택)
-
-		* @return 생성된 주문 정보
-
-		*/
-
+	 * 새로운 주문을 생성합니다.
+	 *
+	 * @param userId 주문 생성 사용자 ID
+	 * @param request 주문 생성 요청 데이터
+	 * @param idempotencyKey 멱등성을 위한 키 (선택)
+	 * @return 생성된 주문 정보
+	 */
 	@Operation(
 			summary = "주문 생성",
 			description = "새로운 주문을 생성합니다. 예약형(RESERVATION) 또는 구매형(PURCHASE) 주문을 지원합니다."
@@ -96,16 +89,10 @@ public class OrderController extends BaseController {
 		responseCode = "409",
 		description = "비즈니스 규칙 위반 (재고부족, 정원초과, 상태오류 등)"
 	)
-
 	@PostMapping("/{userId}")
-
 	public ResponseEntity<BaseResponse<OrderCreatedDto>> createOrder(
-
 			@Parameter(description = "주문 생성 사용자 ID", required = true, example = "1001")
-
 			@PathVariable Long userId,
-
-
 
 			@io.swagger.v3.oas.annotations.parameters.RequestBody(
 				description = "주문 생성 요청 데이터",
@@ -162,112 +149,34 @@ public class OrderController extends BaseController {
 			)
 			@Valid @RequestBody CreateOrderRequest request,
 
-
-
 			@Parameter(hidden = true)
-
 			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 
+		logRequestDebug("주문 생성 요청", request);
 
-
-	logRequestDebug("주문 생성 요청", request);
-	// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
-
-	CreateOrderCommand command = CreateOrderCommand.builder()
-
+		// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
+		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
-
 				.storeId(request.getStoreId())
-
 				.productId(request.getProductId())
-
 				.orderType(request.getOrderType())
-
 				.idempotencyKey(idempotencyKey)
-
 				.items(request.getItems().stream()
-
 						.map(item -> CreateOrderCommand.OrderItemCommand.builder()
-
 								.orderItemType(OrderItemType.valueOf(item.getOrderItemType()))
-
 								.sessionId(item.getSessionId())
-
 								.optionId(item.getOptionId())
-
 								.merchVariantId(item.getMerchVariantId())
-
 								.qty(item.getQty())
-
 								.unitPrice(item.getUnitPrice())
-
 								.build())
-
 						.toList())
-
 				.build();
-
-
 
 		// 유스케이스 결과를 표준 응답으로 감싸서 반환합니다.
 		CreateOrderResponse response = orderService.createOrder(command);
 		OrderCreatedDto dto = convertToOrderCreatedDto(response);
 		return new ResponseEntity<>(BaseResponse.success(dto), HttpStatus.CREATED);
-
-	}
-
-
-
-	/**
-
-		* CreateOrderResponse를 OrderCreatedDto로 변환하는 헬퍼 메서드
-
-		* Clean Architecture의 Response를 Controller Layer의 DTO로 변환
-
-		*/
-
-	private OrderCreatedDto convertToOrderCreatedDto(CreateOrderResponse response) {
-
-		return new OrderCreatedDto(
-
-				response.getOrderId(),
-
-				response.getOrderNo(),
-
-				response.getOrderType(),
-
-				response.getStatus(),
-
-				response.getStoreId(),
-
-				response.getProductId(),
-
-				response.getTotalAmount(),
-
-				response.getCancelableUntil(),
-
-				response.getCreatedAt(),
-
-				response.getItems().stream()
-
-						.map(item -> new OrderCreatedDto.OrderItemDto(
-
-								item.getItemId(),
-
-								item.getOrderItemType(),
-
-								item.getQty(),
-
-								item.getUnitPrice(),
-
-								item.getLineAmount()
-
-						))
-
-						.toList()
-
-		);
-
 	}
 
 	@Operation(
@@ -384,12 +293,14 @@ public class OrderController extends BaseController {
 
 		// 요청 바디를 디버그 로그로 남겨 운영 이슈 원인을 빠르게 추적합니다.
 		logRequestDebug("주문 상태 변경 요청", request);
+
 		// 상태 변경 규칙은 유스케이스에서 처리해 비즈니스 규칙을 보장합니다.
 		Order updatedOrder = orderService.updateStatus(
 					orderId,
 					request.getStatus(),
 					request.getReason()
 				);
+
 		// 도메인 엔티티를 응답 DTO로 변환해 필요한 필드만 전달합니다.
 		UpdateOrderStatusResponse response = UpdateOrderStatusResponse.builder()
 				.id(updatedOrder.getId())
@@ -400,18 +311,19 @@ public class OrderController extends BaseController {
 	}
 
 	@Operation(
-			summary = "주문 상세 조회",
-			description = "주문 상세 정보를 조회합니다. CUSTOMER는 본인 주문만 조회할 수 있습니다."
+			summary = "주문 취소",
+			description = "CUSTOMER가 본인 주문을 취소합니다."
 	)
 	@ApiResponse(
 			responseCode = "200",
-			description = "주문 상세 조회 성공",
-			content = @Content(schema = @Schema(implementation = OrderDetailDto.class))
+			description = "주문 취소 성공",
+			content = @Content(schema = @Schema(implementation = CancelOrderResponse.class))
 	)
+	@ApiResponse(responseCode = "400", description = "취소할 수 없는 상태")
 	@ApiResponse(responseCode = "403", description = "권한 없음")
 	@ApiResponse(responseCode = "404", description = "주문 없음")
-	@GetMapping("/{orderId}")
-	public ResponseEntity<BaseResponse<OrderDetailDto>> getOrderDetail(
+	@DeleteMapping("/{orderId}/cancel")
+	public ResponseEntity<BaseResponse<CancelOrderResponse>> cancelOrder(
 			@Parameter(
 					description = "주문 ID",
 					required = true,
@@ -419,83 +331,49 @@ public class OrderController extends BaseController {
 			)
 			@PathVariable UUID orderId) {
 
-		OrderDetailDto detail = orderService.getOrderDetail(orderId, null, null);
-		return ResponseEntity.ok(BaseResponse.success(detail));
-	}
-
-	@Operation(
-			summary = "내 가게 주문/예약 목록",
-			description = "OWNER/MANAGER가 가게 기준으로 주문/예약 목록을 조회합니다."
-	)
-	@ApiResponse(
-			responseCode = "200",
-			description = "가게 주문 목록 조회 성공",
-			content = @Content(schema = @Schema(implementation = StoreOrderReservationListResponse.class))
-	)
-	@GetMapping("/store")
-	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrders(
-			@Parameter(description = "스토어 ID", required = false,
-					example = "00000000-0000-0000-0000-000000000001")
-			@RequestParam(required = false,
-					defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
-			@Parameter(description = "상품 ID", required = false,
-					example = "00000000-0000-0000-0000-000000000101")
-			@RequestParam(required = false,
-					defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
-			@Parameter(description = "주문 상태", required = false,
-					schema = @Schema(implementation = OrderStatus.class))
-			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
-			@Parameter(description = "조회 시작 시각", required = false)
-			@RequestParam(required = false)
-			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-			@Parameter(description = "조회 종료 시각", required = false)
-			@RequestParam(required = false)
-			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-			@Parameter(description = "페이지 (기본 1)", required = false)
-			@RequestParam(required = false, defaultValue = "1") Integer page,
-			@Parameter(description = "사이즈 (기본 20)", required = false)
-			@RequestParam(required = false, defaultValue = "20") Integer size) {
-
-		StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
-				storeId, productId, status.name(), from, to, page, size
+		// 주문을 CANCELLED 상태로 변경
+		Order cancelledOrder = orderService.updateStatus(
+				orderId,
+				OrderStatus.CANCELLED.name(),
+				"고객 요청에 의한 취소"
 		);
+
+		// 응답 DTO 생성
+		CancelOrderResponse response = CancelOrderResponse.builder()
+				.id(cancelledOrder.getId())
+				.status("CANCELED")  // 사용자 스펙에 맞게 "CANCELED" 사용
+				.build();
+
 		return ResponseEntity.ok(BaseResponse.success(response));
 	}
 
-	@Operation(
-			summary = "내 주문/예약 목록",
-			description = "CUSTOMER가 본인 주문/예약 목록을 타임라인 형태로 조회합니다."
-	)
-	@ApiResponse(
-			responseCode = "200",
-			description = "내 주문 목록 조회 성공",
-			content = @Content(schema = @Schema(implementation = MyOrderTimelineResponse.class))
-	)
-	@GetMapping("/me")
-	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
-			@Parameter(hidden = true)
-			@RequestParam(required = false) Long customerId,
-			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)", required = false)
-			@RequestParam(required = false, defaultValue = "ALL") String orderType,
-			@Parameter(description = "주문 상태", required = false,
-					schema = @Schema(implementation = OrderStatus.class))
-			@RequestParam(required = false) OrderStatus status,
-			@Parameter(description = "조회 시작 시각", required = false)
-			@RequestParam(required = false)
-			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-			@Parameter(description = "조회 종료 시각", required = false)
-			@RequestParam(required = false)
-			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-			@Parameter(description = "페이지 (기본 1)", required = false)
-			@RequestParam(required = false, defaultValue = "1") Integer page,
-			@Parameter(description = "사이즈 (기본 20)", required = false)
-			@RequestParam(required = false, defaultValue = "20") Integer size) {
-
-		MyOrderTimelineResponse response = orderService.getMyOrderTimeline(
-				customerId, orderType, status == null ? null : status.name(), from, to, page, size
+	/**
+	 * CreateOrderResponse를 OrderCreatedDto로 변환하는 헬퍼 메서드
+	 * Clean Architecture의 Response를 Controller Layer의 DTO로 변환
+	 */
+	private OrderCreatedDto convertToOrderCreatedDto(CreateOrderResponse response) {
+		return new OrderCreatedDto(
+				response.getOrderId(),
+				response.getOrderNo(),
+				response.getOrderType(),
+				response.getStatus(),
+				response.getStoreId(),
+				response.getProductId(),
+				response.getTotalAmount(),
+				response.getCancelableUntil(),
+				response.getCreatedAt(),
+				response.getItems().stream()
+						.map(item -> new OrderCreatedDto.OrderItemDto(
+								item.getItemId(),
+								item.getOrderItemType(),
+								item.getQty(),
+								item.getUnitPrice(),
+								item.getLineAmount()
+						))
+						.toList()
 		);
-		return ResponseEntity.ok(BaseResponse.success(response));
 	}
+
 	private void logRequestDebug(String label, Object request) {
 		if (!log.isDebugEnabled()) {
 			return;
@@ -506,5 +384,4 @@ public class OrderController extends BaseController {
 			log.debug("{}: <failed to serialize request>", label, ex);
 		}
 	}
-
 }
