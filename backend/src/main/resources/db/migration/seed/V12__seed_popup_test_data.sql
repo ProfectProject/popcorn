@@ -63,6 +63,22 @@ CREATE TABLE IF NOT EXISTS p_product_sessions (
 );
 
 -- noinspection SqlResolve
+CREATE TABLE IF NOT EXISTS p_session_options (
+    id UUID PRIMARY KEY,
+    session_id UUID NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    price INT NOT NULL,
+    capacity INT NOT NULL,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    deleted_at TIMESTAMP
+);
+
+-- Hibernate-created tables may not include deleted_at in tests.
+ALTER TABLE p_session_options ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+
+-- noinspection SqlResolve
 CREATE TABLE IF NOT EXISTS p_merch_variants (
     id UUID PRIMARY KEY,
     product_id UUID NOT NULL,
@@ -185,6 +201,57 @@ WHERE NOT EXISTS (
 );
 
 -- noinspection SqlResolve
+INSERT INTO p_product_sessions (
+    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
+)
+SELECT
+    '00000000-0000-0000-0000-000000000202',
+    '00000000-0000-0000-0000-000000000101',
+    TIMESTAMP '2025-01-10 10:00:00',
+    TIMESTAMP '2025-01-10 18:00:00',
+    'ENDED',
+    TIMESTAMP '2025-01-10 10:00:00',
+    TIMESTAMP '2025-01-10 10:00:00',
+    NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000202'
+);
+
+-- noinspection SqlResolve
+INSERT INTO p_product_sessions (
+    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
+)
+SELECT
+    '00000000-0000-0000-0000-000000000203',
+    '00000000-0000-0000-0000-000000000101',
+    TIMESTAMP '2025-01-15 11:00:00',
+    TIMESTAMP '2025-01-15 15:00:00',
+    'OPEN',
+    TIMESTAMP '2025-01-15 11:00:00',
+    TIMESTAMP '2025-01-15 11:00:00',
+    NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000203'
+);
+
+-- noinspection SqlResolve
+INSERT INTO p_product_sessions (
+    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
+)
+SELECT
+    '00000000-0000-0000-0000-000000000204',
+    '00000000-0000-0000-0000-000000000101',
+    TIMESTAMP '2025-01-20 13:00:00',
+    TIMESTAMP '2025-01-20 16:00:00',
+    'OPEN',
+    TIMESTAMP '2025-01-20 13:00:00',
+    TIMESTAMP '2025-01-20 13:00:00',
+    NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000204'
+);
+
+-- noinspection SqlResolve
 INSERT INTO p_merch_variants (
     id, product_id, sku, name, price, stock, is_hidden, created_at, updated_at, deleted_at
 )
@@ -201,4 +268,40 @@ SELECT
     NULL
 WHERE NOT EXISTS (
     SELECT 1 FROM p_merch_variants WHERE id = '00000000-0000-0000-0000-000000000401'
+);
+
+-- noinspection SqlResolve
+INSERT INTO p_session_options (
+    id, session_id, name, price, capacity, is_hidden, created_at, updated_at, deleted_at
+)
+SELECT
+    '00000000-0000-0000-0000-000000000301',
+    '00000000-0000-0000-0000-000000000201',
+    '일반 좌석',
+    10000,
+    20,
+    FALSE,
+    TIMESTAMP '2025-01-01 10:00:00',
+    TIMESTAMP '2025-01-01 10:00:00',
+    NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM p_session_options WHERE id = '00000000-0000-0000-0000-000000000301'
+);
+
+-- noinspection SqlResolve
+INSERT INTO p_session_options (
+    id, session_id, name, price, capacity, is_hidden, created_at, updated_at, deleted_at
+)
+SELECT
+    '00000000-0000-0000-0000-000000000302',
+    '00000000-0000-0000-0000-000000000201',
+    '프리미엄 좌석',
+    15000,
+    10,
+    FALSE,
+    TIMESTAMP '2025-01-01 10:00:00',
+    TIMESTAMP '2025-01-01 10:00:00',
+    NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM p_session_options WHERE id = '00000000-0000-0000-0000-000000000302'
 );

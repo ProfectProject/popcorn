@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupOptionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 @Service
@@ -52,6 +54,24 @@ public class PopupValidationService {
 		if (query == null || query.getProductId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
+	}
+
+	public PopupSessionListQuery normalizeSessionQuery(PopupSessionListQuery query) {
+		if (query == null || query.getProductId() == null) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		}
+		if (query.getFrom() != null && query.getTo() != null
+				&& query.getFrom().isAfter(query.getTo())) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		}
+		return query;
+	}
+
+	public PopupOptionListQuery normalizeOptionQuery(PopupOptionListQuery query) {
+		if (query == null || query.getProductId() == null) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		}
+		return query;
 	}
 
 	private String normalizeCategory(String category) {
