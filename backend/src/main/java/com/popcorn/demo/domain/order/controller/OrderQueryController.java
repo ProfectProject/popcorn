@@ -102,8 +102,10 @@ public class OrderQueryController {
 			@Parameter(description = "사이즈 (기본 20)", required = false)
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
+		// page/size를 limit/offset으로 변환
+		Long offset = (long) (page - 1) * size;
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
-				storeId, productId, status.name(), from, to, page, size
+				storeId, productId, status.name(), from, to, size, offset
 		);
 		return ResponseEntity.ok(BaseResponse.success(response));
 	}
@@ -137,8 +139,11 @@ public class OrderQueryController {
 			@Parameter(description = "사이즈 (기본 20)", required = false)
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
+		// page/size를 limit/offset으로 변환하고 파라미터명 맞춤
+		Long offset = (long) (page - 1) * size;
+		String statusStr = status == null ? null : status.name();
 		MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
-				customerId, orderType, status == null ? null : status.name(), from, to, page, size
+				customerId, orderType, statusStr, from, to, size, offset
 		);
 		return ResponseEntity.ok(BaseResponse.success(response));
 	}

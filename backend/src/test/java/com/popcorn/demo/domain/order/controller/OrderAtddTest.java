@@ -24,7 +24,7 @@ import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderAtddTest {
@@ -33,15 +33,15 @@ class OrderAtddTest {
 
 	private ObjectMapper objectMapper;
 
-	private OrderService orderService;
+	private OrderCommandService orderCommandService;
 
 	@BeforeEach
 	void setUp() {
-		orderService = Mockito.mock(OrderService.class);
+		orderCommandService = Mockito.mock(OrderCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// ATDD 테스트 - 주문 생성과 상태 변경은 Command 작업이므로 OrderCommandController를 사용
-		OrderCommandController commandController = new OrderCommandController(orderService, objectMapper);
+		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -77,13 +77,13 @@ class OrderAtddTest {
 				))
 				.build();
 
-		when(orderService.createOrder(any())).thenReturn(response);
+		when(orderCommandService.createOrder(any())).thenReturn(response);
 
 		Order updatedOrder = Order.builder()
 				.id(orderId)
 				.status(OrderStatus.OWNER_ACCEPTED)
 				.build();
-		when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
 		String createJsonRequest = """

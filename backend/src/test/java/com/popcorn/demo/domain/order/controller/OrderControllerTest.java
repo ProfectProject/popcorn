@@ -23,7 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
@@ -35,18 +36,20 @@ class OrderControllerTest {
 
 	private MockMvc mockMvc;
 
-	private OrderService orderService;
+	private OrderCommandService orderCommandService;
+	private OrderQueryService orderQueryService;
 
 	private ObjectMapper objectMapper;
 
 	@BeforeEach
 	void setUp() {
-		orderService = Mockito.mock(OrderService.class);
+		orderCommandService = Mockito.mock(OrderCommandService.class);
+		orderQueryService = Mockito.mock(OrderQueryService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// Command와 Query 작업을 모두 테스트하므로 두 컨트롤러 모두 설정
-		OrderCommandController commandController = new OrderCommandController(orderService, objectMapper);
-		OrderQueryController queryController = new OrderQueryController(orderService);
+		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		OrderQueryController queryController = new OrderQueryController(orderQueryService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -82,7 +85,7 @@ class OrderControllerTest {
 				))
 				.build();
 
-		when(orderService.createOrder(any())).thenReturn(response);
+		when(orderCommandService.createOrder(any())).thenReturn(response);
 
 		String jsonRequest = """
 				{
@@ -112,7 +115,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 빈 아이템")
 	void createOrder_fail_emptyItems() throws Exception {
-		when(orderService.createOrder(any())).thenThrow(OrderException.emptyItems());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderException.emptyItems());
 
 		String jsonRequest = """
 				{
@@ -141,7 +144,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 잘못된 수량")
 	void createOrder_fail_invalidQty() throws Exception {
-		when(orderService.createOrder(any())).thenThrow(OrderException.invalidQty());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderException.invalidQty());
 
 		String jsonRequest = """
 				{
@@ -170,7 +173,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 상품 없음")
 	void createOrder_fail_productNotFound() throws Exception {
-		when(orderService.createOrder(any())).thenThrow(OrderException.productNotFound());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderException.productNotFound());
 
 		String jsonRequest = """
 				{
@@ -199,7 +202,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 멱등성 키 중복")
 	void createOrder_fail_duplicateIdempotency() throws Exception {
-		when(orderService.createOrder(any())).thenThrow(OrderException.duplicateIdempotencyKey());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderException.duplicateIdempotencyKey());
 
 		String jsonRequest = """
 				{
@@ -235,7 +238,7 @@ class OrderControllerTest {
 				.status(OrderStatus.OWNER_ACCEPTED)
 				.build();
 
-		when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
 		String jsonRequest = """
@@ -263,7 +266,7 @@ class OrderControllerTest {
 				.status(OrderStatus.CONFIRMED)
 				.build();
 
-		when(orderService.updateStatus(orderId, "CONFIRMED", "confirmed"))
+		when(orderCommandService.updateStatus(orderId, "CONFIRMED", "confirmed"))
 				.thenReturn(updatedOrder);
 
 		String jsonRequest = """
@@ -291,7 +294,7 @@ class OrderControllerTest {
 				.status(OrderStatus.PREPARING)
 				.build();
 
-		when(orderService.updateStatus(orderId, "PREPARING", "preparing"))
+		when(orderCommandService.updateStatus(orderId, "PREPARING", "preparing"))
 				.thenReturn(updatedOrder);
 
 		String jsonRequest = """
@@ -314,7 +317,7 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 허용되지 않은 전이")
 	void updateOrderStatus_invalidTransition() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-		when(orderService.updateStatus(orderId, "READY", "reason"))
+		when(orderCommandService.updateStatus(orderId, "READY", "reason"))
 				.thenThrow(OrderException.invalidStatusTransition());
 
 		String jsonRequest = """
@@ -336,7 +339,7 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 주문 없음")
 	void updateOrderStatus_notFound() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
-		when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
 				.thenThrow(OrderException.orderNotFound());
 
 		String jsonRequest = """
@@ -358,7 +361,7 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 이미 취소됨")
 	void updateOrderStatus_alreadyCanceled() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001113");
-		when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
 				.thenThrow(OrderException.alreadyCanceled());
 
 		String jsonRequest = """
@@ -380,7 +383,7 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 상태값 오류")
 	void updateOrderStatus_invalidStatus() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001114");
-		when(orderService.updateStatus(orderId, "NOT_A_STATUS", "reason"))
+		when(orderCommandService.updateStatus(orderId, "NOT_A_STATUS", "reason"))
 				.thenThrow(OrderException.invalidRequest());
 
 		String jsonRequest = """
@@ -416,7 +419,7 @@ class OrderControllerTest {
 				.items(List.of())
 				.build();
 
-		when(orderService.createOrder(any())).thenReturn(response);
+		when(orderCommandService.createOrder(any())).thenReturn(response);
 
 		String jsonRequest = """
 				{
@@ -439,7 +442,7 @@ class OrderControllerTest {
 						.content(jsonRequest))
 				.andExpect(MockMvcResultMatchers.status().isCreated());
 
-		verify(orderService).createOrder(any());
+		verify(orderCommandService).createOrder(any());
 	}
 
 	@Test
@@ -465,7 +468,7 @@ class OrderControllerTest {
 				.total(1)
 				.build();
 
-		when(orderService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
+		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
@@ -479,7 +482,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("가게 주문/예약 목록 조회 실패 - 권한 없음")
 	void getStoreOrders_forbidden() throws Exception {
-		when(orderService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
+		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
 				.thenThrow(OrderException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
@@ -522,7 +525,7 @@ class OrderControllerTest {
 				.total(1)
 				.build();
 
-		when(orderService.getMyOrderTimeline(null, "ALL", null, null, null, 1, 20))
+		when(orderQueryService.getMyOrderTimeline(null, "ALL", null, null, null, 20, 0L))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/me"))
@@ -535,7 +538,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("내 주문/예약 타임라인 조회 실패 - 잘못된 요청")
 	void getMyOrders_invalidRequest() throws Exception {
-		when(orderService.getMyOrderTimeline(any(), any(), any(), any(), any(), any(), any()))
+		when(orderQueryService.getMyOrderTimeline(any(), any(), any(), any(), any(), any(), any()))
 				.thenThrow(OrderException.invalidRequest());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/me"))

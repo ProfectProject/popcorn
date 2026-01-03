@@ -89,7 +89,7 @@ class OrderCancelControllerTest {
 		// Given: 존재하지 않는 주문 ID로 취소 요청
 		UUID nonExistentOrderId = UUID.fromString("99999999-9999-9999-9999-999999999999");
 
-		when(orderService.updateStatus(eq(nonExistentOrderId), eq("CANCELLED"), any(String.class)))
+		when(orderCommandService.updateStatus(eq(nonExistentOrderId), eq("CANCELLED"), any(String.class)))
 				.thenThrow(OrderException.orderNotFound());
 
 		// When & Then: 404 응답 반환
@@ -103,7 +103,7 @@ class OrderCancelControllerTest {
 	@DisplayName("실패: 이미 취소된 주문")
 	void cancelOrder_AlreadyCancelled() throws Exception {
 		// Given: 이미 CANCELLED 상태인 주문
-		when(orderService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
+		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
 				.thenThrow(OrderException.alreadyCanceled());
 
 		// When & Then: 409 응답 반환 (비즈니스 규칙 위반)
@@ -117,7 +117,7 @@ class OrderCancelControllerTest {
 	@DisplayName("실패: 취소할 수 없는 상태의 주문 (완료된 주문)")
 	void cancelOrder_CannotCancel_CompletedOrder() throws Exception {
 		// Given: COMPLETED 상태인 주문에 대한 취소 요청
-		when(orderService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
+		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
 				.thenThrow(OrderException.invalidStatusTransition());
 
 		// When & Then: 400 응답 반환 (잘못된 요청)
@@ -131,7 +131,7 @@ class OrderCancelControllerTest {
 	@DisplayName("실패: 취소할 수 없는 상태의 주문 (준비 중인 주문)")
 	void cancelOrder_CannotCancel_PreparingOrder() throws Exception {
 		// Given: PREPARING 상태인 주문에 대한 취소 요청
-		when(orderService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
+		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
 				.thenThrow(OrderException.invalidStatusTransition());
 
 		// When & Then: 400 응답 반환
@@ -157,7 +157,7 @@ class OrderCancelControllerTest {
 	@DisplayName("실패: 서버 내부 오류")
 	void cancelOrder_InternalServerError() throws Exception {
 		// Given: 서비스에서 예상하지 못한 오류 발생
-		when(orderService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
+		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
 				.thenThrow(new RuntimeException("Unexpected error"));
 
 		// When & Then: 500 응답 반환
