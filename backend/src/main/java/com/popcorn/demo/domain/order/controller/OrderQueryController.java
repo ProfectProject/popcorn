@@ -16,6 +16,7 @@ import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  */
 @Tag(name = "Order", description = "주문 관련 API")
 @RestController
+@ApiVersion("v1")
 @RequestMapping("/api/v1/orders")
 @Slf4j
 @RequiredArgsConstructor

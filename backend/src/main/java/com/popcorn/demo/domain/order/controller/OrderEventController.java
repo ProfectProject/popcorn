@@ -17,10 +17,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.event.BaseOrderEvent;
 import com.popcorn.demo.domain.order.event.OrderEventStore;
 import com.popcorn.demo.domain.order.event.OrderEventMetrics;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -32,7 +34,9 @@ import lombok.RequiredArgsConstructor;
  * - 이벤트 재생 및 디버깅 지원
  * - 이벤트 시스템 헬스체크
  */
+@Hidden
 @RestController
+@ApiVersion("v1")
 @RequestMapping("/api/v1/orders/events")
 @RequiredArgsConstructor
 public class OrderEventController {

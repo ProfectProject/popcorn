@@ -29,6 +29,7 @@ import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.common.versioning.ApiVersion;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ import jakarta.validation.Valid;
  */
 @Tag(name = "Order", description = "주문 관련 API")
 @RestController
+@ApiVersion("v1")
 @RequestMapping("/api/v1/orders")
 @Slf4j
 @RequiredArgsConstructor

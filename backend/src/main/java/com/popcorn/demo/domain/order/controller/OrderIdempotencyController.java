@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.cache.IdempotencyCacheStats;
 import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.versioning.ApiVersion;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -23,7 +25,9 @@ import lombok.RequiredArgsConstructor;
  * - 캐시 관리 (전체 삭제, 특정 키 삭제)
  * - 운영 모니터링 지원
  */
+@Hidden
 @RestController
+@ApiVersion("v1")
 @RequestMapping("/api/v1/orders/idempotency")
 @RequiredArgsConstructor
 public class OrderIdempotencyController {
