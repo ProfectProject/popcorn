@@ -1,0 +1,85 @@
+package com.popcorn.demo.domain.popup.controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import com.popcorn.demo.common.dto.BaseError;
+import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.demo.domain.popup.exception.PopupException;
+
+import lombok.extern.slf4j.Slf4j;
+
+@RestControllerAdvice
+@Slf4j
+public class PopupExceptionHandler {
+
+	@ExceptionHandler(PopupException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleBaseException(PopupException ex) {
+		logBusinessException(ex);
+		String message = getUserFriendlyMessage(ex);
+		BaseResponse<BaseError> response = BaseResponse.error(ex.getResponseCode(), message);
+		return ResponseEntity.status(ex.getResponseCode().getHttpStatus()).body(response);
+	}
+
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleValidationException(MethodArgumentNotValidException ex) {
+		String message = ex.getBindingResult().getFieldErrors().stream()
+				.map(error -> error.getField() + ": " + error.getDefaultMessage())
+				.findFirst()
+				.orElse("입력값이 올바르지 않습니다.");
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
+		BaseResponse<BaseError> response = BaseResponse.error(error);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+	}
+
+	@ExceptionHandler(BindException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleBindException(BindException ex) {
+		String message = ex.getBindingResult().getFieldErrors().stream()
+				.map(error -> error.getField() + ": " + error.getDefaultMessage())
+				.findFirst()
+				.orElse("입력값이 올바르지 않습니다.");
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
+		BaseResponse<BaseError> response = BaseResponse.error(error);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+		String message = String.format("잘못된 %s 형식입니다: %s",
+				ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "요청",
+				ex.getValue());
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
+		BaseResponse<BaseError> response = BaseResponse.error(error);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+	}
+
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex) {
+		log.error("🚨 팝업 처리 중 오류 발생 - 타입: {}, 메시지: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
+		BaseResponse<BaseError> response = BaseResponse.error(CommonResponseCode.INTERNAL_ERROR, "일시적인 오류가 발생했습니다.");
+		return ResponseEntity.status(CommonResponseCode.INTERNAL_ERROR.getHttpStatus()).body(response);
+	}
+
+	private void logBusinessException(PopupException ex) {
+		if (ex.getResponseCode().getHttpStatus() >= 500) {
+			log.error("🚨 팝업 서버 오류 - 코드: {}, 메시지: {}", ex.getResponseCode().getCode(), ex.getMessage(), ex);
+		} else {
+			log.warn("⚠️ 팝업 요청 오류 - 코드: {}, 메시지: {}", ex.getResponseCode().getCode(), ex.getMessage());
+		}
+	}
+
+	private String getUserFriendlyMessage(PopupException ex) {
+		if (ex.getResponseCode() == com.popcorn.demo.domain.popup.dto.PopupResponseCode.POPUP_NOT_FOUND) {
+			return "팝업 정보를 찾을 수 없습니다.";
+		}
+		if (ex.getResponseCode() == com.popcorn.demo.domain.popup.dto.PopupResponseCode.INVALID_REQUEST) {
+			return "요청을 확인해 주세요.";
+		}
+		return ex.getMessage();
+	}
+}
