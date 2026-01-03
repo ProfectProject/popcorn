@@ -146,4 +146,46 @@ public class OrderException extends BaseException {
 		return new OrderException(OrderResponseCode.ALREADY_CANCELED);
 	}
 
+	// ================ 새로운 비즈니스 규칙 예외들 ================
+
+	public static OrderException tooManyItems() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException quantityLimitExceeded() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException belowMinimumOrderAmount() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException aboveMaximumOrderAmount() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException invalidOrderItemCombination() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException orderOutsideBusinessHours() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException orderCannotBeCancelled() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException customerCannotCancelOrder() {
+		return new OrderException(CommonResponseCode.FORBIDDEN);
+	}
+
+	public static OrderException cancellationTimeExpired() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
+	public static OrderException reasonRequiredForRejectionOrCancellation() {
+		return new OrderException(CommonResponseCode.INVALID_REQUEST);
+	}
+
 }

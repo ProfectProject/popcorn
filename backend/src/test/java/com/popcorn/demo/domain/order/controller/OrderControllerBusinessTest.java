@@ -24,7 +24,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
-import com.popcorn.demo.domain.order.service.OrderService;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.global.config.CommonConfig;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
@@ -51,16 +52,18 @@ class OrderControllerBusinessTest {
 
 	private ObjectMapper objectMapper;
 
-	private OrderService orderService;
+	private OrderCommandService orderCommandService;
+	private OrderQueryService orderQueryService;
 
 	@BeforeEach
 	void setUp() {
-		orderService = Mockito.mock(OrderService.class);
+		orderCommandService = Mockito.mock(OrderCommandService.class);
+		orderQueryService = Mockito.mock(OrderQueryService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// 비즈니스 테스트 - 전체 시나리오 테스트를 위해 Command와 Query 컨트롤러 모두 설정
-		OrderCommandController commandController = new OrderCommandController(orderService, objectMapper);
-		OrderQueryController queryController = new OrderQueryController(orderService);
+		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		OrderQueryController queryController = new OrderQueryController(orderQueryService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -104,7 +107,7 @@ class OrderControllerBusinessTest {
 					))
 					.build();
 
-			when(orderService.createOrder(any())).thenReturn(expectedReservation);
+			when(orderCommandService.createOrder(any())).thenReturn(expectedReservation);
 
 			// When: 고객이 팝콘 예약을 요청한다
 			String 고객의_예약요청 = """
@@ -136,7 +139,7 @@ class OrderControllerBusinessTest {
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderType").value("RESERVATION"));
 
 			// 비즈니스 검증: 주문 서비스가 올바른 예약 로직을 수행했는지 확인
-			verify(orderService, times(1)).createOrder(any());
+			verify(orderCommandService, times(1)).createOrder(any());
 
 			log.info("✅ 고객 팝콘 예약이 성공적으로 접수되었습니다");
 		}
@@ -147,7 +150,7 @@ class OrderControllerBusinessTest {
 			log.info("🎯 비즈니스 테스트: 매진된 시간대 예약 시도 시나리오");
 
 			// Given: 해당 시간대가 이미 매진된 상황
-			when(orderService.createOrder(any()))
+			when(orderCommandService.createOrder(any()))
 					.thenThrow(OrderException.emptyItems()); // 실제로는 "매진" 예외가 더 적절
 
 			// When: 고객이 매진된 시간대에 예약을 시도한다
@@ -185,7 +188,7 @@ class OrderControllerBusinessTest {
 			log.info("🎯 비즈니스 테스트: 잘못된 수량 예약 시도 시나리오");
 
 			// Given: 비즈니스 규칙상 허용되지 않는 수량 (예: 0개 이하, 최대 수량 초과)
-			when(orderService.createOrder(any()))
+			when(orderCommandService.createOrder(any()))
 					.thenThrow(OrderException.invalidQty());
 
 			// When: 고객이 잘못된 수량으로 예약을 시도한다
@@ -233,7 +236,7 @@ class OrderControllerBusinessTest {
 					.status(OrderStatus.OWNER_ACCEPTED)
 					.build();
 
-			when(orderService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
+			when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
 					.thenReturn(승인된_예약);
 
 			// When: 점주가 예약 요청을 승인한다
@@ -254,7 +257,7 @@ class OrderControllerBusinessTest {
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
 
 			// 비즈니스 검증: 승인 프로세스가 올바르게 수행되었는지 확인
-			verify(orderService, times(1)).updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인");
+			verify(orderCommandService, times(1)).updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인");
 
 			log.info("✅ 점주의 예약 승인 처리가 성공적으로 완료되었습니다");
 		}
@@ -266,7 +269,7 @@ class OrderControllerBusinessTest {
 
 			// Given: 이미 완료된 예약을 다시 변경하려는 상황 (비즈니스 규칙 위반)
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-			when(orderService.updateStatus(orderId, "READY", "reason"))
+			when(orderCommandService.updateStatus(orderId, "READY", "reason"))
 					.thenThrow(OrderException.invalidStatusTransition());
 
 			// When: 점주가 허용되지 않은 상태 변경을 시도한다

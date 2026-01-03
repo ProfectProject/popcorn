@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.common.cache.IdempotencyCache;
+import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
@@ -42,22 +42,39 @@ public class OrderCommandService {
 	private final OrderDomainService orderDomainService;
 	private final OrderRepository orderRepository;
 	private final OrderItemPriceService orderItemPriceService;
-	private final IdempotencyCache idempotencyCache;
+	private final IdempotencyService idempotencyService;
 	private final AsyncEventPublisher asyncEventPublisher;
 	private final OrderValidationService orderValidationService;
 
 	/**
-	 * 주문 생성 (최적화된 비동기 처리)
+	 * 주문 생성 (향상된 멱등성 처리)
 	 */
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public CreateOrderResponse createOrder(CreateOrderCommand command) {
 		log.info("🎯 주문 생성 시작 - 사용자: {}, 멱등성키: {}", command.getUserId(), command.getIdempotencyKey());
 
-		String idempotencyKey = normalizeIdempotencyKey(command.getIdempotencyKey());
+		// 향상된 멱등성 처리로 주문 생성
+		IdempotencyService.IdempotencyResult<CreateOrderResponse> result =
+			idempotencyService.processRequest(
+				command.getIdempotencyKey(),
+				() -> executeOrderCreation(command),
+				CreateOrderResponse.class
+			);
 
-		// 멱등성 검증
-		checkIdempotency(command.getIdempotencyKey(), idempotencyKey);
+		if (result.isCached()) {
+			log.info("✨ 멱등성 캐시에서 응답 반환 - 사용자: {}, 실행시간: {}",
+					command.getUserId(), result.getExecutedAt());
+		} else {
+			log.info("🎉 새로운 주문 생성 완료 - 사용자: {}", command.getUserId());
+		}
 
+		return result.getResult();
+	}
+
+	/**
+	 * 실제 주문 생성 로직 (멱등성 서비스가 호출)
+	 */
+	private CreateOrderResponse executeOrderCreation(CreateOrderCommand command) throws Exception {
 		// 주문 항목 변환 및 검증
 		List<OrderItem> orderItems = convertToOrderItems(command.getItems());
 		OrderType orderType = OrderType.valueOf(command.getOrderType());
@@ -92,11 +109,6 @@ public class OrderCommandService {
 
 		// 동기 저장 (트랜잭션 내)
 		Order savedOrder = orderRepository.save(order);
-
-		// 멱등성 마킹
-		if (idempotencyKey != null) {
-			idempotencyCache.mark(idempotencyKey);
-		}
 
 		// 주문 아이템 저장
 		List<OrderItem> itemsWithOrderId = savedOrder.getOrderItems().stream()
@@ -171,21 +183,6 @@ public class OrderCommandService {
 
 	// ================ 내부 헬퍼 메서드들 ================
 
-	private void checkIdempotency(String rawKey, String normalizedKey) {
-		if (normalizedKey == null) {
-			return;
-		}
-		if (idempotencyCache.isDuplicate(normalizedKey)) {
-			log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", normalizedKey);
-			throw OrderException.duplicateIdempotencyKey();
-		}
-		Optional<Order> existingOrder = orderRepository.findByIdempotencyKey(rawKey);
-		if (orderDomainService.isDuplicateOrder(existingOrder, rawKey)) {
-			log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", rawKey);
-			idempotencyCache.mark(normalizedKey);
-			throw OrderException.duplicateIdempotencyKey();
-		}
-	}
 
 	private List<OrderItem> convertToOrderItems(List<CreateOrderCommand.OrderItemCommand> itemCommands) {
 		return itemCommands.stream()
@@ -228,13 +225,6 @@ public class OrderCommandService {
 		throw OrderException.invalidRequest();
 	}
 
-	private String normalizeIdempotencyKey(String idempotencyKey) {
-		if (idempotencyKey == null) {
-			return null;
-		}
-		String trimmed = idempotencyKey.trim();
-		return trimmed.isEmpty() ? null : trimmed;
-	}
 
 	private int calculateTotalQuantity(List<OrderItem> orderItems) {
 		return orderItems.stream()
