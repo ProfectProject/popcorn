@@ -113,7 +113,7 @@
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
 | addr_id | UUID | YES | PK | 주소 ID |
-| user_id | BIGINT | YES | FK(user_id → p_users.id) | 사용자 ID (p_users.id) |
+| user_id | BIGINT | YES | FK(user_id → p_users.user_id) | 사용자 ID (p_users.id) |
 | addr_name | varchar(50) | YES |  | 주소 별칭 |
 | address1 | varchar(255) | YES |  | 기본 주소 |
 | address2 | varchar(255) |  |  | 상세 주소 |
@@ -135,7 +135,7 @@
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
 | store_id | UUID | YES | PK | 스토어 ID |
-| user_id | BIGINT | YES | FK(user_id → p_users.id) | 오너 사용자 ID |
+| user_id | BIGINT | YES | FK(user_id → p_users.user_id) | 오너 사용자 ID |
 | store_name | varchar(100) | YES |  | 스토어명 |
 | status | store_status | YES | DEFAULT DRAFT | 게시 상태 |
 | remark | varchar(500) |  |  | 비고/정지 사유 |
@@ -155,7 +155,7 @@
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
 | manager_id | UUID | YES | PK | 배정 ID |
-| store_id | UUID | YES | FK(store_id → p_stores.id) | 스토어 ID (p_stores.id) |
+| store_id | UUID | YES | FK(store_id → p_stores.store_id) | 스토어 ID (p_stores.id) |
 | user_id | BIGINT | YES | FK(user_id → p_users.id) | 매니저 사용자 ID (p_users.id) |
 | role | store_manager_role | YES |  | 매니저 역할 |
 | created_at | timestamp |  |  | 생성 시각 |
@@ -174,7 +174,7 @@
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
 | popup_id | UUID | YES | PK | 팝업 ID |
-| store_id | UUID | YES | FK(store_id → p_stores.id) | 스토어 ID |
+| store_id | UUID | YES | FK(store_id → p_stores.store_id) | 스토어 ID |
 | title | varchar(200) | YES |  | 제목 |
 | description | text |  |  | 설명 |
 | category | popup_category | YES |  | 카테고리 |
@@ -194,7 +194,7 @@
 
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
-| schedules_id | UUID | YES | PK | 스케줄 ID |
+| schedule_id | UUID | YES | PK | 스케줄 ID |
 | popup_id | UUID | YES | FK(popup_id → p_popups.popup_id) | 팝업 ID |
 | start_at | timestamp | YES |  | 시작 시각 |
 | end_at | timestamp | YES |  | 종료 시각 |
@@ -216,8 +216,8 @@
 | --- | --- | --- | --- | --- |
 | schedule_option_id | UUID | YES | PK | 옵션 ID |
 | schedule_id | UUID | YES | FK(schedule_id → p_popup_schedules.id) | 스케줄 ID |
-| name | varchar(100) | YES |  | 옵션명 |
-| code | varchar(20) | YES |  | 옵션 코드 |
+| option_name | varchar(100) | YES |  | 옵션명 |
+| option_code | varchar(20) | YES |  | 옵션 코드 |
 | price | int | YES |  | 가격 |
 | capacity | int | YES |  | 총 수량 |
 | remaining_capacity | int | YES |  | 잔여 수량 |
@@ -240,7 +240,7 @@
 | --- | --- | --- | --- | --- |
 | goods_id | UUID | YES |  | 굿즈 ID |
 | popup_id | UUID | YES | FK(popup_id → p_popups.popup_id) | 팝업 ID |
-| sku | varchar(64) |  |  | 재고 관리 최소 단위 |
+| stock_unit | varchar(64) |  |  | 재고 관리 최소 단위 |
 | goods_name | varchar(100) | YES |  | 이름 |
 | goods_price | int | YES |  | 가격 |
 | stock | int | YES |  | 재고 |
@@ -262,8 +262,8 @@
 | --- | --- | --- | --- | --- |
 | order_id | UUID | YES | PK | 주문 ID |
 | order_no | varchar(32) |  | UNIQUE | 주문 번호 |
-| customer_id | BIGINT | YES | FK(customer_id → p_users.customer_id) | 고객 ID |
-| store_id | UUID | YES | FK(store_id → p_stores.id) | 스토어 ID (p_stores.id) |
+| user_id | BIGINT | YES | FK(user_id → p_users.user_id) | 고객 ID |
+| store_id | UUID | YES | FK(store_id → p_stores.store_id) | 스토어 ID (p_stores.id) |
 | status | order_status | YES |  | 주문 상태 |
 | cancelable_until | timestamp |  |  | 취소 가능 시각 |
 | total_amount | int | YES |  | 총 금액 |
@@ -304,7 +304,7 @@
 
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
-| id | UUID | YES | PK | 결제 ID |
+| payments_id | UUID | YES | PK | 결제 ID |
 | order_id | UUID | YES | FK(order_id → p_orders.order_id) | 주문 ID |
 | method | payment_method | YES |  | 결제 수단 |
 | status | payment_status | YES |  | 결제 상태 |
@@ -326,7 +326,7 @@
 
 | 필드 | 타입 | NOT NULL | 제약 | 설명 |
 | --- | --- | --- | --- | --- |
-| id | UUID | YES | PK | 주문 상태 이력 ID |
+| order_status_id | UUID | YES | PK | 주문 상태 이력 ID |
 | order_id | UUID | YES | FK(order_id → p_orders.order_id) | 주문 ID |
 | from_status | order_status | YES |  | 이전 상태 |
 | to_status | order_status | YES |  | 변경 상태 |
