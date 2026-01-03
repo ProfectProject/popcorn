@@ -58,7 +58,7 @@ public abstract class OrderControllerTestBase {
      * 최적화된 MockMvc 생성 (재사용 가능한 설정)
      */
     private MockMvc createOptimizedMockMvc() {
-        return MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+        return MockMvcBuilders.standaloneSetup(new OrderCommandController(orderService, objectMapper))
                 .setControllerAdvice(new OrderExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .alwaysDo(result -> log.debug("테스트 실행 결과: {}",
