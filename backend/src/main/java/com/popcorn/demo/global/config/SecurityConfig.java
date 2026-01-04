@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -26,11 +27,11 @@ public class SecurityConfig {
 	@Profile({"local", "test"})
 	public SecurityFilterChain localSecurityFilterChain(HttpSecurity http) throws Exception {
 		return http
-				.csrf(csrf -> csrf.disable())
+				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(auth -> auth
 						.anyRequest().permitAll())
-				.httpBasic(basic -> basic.disable())
-				.formLogin(form -> form.disable())
+				.httpBasic(AbstractHttpConfigurer::disable)
+				.formLogin(AbstractHttpConfigurer::disable)
 				.build();
 	}
 
@@ -42,7 +43,7 @@ public class SecurityConfig {
 	@Profile("dev")
 	public SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
 		return http
-				.csrf(csrf -> csrf.disable())
+				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(
 								"/swagger-ui/**",
@@ -55,7 +56,7 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health").permitAll()
 						.anyRequest().authenticated()
 				)
-				.httpBasic(basic -> basic.disable())
+				.httpBasic(AbstractHttpConfigurer::disable)
 				.build();
 	}
 
@@ -68,13 +69,13 @@ public class SecurityConfig {
 	@Profile("prod")
 	public SecurityFilterChain prodSecurityFilterChain(HttpSecurity http) throws Exception {
 		return http
-				.csrf(csrf -> csrf.disable())
+				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/actuator/health").permitAll()
 						.requestMatchers("/api/**").authenticated()
 						.anyRequest().denyAll()
 				)
-				.httpBasic(basic -> basic.disable())
+				.httpBasic(AbstractHttpConfigurer::disable)
 				.build();
 	}
 }
