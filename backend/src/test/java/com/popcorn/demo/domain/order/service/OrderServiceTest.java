@@ -21,9 +21,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.popcorn.demo.common.cache.IdempotencyCache;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
@@ -52,6 +54,9 @@ class OrderServiceTest {
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
 
+	@Mock
+	private JdbcTemplate jdbcTemplate;
+
 	private OrderService orderService;
 
 	@BeforeEach
@@ -61,7 +66,8 @@ class OrderServiceTest {
 				orderRepository,
 				orderItemPriceService,
 				idempotencyCache,
-				eventPublisher
+				eventPublisher,
+				jdbcTemplate
 		);
 	}
 
@@ -143,6 +149,50 @@ class OrderServiceTest {
 					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.INVALID_STATUS_TRANSITION));
 		}
+
+		@Test
+		@DisplayName("주문 상태 변경 - 주문 없음")
+		void updateStatus_orderNotFound() {
+			UUID orderId = UUID.randomUUID();
+			when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+					.isInstanceOf(OrderException.class)
+					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+							.isEqualTo(OrderResponseCode.ORDER_NOT_FOUND));
+		}
+
+		@Test
+		@DisplayName("주문 상태 변경 - 이미 취소됨")
+		void updateStatus_alreadyCanceled() {
+			UUID orderId = UUID.randomUUID();
+			Order order = Order.builder()
+					.id(orderId)
+					.status(OrderStatus.CANCELLED)
+					.build();
+			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+					.isInstanceOf(OrderException.class)
+					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+							.isEqualTo(OrderResponseCode.ALREADY_CANCELED));
+		}
+
+		@Test
+		@DisplayName("주문 상태 변경 - 상태 문자열 오류")
+		void updateStatus_invalidStatus() {
+			UUID orderId = UUID.randomUUID();
+			Order order = Order.builder()
+					.id(orderId)
+					.status(OrderStatus.REQUESTED)
+					.build();
+			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+			assertThatThrownBy(() -> orderService.updateStatus(orderId, "NOT_A_STATUS", "reason"))
+					.isInstanceOf(OrderException.class)
+					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+							.isEqualTo(CommonResponseCode.INVALID_REQUEST));
+		}
 	}
 
 	@Nested
@@ -180,6 +230,38 @@ class OrderServiceTest {
 					.isInstanceOf(OrderException.class)
 					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.DUPLICATE_IDEMPOTENCY_KEY));
+
+			verify(orderRepository, never()).save(any());
+		}
+
+		@Test
+		@DisplayName("주문 생성 - 검증 실패 시 저장 안 함")
+		void createOrder_invalidRequest_interaction() {
+			CreateOrderCommand command = CreateOrderCommand.builder()
+					.userId(1001L)
+					.storeId(UUID.randomUUID())
+					.productId(UUID.randomUUID())
+					.orderType("RESERVATION")
+					.idempotencyKey("test-key-001")
+					.items(List.of(
+							CreateOrderCommand.OrderItemCommand.builder()
+									.orderItemType(OrderItemType.RESERVATION)
+									.sessionId(UUID.randomUUID())
+									.optionId(UUID.randomUUID())
+									.qty(0)
+									.unitPrice(1000)
+									.build()
+					))
+					.build();
+
+			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
+			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
+			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
+
+			assertThatThrownBy(() -> orderService.createOrder(command))
+					.isInstanceOf(OrderException.class)
+					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+							.isEqualTo(CommonResponseCode.INVALID_REQUEST));
 
 			verify(orderRepository, never()).save(any());
 		}
