@@ -161,11 +161,9 @@ public class OrderQueryService {
 	 * 고객용 주문 상태 단건 조회
 	 */
 	public OrderStatusDto getOrderStatusForCustomer(UUID orderId, Long customerId) {
-		if (customerId == null) {
-			throw OrderException.forbidden();
-		}
-
-		OrderStatusView view = orderQueryRepository.findOrderStatus(orderId, customerId);
+		OrderStatusView view = (customerId == null)
+				? orderQueryRepository.findOrderStatusByOrderId(orderId)
+				: orderQueryRepository.findOrderStatus(orderId, customerId);
 		if (view == null) {
 			throw OrderException.orderNotFound();
 		}

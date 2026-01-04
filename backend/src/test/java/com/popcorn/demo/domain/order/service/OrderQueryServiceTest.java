@@ -12,7 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.config.OrderProperties;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
@@ -23,8 +22,8 @@ import com.popcorn.demo.domain.order.repository.view.OrderStatusView;
 class OrderQueryServiceTest {
 
 	@Test
-	@DisplayName("주문 상태 조회 - customerId 없으면 forbidden")
-	void getOrderStatusForCustomer_throwsWhenCustomerIdMissing() {
+	@DisplayName("주문 상태 조회 - customerId 없으면 주문 기준으로 조회")
+	void getOrderStatusForCustomer_allowsWhenCustomerIdMissing() {
 		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
 		OrderProperties properties = new OrderProperties();
 		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
@@ -32,10 +31,45 @@ class OrderQueryServiceTest {
 		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
 
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
-		OrderException exception = assertThrows(OrderException.class,
-				() -> service.getOrderStatusForCustomer(orderId, null));
+		LocalDateTime cancelableUntil = LocalDateTime.of(2025, 1, 1, 10, 30);
+		LocalDateTime updatedAt = LocalDateTime.of(2025, 1, 1, 10, 5);
 
-		assertEquals(CommonResponseCode.FORBIDDEN, exception.getResponseCode());
+		when(repository.findOrderStatusByOrderId(eq(orderId)))
+				.thenReturn(new OrderStatusView() {
+					@Override
+					public UUID getOrderId() {
+						return orderId;
+					}
+
+					@Override
+					public String getOrderNo() {
+						return "O20251231-001001";
+					}
+
+					@Override
+					public String getStatus() {
+						return "REQUESTED";
+					}
+
+					@Override
+					public String getPaymentStatus() {
+						return "READY";
+					}
+
+					@Override
+					public LocalDateTime getCancelableUntil() {
+						return cancelableUntil;
+					}
+
+					@Override
+					public LocalDateTime getUpdatedAt() {
+						return updatedAt;
+					}
+				});
+
+		OrderStatusDto response = service.getOrderStatusForCustomer(orderId, null);
+
+		assertEquals(orderId, response.getOrderId());
 	}
 
 	@Test

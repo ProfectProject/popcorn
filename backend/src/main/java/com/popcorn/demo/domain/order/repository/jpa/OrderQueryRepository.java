@@ -115,6 +115,20 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			@Param("customerId") Long customerId);
 
 	@Query(value = """
+			SELECT o.id AS orderId,
+			       o.order_no AS orderNo,
+			       o.status AS status,
+			       p.status AS paymentStatus,
+			       o.cancelable_until AS cancelableUntil,
+			       o.updated_at AS updatedAt
+			  FROM p_orders o
+			  LEFT JOIN p_payments p ON p.order_id = o.id AND p.deleted_at IS NULL
+			 WHERE o.deleted_at IS NULL
+			   AND o.id = :orderId
+			""", nativeQuery = true)
+	OrderStatusView findOrderStatusByOrderId(@Param("orderId") UUID orderId);
+
+	@Query(value = """
 			SELECT COUNT(1)
 			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
