@@ -2,6 +2,8 @@ package com.popcorn.demo.domain.store.service;
 
 import com.popcorn.demo.domain.store.dto.CreateStoreRequest;
 import com.popcorn.demo.domain.store.dto.StoreCreatedDto;
+import com.popcorn.demo.domain.store.dto.StoreDetailDto;
+import com.popcorn.demo.domain.store.dto.StoreListDto;
 import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
@@ -10,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -36,6 +40,27 @@ public class StoreService {
         
         log.info("[STORE_CREATED] storeId={}", savedStore.getId());
         return mapToDto(savedStore);
+    }
+
+    @Transactional(readOnly = true)
+    public StoreListDto getStore(Long ownerId) {
+        log.info("[STORE_GET] userID={}", ownerId);
+
+
+    }
+
+    @Transactional(readOnly = true)
+    public StoreDetailDto getStoreDetail(Long userId, UUID storeId) {
+        log.info("[STORE_DETAIL_GET] userId={}, storeId={}", userId, storeId);
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> StoreException.storeNotFound(storeId));
+
+        if (!store.isOwner(userId)) {
+            throw StoreException.accessDenied(userId, storeId);
+        }
+
+        return mapToDetailDto(store);
     }
 
     private String validateAndTrimName(String name) {
@@ -94,6 +119,24 @@ public class StoreService {
                 .publishStatus(store.getPublishStatus())
                 .createdAt(store.getCreatedAt())
                 .createdBy(store.getCreatedBy())
+                .build();
+    }
+
+    private StoreListDto mapTODto(Store store) {
+        return StoreListDto.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .publishStatus(store.getPublishStatus())
+                .createdAt(store.getCreatedAt())
+                .build();
+    }
+
+    private StoreDetailDto mapToDetailDto(Store store) {
+        return StoreDetailDto.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .publishStatus(store.getPublishStatus())
+                .createdAt(store.getCreatedAt())
                 .build();
     }
 }
