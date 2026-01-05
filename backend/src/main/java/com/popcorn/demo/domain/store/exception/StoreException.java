@@ -4,18 +4,8 @@ import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.store.dto.StoreResponseCode;
 import com.popcorn.demo.global.exception.BaseException;
 
-/**
- * 스토어 도메인 예외 클래스
- * Global 패키지의 BaseException을 상속받아 표준화된 예외 처리를 제공합니다.
- *
- * 제공하는 정적 팩토리 메서드들:
- * - 검증 실패 예외들 (400 Bad Request)
- * - 리소스 없음 예외들 (404 Not Found)
- * - 비즈니스 규칙 위반 예외들 (409 Conflict)
- */
 public class StoreException extends BaseException {
 
-    // 공통 응답 코드 생성자
     private StoreException(CommonResponseCode responseCode) {
         super(responseCode);
     }
@@ -24,7 +14,6 @@ public class StoreException extends BaseException {
         super(responseCode, cause);
     }
 
-    // Store 도메인 응답 코드 생성자
     private StoreException(StoreResponseCode responseCode) {
         super(responseCode);
     }

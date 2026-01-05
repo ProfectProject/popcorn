@@ -29,24 +29,23 @@ public class StoreService {
 
     @Transactional
     public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
-        log.info("Creating store: ownerId={}, storeName={}", ownerId, request.getName());
+        log.info("[STORE_CREATE_START] ownerId={}, storeName={}", ownerId, request.getName());
         
-        // 기본 검증
         validateStoreCreation(ownerId, request.getName());
         
-        // 중복 검사
         Optional<Store> existingStore = storeRepository.findByName(request.getName().trim());
         if (existingStore.isPresent() && !existingStore.get().isDeleted()) {
+            log.warn("[STORE_CREATE_DUPLICATE] storeName={}", request.getName());
             throw StoreException.duplicateStoreName(request.getName());
         }
         
-        // 한도 검사
         long storeCount = storeRepository.countByOwnerId(ownerId);
         if (storeCount >= MAX_STORES_PER_OWNER) {
+            log.warn("[STORE_CREATE_LIMIT_EXCEEDED] ownerId={}, currentCount={}, maxAllowed={}", 
+                     ownerId, storeCount, MAX_STORES_PER_OWNER);
             throw StoreException.storeCreationLimitExceeded(ownerId, MAX_STORES_PER_OWNER);
         }
         
-        // 스토어 생성
         Store store = Store.builder()
                 .name(request.getName().trim())
                 .ownerId(ownerId)
@@ -57,7 +56,7 @@ public class StoreService {
 
         Store savedStore = storeRepository.save(store);
         
-        log.info("Store created successfully: storeId={}", savedStore.getId());
+        log.info("[STORE_CREATE_SUCCESS] storeId={}, ownerId={}", savedStore.getId(), ownerId);
 
         return StoreCreatedDto.builder()
                 .id(savedStore.getId())
@@ -76,21 +75,26 @@ public class StoreService {
 
     private void validateStoreName(String name) {
         if (name == null || name.trim().isEmpty()) {
+            log.warn("[STORE_VALIDATION_FAILED] Empty store name");
             throw StoreException.emptyName();
         }
         
         String trimmedName = name.trim();
         if (trimmedName.length() < MIN_STORE_NAME_LENGTH || trimmedName.length() > MAX_STORE_NAME_LENGTH) {
+            log.warn("[STORE_VALIDATION_FAILED] Invalid name length: actual={}, min={}, max={}", 
+                     trimmedName.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
             throw StoreException.invalidNameLength(trimmedName.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
         }
         
         if (containsInvalidCharacters(trimmedName)) {
+            log.warn("[STORE_VALIDATION_FAILED] Invalid characters in name: {}", trimmedName);
             throw StoreException.invalidNameFormat(trimmedName);
         }
     }
 
     private void validateOwnerId(Long ownerId) {
         if (ownerId == null || ownerId <= 0) {
+            log.warn("[STORE_VALIDATION_FAILED] Invalid ownerId: {}", ownerId);
             throw StoreException.ownerNotFound();
         }
     }
