@@ -1,9 +1,9 @@
-INSERT INTO p_users (user_id, password, name, email, role, created_at, updated_at)
-VALUES (1, 'test', 'QR Demo User', 'qr_demo@example.com', 'CUSTOMER'::user_role, now(), now())
+INSERT INTO p_users (id, email, password, phone, name, role, is_active, created_at, updated_at)
+VALUES (1, 'qr_demo@example.com', 'test', '01000000000', 'QR Demo User', 'USER', TRUE, now(), now())
 ON CONFLICT DO NOTHING;
 
-INSERT INTO p_stores (store_id, user_id, store_name, status)
-VALUES ('00000000-0000-0000-0000-000000000001', 1, 'QR Demo Store', 'ACTIVE'::store_status)
+INSERT INTO p_stores (id, owner_id, name, publish_status, created_at, updated_at)
+VALUES ('00000000-0000-0000-0000-000000000001'::uuid, 1, 'QR Demo Store', 'PUBLISHED', now(), now())
 ON CONFLICT DO NOTHING;
 
 INSERT INTO p_orders (id, order_no, customer_id, store_id, product_id, order_type, status, cancelable_until, total_amount, idempotency_key, created_at, updated_at, version)

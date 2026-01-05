@@ -64,8 +64,8 @@ BEGIN
 			NOW()
 		FROM (
 			VALUES
-				('00000000-0000-0000-0000-000000000180'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Reservation', '예약형 팝업', 'POPUP'::product_category, 'OPEN', FALSE, 101),
-				('00000000-0000-0000-0000-000000000181'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Merch', '머치형 팝업', 'POPUP'::product_category, 'OPEN', FALSE, 101)
+				('00000000-0000-0000-0000-000000000180'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Reservation', '예약형 팝업', 'POPUP'::product_category, 'OPEN'::product_status, FALSE, 101),
+				('00000000-0000-0000-0000-000000000181'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Merch', '머치형 팝업', 'POPUP'::product_category, 'OPEN'::product_status, FALSE, 101)
 		) v(id, store_id, title, description, category, status, is_hidden, region_id)
 		WHERE EXISTS (
 			SELECT 1 FROM p_stores s WHERE s.id = v.store_id
@@ -105,8 +105,8 @@ BEGIN
 			NOW()
 		FROM (
 			VALUES
-				('00000000-0000-0000-0000-000000000180'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Reservation', '예약형 팝업', 'POPUP'::product_category, 'OPEN', FALSE),
-				('00000000-0000-0000-0000-000000000181'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Merch', '머치형 팝업', 'POPUP'::product_category, 'OPEN', FALSE)
+				('00000000-0000-0000-0000-000000000180'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Reservation', '예약형 팝업', 'POPUP'::product_category, 'OPEN'::product_status, FALSE),
+				('00000000-0000-0000-0000-000000000181'::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'Seed Popup Merch', '머치형 팝업', 'POPUP'::product_category, 'OPEN'::product_status, FALSE)
 		) v(id, store_id, title, description, category, status, is_hidden)
 		WHERE EXISTS (
 			SELECT 1 FROM p_stores s WHERE s.id = v.store_id
