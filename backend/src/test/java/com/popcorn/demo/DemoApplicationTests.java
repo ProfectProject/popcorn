@@ -1,9 +1,9 @@
 package com.popcorn.demo;
 
-import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.SelectPackages;
 import org.junit.platform.suite.api.Suite;
 
 @Suite
-@SelectClasses(OrderApplicationTests.class)
+@SelectPackages("com.popcorn.demo")
 class DemoApplicationTests {
 }

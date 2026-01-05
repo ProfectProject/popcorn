@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.order.event;
 
 import java.util.UUID;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -26,8 +27,9 @@ public class OrderPostProcessingListener {
 
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	@Async("applicationTaskExecutor")
 	public void handle(OrderCreatedEvent event) {
-		Order order = event.order();
+		Order order = event.getOrder();
 		UUID orderId = order.getId();
 
 		log.info("🧩 주문 후처리 이벤트 처리 시작 - 주문ID: {}", orderId);

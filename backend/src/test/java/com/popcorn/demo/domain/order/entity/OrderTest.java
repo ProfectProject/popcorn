@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class OrderTest {
 
 	@Test
-	@DisplayName("Order number format includes prefix and date")
+	@DisplayName("주문 번호 형식에 접두사와 날짜 포함")
 	void orderNumberFormat() {
 		String orderNo = Order.generateOrderNo();
 
@@ -22,7 +22,7 @@ class OrderTest {
 	}
 
 	@Test
-	@DisplayName("Type checks and cancelable logic")
+	@DisplayName("타입 확인 및 취소 가능 로직")
 	void typeChecksAndCancelableLogic() {
 		UUID storeId = UUID.randomUUID();
 		UUID productId = UUID.randomUUID();
@@ -59,7 +59,7 @@ class OrderTest {
 	}
 
 	@Test
-	@DisplayName("Total quantity sums item quantities")
+	@DisplayName("총 수량은 아이템 수량 합계")
 	void totalQuantitySumsItems() {
 		UUID storeId = UUID.randomUUID();
 		UUID productId = UUID.randomUUID();

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class CreateOrderRequestTest {
 
 	@Test
-	@DisplayName("Reservation type checks and total quantity")
+	@DisplayName("예약 타입 검증 및 총 수량 계산")
 	void reservationTypeChecksAndTotalQuantity() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
@@ -44,7 +44,7 @@ class CreateOrderRequestTest {
 	}
 
 	@Test
-	@DisplayName("Purchase type checks with address requirement")
+	@DisplayName("구매 타입 검증 - 배송지 필수")
 	void purchaseTypeChecksWithAddress() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("PURCHASE")
@@ -70,7 +70,7 @@ class CreateOrderRequestTest {
 	}
 
 	@Test
-	@DisplayName("Mixed item types are not consistent")
+	@DisplayName("혼합 아이템 타입은 일관성 없음")
 	void mixedItemTypesAreNotConsistent() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
@@ -98,7 +98,7 @@ class CreateOrderRequestTest {
 	}
 
 	@Test
-	@DisplayName("Purchase request without address is invalid")
+	@DisplayName("배송지 없는 구매 요청은 유효하지 않음")
 	void purchaseRequestWithoutAddressIsInvalid() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("PURCHASE")
