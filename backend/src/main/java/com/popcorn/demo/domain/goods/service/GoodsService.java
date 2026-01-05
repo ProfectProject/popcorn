@@ -44,6 +44,12 @@ public class GoodsService {
         return new GoodsIdResponse(goods.getId());
     }
 
+    @Transactional(readOnly = true)
+    public GoodsItemResponse get(UUID popupId, UUID goodsId) {
+        GoodsVariant goods = getGoods(popupId, goodsId);
+        return GoodsItemResponse.from(goods);
+    }
+
     private GoodsVariant getGoods(UUID popupId, UUID goodsId) {
         return goodsVariantRepository
                 .findByIdAndPopupIdAndDeletedAtIsNull(goodsId, popupId)
