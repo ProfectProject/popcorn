@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
+import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
@@ -29,7 +30,6 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderException;
-
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderControllerTest {
@@ -44,15 +44,12 @@ class OrderControllerTest {
 	private OrderCommandService orderCommandService;
 	private OrderQueryService orderQueryService;
 
-	private ObjectMapper objectMapper;
-
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
 		orderQueryService = Mockito.mock(OrderQueryService.class);
-		objectMapper = new CommonConfig().objectMapper();
+		ObjectMapper objectMapper = new CommonConfig().objectMapper();
 
-		// Command와 Query 작업을 모두 테스트하므로 두 컨트롤러 모두 설정
 		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
 		OrderQueryController queryController = new OrderQueryController(orderQueryService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
@@ -119,6 +116,30 @@ class OrderControllerTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 조회 성공 (CUSTOMER)")
+	void getOrderStatus_success() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+		OrderStatusDto response = OrderStatusDto.builder()
+				.orderId(orderId)
+				.orderNo("O20251231-001001")
+				.status("REQUESTED")
+				.paymentStatus("READY")
+				.cancelableUntil(LocalDateTime.now().plusMinutes(15))
+				.updatedAt(LocalDateTime.now())
+				.build();
+
+		when(orderQueryService.getOrderStatusForCustomer(orderId, 1001L)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status", orderId)
+						.param("customerId", "1001")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.paymentStatus").value("READY"));
+	}
+
+	@Test
 	@DisplayName("주문 생성 실패 - 잘못된 수량")
 	void createOrder_fail_invalidQty() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderException.invalidQty());
@@ -138,7 +159,11 @@ class OrderControllerTest {
 	void createOrder_fail_productNotFound() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderException.productNotFound());
 
-		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, "00000000-0000-0000-0000-000000000999", 1);
+		String jsonRequest = buildReservationOrderRequest(
+				DEFAULT_STORE_ID,
+				"00000000-0000-0000-0000-000000000999",
+				1
+		);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -372,7 +397,7 @@ class OrderControllerTest {
 				.thenThrow(OrderException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
-						.param("storeId", "00000000-0000-0000-0000-000000000001"))
+						.param("storeId", DEFAULT_STORE_ID))
 				.andExpect(MockMvcResultMatchers.status().isForbidden())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(403))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("권한이 없습니다."));
@@ -459,5 +484,4 @@ class OrderControllerTest {
 				}
 				""".formatted(status, reason);
 	}
-
 }
