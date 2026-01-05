@@ -1,6 +1,6 @@
-package com.popcorn.demo.domain.merch.dto;
+package com.popcorn.demo.domain.goods.dto;
 
-import com.popcorn.demo.domain.merch.entity.MerchVariant;
+import com.popcorn.demo.domain.goods.entity.GoodsVariant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Builder;
@@ -8,28 +8,28 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class MerchItemResponse {
+public class GoodsItemResponse {
     private UUID id;
-    private UUID productId;
-    private String sku;
-    private String name;
-    private int price;
+    private UUID popupId;
+    private String stockUnit;
+    private String goodsName;
+    private int goodsPrice;
     private int stock;
-    private Boolean isHidden;
+    private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static MerchItemResponse from(MerchVariant merch) {
-        return MerchItemResponse.builder()
-                .id(merch.getId())
-                .productId(merch.getProductId())
-                .sku(merch.getSku())
-                .name(merch.getName())
-                .price(merch.getPrice())
-                .stock(merch.getStock())
-                .isHidden(merch.isHidden())
-                .createdAt(merch.getCreatedAt())
-                .updatedAt(merch.getUpdatedAt())
+    public static GoodsItemResponse from(GoodsVariant goods) {
+        return GoodsItemResponse.builder()
+                .id(goods.getId())
+                .popupId(goods.getPopupId())
+                .stockUnit(goods.getStockUnit())
+                .goodsName(goods.getGoodsName())
+                .goodsPrice(goods.getGoodsPrice())
+                .stock(goods.getStock())
+                .isActive(goods.isActive())
+                .createdAt(goods.getCreatedAt())
+                .updatedAt(goods.getUpdatedAt())
                 .build();
     }
 }
