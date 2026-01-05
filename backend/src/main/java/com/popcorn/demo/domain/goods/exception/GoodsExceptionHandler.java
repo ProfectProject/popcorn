@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.merch.exception;
+package com.popcorn.demo.domain.goods.exception;
 
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.ResponseCode;
@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
-public class MerchExceptionHandler {
+public class GoodsExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<BaseResponse<Void>> handleBaseException(BaseException exception) {
