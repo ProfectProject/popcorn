@@ -33,7 +33,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       u.phone AS customerPhone,
 			       o.store_id AS storeId,
 			       s.user_id AS storeOwnerId,
-			       COALESCE(MAX(ps.popup_id), MAX(gv.popup_id)) AS productId,
+			       COALESCE(MAX(ps.popup_id), MAX(gv.popup_id)) AS popupId,
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
@@ -59,7 +59,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			         ELSE NULL
 			       END AS orderItemType,
 			       og.schedule_id AS sessionOptionId,
-			       og.goods_variant_id AS merchVariantId,
+			       og.goods_variant_id AS goodsVariantId,
 			       og.qty AS qty,
 			       og.unit_price AS unitPrice,
 			       og.price AS lineAmount,
@@ -68,7 +68,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       ps.end_at AS sessionEndAt,
 			       gv.goods_name AS merchVariantName,
 			       gv.stock_unit AS merchSku,
-			       p.popup_id AS productId,
+			       p.popup_id AS popupId,
 			       p.title AS productTitle,
 			       p.category AS productCategory,
 			       p.status AS productStatus
@@ -157,21 +157,21 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND (:storeId IS NULL OR o.store_id = :storeId)
-			   AND (:productId IS NULL OR EXISTS (
+			   AND (:popupId IS NULL OR EXISTS (
 			        SELECT 1
 			          FROM p_order_goods og
 			          LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
 			          LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			         WHERE og.order_id = o.order_id
 			           AND og.deleted_at IS NULL
-			           AND COALESCE(ps.popup_id, gv.popup_id) = :productId
+			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
 			   ))
 			   AND (:status IS NULL OR o.status = :status)
 			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
 			""", nativeQuery = true)
 	long countStoreOrders(@Param("storeId") UUID storeId,
-			@Param("productId") UUID productId,
+			@Param("popupId") UUID popupId,
 			@Param("status") String status,
 			@Param("fromDate") LocalDateTime fromDate,
 			@Param("toDate") LocalDateTime toDate);
@@ -186,14 +186,14 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND (:storeId IS NULL OR o.store_id = :storeId)
-			   AND (:productId IS NULL OR EXISTS (
+			   AND (:popupId IS NULL OR EXISTS (
 			        SELECT 1
 			          FROM p_order_goods og
 			          LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
 			          LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			         WHERE og.order_id = o.order_id
 			           AND og.deleted_at IS NULL
-			           AND COALESCE(ps.popup_id, gv.popup_id) = :productId
+			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
 			   ))
 			   AND (:status IS NULL OR o.status = :status)
 			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
@@ -202,7 +202,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			 LIMIT :limit OFFSET :offset
 			""", nativeQuery = true)
 	List<StoreOrderReservationView> findStoreOrders(@Param("storeId") UUID storeId,
-			@Param("productId") UUID productId,
+			@Param("popupId") UUID popupId,
 			@Param("status") String status,
 			@Param("fromDate") LocalDateTime fromDate,
 			@Param("toDate") LocalDateTime toDate,
@@ -253,7 +253,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
-			       COALESCE(MAX(ps.popup_id), MAX(gv.popup_id)) AS productId,
+			       COALESCE(MAX(ps.popup_id), MAX(gv.popup_id)) AS popupId,
 			       o.store_id AS storeId,
 			       MAX(p.title) AS productTitle,
 			       MIN(ps.start_at) AS sessionStartAt,

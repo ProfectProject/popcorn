@@ -9,5 +9,5 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 public interface JpaOrderItemRepository extends JpaRepository<OrderItem, UUID> {
 	boolean existsByOrderIdAndSessionOptionIdIsNotNull(UUID orderId);
 
-	boolean existsByOrderIdAndMerchVariantIdIsNotNull(UUID orderId);
+	boolean existsByOrderIdAndGoodsVariantIdIsNotNull(UUID orderId);
 }
