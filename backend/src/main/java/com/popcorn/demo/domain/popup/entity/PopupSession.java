@@ -17,14 +17,14 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "p_product_sessions")
+@Table(name = "p_popup_schedules")
 public class PopupSession extends BaseEntity {
 
 	@Id
-	@Column(name = "id")
+	@Column(name = "schedule_id")
 	private UUID id;
 
-	@Column(name = "product_id")
+	@Column(name = "popup_id")
 	private UUID productId;
 
 	@Column(name = "start_at")
@@ -33,8 +33,17 @@ public class PopupSession extends BaseEntity {
 	@Column(name = "end_at")
 	private LocalDateTime endAt;
 
-	@Column(name = "status")
-	private String status;
+	@Column(name = "price")
+	private Integer price;
+
+	@Column(name = "capacity")
+	private Integer capacity;
+
+	@Column(name = "remaining_capacity")
+	private Integer remainingCapacity;
+
+	@Column(name = "is_active")
+	private boolean active;
 
 	@Column(name = "deleted_at")
 	private LocalDateTime deletedAt;
