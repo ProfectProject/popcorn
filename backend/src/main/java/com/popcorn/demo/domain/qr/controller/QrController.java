@@ -22,6 +22,7 @@ import com.popcorn.demo.domain.qr.service.QrCodeService;
 import lombok.RequiredArgsConstructor;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
@@ -42,6 +43,7 @@ public class QrController extends BaseController {
 	)
 	@PostMapping("/orders/{orderId}/qr")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> issueQr(
+			@Parameter(description = "주문 ID", example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId) {
 		QrCodeResponse response = qrCodeService.issue(orderId);
 		return ok(response);
@@ -53,6 +55,7 @@ public class QrController extends BaseController {
 	)
 	@GetMapping("/orders/{orderId}/qr")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> getQr(
+			@Parameter(description = "주문 ID", example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId) {
 		QrCodeResponse response = qrCodeService.get(orderId);
 		return ok(response);
