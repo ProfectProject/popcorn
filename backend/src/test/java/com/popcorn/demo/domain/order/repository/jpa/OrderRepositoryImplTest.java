@@ -187,6 +187,17 @@ class OrderRepositoryImplTest {
 		verify(orderStatusHistoryRepository).save(history);
 	}
 
+	@Test
+	@DisplayName("DeleteAllOrders - 모든 주문 데이터 삭제")
+	void deleteAllOrders_DeletesAllData() {
+		orderRepositoryImpl.deleteAllOrders();
+
+		// 순서대로 삭제되는지 검증
+		verify(orderStatusHistoryRepository).deleteAll();
+		verify(orderItemRepository).deleteAll();
+		verify(orderRepository).deleteAll();
+	}
+
 	private Order buildOrder(String orderNo, Long customerId) {
 		return Order.builder()
 				.id(UUID.randomUUID())

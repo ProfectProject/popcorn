@@ -56,10 +56,11 @@ class OrderControllerTest {
 		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		ObjectMapper objectMapper = new CommonConfig().objectMapper();
 
-		OrderCommandController commandController = new OrderCommandController(
-				orderCommandService, objectMapper, paymentCommandService);
-		OrderQueryController queryController = new OrderQueryController(orderQueryService);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
+		// Mock을 사용하여 컨트롤러 생성
+		mockMvc = MockMvcBuilders.standaloneSetup(
+				new OrderCommandController(orderCommandService, objectMapper, paymentCommandService),
+				new OrderQueryController(orderQueryService)
+		)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -508,7 +509,7 @@ class OrderControllerTest {
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
 						.param("storeId", storeId.toString())
-						.param("productId", productId.toString())
+						.param("popupId", productId.toString())
 						.param("status", "REQUESTED")
 						.param("page", "1")
 						.param("size", "20"))
@@ -530,7 +531,7 @@ class OrderControllerTest {
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
 						.param("storeId", storeId.toString())
-						.param("productId", productId.toString())
+						.param("popupId", productId.toString())
 						.param("page", "1")
 						.param("size", "20"))
 				.andExpect(MockMvcResultMatchers.status().isForbidden())
@@ -557,7 +558,7 @@ class OrderControllerTest {
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
 						.param("storeId", storeId.toString())
-						.param("productId", productId.toString())
+						.param("popupId", productId.toString())
 						.param("status", "NOT_A_STATUS")
 						.param("page", "1")
 						.param("size", "20"))
@@ -631,6 +632,18 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isBadRequest())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(400))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("잘못된 요청입니다."));
+	}
+
+	@Test
+	@DisplayName("모든 주문 데이터 삭제 성공")
+	void deleteAllOrders_success() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/orders/all")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data").value("모든 주문 데이터가 삭제되었습니다."));
+
+		verify(orderCommandService).deleteAllOrders();
 	}
 
 	private String buildReservationOrderRequest(String storeId, String popupId, int qty) {
