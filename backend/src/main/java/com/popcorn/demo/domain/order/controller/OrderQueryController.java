@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
@@ -45,7 +46,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/api/v1/orders")
 @Slf4j
 @RequiredArgsConstructor
-public class OrderQueryController {
+public class OrderQueryController extends BaseController {
 
 	private final OrderQueryService orderQueryService;
 
@@ -70,7 +71,7 @@ public class OrderQueryController {
 			@PathVariable UUID orderId) {
 
 		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, null, null);
-		return ResponseEntity.ok(BaseResponse.success(detail));
+		return ok(detail);
 	}
 
 	@Operation(
@@ -108,7 +109,7 @@ public class OrderQueryController {
 			@RequestParam(required = false) Long customerId) {
 
 		OrderStatusDto response = orderQueryService.getOrderStatusForCustomer(orderId, customerId);
-		return ResponseEntity.ok(BaseResponse.success(response));
+		return ok(response);
 	}
 
 	@Operation(
@@ -149,7 +150,7 @@ public class OrderQueryController {
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
 				storeId, productId, status.name(), from, to, size, offset
 		);
-		return ResponseEntity.ok(BaseResponse.success(response));
+		return ok(response);
 	}
 
 	@Operation(
@@ -183,10 +184,14 @@ public class OrderQueryController {
 
 		// page/size를 limit/offset으로 변환하고 파라미터명 맞춤
 		Long offset = (long) (page - 1) * size;
+		Long resolvedCustomerId = customerId != null ? customerId : 1001L;
+		String normalizedOrderType = (orderType != null && "ALL".equalsIgnoreCase(orderType))
+				? null
+				: orderType;
 		String statusStr = status == null ? null : status.name();
 		MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
-				customerId, orderType, statusStr, from, to, size, offset
+				resolvedCustomerId, normalizedOrderType, statusStr, from, to, size, offset
 		);
-		return ResponseEntity.ok(BaseResponse.success(response));
+		return ok(response);
 	}
 }

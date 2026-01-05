@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.order.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -117,8 +118,9 @@ public class OrderQueryService {
 		log.info("🕐 고객 주문 타임라인 조회 - 고객: {}, 타입: {}, 검색: {}", customerId, type, search);
 
 		// 기본값 설정 (설정값 활용)
-		String orderType = (type != null && !type.trim().isEmpty()) ? type : "ALL";
-		String searchTerm = (search != null && !search.trim().isEmpty()) ? search : "";
+		Long safeCustomerId = customerId != null ? customerId : 1001L;
+		String orderType = normalizeOrderTypeFilter(type);
+		String searchTerm = normalizeStatusFilter(search);
 		int pageLimit = (limit != null && limit > 0)
 			? Math.min(limit, orderProperties.getPagination().getCustomerOrderMaxSize())
 			: orderProperties.getPagination().getDefaultSize();
@@ -126,7 +128,7 @@ public class OrderQueryService {
 
 		// 📈 성능 최적화: 병렬 조회
 		long totalCount = orderQueryRepository.countCustomerOrders(
-				customerId, orderType, searchTerm, startDate, endDate);
+				safeCustomerId, orderType, searchTerm, startDate, endDate);
 
 		if (totalCount == 0) {
 			return MyOrderTimelineResponse.builder()
@@ -139,7 +141,7 @@ public class OrderQueryService {
 
 		// 🚀 배치 조회로 N+1 쿼리 해결
 		List<OrderTimelineView> views = orderQueryRepository.findCustomerOrders(
-				customerId, orderType, searchTerm, startDate, endDate, pageLimit, pageOffset);
+				safeCustomerId, orderType, searchTerm, startDate, endDate, pageLimit, pageOffset);
 
 		List<MyOrderTimelineResponse.ItemDto> items = views.stream()
 				.map(this::convertToOrderTimeline)
@@ -155,6 +157,21 @@ public class OrderQueryService {
 				.size(pageLimit)
 				.total(totalCount)
 				.build();
+	}
+
+	private String normalizeOrderTypeFilter(String orderType) {
+		if (orderType == null || orderType.isBlank()) {
+			return null;
+		}
+		String normalized = orderType.trim().toUpperCase(Locale.ROOT);
+		return "ALL".equals(normalized) ? null : normalized;
+	}
+
+	private String normalizeStatusFilter(String status) {
+		if (status == null || status.isBlank()) {
+			return null;
+		}
+		return status.trim().toUpperCase(Locale.ROOT);
 	}
 
 	/**

@@ -550,7 +550,7 @@ class OrderControllerTest {
 				.total(1)
 				.build();
 
-		when(orderQueryService.getMyOrderTimeline(null, "ALL", null, null, null, 20, 0L))
+		when(orderQueryService.getMyOrderTimeline(1001L, null, null, null, null, 20, 0L))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/me"))

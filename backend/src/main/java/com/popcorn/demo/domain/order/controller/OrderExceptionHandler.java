@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.validation.BindException;
 
+import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.CommonResponseCode;
@@ -37,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
-public class OrderExceptionHandler {
+public class OrderExceptionHandler extends BaseController {
 
 
 
@@ -55,8 +56,7 @@ public class OrderExceptionHandler {
 		// 사용자 친화적 메시지 변환
 		String userFriendlyMessage = getUserFriendlyMessage(ex);
 
-		BaseResponse<BaseError> response = BaseResponse.error(ex.getResponseCode(), userFriendlyMessage);
-		return ResponseEntity.status(ex.getResponseCode().getHttpStatus()).body(response);
+		return error(ex.getResponseCode(), userFriendlyMessage);
 	}
 
 
@@ -82,9 +82,7 @@ public class OrderExceptionHandler {
 
 
 
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, message);
 
 	}
 
@@ -99,9 +97,7 @@ public class OrderExceptionHandler {
 				.findFirst()
 				.orElse("입력값이 올바르지 않습니다.");
 
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 
 	/**
@@ -118,9 +114,7 @@ public class OrderExceptionHandler {
 
 		String message = String.format("잘못된 %s 형식입니다: %s", requiredTypeName, ex.getValue());
 
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 
 	/**
@@ -135,9 +129,7 @@ public class OrderExceptionHandler {
 		}
 
 		String userMessage = "동일한 요청이 이미 처리되고 있거나 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, userMessage);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, userMessage);
 	}
 
 
@@ -154,9 +146,7 @@ public class OrderExceptionHandler {
 			ex.getClass().getSimpleName(), ex.getMessage(), ex);
 
 		String userMessage = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-		BaseResponse<BaseError> response = BaseResponse.error(CommonResponseCode.INTERNAL_ERROR, userMessage);
-
-		return ResponseEntity.status(CommonResponseCode.INTERNAL_ERROR.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INTERNAL_ERROR, userMessage);
 	}
 
 	// ================ 개선된 헬퍼 메서드들 ================

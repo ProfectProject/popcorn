@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.popup.application.PopupApplicationService;
@@ -29,7 +30,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @ApiVersion("v1")
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
-public class PopupOptionController {
+public class PopupOptionController extends BaseController {
 
 	private final PopupApplicationService popupApplicationService;
 
@@ -71,6 +72,6 @@ public class PopupOptionController {
 				PopupOptionListQuery.builder()
 						.productId(productId)
 						.build());
-		return ResponseEntity.ok(BaseResponse.success(response));
+		return ok(response);
 	}
 }
