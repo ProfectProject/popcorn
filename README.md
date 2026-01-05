@@ -25,6 +25,15 @@ src/main/java/com/popcorn/demo/
 │       ├── dto/
 │       ├── event/
 │       └── exception/
+│   └── popup/
+│       ├── application/
+│       ├── controller/
+│       ├── service/
+│       ├── repository/
+│       ├── entity/
+│       ├── dto/
+│       ├── event/
+│       └── exception/
 ├── global/                          # 전역 공통 모듈
 │   ├── config/
 │   ├── exception/
