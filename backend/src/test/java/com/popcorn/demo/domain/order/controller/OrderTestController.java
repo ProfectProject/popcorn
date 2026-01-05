@@ -37,10 +37,10 @@ public class OrderTestController extends BaseController {
 			@PathVariable Long userId,
 			@RequestParam(defaultValue = "RESERVATION") String orderType,
 			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
-			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
+			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000101") UUID popupId,
 			@RequestParam(required = false) UUID sessionId,
 			@RequestParam(required = false) UUID optionId,
-			@RequestParam(required = false) UUID merchVariantId,
+			@RequestParam(required = false) UUID goodsVariantId,
 			@RequestParam(defaultValue = "1") Integer qty,
 			@RequestParam(defaultValue = "1000") Integer unitPrice) {
 		OrderItemType itemType = resolveItemType(orderType);
@@ -48,7 +48,7 @@ public class OrderTestController extends BaseController {
 				.orderItemType(itemType)
 				.sessionId(sessionId)
 				.optionId(optionId)
-				.merchVariantId(merchVariantId)
+				.goodsVariantId(goodsVariantId)
 				.qty(qty)
 				.unitPrice(unitPrice)
 				.build();
@@ -56,7 +56,7 @@ public class OrderTestController extends BaseController {
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.orderType(orderType.toUpperCase())
 				.items(List.of(itemCommand))
 				.build();
@@ -77,7 +77,7 @@ public class OrderTestController extends BaseController {
 			return OrderItemType.RESERVATION;
 		}
 		if ("PURCHASE".equals(normalized)) {
-			return OrderItemType.MERCH;
+			return OrderItemType.GOODS;
 		}
 
 		throw OrderValidationException.invalidRequest();
@@ -90,7 +90,7 @@ public class OrderTestController extends BaseController {
 				response.getOrderType(),
 				response.getStatus(),
 				response.getStoreId(),
-				response.getProductId(),
+				response.getPopupId(),
 				response.getTotalAmount(),
 				response.getCancelableUntil(),
 				response.getCreatedAt(),

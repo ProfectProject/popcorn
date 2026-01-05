@@ -166,12 +166,12 @@ class OrderDetailControllerTest {
 
 	@Test
 	@DisplayName("주문 상세 조회 - 굿즈 항목 정보 노출")
-	void getOrderDetail_merchFields() throws Exception {
+		void getOrderDetail_goodsFields() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001011");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000102");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000102");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002011");
-		UUID merchVariantId = UUID.fromString("00000000-0000-0000-0000-000000000401");
+		UUID goodsVariantId = UUID.fromString("00000000-0000-0000-0000-000000000401");
 
 		OrderDetailDto detail = OrderDetailDto.builder()
 				.id(orderId)
@@ -184,7 +184,7 @@ class OrderDetailControllerTest {
 						.role("USER")
 						.build())
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(3000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -192,12 +192,12 @@ class OrderDetailControllerTest {
 				.items(List.of(
 						OrderDetailDto.ItemDto.builder()
 								.id(itemId)
-								.orderItemType("MERCH")
-								.productId(productId)
+								.orderItemType("GOODS")
+								.popupId(popupId)
 								.productTitle("Seed Merch 2")
 								.productCategory("MERCH")
 								.productStatus("OPEN")
-								.merchVariantId(merchVariantId)
+								.goodsVariantId(goodsVariantId)
 								.merchVariantName("Seed Merch Variant")
 								.merchSku("SEED-SKU-401")
 								.qty(2)
@@ -212,8 +212,8 @@ class OrderDetailControllerTest {
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].merchVariantId")
-						.value(merchVariantId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].goodsVariantId")
+						.value(goodsVariantId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].merchVariantName")
 						.value("Seed Merch Variant"))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].merchSku")

@@ -54,7 +54,7 @@ class CreateOrderRequestTest {
 				.items(List.of(
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
-								.merchVariantId(UUID.randomUUID())
+								.goodsVariantId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1500)
 								.build()
@@ -83,7 +83,7 @@ class CreateOrderRequestTest {
 								.build(),
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
-								.merchVariantId(UUID.randomUUID())
+								.goodsVariantId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1500)
 								.build()
@@ -104,7 +104,7 @@ class CreateOrderRequestTest {
 				.items(List.of(
 						OrderItemRequest.builder()
 								.orderItemType("MERCH")
-								.merchVariantId(UUID.randomUUID())
+								.goodsVariantId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1500)
 								.build()
