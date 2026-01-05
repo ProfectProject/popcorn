@@ -140,7 +140,7 @@ public class OrderQueryController extends BaseController {
 
 	@Operation(
 			summary = "가게 주문/예약 상태 목록 조회 (OWNER/MANAGER)",
-			description = "OWNER/MANAGER가 가게/상품 기준으로 주문 상태 목록을 조회합니다. storeId 또는 productId 중 하나는 필수입니다."
+			description = "OWNER/MANAGER가 가게/상품 기준으로 주문 상태 목록을 조회합니다. storeId 또는 popupId 중 하나는 필수입니다."
 	)
 	@ApiResponse(
 			responseCode = "200",
@@ -155,7 +155,7 @@ public class OrderQueryController extends BaseController {
 			@RequestParam(required = false) UUID storeId,
 			@Parameter(description = "상품 ID",
 					example = "00000000-0000-0000-0000-000000000101")
-			@RequestParam(required = false) UUID productId,
+			@RequestParam(required = false) UUID popupId,
 			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false) OrderStatus status,
@@ -164,14 +164,14 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "사이즈 (기본 20)")
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
-		if (storeId == null && productId == null) {
+		if (storeId == null && popupId == null) {
 			throw OrderValidationException.invalidRequest();
 		}
 
 		Long offset = (long) (page - 1) * size;
 		String statusStr = status == null ? null : status.name();
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
-				storeId, productId, statusStr, null, null, size, offset
+				storeId, popupId, statusStr, null, null, size, offset
 		);
 		return ok(response);
 	}
@@ -194,7 +194,7 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "상품 ID",
 					example = "00000000-0000-0000-0000-000000000101")
 			@RequestParam(required = false,
-					defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
+					defaultValue = "00000000-0000-0000-0000-000000000101") UUID popupId,
 			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
@@ -212,7 +212,7 @@ public class OrderQueryController extends BaseController {
 		// page/size를 limit/offset으로 변환
 		Long offset = (long) (page - 1) * size;
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
-				storeId, productId, status.name(), from, to, size, offset
+				storeId, popupId, status.name(), from, to, size, offset
 		);
 		return ok(response);
 	}

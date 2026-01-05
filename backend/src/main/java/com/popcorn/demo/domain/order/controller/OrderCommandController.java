@@ -116,7 +116,7 @@ private final PaymentCommandService paymentCommandService;
 								{
 								  "orderType": "RESERVATION",
 								  "storeId": "00000000-0000-0000-0000-000000000001",
-								  "productId": "00000000-0000-0000-0000-000000000101",
+								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "items": [
 								    {
 								      "orderItemType": "RESERVATION",
@@ -135,12 +135,12 @@ private final PaymentCommandService paymentCommandService;
 								{
 								  "orderType": "PURCHASE",
 								  "storeId": "00000000-0000-0000-0000-000000000001",
-								  "productId": "00000000-0000-0000-0000-000000000101",
+								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "reservationId": "00000000-0000-0000-0000-000000000601",
 								  "items": [
 								    {
-								      "orderItemType": "MERCH",
-								      "merchVariantId": "00000000-0000-0000-0000-000000000401",
+								      "orderItemType": "GOODS",
+								      "goodsVariantId": "00000000-0000-0000-0000-000000000401",
 								      "qty": 2
 								    }
 								  ],
@@ -167,7 +167,7 @@ private final PaymentCommandService paymentCommandService;
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
 				.storeId(request.getStoreId())
-				.productId(request.getProductId())
+				.popupId(request.getPopupId())
 				.orderType(request.getOrderType())
 				.idempotencyKey(idempotencyKey)
 				.items(request.getItems().stream()
@@ -175,7 +175,7 @@ private final PaymentCommandService paymentCommandService;
 								.orderItemType(OrderItemType.valueOf(item.getOrderItemType()))
 								.sessionId(item.getSessionId())
 								.optionId(item.getOptionId())
-								.merchVariantId(item.getMerchVariantId())
+								.goodsVariantId(item.getGoodsVariantId())
 								.qty(item.getQty())
 								.unitPrice(item.getUnitPrice())
 								.build())
@@ -486,7 +486,7 @@ private final PaymentCommandService paymentCommandService;
 				response.getOrderType(),
 				response.getStatus(),
 				response.getStoreId(),
-				response.getProductId(),
+				response.getPopupId(),
 				response.getTotalAmount(),
 				response.getCancelableUntil(),
 				response.getCreatedAt(),
