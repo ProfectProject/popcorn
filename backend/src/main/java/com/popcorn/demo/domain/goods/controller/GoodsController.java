@@ -4,6 +4,7 @@ import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsIdResponse;
+import com.popcorn.demo.domain.goods.dto.GoodsItemResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsListResponse;
 import com.popcorn.demo.domain.goods.service.GoodsService;
 import jakarta.validation.Valid;
@@ -36,5 +37,13 @@ public class GoodsController extends BaseController {
             @Valid @RequestBody GoodsCreateRequest request
     ) {
         return ok(goodsService.create(popupId, request));
+    }
+
+    @GetMapping("/{goodsId}")
+    public ResponseEntity<BaseResponse<GoodsItemResponse>> get(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId
+    ) {
+        return ok(goodsService.get(popupId, goodsId));
     }
 }
