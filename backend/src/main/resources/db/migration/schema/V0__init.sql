@@ -7,7 +7,6 @@ CREATE TYPE IF NOT EXISTS popup_category AS ENUM ('FOOD','IDOL','EXHIBITION','WO
 CREATE TYPE IF NOT EXISTS order_status AS ENUM ('REQUESTED','ACCEPTED','REJECTED','RESERVED','PAYMENT_PENDING','PAID','COMPLETED','CANCELLED');
 CREATE TYPE IF NOT EXISTS payment_method AS ENUM ('CARD','TRANSFER','EASY_PAY');
 CREATE TYPE IF NOT EXISTS payment_status AS ENUM ('READY','PAID','FAILED','CANCELLED');
--- store_manager_role 값은 스펙 미정으로 별도 관리 필요
 
 -- 1단계: 테이블 생성 (NOT NULL/DEFAULT만 반영, PK/FK/UNIQUE/CHECK는 제외)
 
@@ -19,8 +18,8 @@ CREATE TABLE IF NOT EXISTS p_users (
     email       varchar(255) NOT NULL,
     role        user_role NOT NULL,
     is_active   boolean NOT NULL DEFAULT true,
-    created_at  timestamp,
-    updated_at  timestamp,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -35,8 +34,8 @@ CREATE TABLE IF NOT EXISTS p_customer_addresses (
     address2    varchar(255),
     postal_code varchar(10),
     is_default  boolean NOT NULL DEFAULT false,
-    created_at  timestamp,
-    updated_at  timestamp,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -48,22 +47,9 @@ CREATE TABLE IF NOT EXISTS p_stores (
     user_id     BIGINT NOT NULL,
     store_name  varchar(100) NOT NULL,
     status      store_status NOT NULL DEFAULT 'DRAFT',
-    remark      varchar(500),
-    created_at  timestamp,
-    updated_at  timestamp,
-    deleted_at  timestamp,
-    created_by  BIGINT,
-    updated_by  BIGINT,
-    deleted_by  BIGINT
-);
-
-CREATE TABLE IF NOT EXISTS p_store_managers (
-    manager_id  UUID NOT NULL,
-    store_id    UUID NOT NULL,
-    user_id     BIGINT NOT NULL,
-    role        store_manager_role NOT NULL,
-    created_at  timestamp,
-    updated_at  timestamp,
+    reason      varchar(500),
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -77,8 +63,8 @@ CREATE TABLE IF NOT EXISTS p_popups (
     description text,
     category    popup_category NOT NULL,
     status      popup_status NOT NULL,
-    created_at  timestamp,
-    updated_at  timestamp,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -90,9 +76,12 @@ CREATE TABLE IF NOT EXISTS p_popup_schedules (
     popup_id    UUID NOT NULL,
     start_at    timestamp NOT NULL,
     end_at      timestamp NOT NULL,
+    price       int NOT NULL,
+    capacity    int NOT NULL,
+    remaining_capacity int NOT NULL,
     is_active   boolean NOT NULL DEFAULT false,
-    created_at  timestamp,
-    updated_at  timestamp,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -109,8 +98,8 @@ CREATE TABLE IF NOT EXISTS p_schedule_options (
     remaining_capacity int NOT NULL,
     sort_order         int DEFAULT 0,
     is_available       boolean DEFAULT true,
-    created_at         timestamp,
-    updated_at         timestamp,
+    created_at         timestamp NOT NULL,
+    updated_at         timestamp NOT NULL,
     deleted_at         timestamp,
     created_by         BIGINT,
     updated_by         BIGINT,
@@ -124,9 +113,9 @@ CREATE TABLE IF NOT EXISTS p_goods_variants (
     goods_name  varchar(100) NOT NULL,
     goods_price int NOT NULL,
     stock       int NOT NULL,
-    is_visible  boolean DEFAULT true,
-    created_at  timestamp,
-    updated_at  timestamp,
+    is_active   boolean DEFAULT true,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -140,9 +129,9 @@ CREATE TABLE IF NOT EXISTS p_orders (
     store_id          UUID NOT NULL,
     status            order_status NOT NULL,
     cancelable_until  timestamp,
-    total_amount      int NOT NULL,
-    created_at        timestamp,
-    updated_at        timestamp,
+    total_price       int NOT NULL,
+    created_at        timestamp NOT NULL,
+    updated_at        timestamp NOT NULL,
     deleted_at        timestamp,
     created_by        BIGINT,
     updated_by        BIGINT,
@@ -156,9 +145,9 @@ CREATE TABLE IF NOT EXISTS p_order_goods (
     goods_variant_id   UUID,
     qty                int NOT NULL,
     unit_price         int NOT NULL,
-    line_amount        int NOT NULL,
-    created_at         timestamp,
-    updated_at         timestamp,
+    price              int NOT NULL,
+    created_at         timestamp NOT NULL,
+    updated_at         timestamp NOT NULL,
     deleted_at         timestamp,
     created_by         BIGINT,
     updated_by         BIGINT,
@@ -166,15 +155,15 @@ CREATE TABLE IF NOT EXISTS p_order_goods (
 );
 
 CREATE TABLE IF NOT EXISTS p_payments (
-    payments_id UUID NOT NULL,
+    payment_id  UUID NOT NULL,
     order_id    UUID NOT NULL,
     method      payment_method NOT NULL,
     status      payment_status NOT NULL,
     amount      int NOT NULL,
     raw_payload text,
     approved_at timestamp,
-    created_at  timestamp,
-    updated_at  timestamp,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
     created_by  BIGINT,
     updated_by  BIGINT,
@@ -188,8 +177,8 @@ CREATE TABLE IF NOT EXISTS p_order_status_histories (
     to_status       order_status NOT NULL,
     reason          varchar(255),
     changed_at      timestamp NOT NULL,
-    created_at      timestamp,
-    updated_at      timestamp,
+    created_at      timestamp NOT NULL,
+    updated_at      timestamp NOT NULL,
     deleted_at      timestamp,
     created_by      BIGINT,
     updated_by      BIGINT,
@@ -201,7 +190,7 @@ CREATE TABLE IF NOT EXISTS p_order_qr_codes (
     order_id   UUID NOT NULL,
     qr_code    varchar(255) NOT NULL,
     expires_at timestamp,
-    created_at timestamp,
+    created_at timestamp NOT NULL,
     created_by BIGINT
 );
 
@@ -209,7 +198,7 @@ CREATE TABLE IF NOT EXISTS p_checkins (
     checkin_id       UUID NOT NULL,
     order_id         UUID NOT NULL,
     order_qr_code_id UUID NOT NULL,
-    created_at       timestamp,
+    created_at       timestamp NOT NULL,
     created_by       BIGINT
 );
 
@@ -219,14 +208,13 @@ CREATE TABLE IF NOT EXISTS p_checkins (
 ALTER TABLE p_users                   ADD CONSTRAINT pk_p_users PRIMARY KEY (user_id);
 ALTER TABLE p_customer_addresses      ADD CONSTRAINT pk_p_customer_addresses PRIMARY KEY (addr_id);
 ALTER TABLE p_stores                  ADD CONSTRAINT pk_p_stores PRIMARY KEY (store_id);
-ALTER TABLE p_store_managers          ADD CONSTRAINT pk_p_store_managers PRIMARY KEY (manager_id);
 ALTER TABLE p_popups                  ADD CONSTRAINT pk_p_popups PRIMARY KEY (popup_id);
 ALTER TABLE p_popup_schedules         ADD CONSTRAINT pk_p_popup_schedules PRIMARY KEY (schedule_id);
 ALTER TABLE p_schedule_options        ADD CONSTRAINT pk_p_schedule_options PRIMARY KEY (schedule_option_id);
 ALTER TABLE p_goods_variants          ADD CONSTRAINT pk_p_goods_variants PRIMARY KEY (goods_id);
 ALTER TABLE p_orders                  ADD CONSTRAINT pk_p_orders PRIMARY KEY (order_id);
 ALTER TABLE p_order_goods             ADD CONSTRAINT pk_p_order_goods PRIMARY KEY (order_goods_id);
-ALTER TABLE p_payments                ADD CONSTRAINT pk_p_payments PRIMARY KEY (payments_id);
+ALTER TABLE p_payments                ADD CONSTRAINT pk_p_payments PRIMARY KEY (payment_id);
 ALTER TABLE p_order_status_histories  ADD CONSTRAINT pk_p_order_status_histories PRIMARY KEY (order_status_id);
 ALTER TABLE p_order_qr_codes          ADD CONSTRAINT pk_p_order_qr_codes PRIMARY KEY (qr_id);
 ALTER TABLE p_checkins                ADD CONSTRAINT pk_p_checkins PRIMARY KEY (checkin_id);
@@ -238,8 +226,6 @@ ALTER TABLE p_orders ADD CONSTRAINT uq_p_orders_order_no UNIQUE (order_no);
 -- Foreign Keys
 ALTER TABLE p_customer_addresses     ADD CONSTRAINT fk_addr_user           FOREIGN KEY (user_id) REFERENCES p_users(user_id);
 ALTER TABLE p_stores                 ADD CONSTRAINT fk_stores_owner        FOREIGN KEY (user_id) REFERENCES p_users(user_id);
-ALTER TABLE p_store_managers         ADD CONSTRAINT fk_store_mgr_store     FOREIGN KEY (store_id) REFERENCES p_stores(store_id);
-ALTER TABLE p_store_managers         ADD CONSTRAINT fk_store_mgr_user      FOREIGN KEY (user_id) REFERENCES p_users(user_id);
 ALTER TABLE p_popups                 ADD CONSTRAINT fk_popups_store        FOREIGN KEY (store_id) REFERENCES p_stores(store_id);
 ALTER TABLE p_popup_schedules        ADD CONSTRAINT fk_schedules_popup     FOREIGN KEY (popup_id) REFERENCES p_popups(popup_id);
 ALTER TABLE p_schedule_options       ADD CONSTRAINT fk_options_schedule    FOREIGN KEY (schedule_id) REFERENCES p_popup_schedules(schedule_id);
@@ -254,9 +240,3 @@ ALTER TABLE p_order_status_histories ADD CONSTRAINT fk_order_status_order  FOREI
 ALTER TABLE p_order_qr_codes         ADD CONSTRAINT fk_qr_order            FOREIGN KEY (order_id) REFERENCES p_orders(order_id);
 ALTER TABLE p_checkins               ADD CONSTRAINT fk_checkins_order      FOREIGN KEY (order_id) REFERENCES p_orders(order_id);
 ALTER TABLE p_checkins               ADD CONSTRAINT fk_checkins_qr         FOREIGN KEY (order_qr_code_id) REFERENCES p_order_qr_codes(qr_id);
-
--- Check constraints
-ALTER TABLE p_order_goods ADD CONSTRAINT chk_order_goods_choice
-    CHECK (
-        (schedule_option_id IS NOT NULL)::int + (goods_variant_id IS NOT NULL)::int = 1
-    );
