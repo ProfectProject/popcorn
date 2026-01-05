@@ -1,5 +1,6 @@
 package com.popcorn.demo.domain.popup.dto.query;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -11,13 +12,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PopupListQuery {
+public class PopupSessionListQuery {
 
-	private Long regionId;
-	private String category;
-	private String keyword;
-	private UUID storeId;
-	private Integer page;
-	private Integer size;
-	private Boolean withTotal;
+	private UUID productId;
+	private LocalDateTime from;
+	private LocalDateTime to;
 }

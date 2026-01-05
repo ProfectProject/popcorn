@@ -182,6 +182,51 @@ BEGIN
 		) AND NOT EXISTS (
 			SELECT 1 FROM p_product_sessions s WHERE s.id = '00000000-0000-0000-0000-000000000880'::uuid
 		);
+
+		INSERT INTO p_product_sessions (id, product_id, start_at, end_at, status, created_at, updated_at)
+		SELECT
+			'00000000-0000-0000-0000-000000000201'::uuid,
+			'00000000-0000-0000-0000-000000000101'::uuid,
+			NOW() + INTERVAL '2 days',
+			NOW() + INTERVAL '2 days 8 hours',
+			'OPEN'::session_status,
+			NOW(),
+			NOW()
+		WHERE EXISTS (
+			SELECT 1 FROM p_products p WHERE p.id = '00000000-0000-0000-0000-000000000101'::uuid
+		) AND NOT EXISTS (
+			SELECT 1 FROM p_product_sessions s WHERE s.id = '00000000-0000-0000-0000-000000000201'::uuid
+		);
+
+		INSERT INTO p_product_sessions (id, product_id, start_at, end_at, status, created_at, updated_at)
+		SELECT
+			'00000000-0000-0000-0000-000000000202'::uuid,
+			'00000000-0000-0000-0000-000000000101'::uuid,
+			NOW() + INTERVAL '5 days',
+			NOW() + INTERVAL '5 days 6 hours',
+			'OPEN'::session_status,
+			NOW(),
+			NOW()
+		WHERE EXISTS (
+			SELECT 1 FROM p_products p WHERE p.id = '00000000-0000-0000-0000-000000000101'::uuid
+		) AND NOT EXISTS (
+			SELECT 1 FROM p_product_sessions s WHERE s.id = '00000000-0000-0000-0000-000000000202'::uuid
+		);
+
+		INSERT INTO p_product_sessions (id, product_id, start_at, end_at, status, created_at, updated_at)
+		SELECT
+			'00000000-0000-0000-0000-000000000203'::uuid,
+			'00000000-0000-0000-0000-000000000101'::uuid,
+			NOW() + INTERVAL '8 days',
+			NOW() + INTERVAL '8 days 4 hours',
+			'OPEN'::session_status,
+			NOW(),
+			NOW()
+		WHERE EXISTS (
+			SELECT 1 FROM p_products p WHERE p.id = '00000000-0000-0000-0000-000000000101'::uuid
+		) AND NOT EXISTS (
+			SELECT 1 FROM p_product_sessions s WHERE s.id = '00000000-0000-0000-0000-000000000203'::uuid
+		);
 	END IF;
 END $$;
 
@@ -208,6 +253,50 @@ BEGIN
 			SELECT 1 FROM p_products p WHERE p.id = '00000000-0000-0000-0000-000000000181'::uuid
 		) AND NOT EXISTS (
 			SELECT 1 FROM p_merch_variants mv WHERE mv.id = '00000000-0000-0000-0000-000000000881'::uuid
+		);
+	END IF;
+END $$;
+
+-- noinspection SqlResolve
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.tables WHERE table_name = 'p_session_options'
+	) THEN
+		INSERT INTO p_session_options (
+			id, session_id, name, price, capacity, is_hidden, created_at, updated_at
+		)
+		SELECT
+			'00000000-0000-0000-0000-000000000301'::uuid,
+			'00000000-0000-0000-0000-000000000201'::uuid,
+			'일반 좌석',
+			10000,
+			20,
+			FALSE,
+			NOW(),
+			NOW()
+		WHERE EXISTS (
+			SELECT 1 FROM p_product_sessions s WHERE s.id = '00000000-0000-0000-0000-000000000201'::uuid
+		) AND NOT EXISTS (
+			SELECT 1 FROM p_session_options o WHERE o.id = '00000000-0000-0000-0000-000000000301'::uuid
+		);
+
+		INSERT INTO p_session_options (
+			id, session_id, name, price, capacity, is_hidden, created_at, updated_at
+		)
+		SELECT
+			'00000000-0000-0000-0000-000000000302'::uuid,
+			'00000000-0000-0000-0000-000000000201'::uuid,
+			'프리미엄 좌석',
+			15000,
+			10,
+			FALSE,
+			NOW(),
+			NOW()
+		WHERE EXISTS (
+			SELECT 1 FROM p_product_sessions s WHERE s.id = '00000000-0000-0000-0000-000000000201'::uuid
+		) AND NOT EXISTS (
+			SELECT 1 FROM p_session_options o WHERE o.id = '00000000-0000-0000-0000-000000000302'::uuid
 		);
 	END IF;
 END $$;

@@ -5,12 +5,15 @@ import java.util.UUID;
 
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 
+import lombok.Getter;
+
 /**
  * 주문 취소 이벤트
  *
  * 주문이 취소되었을 때 발생하는 이벤트
  * 취소 사유 추적 및 보상 처리에 활용
  */
+@Getter
 public class OrderCancelledEvent extends BaseOrderEvent {
 
     private final OrderStatus previousStatus;
@@ -51,15 +54,6 @@ public class OrderCancelledEvent extends BaseOrderEvent {
         this.refundAmount = refundAmount != null ? refundAmount : 0;
         this.isRefundRequired = this.refundAmount > 0;
     }
-
-    // ================ Getters ================
-
-    public OrderStatus getPreviousStatus() { return previousStatus; }
-    public String getCancellationReason() { return cancellationReason; }
-    public String getCancelledBy() { return cancelledBy; }
-    public String getCancellationType() { return cancellationType; }
-    public Integer getRefundAmount() { return refundAmount; }
-    public boolean isRefundRequired() { return isRefundRequired; }
 
     // ================ Business Logic ================
 

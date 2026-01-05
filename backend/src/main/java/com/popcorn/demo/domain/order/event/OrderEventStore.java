@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -241,6 +242,7 @@ public class OrderEventStore {
     /**
      * 저장된 이벤트 레코드
      */
+    @Getter
     public static class EventRecord {
         private final UUID eventId;
         private final UUID orderId;
@@ -263,17 +265,6 @@ public class OrderEventStore {
             this.eventData = builder.eventData;
             this.metadata = builder.metadata;
         }
-
-        // Getters
-        public UUID getEventId() { return eventId; }
-        public UUID getOrderId() { return orderId; }
-        public String getEventType() { return eventType; }
-        public String getEventVersion() { return eventVersion; }
-        public UUID getCorrelationId() { return correlationId; }
-        public Long getUserId() { return userId; }
-        public LocalDateTime getTimestamp() { return timestamp; }
-        public String getEventData() { return eventData; }
-        public String getMetadata() { return metadata; }
 
         public static Builder builder() { return new Builder(); }
 
@@ -305,6 +296,7 @@ public class OrderEventStore {
     /**
      * 이벤트 스토어 통계
      */
+    @Getter
     public static class EventStoreStats {
         private final long totalEvents;
         private final long totalOrderStreams;
@@ -319,13 +311,6 @@ public class OrderEventStore {
             this.oldestEventTime = builder.oldestEventTime;
             this.newestEventTime = builder.newestEventTime;
         }
-
-        // Getters
-        public long getTotalEvents() { return totalEvents; }
-        public long getTotalOrderStreams() { return totalOrderStreams; }
-        public Map<String, Long> getEventTypeCounts() { return eventTypeCounts; }
-        public LocalDateTime getOldestEventTime() { return oldestEventTime; }
-        public LocalDateTime getNewestEventTime() { return newestEventTime; }
 
         public static Builder builder() { return new Builder(); }
 

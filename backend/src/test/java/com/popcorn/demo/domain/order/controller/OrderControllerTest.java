@@ -24,12 +24,12 @@ import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
-import com.popcorn.demo.domain.order.service.OrderCommandService;
-import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderControllerTest {

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.event.BaseOrderEvent;
@@ -39,7 +40,7 @@ import lombok.RequiredArgsConstructor;
 @ApiVersion("v1")
 @RequestMapping("/api/v1/orders/events")
 @RequiredArgsConstructor
-public class OrderEventController {
+public class OrderEventController extends BaseController {
 
     private static final Logger log = LoggerFactory.getLogger(OrderEventController.class);
 
@@ -61,7 +62,7 @@ public class OrderEventController {
             List<OrderEventStore.EventRecord> events = eventStore.getEventStream(orderId);
 
             log.debug("✅ 이벤트 스트림 조회 완료 - 주문ID: {}, 이벤트 수: {}", orderId, events.size());
-            return ResponseEntity.ok(BaseResponse.success(events));
+            return ok(events);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 스트림 조회 실패 - 주문ID: {}", orderId, e);
@@ -86,7 +87,7 @@ public class OrderEventController {
 
             log.debug("✅ 시간 범위 이벤트 스트림 조회 완료 - 주문ID: {}, 이벤트 수: {}",
                     orderId, events.size());
-            return ResponseEntity.ok(BaseResponse.success(events));
+            return ok(events);
 
         } catch (Exception e) {
             log.error("❌ 시간 범위 이벤트 스트림 조회 실패 - 주문ID: {}", orderId, e);
@@ -107,7 +108,7 @@ public class OrderEventController {
             List<OrderEventStore.EventRecord> events = eventStore.getEventsByType(eventType);
 
             log.debug("✅ 이벤트 타입별 조회 완료 - 타입: {}, 이벤트 수: {}", eventType, events.size());
-            return ResponseEntity.ok(BaseResponse.success(events));
+            return ok(events);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 타입별 조회 실패 - 타입: {}", eventType, e);
@@ -128,7 +129,7 @@ public class OrderEventController {
             List<OrderEventStore.EventRecord> events = eventStore.getRecentEvents(limit);
 
             log.debug("✅ 최근 이벤트 조회 완료 - 이벤트 수: {}", events.size());
-            return ResponseEntity.ok(BaseResponse.success(events));
+            return ok(events);
 
         } catch (Exception e) {
             log.error("❌ 최근 이벤트 조회 실패", e);
@@ -152,7 +153,7 @@ public class OrderEventController {
                     orderId, replayedEvents.size());
 
             log.info("✅ {}", message);
-            return ResponseEntity.ok(BaseResponse.success(replayedEvents));
+            return ok(replayedEvents);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 재생 실패 - 주문ID: {}", orderId, e);
@@ -174,7 +175,7 @@ public class OrderEventController {
 
             log.debug("✅ 이벤트 메트릭 조회 완료 - 총 처리: {}, 총 오류: {}",
                     metrics.getTotalEventsProcessed(), metrics.getTotalErrorsOccurred());
-            return ResponseEntity.ok(BaseResponse.success(metrics));
+            return ok(metrics);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 메트릭 조회 실패", e);
@@ -196,7 +197,7 @@ public class OrderEventController {
 
             log.debug("✅ 이벤트 타입 메트릭 조회 완료 - 타입: {}, 처리: {}, 오류: {}",
                     eventType, metrics.getProcessedCount(), metrics.getErrorCount());
-            return ResponseEntity.ok(BaseResponse.success(metrics));
+            return ok(metrics);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 타입 메트릭 조회 실패 - 타입: {}", eventType, e);
@@ -214,7 +215,7 @@ public class OrderEventController {
         try {
             String summary = eventMetrics.getMetricsSummary();
             log.debug("✅ 이벤트 메트릭 요약 조회 완료");
-            return ResponseEntity.ok(summary);
+            return okText(summary);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 메트릭 요약 조회 실패", e);
@@ -236,7 +237,7 @@ public class OrderEventController {
 
             log.debug("✅ 이벤트 스토어 통계 조회 완료 - 총 이벤트: {}, 총 스트림: {}",
                     stats.getTotalEvents(), stats.getTotalOrderStreams());
-            return ResponseEntity.ok(BaseResponse.success(stats));
+            return ok(stats);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 스토어 통계 조회 실패", e);
@@ -259,7 +260,7 @@ public class OrderEventController {
             String message = String.format("이벤트 스토어 정리 완료 - 기준시간: %s", beforeTime);
             log.info("✅ {}", message);
 
-            return ResponseEntity.ok(BaseResponse.success(message));
+            return ok(message);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 스토어 정리 실패 - 기준시간: {}", beforeTime, e);
@@ -280,7 +281,7 @@ public class OrderEventController {
             String message = "이벤트 메트릭이 성공적으로 리셋되었습니다";
             log.info("✅ {}", message);
 
-            return ResponseEntity.ok(BaseResponse.success(message));
+            return ok(message);
 
         } catch (Exception e) {
             log.error("❌ 이벤트 메트릭 리셋 실패", e);
@@ -309,7 +310,7 @@ public class OrderEventController {
                     storeStats.getTotalEvents(),
                     eventMetrics.getMetrics().getErrorRate()
                 );
-                return ResponseEntity.ok(BaseResponse.success(message));
+                return ok(message);
             } else {
                 throw new RuntimeException("이벤트 시스템 상태 이상 감지");
             }

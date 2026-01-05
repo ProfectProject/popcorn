@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -32,8 +33,9 @@ public class ApiVersionInterceptor implements HandlerInterceptor {
     private final ApiVersionManager versionManager;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
-                            Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request,
+                             @NonNull HttpServletResponse response,
+                             @NonNull Object handler) throws Exception {
 
         // Handler 메서드가 아닌 경우 패스
         if (!(handler instanceof HandlerMethod handlerMethod)) {
@@ -183,17 +185,9 @@ public class ApiVersionInterceptor implements HandlerInterceptor {
     /**
      * API 버전 설정
      */
-    private static class ApiVersionConfig {
-        private final String[] supportedVersions;
-        private final String deprecatedInVersions;
-        private final String removedInVersions;
-
-        public ApiVersionConfig(String[] supportedVersions, String deprecatedInVersions, String removedInVersions) {
-            this.supportedVersions = supportedVersions;
-            this.deprecatedInVersions = deprecatedInVersions;
-            this.removedInVersions = removedInVersions;
-        }
-
+    private record ApiVersionConfig(String[] supportedVersions,
+                                    String deprecatedInVersions,
+                                    String removedInVersions) {
         public static ApiVersionConfig fromAnnotation(ApiVersion annotation) {
             return new ApiVersionConfig(
                 annotation.value(),
@@ -232,29 +226,14 @@ public class ApiVersionInterceptor implements HandlerInterceptor {
     /**
      * 버전 검증 결과
      */
-    private static class VersionValidationResult {
-        private final boolean valid;
-        private final boolean deprecated;
-        private final String requestedVersion;
-        private final String errorType;
-        private final String errorCode;
-        private final String errorMessage;
-        private final String[] supportedVersions;
-        private final int httpStatus;
-
-        private VersionValidationResult(boolean valid, boolean deprecated, String requestedVersion,
-                                       String errorType, String errorCode, String errorMessage,
-                                       String[] supportedVersions, int httpStatus) {
-            this.valid = valid;
-            this.deprecated = deprecated;
-            this.requestedVersion = requestedVersion;
-            this.errorType = errorType;
-            this.errorCode = errorCode;
-            this.errorMessage = errorMessage;
-            this.supportedVersions = supportedVersions;
-            this.httpStatus = httpStatus;
-        }
-
+    private record VersionValidationResult(boolean valid,
+                                           boolean deprecated,
+                                           String requestedVersion,
+                                           String errorType,
+                                           String errorCode,
+                                           String errorMessage,
+                                           String[] supportedVersions,
+                                           int httpStatus) {
         public static VersionValidationResult valid(String version, boolean deprecated) {
             return new VersionValidationResult(true, deprecated, version, null, null, null, null, 200);
         }
@@ -281,7 +260,6 @@ public class ApiVersionInterceptor implements HandlerInterceptor {
                 null, 503);
         }
 
-        // Getters
         public boolean isValid() { return valid; }
         public boolean isDeprecated() { return deprecated; }
         public String getRequestedVersion() { return requestedVersion; }

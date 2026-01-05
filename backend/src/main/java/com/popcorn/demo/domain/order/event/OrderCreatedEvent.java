@@ -7,11 +7,14 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 
+import lombok.Getter;
+
 /**
  * 주문 생성 이벤트
  *
  * 주문이 성공적으로 생성되었을 때 발생하는 이벤트
  */
+@Getter
 public class OrderCreatedEvent extends BaseOrderEvent {
 
     private final Order order;
@@ -42,13 +45,6 @@ public class OrderCreatedEvent extends BaseOrderEvent {
         this.storeId = order.getStoreId();
     }
 
-    // ================ Getters ================
-
-    public Order getOrder() { return order; }
-    public String getIdempotencyKey() { return idempotencyKey; }
-    public Integer getTotalAmount() { return totalAmount; }
-    public Integer getItemCount() { return itemCount; }
-    public UUID getStoreId() { return storeId; }
     public OrderType getOrderType() { return order.getOrderType(); }
     public OrderStatus getOrderStatus() { return order.getStatus(); }
 

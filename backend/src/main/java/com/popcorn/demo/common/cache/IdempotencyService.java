@@ -17,6 +17,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -205,17 +206,7 @@ public class IdempotencyService {
 	/**
 	 * 멱등성 레코드: 캐싱된 응답 정보
 	 */
-	private static class IdempotencyRecord {
-		private final String key;
-		private final String responseData;
-		private final LocalDateTime completedAt;
-
-		public IdempotencyRecord(String key, String responseData, LocalDateTime completedAt) {
-			this.key = key;
-			this.responseData = responseData;
-			this.completedAt = completedAt;
-		}
-
+	private record IdempotencyRecord(String key, String responseData, LocalDateTime completedAt) {
 		public String getKey() { return key; }
 		public String getResponseData() { return responseData; }
 		public LocalDateTime getCompletedAt() { return completedAt; }
@@ -224,13 +215,7 @@ public class IdempotencyService {
 	/**
 	 * 진행 중인 요청 상태
 	 */
-	private static class RequestState {
-		private final LocalDateTime startTime;
-
-		public RequestState(LocalDateTime startTime) {
-			this.startTime = startTime;
-		}
-
+	private record RequestState(LocalDateTime startTime) {
 		public LocalDateTime getStartTime() { return startTime; }
 	}
 
@@ -269,6 +254,7 @@ public class IdempotencyService {
 	 * 멱등성 처리 전용 예외
 	 */
 	public static class IdempotencyException extends RuntimeException {
+		@Getter
 		private final String idempotencyKey;
 
 		public IdempotencyException(String message, String idempotencyKey) {
@@ -280,16 +266,17 @@ public class IdempotencyService {
 			super(message, cause);
 			this.idempotencyKey = null;
 		}
-
-		public String getIdempotencyKey() { return idempotencyKey; }
 	}
 
 	/**
 	 * 멱등성 처리 결과
 	 */
 	public static class IdempotencyResult<T> {
+		@Getter
 		private final T result;
+		@Getter
 		private final boolean isCached;
+		@Getter
 		private final LocalDateTime executedAt;
 
 		private IdempotencyResult(T result, boolean isCached, LocalDateTime executedAt) {
@@ -305,10 +292,6 @@ public class IdempotencyService {
 		public static <T> IdempotencyResult<T> cachedExecution(T result, LocalDateTime originalExecutionTime) {
 			return new IdempotencyResult<>(result, true, originalExecutionTime);
 		}
-
-		public T getResult() { return result; }
-		public boolean isCached() { return isCached; }
-		public LocalDateTime getExecutedAt() { return executedAt; }
 	}
 
 	/**

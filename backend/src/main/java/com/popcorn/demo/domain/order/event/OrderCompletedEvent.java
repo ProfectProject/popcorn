@@ -5,12 +5,15 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
+import lombok.Getter;
+
 /**
  * 주문 완료 이벤트
  *
  * 주문이 성공적으로 완료되었을 때 발생하는 이벤트
  * 정산, 리뷰 요청, 포인트 적립 등 후처리에 활용
  */
+@Getter
 public class OrderCompletedEvent extends BaseOrderEvent {
 
     private final LocalDateTime orderCreatedAt;
@@ -54,16 +57,6 @@ public class OrderCompletedEvent extends BaseOrderEvent {
         this.storeId = storeId;
         this.processingTime = Duration.between(orderCreatedAt, completedAt);
     }
-
-    // ================ Getters ================
-
-    public LocalDateTime getOrderCreatedAt() { return orderCreatedAt; }
-    public LocalDateTime getCompletedAt() { return completedAt; }
-    public String getCompletedBy() { return completedBy; }
-    public Integer getFinalAmount() { return finalAmount; }
-    public Integer getItemCount() { return itemCount; }
-    public UUID getStoreId() { return storeId; }
-    public Duration getProcessingTime() { return processingTime; }
 
     // ================ Business Logic ================
 

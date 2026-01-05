@@ -25,7 +25,10 @@ protected PopupApplicationService popupApplicationService;
 	void setUpBase() {
 		popupApplicationService = Mockito.mock(PopupApplicationService.class);
 		objectMapper = new CommonConfig().objectMapper();
-		mockMvc = MockMvcBuilders.standaloneSetup(new PopupController(popupApplicationService))
+		mockMvc = MockMvcBuilders.standaloneSetup(
+						new PopupController(popupApplicationService),
+						new PopupSessionController(popupApplicationService),
+						new PopupOptionController(popupApplicationService))
 				.setControllerAdvice(new PopupExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -58,6 +61,37 @@ protected PopupApplicationService popupApplicationService;
 				.category("POPUP")
 				.regionId(101L)
 				.isHidden(false)
+				.build();
+	}
+
+	protected com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse createSessionListResponse() {
+		return com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse.builder()
+				.items(List.of(com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse.ItemDto.builder()
+						.id(UUID.fromString("00000000-0000-0000-0000-000000000201"))
+						.startAt(java.time.LocalDateTime.of(2025, 1, 1, 10, 0))
+						.endAt(java.time.LocalDateTime.of(2025, 1, 5, 18, 0))
+						.status("OPEN")
+						.location(com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse.LocationDto.builder()
+								.id(UUID.fromString("00000000-0000-0000-0000-000000009001"))
+								.name("팝업 테스트 장소")
+								.address1("서울특별시 강남구 테헤란로 123")
+								.address2("ABC빌딩 12층")
+								.latitude(37.498)
+								.longitude(127.027)
+								.build())
+						.build()))
+				.build();
+	}
+
+	protected com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse createOptionListResponse() {
+		return com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse.builder()
+				.items(List.of(com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse.ItemDto.builder()
+						.id(UUID.fromString("00000000-0000-0000-0000-000000000301"))
+						.name("일반 좌석")
+						.price(10000)
+						.capacity(20)
+						.isHidden(false)
+						.build()))
 				.build();
 	}
 }

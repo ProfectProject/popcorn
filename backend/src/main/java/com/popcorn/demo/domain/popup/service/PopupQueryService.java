@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
@@ -16,11 +18,20 @@ import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 import lombok.RequiredArgsConstructor;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class PopupQueryService {
 
 	private final PopupQueryRepository popupQueryRepository;
 
+	private static final int DEFAULT_PAGE = 1;
+	private static final int DEFAULT_SIZE = 20;
+	private static final int MAX_SIZE = 100;
+
+	@Cacheable(
+			value = "popupList",
+			key = "#query.regionId + '_' + #query.category + '_' + #query.keyword + '_' + #query.storeId + '_' + #query.page + '_' + #query.size + '_' + #query.withTotal"
+	)
 	public PopupListResponse getPopups(PopupListQuery query) {
 		Long regionId = query.getRegionId();
 		String category = query.getCategory();
@@ -28,12 +39,15 @@ public class PopupQueryService {
 		UUID storeId = query.getStoreId();
 		Integer page = query.getPage();
 		Integer size = query.getSize();
+		boolean withTotal = query.getWithTotal() == null || query.getWithTotal();
 
-		int normalizedPage = page == null ? 1 : page;
-		int normalizedSize = size == null ? 20 : size;
+		int normalizedPage = page == null || page < 1 ? DEFAULT_PAGE : page;
+		int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
 		long offset = (long) (normalizedPage - 1) * normalizedSize;
 
-		long total = popupQueryRepository.countPopups(regionId, category, keyword, storeId);
+		long total = withTotal
+				? popupQueryRepository.countPopups(regionId, category, keyword, storeId)
+				: -1L;
 		List<PopupListView> views = popupQueryRepository.findPopups(
 				regionId, category, keyword, storeId, normalizedSize, offset);
 
@@ -68,6 +82,7 @@ public class PopupQueryService {
 				.build();
 	}
 
+	@Cacheable(value = "popupDetail", key = "#query.productId")
 	public PopupDetailResponse getPopupDetail(PopupDetailQuery query) {
 		PopupListView view = popupQueryRepository.findPopupDetail(query.getProductId())
 				.orElseThrow(com.popcorn.demo.domain.popup.exception.PopupException::popupNotFound);
