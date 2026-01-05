@@ -332,7 +332,7 @@
 | 필드               | 타입        | NOT NULL | 제약                                            | 설명                           |
 |------------------|-----------|----------|-----------------------------------------------|------------------------------|
 | checkin_id       | UUID      | YES      | PK                                            | 체크인 ID                       |
-| order_id         | UUID      | YES      |                                               | 주문 ID (p_orders.order_id)    |
+| order_id         | UUID      | YES      | FK(order_id → p_orders.order_id)              | 주문 ID                        |
 | order_qr_code_id | UUID      | YES      | FK(order_qr_code_id → p_order_qr_codes.qr_id) | QR 코드 ID                     |
 | created_at       | timestamp | YES      |                                               | 체크인 완료 시각                    |
 | created_by       | BIGINT    |          |                                               | 체크인 수행자(OWNER / ADMIN / 스캐너) |
