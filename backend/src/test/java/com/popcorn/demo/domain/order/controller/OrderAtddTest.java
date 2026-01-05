@@ -48,6 +48,16 @@ class OrderAtddTest {
 				.build();
 	}
 
+	@BeforeEach
+	void setUp() {
+		orderService = Mockito.mock(OrderService.class);
+		objectMapper = new CommonConfig().objectMapper();
+		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+				.setControllerAdvice(new OrderExceptionHandler())
+				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+				.build();
+	}
+
 	@Test
 	@DisplayName("ATDD - 주문 생성 후 상태 변경 시나리오")
 	void createOrder_then_updateStatus() throws Exception {
