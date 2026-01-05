@@ -61,8 +61,8 @@ class OrderControllerTest {
 	@DisplayName("주문 생성 성공")
 	void createOrder_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
-		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
 		CreateOrderResponse response = CreateOrderResponse.builder()
@@ -88,21 +88,7 @@ class OrderControllerTest {
 
 		when(orderCommandService.createOrder(any())).thenReturn(response);
 
-		String jsonRequest = """
-				{
-					"orderType": "RESERVATION",
-					"storeId": "%s",
-					"productId": "%s",
-					"items": [
-						{
-							"orderItemType": "RESERVATION",
-							"sessionId": "00000000-0000-0000-0000-000000000201",
-							"optionId": "00000000-0000-0000-0000-000000000301",
-							"qty": 2
-						}
-					]
-				}
-				""".formatted(storeId, productId);
+		String jsonRequest = buildReservationOrderRequest(storeId.toString(), productId.toString(), 2);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -118,21 +104,7 @@ class OrderControllerTest {
 	void createOrder_fail_emptyItems() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderException.emptyItems());
 
-		String jsonRequest = """
-				{
-					"orderType": "RESERVATION",
-					"storeId": "00000000-0000-0000-0000-000000000001",
-					"productId": "00000000-0000-0000-0000-000000000101",
-					"items": [
-						{
-							"orderItemType": "RESERVATION",
-							"sessionId": "00000000-0000-0000-0000-000000000201",
-							"optionId": "00000000-0000-0000-0000-000000000301",
-							"qty": 1
-						}
-					]
-				}
-				""";
+		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -171,21 +143,7 @@ class OrderControllerTest {
 	void createOrder_fail_invalidQty() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderException.invalidQty());
 
-		String jsonRequest = """
-				{
-					"orderType": "RESERVATION",
-					"storeId": "00000000-0000-0000-0000-000000000001",
-					"productId": "00000000-0000-0000-0000-000000000101",
-					"items": [
-						{
-							"orderItemType": "RESERVATION",
-							"sessionId": "00000000-0000-0000-0000-000000000201",
-							"optionId": "00000000-0000-0000-0000-000000000301",
-							"qty": 1
-						}
-					]
-				}
-				""";
+		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -266,12 +224,7 @@ class OrderControllerTest {
 		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = """
-				{
-					"status": "OWNER_ACCEPTED",
-					"reason": "approved"
-				}
-				""";
+		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "approved");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -345,12 +298,7 @@ class OrderControllerTest {
 		when(orderCommandService.updateStatus(orderId, "READY", "reason"))
 				.thenThrow(OrderException.invalidStatusTransition());
 
-		String jsonRequest = """
-				{
-					"status": "READY",
-					"reason": "reason"
-				}
-				""";
+		String jsonRequest = buildUpdateStatusRequest("READY", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -429,8 +377,8 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 요청 시 서비스 호출")
 	void createOrder_callsService() throws Exception {
-		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
 		CreateOrderResponse response = CreateOrderResponse.builder()
 				.orderId(UUID.randomUUID())
 				.orderNo("O20251231-000001")
@@ -446,7 +394,120 @@ class OrderControllerTest {
 
 		when(orderCommandService.createOrder(any())).thenReturn(response);
 
-		String jsonRequest = """
+		String jsonRequest = buildReservationOrderRequest(storeId.toString(), productId.toString(), 2);
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonRequest))
+				.andExpect(MockMvcResultMatchers.status().isCreated());
+
+		verify(orderCommandService).createOrder(any());
+	}
+
+	@Test
+	@DisplayName("가게 주문/예약 목록 조회 성공")
+	void getStoreOrders_success() throws Exception {
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+		UUID reservationId = UUID.fromString("00000000-0000-0000-0000-000000001201");
+		LocalDateTime createdAt = LocalDateTime.now().minusHours(1);
+
+		StoreOrderReservationListResponse response = StoreOrderReservationListResponse.builder()
+				.items(List.of(
+						StoreOrderReservationListResponse.ItemDto.builder()
+								.id(reservationId)
+								.reservationNo("O20260102-000001")
+								.status("REQUESTED")
+								.totalAmount(5000)
+								.cancelableUntil(createdAt.plusMinutes(30))
+								.createdAt(createdAt)
+								.build()
+				))
+				.page(1)
+				.size(20)
+				.total(1)
+				.build();
+
+		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
+				.thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
+						.param("storeId", storeId.toString()))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].id").value(reservationId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].reservationNo").value("O20260102-000001"));
+	}
+
+	@Test
+	@DisplayName("가게 주문/예약 목록 조회 실패 - 권한 없음")
+	void getStoreOrders_forbidden() throws Exception {
+		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
+				.thenThrow(OrderException.forbidden());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
+						.param("storeId", "00000000-0000-0000-0000-000000000001"))
+				.andExpect(MockMvcResultMatchers.status().isForbidden())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(403))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("권한이 없습니다."));
+	}
+
+	@Test
+	@DisplayName("내 주문/예약 타임라인 조회 성공")
+	void getMyOrders_success() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001301");
+		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+
+		MyOrderTimelineResponse response = MyOrderTimelineResponse.builder()
+				.items(List.of(
+						MyOrderTimelineResponse.ItemDto.builder()
+								.type("RESERVATION")
+								.id(orderId)
+								.orderNo("O20260102-000101")
+								.status("REQUESTED")
+								.totalAmount(2000)
+								.cancelableUntil(LocalDateTime.now().plusMinutes(30))
+								.createdAt(LocalDateTime.now())
+								.productId(productId)
+								.storeId(storeId)
+								.title("팝업 테스트")
+								.sessionStartAt(LocalDateTime.now().plusDays(1))
+								.location(MyOrderTimelineResponse.LocationDto.builder()
+										.name("팝업 장소")
+										.address1("서울특별시 강남구 테헤란로 123")
+										.address2("ABC빌딩 12층")
+										.build())
+								.build()
+				))
+				.page(1)
+				.size(20)
+				.total(1)
+				.build();
+
+		when(orderQueryService.getMyOrderTimeline(1001L, null, null, null, null, 20, 0L))
+				.thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/me"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].id").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].title").value("팝업 테스트"));
+	}
+
+	@Test
+	@DisplayName("내 주문/예약 타임라인 조회 실패 - 잘못된 요청")
+	void getMyOrders_invalidRequest() throws Exception {
+		when(orderQueryService.getMyOrderTimeline(any(), any(), any(), any(), any(), any(), any()))
+				.thenThrow(OrderException.invalidRequest());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/me"))
+				.andExpect(MockMvcResultMatchers.status().isBadRequest())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(400))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("잘못된 요청입니다."));
+	}
+
+	private String buildReservationOrderRequest(String storeId, String productId, int qty) {
+		return """
 				{
 					"orderType": "RESERVATION",
 					"storeId": "%s",
@@ -454,13 +515,14 @@ class OrderControllerTest {
 					"items": [
 						{
 							"orderItemType": "RESERVATION",
-							"sessionId": "00000000-0000-0000-0000-000000000201",
-							"optionId": "00000000-0000-0000-0000-000000000301",
-							"qty": 2
+							"sessionId": "%s",
+							"optionId": "%s",
+							"qty": %d
 						}
 					]
 				}
-				""".formatted(storeId, productId);
+				""".formatted(storeId, productId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
+	}
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)
