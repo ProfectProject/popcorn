@@ -1,9 +1,11 @@
 package com.popcorn.demo.domain.order.controller;
 
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,7 +21,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
+import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
+import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
@@ -28,7 +33,9 @@ import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
+import com.popcorn.demo.domain.order.entity.OrderStatus;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,17 +51,11 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/v1/orders")
 @Slf4j
+@RequiredArgsConstructor
 public class OrderController extends BaseController {
 
 	private final OrderService orderService;
-private final ObjectMapper objectMapper;
-
-
-
-public OrderController(OrderService orderService, ObjectMapper objectMapper) {
-	this.orderService = orderService;
-	this.objectMapper = objectMapper;
-}
+	private final ObjectMapper objectMapper;
 
 
 
@@ -420,6 +421,80 @@ public OrderController(OrderService orderService, ObjectMapper objectMapper) {
 
 		OrderDetailDto detail = orderService.getOrderDetail(orderId, null, null);
 		return ResponseEntity.ok(BaseResponse.success(detail));
+	}
+
+	@Operation(
+			summary = "내 가게 주문/예약 목록",
+			description = "OWNER/MANAGER가 가게 기준으로 주문/예약 목록을 조회합니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "가게 주문 목록 조회 성공",
+			content = @Content(schema = @Schema(implementation = StoreOrderReservationListResponse.class))
+	)
+	@GetMapping("/store")
+	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrders(
+			@Parameter(description = "스토어 ID", required = false,
+					example = "00000000-0000-0000-0000-000000000001")
+			@RequestParam(required = false,
+					defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
+			@Parameter(description = "상품 ID", required = false,
+					example = "00000000-0000-0000-0000-000000000101")
+			@RequestParam(required = false,
+					defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
+			@Parameter(description = "주문 상태", required = false,
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
+			@Parameter(description = "조회 시작 시각", required = false)
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+			@Parameter(description = "조회 종료 시각", required = false)
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+			@Parameter(description = "페이지 (기본 1)", required = false)
+			@RequestParam(required = false, defaultValue = "1") Integer page,
+			@Parameter(description = "사이즈 (기본 20)", required = false)
+			@RequestParam(required = false, defaultValue = "20") Integer size) {
+
+		StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
+				storeId, productId, status.name(), from, to, page, size
+		);
+		return ResponseEntity.ok(BaseResponse.success(response));
+	}
+
+	@Operation(
+			summary = "내 주문/예약 목록",
+			description = "CUSTOMER가 본인 주문/예약 목록을 타임라인 형태로 조회합니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "내 주문 목록 조회 성공",
+			content = @Content(schema = @Schema(implementation = MyOrderTimelineResponse.class))
+	)
+	@GetMapping("/me")
+	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
+			@Parameter(hidden = true)
+			@RequestParam(required = false) Long customerId,
+			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)", required = false)
+			@RequestParam(required = false, defaultValue = "ALL") String orderType,
+			@Parameter(description = "주문 상태", required = false,
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false) OrderStatus status,
+			@Parameter(description = "조회 시작 시각", required = false)
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+			@Parameter(description = "조회 종료 시각", required = false)
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+			@Parameter(description = "페이지 (기본 1)", required = false)
+			@RequestParam(required = false, defaultValue = "1") Integer page,
+			@Parameter(description = "사이즈 (기본 20)", required = false)
+			@RequestParam(required = false, defaultValue = "20") Integer size) {
+
+		MyOrderTimelineResponse response = orderService.getMyOrderTimeline(
+				customerId, orderType, status == null ? null : status.name(), from, to, page, size
+		);
+		return ResponseEntity.ok(BaseResponse.success(response));
 	}
 	private void logRequestDebug(String label, Object request) {
 		if (!log.isDebugEnabled()) {

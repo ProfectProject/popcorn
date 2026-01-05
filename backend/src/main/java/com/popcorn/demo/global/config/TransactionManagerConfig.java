@@ -19,7 +19,7 @@ public class TransactionManagerConfig {
 	 * JPA Transaction Manager
 	 * JPA/JDBC/Flyway 같은 블로킹 작업용 트랜잭션 매니저입니다.
 	 */
-	@Bean(name = "jdbcTransactionManager")
+	@Bean(name = {"jdbcTransactionManager", "transactionManager"})
 	@Primary
 	public PlatformTransactionManager jdbcTransactionManager(EntityManagerFactory entityManagerFactory) {
 		return new JpaTransactionManager(entityManagerFactory);

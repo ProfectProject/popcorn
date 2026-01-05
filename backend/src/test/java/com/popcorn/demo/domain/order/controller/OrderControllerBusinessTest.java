@@ -14,14 +14,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Nested;
 import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
@@ -29,7 +25,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.service.OrderService;
-import com.popcorn.demo.global.config.SecurityConfig;
+import com.popcorn.demo.global.config.CommonConfig;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
@@ -48,29 +44,23 @@ import lombok.extern.slf4j.Slf4j;
  * 2. 도메인 로직과 비즈니스 규칙 검증
  * 3. 실제 사용자 스토리를 반영한 테스트 케이스
  */
-@WebMvcTest(controllers = OrderController.class)
-@ContextConfiguration(classes = {
-		OrderController.class,
-		OrderExceptionHandler.class,
-		SecurityConfig.class,
-		OrderControllerBusinessTest.TestConfig.class
-})
-@ActiveProfiles("local")
 @Slf4j
 class OrderControllerBusinessTest {
 
-	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired
 	private ObjectMapper objectMapper;
 
-	@Autowired
 	private OrderService orderService;
 
 	@BeforeEach
 	void setUp() {
-		Mockito.reset(orderService);
+		orderService = Mockito.mock(OrderService.class);
+		objectMapper = new CommonConfig().objectMapper();
+		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+				.setControllerAdvice(new OrderExceptionHandler())
+				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+				.build();
 	}
 
 	@Nested
@@ -295,20 +285,4 @@ class OrderControllerBusinessTest {
 		}
 	}
 
-	@TestConfiguration
-	static class TestConfig {
-		@Bean
-		OrderService orderService() {
-			return Mockito.mock(OrderService.class);
-		}
-
-		@Bean
-		ObjectMapper objectMapper() {
-			ObjectMapper mapper = new ObjectMapper();
-			mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-			mapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-			mapper.disable(com.fasterxml.jackson.databind.DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
-			return mapper;
-		}
-	}
 }

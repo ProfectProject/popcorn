@@ -14,19 +14,7 @@ CREATE TYPE product_status AS ENUM ('WAIT', 'OPEN', 'CLOSED', 'DELETED');
 CREATE TYPE session_status AS ENUM ('UPCOMING', 'OPEN', 'ENDED');
 
 -- order status
-CREATE TYPE order_status AS ENUM (
-	'REQUESTED',
-	'OWNER_ACCEPTED',
-	'OWNER_REJECTED',
-	'CONFIRMED',
-	'PREPARING',
-	'READY',
-	'COMPLETED',
-	'CANCELLED',
-	'REFUNDED'
-);
-CREATE TYPE order_type AS ENUM ('RESERVATION', 'PURCHASE');
-CREATE TYPE order_item_type AS ENUM ('RESERVATION', 'MERCH');
+CREATE TYPE order_status AS ENUM ('PENDING', 'PAID', 'CANCELED', 'REFUNDED', 'FAILED');
 
 -- payment
 CREATE TYPE payment_method AS ENUM ('CARD', 'CASH', 'VIRTUAL');

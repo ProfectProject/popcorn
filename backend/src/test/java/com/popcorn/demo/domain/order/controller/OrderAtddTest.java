@@ -7,17 +7,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
@@ -28,26 +25,25 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderService;
-import com.popcorn.demo.global.config.SecurityConfig;
+import com.popcorn.demo.global.config.CommonConfig;
 
-@WebMvcTest(controllers = OrderController.class)
-@ContextConfiguration(classes = {
-		OrderController.class,
-		OrderExceptionHandler.class,
-		SecurityConfig.class,
-		OrderAtddTest.TestConfig.class
-})
-@ActiveProfiles("local")
 class OrderAtddTest {
 
-	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired
 	private ObjectMapper objectMapper;
 
-	@Autowired
 	private OrderService orderService;
+
+	@BeforeEach
+	void setUp() {
+		orderService = Mockito.mock(OrderService.class);
+		objectMapper = new CommonConfig().objectMapper();
+		mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, objectMapper))
+				.setControllerAdvice(new OrderExceptionHandler())
+				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+				.build();
+	}
 
 	@Test
 	@DisplayName("ATDD - 주문 생성 후 상태 변경 시나리오")
@@ -122,13 +118,5 @@ class OrderAtddTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
-	}
-
-	@TestConfiguration
-	static class TestConfig {
-		@Bean
-		OrderService orderService() {
-			return Mockito.mock(OrderService.class);
-		}
 	}
 }

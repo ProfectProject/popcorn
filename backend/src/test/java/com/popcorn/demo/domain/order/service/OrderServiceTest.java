@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,10 +25,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.popcorn.demo.common.cache.IdempotencyCache;
+import com.popcorn.demo.domain.order.config.OrderProperties;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
+import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
+import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
@@ -35,6 +39,10 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
+import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderTimelineView;
+import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -55,7 +63,10 @@ class OrderServiceTest {
 	private ApplicationEventPublisher eventPublisher;
 
 	@Mock
-	private JdbcTemplate jdbcTemplate;
+	private OrderQueryRepository orderQueryRepository;
+
+	@Mock
+	private OrderProperties orderProperties;
 
 	private OrderService orderService;
 
@@ -67,7 +78,8 @@ class OrderServiceTest {
 				orderItemPriceService,
 				idempotencyCache,
 				eventPublisher,
-				jdbcTemplate
+				orderQueryRepository,
+				orderProperties
 		);
 	}
 
@@ -286,6 +298,109 @@ class OrderServiceTest {
 			orderService.updateStatus(orderId, "OWNER_ACCEPTED", "approved");
 
 			verify(orderRepository).saveStatusHistory(any());
+		}
+	}
+
+	@Nested
+	@DisplayName("조회 로직")
+	class QueryVerification {
+
+		@Test
+		@DisplayName("가게 주문/예약 목록 - 기본 페이지/사이즈 적용")
+		void getStoreOrderReservations_appliesDefaults() {
+			UUID storeId = UUID.randomUUID();
+			UUID productId = UUID.randomUUID();
+			LocalDateTime now = LocalDateTime.now();
+
+			List<StoreOrderReservationListResponse.ItemDto> items = List.of(
+					StoreOrderReservationListResponse.ItemDto.builder()
+							.id(UUID.randomUUID())
+							.reservationNo("O-1001")
+							.status("REQUESTED")
+							.totalAmount(1000)
+							.cancelableUntil(now.plusMinutes(30))
+							.createdAt(now)
+							.build()
+			);
+
+			StoreOrderReservationView view = org.mockito.Mockito.mock(StoreOrderReservationView.class);
+			when(view.getId()).thenReturn(items.get(0).getId());
+			when(view.getOrderNo()).thenReturn(items.get(0).getReservationNo());
+			when(view.getStatus()).thenReturn(items.get(0).getStatus());
+			when(view.getTotalAmount()).thenReturn(items.get(0).getTotalAmount());
+			when(view.getCancelableUntil()).thenReturn(items.get(0).getCancelableUntil());
+			when(view.getCreatedAt()).thenReturn(items.get(0).getCreatedAt());
+
+			when(orderQueryRepository.countStoreOrders(
+					any(UUID.class), any(UUID.class), any(String.class), any(), any()
+			)).thenReturn(1L);
+			when(orderQueryRepository.findStoreOrders(
+					any(UUID.class), any(UUID.class), any(String.class), any(), any(), any(Integer.class), any(Long.class)
+			)).thenReturn(List.of(view));
+
+			StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
+					storeId, productId, "REQUESTED", null, null, null, null
+			);
+
+			assertThat(response.getItems()).hasSize(1);
+			assertThat(response.getPage()).isEqualTo(1);
+			assertThat(response.getSize()).isEqualTo(20);
+			assertThat(response.getTotal()).isEqualTo(1L);
+		}
+
+		@Test
+		@DisplayName("내 주문 타임라인 - 기본 페이지/사이즈 적용")
+		void getMyOrderTimeline_appliesDefaults() {
+			LocalDateTime now = LocalDateTime.now();
+			List<MyOrderTimelineResponse.ItemDto> items = List.of(
+					MyOrderTimelineResponse.ItemDto.builder()
+							.type("RESERVATION")
+							.id(UUID.randomUUID())
+							.orderNo("O-2001")
+							.status("REQUESTED")
+							.totalAmount(2000)
+							.cancelableUntil(now.plusHours(1))
+							.createdAt(now)
+							.build()
+			);
+
+			OrderTimelineView view = org.mockito.Mockito.mock(OrderTimelineView.class);
+			when(view.getOrderType()).thenReturn(items.get(0).getType());
+			when(view.getId()).thenReturn(items.get(0).getId());
+			when(view.getOrderNo()).thenReturn(items.get(0).getOrderNo());
+			when(view.getStatus()).thenReturn(items.get(0).getStatus());
+			when(view.getTotalAmount()).thenReturn(items.get(0).getTotalAmount());
+			when(view.getCancelableUntil()).thenReturn(items.get(0).getCancelableUntil());
+			when(view.getCreatedAt()).thenReturn(items.get(0).getCreatedAt());
+
+			when(orderQueryRepository.countCustomerOrders(
+					any(Long.class), any(), any(), any(), any()
+			)).thenReturn(1L);
+			when(orderQueryRepository.findCustomerOrders(
+					any(Long.class), any(), any(), any(), any(), any(Integer.class), any(Long.class)
+			)).thenReturn(List.of(view));
+
+			MyOrderTimelineResponse response = orderService.getMyOrderTimeline(
+					1001L, "ALL", null, null, null, null, null
+			);
+
+			assertThat(response.getItems()).hasSize(1);
+			assertThat(response.getPage()).isEqualTo(1);
+			assertThat(response.getSize()).isEqualTo(20);
+			assertThat(response.getTotal()).isEqualTo(1L);
+		}
+
+		@Test
+		@DisplayName("주문 상세 조회 - 주문 없음")
+		void getOrderDetail_notFound() {
+			UUID orderId = UUID.randomUUID();
+
+			when(orderQueryRepository.findOrderDetail(orderId)).thenReturn(null);
+
+			assertThatThrownBy(() -> orderService.getOrderDetail(orderId, 1001L, "CUSTOMER"))
+					.isInstanceOf(OrderException.class)
+					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+							.isEqualTo(OrderResponseCode.ORDER_NOT_FOUND));
 		}
 	}
 
