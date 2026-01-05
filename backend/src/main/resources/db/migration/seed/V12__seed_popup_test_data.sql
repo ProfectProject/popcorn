@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS p_session_options (
     name VARCHAR(100) NOT NULL,
     price INT NOT NULL,
     capacity INT NOT NULL,
+    remaining INT NOT NULL,
     is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
@@ -77,6 +78,8 @@ CREATE TABLE IF NOT EXISTS p_session_options (
 
 -- Hibernate-created tables may not include deleted_at in tests.
 ALTER TABLE p_session_options ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE p_session_options ADD COLUMN IF NOT EXISTS remaining INT;
+UPDATE p_session_options SET remaining = capacity WHERE remaining IS NULL;
 
 -- noinspection SqlResolve
 CREATE TABLE IF NOT EXISTS p_merch_variants (
@@ -272,13 +275,14 @@ WHERE NOT EXISTS (
 
 -- noinspection SqlResolve
 INSERT INTO p_session_options (
-    id, session_id, name, price, capacity, is_hidden, created_at, updated_at, deleted_at
+    id, session_id, name, price, capacity, remaining, is_hidden, created_at, updated_at, deleted_at
 )
 SELECT
     '00000000-0000-0000-0000-000000000301',
     '00000000-0000-0000-0000-000000000201',
     '일반 좌석',
     10000,
+    20,
     20,
     FALSE,
     TIMESTAMP '2025-01-01 10:00:00',
@@ -290,13 +294,14 @@ WHERE NOT EXISTS (
 
 -- noinspection SqlResolve
 INSERT INTO p_session_options (
-    id, session_id, name, price, capacity, is_hidden, created_at, updated_at, deleted_at
+    id, session_id, name, price, capacity, remaining, is_hidden, created_at, updated_at, deleted_at
 )
 SELECT
     '00000000-0000-0000-0000-000000000302',
     '00000000-0000-0000-0000-000000000201',
     '프리미엄 좌석',
     15000,
+    10,
     10,
     FALSE,
     TIMESTAMP '2025-01-01 10:00:00',
