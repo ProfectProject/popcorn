@@ -6,101 +6,94 @@ import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class StoreService {
 
-    private static final Logger log = LoggerFactory.getLogger(StoreService.class);
     private static final int MAX_STORES_PER_OWNER = 10;
     private static final int MAX_STORE_NAME_LENGTH = 100;
     private static final int MIN_STORE_NAME_LENGTH = 1;
+    private static final String INVALID_CHARS = "<>\"'&;";
 
     private final StoreRepository storeRepository;
 
-    public StoreService(StoreRepository storeRepository) {
-        this.storeRepository = storeRepository;
-    }
-
     @Transactional
     public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
-        log.info("[STORE_CREATE_START] ownerId={}, storeName={}", ownerId, request.getName());
+        log.info("[STORE_CREATE] ownerId={}, name={}", ownerId, request.getName());
         
-        validateStoreCreation(ownerId, request.getName());
+        String trimmedName = validateAndTrimName(request.getName());
+        validateOwnerId(ownerId);
+        checkDuplicateName(trimmedName);
+        checkStoreLimit(ownerId);
         
-        Optional<Store> existingStore = storeRepository.findByName(request.getName().trim());
-        if (existingStore.isPresent() && !existingStore.get().isDeleted()) {
-            log.warn("[STORE_CREATE_DUPLICATE] storeName={}", request.getName());
-            throw StoreException.duplicateStoreName(request.getName());
+        Store savedStore = storeRepository.save(createStoreEntity(ownerId, trimmedName));
+        
+        log.info("[STORE_CREATED] storeId={}", savedStore.getId());
+        return mapToDto(savedStore);
+    }
+
+    private String validateAndTrimName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw StoreException.emptyName();
         }
         
+        String trimmed = name.trim();
+        if (trimmed.length() < MIN_STORE_NAME_LENGTH || trimmed.length() > MAX_STORE_NAME_LENGTH) {
+            throw StoreException.invalidNameLength(trimmed.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
+        }
+        
+        if (trimmed.chars().anyMatch(c -> INVALID_CHARS.indexOf(c) >= 0)) {
+            throw StoreException.invalidNameFormat(trimmed);
+        }
+        
+        return trimmed;
+    }
+
+    private void validateOwnerId(Long ownerId) {
+        if (ownerId == null || ownerId <= 0) {
+            throw StoreException.ownerNotFound();
+        }
+    }
+
+    private void checkDuplicateName(String name) {
+        storeRepository.findByName(name)
+                .filter(store -> !store.isDeleted())
+                .ifPresent(store -> {
+                    throw StoreException.duplicateStoreName(name);
+                });
+    }
+
+    private void checkStoreLimit(Long ownerId) {
         long storeCount = storeRepository.countByOwnerId(ownerId);
         if (storeCount >= MAX_STORES_PER_OWNER) {
-            log.warn("[STORE_CREATE_LIMIT_EXCEEDED] ownerId={}, currentCount={}, maxAllowed={}", 
-                     ownerId, storeCount, MAX_STORES_PER_OWNER);
             throw StoreException.storeCreationLimitExceeded(ownerId, MAX_STORES_PER_OWNER);
         }
-        
-        Store store = Store.builder()
-                .name(request.getName().trim())
+    }
+
+    private Store createStoreEntity(Long ownerId, String name) {
+        return Store.builder()
+                .name(name)
                 .ownerId(ownerId)
                 .publishStatus(StorePublishStatus.DRAFT)
                 .createdBy(ownerId)
                 .updatedBy(ownerId)
                 .build();
+    }
 
-        Store savedStore = storeRepository.save(store);
-        
-        log.info("[STORE_CREATE_SUCCESS] storeId={}, ownerId={}", savedStore.getId(), ownerId);
-
+    private StoreCreatedDto mapToDto(Store store) {
         return StoreCreatedDto.builder()
-                .id(savedStore.getId())
-                .name(savedStore.getName())
-                .ownerId(savedStore.getOwnerId())
-                .publishStatus(savedStore.getPublishStatus())
-                .createdAt(savedStore.getCreatedAt())
-                .createdBy(savedStore.getCreatedBy())
+                .id(store.getId())
+                .name(store.getName())
+                .ownerId(store.getOwnerId())
+                .publishStatus(store.getPublishStatus())
+                .createdAt(store.getCreatedAt())
+                .createdBy(store.getCreatedBy())
                 .build();
-    }
-
-    private void validateStoreCreation(Long ownerId, String name) {
-        validateStoreName(name);
-        validateOwnerId(ownerId);
-    }
-
-    private void validateStoreName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            log.warn("[STORE_VALIDATION_FAILED] Empty store name");
-            throw StoreException.emptyName();
-        }
-        
-        String trimmedName = name.trim();
-        if (trimmedName.length() < MIN_STORE_NAME_LENGTH || trimmedName.length() > MAX_STORE_NAME_LENGTH) {
-            log.warn("[STORE_VALIDATION_FAILED] Invalid name length: actual={}, min={}, max={}", 
-                     trimmedName.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
-            throw StoreException.invalidNameLength(trimmedName.length(), MIN_STORE_NAME_LENGTH, MAX_STORE_NAME_LENGTH);
-        }
-        
-        if (containsInvalidCharacters(trimmedName)) {
-            log.warn("[STORE_VALIDATION_FAILED] Invalid characters in name: {}", trimmedName);
-            throw StoreException.invalidNameFormat(trimmedName);
-        }
-    }
-
-    private void validateOwnerId(Long ownerId) {
-        if (ownerId == null || ownerId <= 0) {
-            log.warn("[STORE_VALIDATION_FAILED] Invalid ownerId: {}", ownerId);
-            throw StoreException.ownerNotFound();
-        }
-    }
-
-    private boolean containsInvalidCharacters(String name) {
-        String invalidChars = "<>\"'&;";
-        return name.chars().anyMatch(c -> invalidChars.indexOf(c) >= 0);
     }
 }
