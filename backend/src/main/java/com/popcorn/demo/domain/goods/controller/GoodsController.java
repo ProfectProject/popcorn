@@ -18,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -68,5 +69,14 @@ public class GoodsController extends BaseController {
             @Valid @RequestBody GoodsStatusUpdateRequest request
     ) {
         return ok(goodsService.updateStatus(popupId, goodsId, request));
+    }
+
+    @DeleteMapping("/{goodsId}")
+    public ResponseEntity<BaseResponse<Void>> delete(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId
+    ) {
+        goodsService.delete(popupId, goodsId);
+        return ok(null);
     }
 }
