@@ -12,6 +12,8 @@ public enum OrderStatus {
 
 	CONFIRMED,     // 주문 확인됨
 
+	PAID,          // 결제 완료됨
+
 	PREPARING,     // 준비 중
 
 	READY,         // 준비 완료

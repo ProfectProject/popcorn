@@ -26,7 +26,10 @@ import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderConflictException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.service.OrderItemPriceService;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
@@ -72,7 +75,7 @@ public class OrderService {
 
 		boolean isValid = validateOrderAsync(command.getUserId(), command.getProductId(), totalQty);
 		if (!isValid) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		orderDomainService.validateOrderCreation(
@@ -273,24 +276,24 @@ public class OrderService {
 		log.info("🧾 주문 상태 변경 요청 - 주문ID: {}, 변경상태: {}, 사유: {}", orderId, status, reason);
 
 		Order order = orderRepository.findById(orderId)
-				.orElseThrow(OrderException::orderNotFound);
+				.orElseThrow(OrderNotFoundException::orderNotFound);
 
 		OrderStatus currentStatus = order.getStatus();
 		if (currentStatus == OrderStatus.CANCELLED) {
-			throw OrderException.alreadyCanceled();
+			throw OrderConflictException.alreadyCanceled();
 		}
 
 		OrderStatus newStatus;
 		try {
 			newStatus = OrderStatus.valueOf(status);
 		} catch (IllegalArgumentException ex) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
 			log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}, 요청상태: {}, 사유: {}",
 					orderId, currentStatus, newStatus, reason);
-			throw OrderException.invalidStatusTransition();
+			throw OrderValidationException.invalidStatusTransition();
 		}
 
 		order.setStatus(newStatus);
@@ -313,7 +316,7 @@ public class OrderService {
 	private OrderDetailView fetchOrderDetailRow(UUID orderId) {
 		OrderDetailView row = orderQueryRepository.findOrderDetail(orderId);
 		if (row == null) {
-			throw OrderException.orderNotFound();
+			throw OrderNotFoundException.orderNotFound();
 		}
 		return row;
 	}
@@ -332,7 +335,7 @@ public class OrderService {
 			default -> false;
 		};
 		if (!allowed) {
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 	}
 
@@ -486,13 +489,13 @@ public class OrderService {
 		}
 		if (idempotencyCache.isDuplicate(normalizedKey)) {
 			log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", normalizedKey);
-			throw OrderException.duplicateIdempotencyKey();
+			throw OrderConflictException.duplicateIdempotencyKey();
 		}
 		Optional<Order> existingOrder = orderRepository.findByIdempotencyKey(rawKey);
 		if (orderDomainService.isDuplicateOrder(existingOrder, rawKey)) {
 			log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", rawKey);
 			idempotencyCache.mark(normalizedKey);
-			throw OrderException.duplicateIdempotencyKey();
+			throw OrderConflictException.duplicateIdempotencyKey();
 		}
 	}
 
@@ -520,20 +523,20 @@ public class OrderService {
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
 			UUID optionId = itemCommand.getOptionId();
 			if (optionId == null) {
-				throw OrderException.optionNotFound();
+				throw OrderNotFoundException.optionNotFound();
 			}
 			return orderItemPriceService.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderException::optionNotFound);
+					.orElseThrow(OrderNotFoundException::optionNotFound);
 		}
 		if (OrderItemType.MERCH.equals(orderItemType)) {
 			UUID merchVariantId = itemCommand.getMerchVariantId();
 			if (merchVariantId == null) {
-				throw OrderException.merchVariantNotFound();
+				throw OrderNotFoundException.merchVariantNotFound();
 			}
 			return orderItemPriceService.findMerchVariantPrice(merchVariantId)
-					.orElseThrow(OrderException::merchVariantNotFound);
+					.orElseThrow(OrderNotFoundException::merchVariantNotFound);
 		}
-		throw OrderException.invalidRequest();
+		throw OrderValidationException.invalidRequest();
 	}
 
 	private String normalizeIdempotencyKey(String idempotencyKey) {

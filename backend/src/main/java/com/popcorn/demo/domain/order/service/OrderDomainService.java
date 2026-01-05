@@ -12,7 +12,8 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 /**
 
@@ -47,6 +48,8 @@ public class OrderDomainService {
 				OrderStatus.CONFIRMED,
 				OrderStatus.OWNER_ACCEPTED,
 				OrderStatus.OWNER_REJECTED,
+				OrderStatus.COMPLETED,
+				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
 		transitions.put(OrderStatus.OWNER_ACCEPTED, java.util.EnumSet.of(
@@ -54,10 +57,13 @@ public class OrderDomainService {
 				OrderStatus.CONFIRMED,
 				OrderStatus.READY,
 				OrderStatus.COMPLETED,
+				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
 		transitions.put(OrderStatus.CONFIRMED, java.util.EnumSet.of(
 				OrderStatus.PREPARING,
+				OrderStatus.COMPLETED,
+				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
 		transitions.put(OrderStatus.PREPARING, java.util.EnumSet.of(
@@ -66,8 +72,10 @@ public class OrderDomainService {
 		));
 		transitions.put(OrderStatus.READY, java.util.EnumSet.of(
 				OrderStatus.COMPLETED,
+				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
+		transitions.put(OrderStatus.PAID, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.OWNER_REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.REFUNDED, java.util.EnumSet.noneOf(OrderStatus.class));
@@ -119,7 +127,7 @@ public class OrderDomainService {
 
 		* @param orderItems 주문 항목들
 
-		* @throws OrderException 검증 실패 시
+		* @throws com.popcorn.demo.global.exception.BaseException 검증 실패 시
 
 		*/
 
@@ -129,7 +137,7 @@ public class OrderDomainService {
 
 		if (customerId == null || customerId <= 0) {
 
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 
 		}
 
@@ -137,7 +145,7 @@ public class OrderDomainService {
 
 		if (storeId == null) {
 
-			throw OrderException.storeNotFound();
+			throw OrderNotFoundException.storeNotFound();
 
 		}
 
@@ -145,7 +153,7 @@ public class OrderDomainService {
 
 		if (productId == null) {
 
-			throw OrderException.productNotFound();
+			throw OrderNotFoundException.productNotFound();
 
 		}
 
@@ -153,7 +161,7 @@ public class OrderDomainService {
 
 		if (orderItems == null || orderItems.isEmpty()) {
 
-			throw OrderException.emptyItems();
+			throw OrderValidationException.emptyItems();
 
 		}
 
@@ -181,7 +189,7 @@ public class OrderDomainService {
 
 		if (item.getQty() <= 0) {
 
-			throw OrderException.invalidQty();
+			throw OrderValidationException.invalidQty();
 
 		}
 
@@ -189,7 +197,7 @@ public class OrderDomainService {
 
 		if (item.getUnitPrice() <= 0) {
 
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 
 		}
 

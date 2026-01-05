@@ -134,11 +134,12 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
     private static boolean isStatusProgression(OrderStatus from, OrderStatus to) {
         // 정방향 진행 판단 로직
         return switch (from) {
-            case REQUESTED -> to == OrderStatus.OWNER_ACCEPTED || to == OrderStatus.CONFIRMED;
-            case OWNER_ACCEPTED -> to == OrderStatus.CONFIRMED || to == OrderStatus.PREPARING;
-            case CONFIRMED -> to == OrderStatus.PREPARING;
+            case REQUESTED -> to == OrderStatus.OWNER_ACCEPTED || to == OrderStatus.CONFIRMED ||
+                              to == OrderStatus.PAID || to == OrderStatus.COMPLETED;
+            case OWNER_ACCEPTED -> to == OrderStatus.CONFIRMED || to == OrderStatus.PREPARING || to == OrderStatus.PAID;
+            case CONFIRMED -> to == OrderStatus.PREPARING || to == OrderStatus.PAID || to == OrderStatus.COMPLETED;
             case PREPARING -> to == OrderStatus.READY;
-            case READY -> to == OrderStatus.COMPLETED;
+            case READY -> to == OrderStatus.COMPLETED || to == OrderStatus.PAID;
             default -> false;
         };
     }
@@ -146,6 +147,7 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
     private static boolean isReversibleChange(OrderStatus from, OrderStatus to) {
         // 되돌릴 수 있는 변경 판단
         return !(to == OrderStatus.COMPLETED ||
+                to == OrderStatus.PAID ||
                 to == OrderStatus.CANCELLED ||
                 to == OrderStatus.REFUNDED ||
                 to == OrderStatus.OWNER_REJECTED);
@@ -157,6 +159,7 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
             case OWNER_ACCEPTED -> "점주승인";
             case OWNER_REJECTED -> "점주거절";
             case CONFIRMED -> "확인됨";
+            case PAID -> "결제완료";
             case PREPARING -> "준비중";
             case READY -> "준비완료";
             case COMPLETED -> "완료";

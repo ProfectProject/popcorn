@@ -175,6 +175,7 @@ public class OrderCancelledEvent extends BaseOrderEvent {
             case CONFIRMED -> "확인됨";
             case PREPARING -> "준비중";
             case READY -> "준비완료";
+            case PAID -> "결제완료";
             default -> status.name();
         };
     }

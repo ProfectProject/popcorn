@@ -86,7 +86,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 	OrderAddressView findDefaultAddress(@Param("userId") Long userId);
 
 	@Query(value = """
-			SELECT p.id AS id,
+			SELECT p.id AS paymentId,
 			       p.method AS method,
 			       p.status AS status,
 			       p.amount AS amount,
@@ -101,12 +101,18 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 	@Query(value = """
 			SELECT o.id AS orderId,
 			       o.order_no AS orderNo,
-			       o.status AS status,
+			       COALESCE(h.to_status, o.status) AS status,
 			       p.status AS paymentStatus,
 			       o.cancelable_until AS cancelableUntil,
-			       o.updated_at AS updatedAt
+			       COALESCE(h.changed_at, o.updated_at) AS updatedAt
 			  FROM p_orders o
 			  LEFT JOIN p_payments p ON p.order_id = o.id AND p.deleted_at IS NULL
+			  LEFT JOIN p_order_status_histories h ON h.order_id = o.id
+			    AND h.changed_at = (
+			      SELECT MAX(h2.changed_at)
+			        FROM p_order_status_histories h2
+			       WHERE h2.order_id = o.id
+			    )
 			 WHERE o.deleted_at IS NULL
 			   AND o.id = :orderId
 			   AND o.customer_id = :customerId
@@ -117,12 +123,18 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 	@Query(value = """
 			SELECT o.id AS orderId,
 			       o.order_no AS orderNo,
-			       o.status AS status,
+			       COALESCE(h.to_status, o.status) AS status,
 			       p.status AS paymentStatus,
 			       o.cancelable_until AS cancelableUntil,
-			       o.updated_at AS updatedAt
+			       COALESCE(h.changed_at, o.updated_at) AS updatedAt
 			  FROM p_orders o
 			  LEFT JOIN p_payments p ON p.order_id = o.id AND p.deleted_at IS NULL
+			  LEFT JOIN p_order_status_histories h ON h.order_id = o.id
+			    AND h.changed_at = (
+			      SELECT MAX(h2.changed_at)
+			        FROM p_order_status_histories h2
+			       WHERE h2.order_id = o.id
+			    )
 			 WHERE o.deleted_at IS NULL
 			   AND o.id = :orderId
 			""", nativeQuery = true)

@@ -16,7 +16,7 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
-import com.popcorn.demo.domain.popup.application.PopupApplicationService;
+import com.popcorn.demo.domain.popup.service.PopupService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,7 +35,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 public class PopupController extends BaseController {
 
-	private final PopupApplicationService popupApplicationService;
+	private final PopupService popupService;
 
 	@Operation(
 			summary = "팝업 목록 조회",
@@ -107,7 +107,7 @@ public class PopupController extends BaseController {
 				.withTotal(withTotal)
 				.build();
 
-		PopupListResponse response = popupApplicationService.getPopups(requestQuery);
+		PopupListResponse response = popupService.getPopups(requestQuery);
 		return ok(response);
 	}
 
@@ -168,7 +168,7 @@ public class PopupController extends BaseController {
 					example = "00000000-0000-0000-0000-000000000101")
 			@PathVariable UUID productId) {
 
-		PopupDetailResponse response = popupApplicationService.getPopupDetail(PopupDetailQuery.of(productId));
+		PopupDetailResponse response = popupService.getPopupDetail(PopupDetailQuery.of(productId));
 		return ok(response);
 	}
 }

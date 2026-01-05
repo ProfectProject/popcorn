@@ -13,7 +13,8 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -50,7 +51,7 @@ public class OrderBusinessRuleService {
 	public void validateStatusTransitionRules(OrderStatus currentStatus, OrderStatus targetStatus, String reason) {
 		if (!isValidStatusTransition(currentStatus, targetStatus)) {
 			log.warn("❌ 잘못된 상태 전이 - 현재: {}, 대상: {}", currentStatus, targetStatus);
-			throw OrderException.invalidStatusTransition();
+			throw OrderValidationException.invalidStatusTransition();
 		}
 
 		validateStatusTransitionTiming(currentStatus, targetStatus);
@@ -68,14 +69,14 @@ public class OrderBusinessRuleService {
 			currentStatus == OrderStatus.CANCELLED ||
 			currentStatus == OrderStatus.REFUNDED) {
 			log.warn("❌ 취소 불가 상태: {}", currentStatus);
-			throw OrderException.orderCannotBeCancelled();
+			throw OrderValidationException.orderCannotBeCancelled();
 		}
 
 		// 취소 시간 제한 검증 (예: 주문 후 30분 이내)
 		LocalDateTime cancellationDeadline = orderCreatedAt.plusMinutes(30);
 		if (LocalDateTime.now().isAfter(cancellationDeadline)) {
 			log.warn("❌ 취소 시간 초과 - 주문시간: {}, 마감시간: {}", orderCreatedAt, cancellationDeadline);
-			throw OrderException.cancellationTimeExpired();
+			throw OrderValidationException.cancellationTimeExpired();
 		}
 
 		log.debug("✅ 주문 취소 규칙 검증 완료");
@@ -90,7 +91,7 @@ public class OrderBusinessRuleService {
 		int hour = now.getHour();
 		if (hour < 9 || hour >= 22) {
 			log.warn("❌ 영업시간 외 주문 - 현재시간: {}시", hour);
-			throw OrderException.orderOutsideBusinessHours();
+			throw OrderValidationException.orderOutsideBusinessHours();
 		}
 
 		// 주문 마감시간 검증 (예: 세션 시작 30분 전까지)
@@ -100,12 +101,12 @@ public class OrderBusinessRuleService {
 	private void validateOrderItems(List<CreateOrderCommand.OrderItemCommand> items) {
 		if (items == null || items.isEmpty()) {
 			log.warn("❌ 빈 주문 아이템");
-			throw OrderException.emptyItems();
+			throw OrderValidationException.emptyItems();
 		}
 
 		if (items.size() > 10) { // 최대 10개 아이템 제한
 			log.warn("❌ 주문 아이템 개수 초과: {}", items.size());
-			throw OrderException.tooManyItems();
+			throw OrderValidationException.tooManyItems();
 		}
 
 		for (CreateOrderCommand.OrderItemCommand item : items) {
@@ -117,27 +118,27 @@ public class OrderBusinessRuleService {
 		// 수량 검증
 		if (item.getQty() == null || item.getQty() <= 0) {
 			log.warn("❌ 잘못된 수량: {}", item.getQty());
-			throw OrderException.invalidQty();
+			throw OrderValidationException.invalidQty();
 		}
 
 		if (item.getQty() > 100) { // 최대 수량 제한
 			log.warn("❌ 수량 제한 초과: {}", item.getQty());
-			throw OrderException.quantityLimitExceeded();
+			throw OrderValidationException.quantityLimitExceeded();
 		}
 
 		// 아이템 타입별 필수 필드 검증
 		switch (item.getOrderItemType()) {
 			case RESERVATION -> {
 				if (item.getSessionId() == null) {
-					throw OrderException.sessionNotFound();
+					throw OrderNotFoundException.sessionNotFound();
 				}
 				if (item.getOptionId() == null) {
-					throw OrderException.optionNotFound();
+					throw OrderNotFoundException.optionNotFound();
 				}
 			}
 			case MERCH -> {
 				if (item.getMerchVariantId() == null) {
-					throw OrderException.merchVariantNotFound();
+					throw OrderNotFoundException.merchVariantNotFound();
 				}
 			}
 		}
@@ -151,13 +152,13 @@ public class OrderBusinessRuleService {
 		// 최소 주문 금액 (1000원)
 		if (totalAmount < 1000) {
 			log.warn("❌ 최소 주문 금액 미달: {}", totalAmount);
-			throw OrderException.belowMinimumOrderAmount();
+			throw OrderValidationException.belowMinimumOrderAmount();
 		}
 
 		// 최대 주문 금액 (100만원)
 		if (totalAmount > 1_000_000) {
 			log.warn("❌ 최대 주문 금액 초과: {}", totalAmount);
-			throw OrderException.aboveMaximumOrderAmount();
+			throw OrderValidationException.aboveMaximumOrderAmount();
 		}
 	}
 
@@ -171,7 +172,7 @@ public class OrderBusinessRuleService {
 						.anyMatch(item -> item.getOrderItemType() != OrderItemType.RESERVATION);
 				if (hasNonReservationItem) {
 					log.warn("❌ 예약형 주문에 비예약 아이템 포함");
-					throw OrderException.invalidOrderItemCombination();
+					throw OrderValidationException.invalidOrderItemCombination();
 				}
 			}
 			case PURCHASE -> {
@@ -180,7 +181,7 @@ public class OrderBusinessRuleService {
 						.anyMatch(item -> item.getOrderItemType() != OrderItemType.MERCH);
 				if (hasNonMerchItem) {
 					log.warn("❌ 구매형 주문에 비굿즈 아이템 포함");
-					throw OrderException.invalidOrderItemCombination();
+					throw OrderValidationException.invalidOrderItemCombination();
 				}
 			}
 		}
@@ -191,21 +192,27 @@ public class OrderBusinessRuleService {
 		return switch (from) {
 			case REQUESTED -> to == OrderStatus.OWNER_ACCEPTED ||
 							  to == OrderStatus.OWNER_REJECTED ||
+							  to == OrderStatus.COMPLETED ||
+							  to == OrderStatus.PAID ||
 							  to == OrderStatus.CANCELLED;
 
 			case OWNER_ACCEPTED -> to == OrderStatus.CONFIRMED ||
+								   to == OrderStatus.PAID ||
 								   to == OrderStatus.CANCELLED;
 
 			case CONFIRMED -> to == OrderStatus.PREPARING ||
+							  to == OrderStatus.COMPLETED ||
+							  to == OrderStatus.PAID ||
 							  to == OrderStatus.CANCELLED;
 
 			case PREPARING -> to == OrderStatus.READY ||
 							  to == OrderStatus.CANCELLED;
 
 			case READY -> to == OrderStatus.COMPLETED ||
+						  to == OrderStatus.PAID ||
 						  to == OrderStatus.CANCELLED;
 
-			case OWNER_REJECTED, CANCELLED, COMPLETED, REFUNDED -> false; // 최종 상태들
+			case OWNER_REJECTED, CANCELLED, COMPLETED, REFUNDED, PAID -> false; // 최종 상태들
 		};
 	}
 
@@ -221,7 +228,7 @@ public class OrderBusinessRuleService {
 			 targetStatus == OrderStatus.CANCELLED) &&
 			(reason == null || reason.trim().isEmpty())) {
 			log.warn("❌ 거절/취소 상태 변경 시 사유 필수");
-			throw OrderException.reasonRequiredForRejectionOrCancellation();
+			throw OrderValidationException.reasonRequiredForRejectionOrCancellation();
 		}
 	}
 }

@@ -23,7 +23,9 @@ import com.popcorn.demo.domain.order.event.OrderCreatedEvent;
 import com.popcorn.demo.domain.order.event.OrderStatusChangedEvent;
 import com.popcorn.demo.domain.order.event.OrderCancelledEvent;
 import com.popcorn.demo.domain.order.event.OrderCompletedEvent;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderConflictException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -89,7 +91,7 @@ public class OrderCommandService {
 			calculateTotalQuantity(orderItems)
 		);
 		if (!isValid) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		// 도메인 검증
@@ -119,6 +121,10 @@ public class OrderCommandService {
 				.toList();
 		orderRepository.saveOrderItems(itemsWithOrderId);
 
+		// 상태 이력 저장 (주문 생성)
+		OrderStatusHistory createdHistory = savedOrder.toHistory(null, "주문 생성");
+		orderRepository.saveStatusHistory(createdHistory);
+
 		// 🚀 비동기 후처리 (향상된 이벤트 발행)
 		asyncEventPublisher.publishEventAsync(new OrderCreatedEvent(savedOrder, command.getIdempotencyKey()))
 				.whenComplete((result, throwable) -> {
@@ -143,25 +149,25 @@ public class OrderCommandService {
 		log.info("🧾 주문 상태 변경 요청 - 주문ID: {}, 변경상태: {}, 사유: {}", orderId, status, reason);
 
 		Order order = orderRepository.findById(orderId)
-				.orElseThrow(OrderException::orderNotFound);
+				.orElseThrow(OrderNotFoundException::orderNotFound);
 
 		OrderStatus currentStatus = order.getStatus();
 		if (currentStatus == OrderStatus.CANCELLED) {
-			throw OrderException.alreadyCanceled();
+			throw OrderConflictException.alreadyCanceled();
 		}
 
 		OrderStatus newStatus;
 		try {
 			newStatus = OrderStatus.valueOf(status);
 		} catch (IllegalArgumentException ex) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		// 도메인 검증
 		if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
 			log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}, 요청상태: {}, 사유: {}",
 					orderId, currentStatus, newStatus, reason);
-			throw OrderException.invalidStatusTransition();
+			throw OrderValidationException.invalidStatusTransition();
 		}
 
 		// 상태 변경
@@ -251,20 +257,20 @@ public class OrderCommandService {
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
 			UUID optionId = itemCommand.getOptionId();
 			if (optionId == null) {
-				throw OrderException.optionNotFound();
+				throw OrderNotFoundException.optionNotFound();
 			}
 			return orderItemPriceService.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderException::optionNotFound);
+					.orElseThrow(OrderNotFoundException::optionNotFound);
 		}
 		if (OrderItemType.MERCH.equals(orderItemType)) {
 			UUID merchVariantId = itemCommand.getMerchVariantId();
 			if (merchVariantId == null) {
-				throw OrderException.merchVariantNotFound();
+				throw OrderNotFoundException.merchVariantNotFound();
 			}
 			return orderItemPriceService.findMerchVariantPrice(merchVariantId)
-					.orElseThrow(OrderException::merchVariantNotFound);
+					.orElseThrow(OrderNotFoundException::merchVariantNotFound);
 		}
-		throw OrderException.invalidRequest();
+		throw OrderValidationException.invalidRequest();
 	}
 
 

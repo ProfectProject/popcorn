@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
-import com.popcorn.demo.domain.popup.application.PopupApplicationService;
+import com.popcorn.demo.domain.popup.service.PopupService;
 import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
 
@@ -35,7 +35,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 public class PopupSessionController extends BaseController {
 
-	private final PopupApplicationService popupApplicationService;
+	private final PopupService popupService;
 
 	@Operation(
 			summary = "회차(슬롯) 조회",
@@ -84,7 +84,7 @@ public class PopupSessionController extends BaseController {
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
-		PopupSessionListResponse response = popupApplicationService.getProductSessions(
+		PopupSessionListResponse response = popupService.getProductSessions(
 				PopupSessionListQuery.builder()
 						.productId(productId)
 						.from(from)
