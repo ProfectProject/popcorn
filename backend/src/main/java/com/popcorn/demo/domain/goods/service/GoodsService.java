@@ -77,6 +77,12 @@ public class GoodsService {
         return new GoodsStatusResponse(goods.getId(), goods.isActive());
     }
 
+    @Transactional
+    public void delete(UUID popupId, UUID goodsId) {
+        GoodsVariant goods = getGoods(popupId, goodsId);
+        goods.softDelete();
+    }
+
     private GoodsVariant getGoods(UUID popupId, UUID goodsId) {
         return goodsVariantRepository
                 .findByIdAndPopupIdAndDeletedAtIsNull(goodsId, popupId)
