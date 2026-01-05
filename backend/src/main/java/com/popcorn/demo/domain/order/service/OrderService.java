@@ -109,7 +109,7 @@ public class OrderService {
 				.peek(item -> item.setOrderId(savedOrder.getId()))
 				.toList();
 		orderRepository.saveOrderItems(itemsWithOrderId);
-		eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder));
+		eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder, null));
 
 		CreateOrderResponse response = CreateOrderResponse.fromOrder(savedOrder);
 		log.info("✅ 주문 생성 완료 - 주문번호: {}, 사용자: {}", response.getOrderNo(), command.getUserId());
