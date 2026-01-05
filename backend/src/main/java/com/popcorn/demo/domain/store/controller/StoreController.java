@@ -25,7 +25,7 @@ import jakarta.validation.Valid;
 
 @Tag(name = "Stores", description = "스토어 관리 API")
 @RestController
-@RequestMapping("/api/v1/stores")
+@RequestMapping("/api/v1/owner/stores")
 public class StoreController extends BaseController {
 
     private final StoreService storeService;

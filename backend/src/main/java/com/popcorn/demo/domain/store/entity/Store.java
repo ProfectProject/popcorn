@@ -44,13 +44,13 @@ public class Store extends BaseEntity {
 
     /** 발행 상태 */
     @Enumerated(EnumType.STRING)
-    @Column(name = "publish_status", nullable = false)
+    @Column(name = "status", nullable = false)
     private StorePublishStatus publishStatus;
 
     /** 낙관적 락 버전 */
     @Version
-    @Column(name = "version", nullable = false)
-    private Long version;
+    @Column(name = "reason", nullable = false, length = 500)
+    private String reason;
 
     // ========================= Soft Delete 필드 =========================
 
@@ -124,8 +124,8 @@ public class Store extends BaseEntity {
      * 스토어가 공개 상태인지 확인
      * @return 공개 상태이면 true
      */
-    public boolean isPublished() {
-        return StorePublishStatus.PUBLISHED.equals(this.publishStatus);
+    public boolean isActive() {
+        return StorePublishStatus.ACTIVE.equals(this.publishStatus);
     }
 
     /**
