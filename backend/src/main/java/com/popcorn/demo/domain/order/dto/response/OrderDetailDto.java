@@ -52,7 +52,6 @@ public class OrderDetailDto {
 		private String productCategory;
 		private String productStatus;
 		private UUID sessionId;
-		private UUID optionId;
 		private LocalDateTime sessionStartAt;
 		private LocalDateTime sessionEndAt;
 		private UUID merchVariantId;

@@ -218,11 +218,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 CONFIRMED로 변경 가능")
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 RESERVED로 변경 가능")
 	void canChangeStatus_RequestedToConfirmed_ReturnsTrue() {
 		// given
 		OrderStatus currentStatus = OrderStatus.REQUESTED;
-		OrderStatus newStatus = OrderStatus.CONFIRMED;
+		OrderStatus newStatus = OrderStatus.RESERVED;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -232,11 +232,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - OWNER_ACCEPTED에서 CONFIRMED로 변경 가능")
+	@DisplayName("주문 상태 변경 가능 검증 - ACCEPTED에서 RESERVED로 변경 가능")
 	void canChangeStatus_OwnerAcceptedToConfirmed_ReturnsTrue() {
 		// given
-		OrderStatus currentStatus = OrderStatus.OWNER_ACCEPTED;
-		OrderStatus newStatus = OrderStatus.CONFIRMED;
+		OrderStatus currentStatus = OrderStatus.ACCEPTED;
+		OrderStatus newStatus = OrderStatus.RESERVED;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -246,11 +246,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - CONFIRMED에서 PREPARING으로 변경 가능")
+	@DisplayName("주문 상태 변경 가능 검증 - RESERVED에서 PAYMENT_PENDING으로 변경 가능")
 	void canChangeStatus_ConfirmedToPreparing_ReturnsTrue() {
 		// given
-		OrderStatus currentStatus = OrderStatus.CONFIRMED;
-		OrderStatus newStatus = OrderStatus.PREPARING;
+		OrderStatus currentStatus = OrderStatus.RESERVED;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -260,11 +260,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 READY로 변경 불가")
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 불가")
 	void canChangeStatus_RequestedToReady_ReturnsFalse() {
 		// given
 		OrderStatus currentStatus = OrderStatus.REQUESTED;
-		OrderStatus newStatus = OrderStatus.READY;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);

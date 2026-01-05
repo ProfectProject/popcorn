@@ -34,12 +34,12 @@ class PopupServiceTest {
 				queryService, sessionQueryService, validationService, publisher);
 
 		PopupListQuery request = PopupListQuery.builder()
-				.category("POPUP")
+				.category("FOOD")
 				.page(1)
 				.size(20)
 				.build();
 		PopupListQuery normalized = PopupListQuery.builder()
-				.category("POPUP")
+				.category("FOOD")
 				.page(1)
 				.size(20)
 				.build();
@@ -76,7 +76,7 @@ class PopupServiceTest {
 		PopupDetailResponse response = PopupDetailResponse.builder()
 				.id(productId)
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
-				.category("POPUP")
+				.category("FOOD")
 				.build();
 
 		when(queryService.getPopupDetail(query)).thenReturn(response);

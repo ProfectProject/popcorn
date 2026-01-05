@@ -110,14 +110,14 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             UUID orderId = TestUUIDs.ORDER_ID;
             Order approvedOrder = Order.builder()
                     .id(orderId)
-                    .status(OrderStatus.OWNER_ACCEPTED)
+                    .status(OrderStatus.ACCEPTED)
                     .build();
 
-            when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
+            when(orderCommandService.updateStatus(orderId, "ACCEPTED", "점주 승인"))
                     .thenReturn(approvedOrder);
 
             // When & Then: 공통 헬퍼 메서드 활용
-            String statusJson = createStatusUpdateJson("OWNER_ACCEPTED", "점주 승인");
+            String statusJson = createStatusUpdateJson("ACCEPTED", "점주 승인");
 
             mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -126,12 +126,12 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                         MockMvcResultMatchers.status().isOk(),
                         MockMvcResultMatchers.jsonPath("$.code").value(200),
                         MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()),
-                        MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED")
+                        MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED")
                     );
 
             // 최적화된 검증
             verify(orderCommandService, times(1))
-                    .updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인");
+                    .updateStatus(orderId, "ACCEPTED", "점주 승인");
 
             logTestComplete("점주 예약 승인");
         }
@@ -143,11 +143,11 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
 
             // Given: 예외 Mock 설정
             UUID orderId = TestUUIDs.ORDER_ID;
-            when(orderCommandService.updateStatus(orderId, "READY", "reason"))
+            when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "reason"))
                     .thenThrow(OrderValidationException.invalidStatusTransition());
 
             // When & Then
-            String statusJson = createStatusUpdateJson("READY", "reason");
+            String statusJson = createStatusUpdateJson("PAYMENT_PENDING", "reason");
 
             mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
                             .contentType(MediaType.APPLICATION_JSON)

@@ -69,7 +69,7 @@ class OrderPaymentControllerTest {
 				eq(orderId), eq("CARD"), eq(4000), any()))
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
-						.paymentStatus(PaymentStatus.APPROVED)
+						.paymentStatus(PaymentStatus.PAID)
 						.orderStatus(OrderStatus.PAID)
 						.approvedAt(approvedAt)
 						.build());
@@ -104,7 +104,7 @@ class OrderPaymentControllerTest {
 				eq(orderId), eq("CARD"), eq(3000), any()))
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
-						.paymentStatus(PaymentStatus.APPROVED)
+						.paymentStatus(PaymentStatus.PAID)
 						.orderStatus(OrderStatus.COMPLETED)
 						.build());
 

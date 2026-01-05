@@ -56,20 +56,10 @@ public class PopupController extends BaseController {
 							        "id": "00000000-0000-0000-0000-000000000101",
 							        "storeId": "00000000-0000-0000-0000-000000000001",
 							        "title": "Seed Popup 1",
-							        "productType": "RESERVATION",
-							        "category": "POPUP",
-							        "regionId": 101,
-							        "isHidden": false,
+							        "category": "FOOD",
+							        "status": "OPEN",
 							        "eventStartAt": "2025-01-01T10:00:00",
-							        "eventEndAt": "2025-01-05T18:00:00",
-							        "location": {
-							          "id": "00000000-0000-0000-0000-000000009001",
-							          "name": "팝업 테스트 장소",
-							          "address1": "서울특별시 강남구 테헤란로 123",
-							          "address2": "ABC빌딩 12층",
-							          "latitude": 37.498,
-							          "longitude": 127.027
-							        }
+							        "eventEndAt": "2025-01-05T18:00:00"
 							      }
 							    ],
 							    "page": 1,
@@ -84,7 +74,8 @@ public class PopupController extends BaseController {
 	public ResponseEntity<BaseResponse<PopupListResponse>> getPopups(
 			@Parameter(description = "지역 필터", example = "101")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) Long regionId,
-			@Parameter(description = "카테고리(POPUP/MERCH/EVENT)", example = "POPUP")
+			@Parameter(description = "카테고리(FOOD/IDOL/EXHIBITION/WORKSHOP/FASHION/BEAUTY/LIFESTYLE/ART/GAME/TECH/SPORTS/BOOK/PET/ETC)",
+					example = "FOOD")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String category,
 			@Parameter(description = "검색어", example = "팝업")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
@@ -128,21 +119,11 @@ public class PopupController extends BaseController {
 							    "id": "00000000-0000-0000-0000-000000000101",
 							    "storeId": "00000000-0000-0000-0000-000000000001",
 							    "title": "Seed Popup 1",
-							    "productType": "RESERVATION",
-							    "category": "POPUP",
-							    "regionId": 101,
-							    "isHidden": false,
+							    "description": "예약형 팝업",
+							    "category": "FOOD",
+							    "status": "OPEN",
 							    "eventStartAt": "2025-01-01T10:00:00",
-							    "eventEndAt": "2025-01-05T18:00:00",
-							    "location": {
-							      "id": "00000000-0000-0000-0000-000000009001",
-							      "name": "팝업 테스트 장소",
-							      "address1": "서울특별시 강남구 테헤란로 123",
-							      "address2": "ABC빌딩 12층",
-							      "latitude": 37.498,
-							      "longitude": 127.027,
-							      "placeNote": "입구에서 안내 데스크 확인"
-							    }
+							    "eventEndAt": "2025-01-05T18:00:00"
 							  }
 							}
 							""")

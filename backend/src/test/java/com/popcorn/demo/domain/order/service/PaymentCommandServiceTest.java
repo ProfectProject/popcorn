@@ -29,6 +29,7 @@ import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.exception.PaymentException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaPaymentRepository;
 import com.popcorn.demo.global.exception.BaseException;
 
@@ -45,12 +46,15 @@ class PaymentCommandServiceTest {
 	@Mock
 	private JpaPaymentRepository paymentRepository;
 
+	@Mock
+	private JpaOrderItemRepository orderItemRepository;
+
 	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		paymentCommandService = new PaymentCommandService(
-				orderRepository, orderCommandService, paymentRepository);
+				orderRepository, orderCommandService, paymentRepository, orderItemRepository);
 	}
 
 	@Test
@@ -64,13 +68,15 @@ class PaymentCommandServiceTest {
 		Payment savedPayment = Payment.builder()
 				.id(paymentId)
 				.orderId(orderId)
-				.status(PaymentStatus.APPROVED)
+				.status(PaymentStatus.PAID)
 				.amount(4000)
 				.approvedAt(LocalDateTime.now())
 				.build();
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
+		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(false);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any(String.class)))
 				.thenReturn(updatedOrder);
@@ -79,7 +85,7 @@ class PaymentCommandServiceTest {
 				paymentCommandService.createReservationPayment(orderId, "CARD", 4000, null);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
-		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.APPROVED);
+		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
 		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.PAID);
 		assertThat(result.getApprovedAt()).isNotNull();
 		verify(orderCommandService).updateStatus(orderId, OrderStatus.PAID.name(), "결제 완료");
@@ -96,13 +102,15 @@ class PaymentCommandServiceTest {
 		Payment savedPayment = Payment.builder()
 				.id(paymentId)
 				.orderId(orderId)
-				.status(PaymentStatus.APPROVED)
+				.status(PaymentStatus.PAID)
 				.amount(3000)
 				.approvedAt(LocalDateTime.now())
 				.build();
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(true);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.COMPLETED.name()), any(String.class)))
 				.thenReturn(updatedOrder);
@@ -111,7 +119,7 @@ class PaymentCommandServiceTest {
 				paymentCommandService.createOrderPayment(orderId, "CARD", 3000, null);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
-		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.APPROVED);
+		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
 		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.COMPLETED);
 		assertThat(result.getApprovedAt()).isNotNull();
 		verify(orderCommandService).updateStatus(orderId, OrderStatus.COMPLETED.name(), "결제 완료");
@@ -125,6 +133,8 @@ class PaymentCommandServiceTest {
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
+		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(false);
 
 		BaseException exception = assertThrows(BaseException.class,
 				() -> paymentCommandService.createReservationPayment(orderId, "VIRTUAL", 4000, null));
@@ -140,6 +150,8 @@ class PaymentCommandServiceTest {
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(true);
 
 		BaseException exception = assertThrows(BaseException.class,
 				() -> paymentCommandService.createOrderPayment(orderId, "CASH", 3000, null));
@@ -169,6 +181,8 @@ class PaymentCommandServiceTest {
 		Order order = createOrder(orderId, OrderType.PURCHASE, OrderStatus.REQUESTED);
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(true);
 
 		BaseException exception = assertThrows(BaseException.class,
 				() -> paymentCommandService.createReservationPayment(orderId, "CARD", 4000, null));

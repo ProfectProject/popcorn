@@ -85,9 +85,9 @@ class OrderAtddTest {
 
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.OWNER_ACCEPTED)
+				.status(OrderStatus.ACCEPTED)
 				.build();
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
 		String createJsonRequest = """
@@ -114,7 +114,7 @@ class OrderAtddTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].id").value(itemId.toString()));
 
 		UpdateOrderStatusRequest statusRequest = UpdateOrderStatusRequest.builder()
-				.status("OWNER_ACCEPTED")
+				.status("ACCEPTED")
 				.reason("approved")
 				.build();
 		String statusBody = objectMapper.writeValueAsString(statusRequest);
@@ -124,6 +124,6 @@ class OrderAtddTest {
 						.content(statusBody))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
 	}
 }

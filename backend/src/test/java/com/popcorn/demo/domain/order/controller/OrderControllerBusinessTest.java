@@ -237,16 +237,16 @@ class OrderControllerBusinessTest {
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001111");
 			Order 승인된_예약 = Order.builder()
 					.id(orderId)
-					.status(OrderStatus.OWNER_ACCEPTED)
+					.status(OrderStatus.ACCEPTED)
 					.build();
 
-			when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
+			when(orderCommandService.updateStatus(orderId, "ACCEPTED", "점주 승인"))
 					.thenReturn(승인된_예약);
 
 			// When: 점주가 예약 요청을 승인한다
 			String 점주의_승인처리 = """
 					{
-						"status": "OWNER_ACCEPTED",
+						"status": "ACCEPTED",
 						"reason": "점주 승인"
 					}
 					""";
@@ -258,10 +258,10 @@ class OrderControllerBusinessTest {
 					.andExpect(MockMvcResultMatchers.status().isOk())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
+					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
 
 			// 비즈니스 검증: 승인 프로세스가 올바르게 수행되었는지 확인
-			verify(orderCommandService, times(1)).updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인");
+			verify(orderCommandService, times(1)).updateStatus(orderId, "ACCEPTED", "점주 승인");
 
 			log.info("✅ 점주의 예약 승인 처리가 성공적으로 완료되었습니다");
 		}
@@ -273,13 +273,13 @@ class OrderControllerBusinessTest {
 
 			// Given: 이미 완료된 예약을 다시 변경하려는 상황 (비즈니스 규칙 위반)
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-			when(orderCommandService.updateStatus(orderId, "READY", "reason"))
+			when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "reason"))
 					.thenThrow(OrderValidationException.invalidStatusTransition());
 
 			// When: 점주가 허용되지 않은 상태 변경을 시도한다
 			String 잘못된_상태변경_요청 = """
 					{
-						"status": "READY",
+						"status": "PAYMENT_PENDING",
 						"reason": "reason"
 					}
 					""";

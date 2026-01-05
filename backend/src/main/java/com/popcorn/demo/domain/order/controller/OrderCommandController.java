@@ -216,52 +216,52 @@ private final PaymentCommandService paymentCommandService;
 					schema = @Schema(implementation = UpdateOrderStatusRequest.class),
 					examples = {
 						@ExampleObject(
-							name = "운영 승인",
-							summary = "운영자가 주문을 승인하는 경우",
+							name = "주문 승인",
+							summary = "주문을 승인하는 경우",
 							value = """
 								{
-								  "status": "OWNER_ACCEPTED",
-								  "reason": "운영 승인"
+								  "status": "ACCEPTED",
+								  "reason": "주문 승인"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "운영 거절",
-							summary = "운영자가 주문을 거절하는 경우",
+							name = "주문 거절",
+							summary = "주문을 거절하는 경우",
 							value = """
 								{
-								  "status": "OWNER_REJECTED",
+								  "status": "REJECTED",
 								  "reason": "재고 부족으로 인한 거절"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "주문 확인",
-							summary = "주문이 확인되는 경우",
+							name = "예약 확정",
+							summary = "예약이 확정되는 경우",
 							value = """
 								{
-								  "status": "CONFIRMED",
-								  "reason": "주문 확인 완료"
+								  "status": "RESERVED",
+								  "reason": "예약 확정"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "준비 중",
-							summary = "주문 준비를 시작하는 경우",
+							name = "결제 대기",
+							summary = "결제 대기 상태로 전환하는 경우",
 							value = """
 								{
-								  "status": "PREPARING",
-								  "reason": "주문 준비 시작"
+								  "status": "PAYMENT_PENDING",
+								  "reason": "결제 대기"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "준비 완료",
-							summary = "주문 준비가 완료된 경우",
+							name = "결제 완료",
+							summary = "결제 완료로 전환하는 경우",
 							value = """
 								{
-								  "status": "READY",
-								  "reason": "주문 준비 완료"
+								  "status": "PAID",
+								  "reason": "결제 완료"
 								}
 								"""
 						),
@@ -285,16 +285,6 @@ private final PaymentCommandService paymentCommandService;
 								}
 								"""
 						),
-						@ExampleObject(
-							name = "환불",
-							summary = "주문을 환불하는 경우",
-							value = """
-								{
-								  "status": "REFUNDED",
-								  "reason": "결제 환불 처리"
-								}
-								"""
-						)
 					}
 				)
 			)
@@ -352,10 +342,10 @@ private final PaymentCommandService paymentCommandService;
 								"""
 						),
 						@ExampleObject(
-							name = "CASH 결제",
+							name = "EASY_PAY 결제",
 							value = """
 								{
-								  "method": "CASH",
+								  "method": "EASY_PAY",
 								  "amount": 4000
 								}
 								"""
@@ -535,6 +525,6 @@ private final PaymentCommandService paymentCommandService;
 	}
 
 	private String toApiPaymentStatus(PaymentStatus status) {
-		return status == PaymentStatus.APPROVED ? "PAID" : "FAILED";
+		return status == PaymentStatus.PAID ? "PAID" : "FAILED";
 	}
 }

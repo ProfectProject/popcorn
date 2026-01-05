@@ -27,7 +27,7 @@ class PopupControllerTest extends PopupControllerTestBase {
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/popups")
-						.param("category", "POPUP")
+						.param("category", "FOOD")
 						.param("page", "1")
 						.param("size", "20")
 						.contentType(MediaType.APPLICATION_JSON))

@@ -95,7 +95,6 @@ class OrderServiceTest {
 			Order savedOrder = withId(createdOrder);
 
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
-			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
 			when(orderDomainService.createOrder(any(), any(), any(), any(), any(), anyString()))
 					.thenReturn(createdOrder);
@@ -108,22 +107,21 @@ class OrderServiceTest {
 		}
 
 		@Test
-		@DisplayName("주문 생성 - 옵션 가격 없음")
+		@DisplayName("주문 생성 - 스케줄 가격 없음")
 		void createOrder_optionPriceMissing() {
 			CreateOrderCommand command = createReservationCommand();
 
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
-			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.empty());
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
 					.isInstanceOf(BaseException.class)
 					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
-							.isEqualTo(OrderResponseCode.OPTION_NOT_FOUND));
+							.isEqualTo(OrderResponseCode.SESSION_NOT_FOUND));
 		}
 
 		@Test
-		@DisplayName("주문 생성 - 옵션 ID 누락")
+		@DisplayName("주문 생성 - 스케줄 ID 누락")
 		void createOrder_optionIdMissing() {
 			CreateOrderCommand command = CreateOrderCommand.builder()
 					.userId(1001L)
@@ -134,8 +132,7 @@ class OrderServiceTest {
 					.items(List.of(
 							CreateOrderCommand.OrderItemCommand.builder()
 									.orderItemType(OrderItemType.RESERVATION)
-									.sessionId(UUID.randomUUID())
-									.optionId(null)
+									.sessionId(null)
 									.qty(2)
 									.unitPrice(1000)
 									.build()
@@ -143,12 +140,11 @@ class OrderServiceTest {
 					.build();
 
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
-			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
 					.isInstanceOf(BaseException.class)
 					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
-							.isEqualTo(OrderResponseCode.OPTION_NOT_FOUND));
+							.isEqualTo(OrderResponseCode.SESSION_NOT_FOUND));
 		}
 
 		@Test
@@ -171,7 +167,6 @@ class OrderServiceTest {
 					.build();
 
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
-			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
 					.isInstanceOf(BaseException.class)
@@ -189,16 +184,16 @@ class OrderServiceTest {
 					.build();
 			Order savedOrder = Order.builder()
 					.id(orderId)
-					.status(OrderStatus.OWNER_ACCEPTED)
+					.status(OrderStatus.ACCEPTED)
 					.build();
 
 			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 			when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
-			when(orderDomainService.canChangeStatus(OrderStatus.REQUESTED, OrderStatus.OWNER_ACCEPTED)).thenReturn(true);
+			when(orderDomainService.canChangeStatus(OrderStatus.REQUESTED, OrderStatus.ACCEPTED)).thenReturn(true);
 
-			Order result = orderService.updateStatus(orderId, "OWNER_ACCEPTED", "approved");
+			Order result = orderService.updateStatus(orderId, "ACCEPTED", "approved");
 
-			assertThat(result.getStatus()).isEqualTo(OrderStatus.OWNER_ACCEPTED);
+			assertThat(result.getStatus()).isEqualTo(OrderStatus.ACCEPTED);
 		}
 
 		@Test
@@ -207,13 +202,13 @@ class OrderServiceTest {
 			UUID orderId = UUID.randomUUID();
 			Order order = Order.builder()
 					.id(orderId)
-					.status(OrderStatus.READY)
+					.status(OrderStatus.PAYMENT_PENDING)
 					.build();
 
 			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-			when(orderDomainService.canChangeStatus(OrderStatus.READY, OrderStatus.OWNER_ACCEPTED)).thenReturn(false);
+			when(orderDomainService.canChangeStatus(OrderStatus.PAYMENT_PENDING, OrderStatus.ACCEPTED)).thenReturn(false);
 
-			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+			assertThatThrownBy(() -> orderService.updateStatus(orderId, "ACCEPTED", "reason"))
 					.isInstanceOf(BaseException.class)
 					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.INVALID_STATUS_TRANSITION));
@@ -225,7 +220,7 @@ class OrderServiceTest {
 			UUID orderId = UUID.randomUUID();
 			when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
 
-			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+			assertThatThrownBy(() -> orderService.updateStatus(orderId, "ACCEPTED", "reason"))
 					.isInstanceOf(BaseException.class)
 					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.ORDER_NOT_FOUND));
@@ -241,7 +236,7 @@ class OrderServiceTest {
 					.build();
 			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
-			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+			assertThatThrownBy(() -> orderService.updateStatus(orderId, "ACCEPTED", "reason"))
 					.isInstanceOf(BaseException.class)
 					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.ALREADY_CANCELED));
@@ -276,7 +271,6 @@ class OrderServiceTest {
 			Order savedOrder = withId(createdOrder);
 
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
-			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
 			when(orderDomainService.createOrder(any(), any(), any(), any(), any(), anyString()))
 					.thenReturn(createdOrder);
@@ -324,7 +318,6 @@ class OrderServiceTest {
 					.build();
 
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
-			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
@@ -345,14 +338,14 @@ class OrderServiceTest {
 					.build();
 			Order savedOrder = Order.builder()
 					.id(orderId)
-					.status(OrderStatus.OWNER_ACCEPTED)
+					.status(OrderStatus.ACCEPTED)
 					.build();
 
 			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 			when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
-			when(orderDomainService.canChangeStatus(OrderStatus.REQUESTED, OrderStatus.OWNER_ACCEPTED)).thenReturn(true);
+			when(orderDomainService.canChangeStatus(OrderStatus.REQUESTED, OrderStatus.ACCEPTED)).thenReturn(true);
 
-			orderService.updateStatus(orderId, "OWNER_ACCEPTED", "approved");
+			orderService.updateStatus(orderId, "ACCEPTED", "approved");
 
 			verify(orderRepository).saveStatusHistory(any());
 		}

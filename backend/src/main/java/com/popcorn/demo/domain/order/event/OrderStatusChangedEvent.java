@@ -74,17 +74,17 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
     public boolean isCriticalStatusChange() {
         return toStatus == OrderStatus.COMPLETED ||
                toStatus == OrderStatus.CANCELLED ||
-               toStatus == OrderStatus.OWNER_REJECTED ||
-               (fromStatus == OrderStatus.REQUESTED && toStatus == OrderStatus.OWNER_ACCEPTED);
+               toStatus == OrderStatus.REJECTED ||
+               (fromStatus == OrderStatus.REQUESTED && toStatus == OrderStatus.ACCEPTED);
     }
 
     /**
      * 고객 알림이 필요한 상태 변경인지 확인
      */
     public boolean requiresCustomerNotification() {
-        return toStatus == OrderStatus.OWNER_ACCEPTED ||
-               toStatus == OrderStatus.OWNER_REJECTED ||
-               toStatus == OrderStatus.READY ||
+        return toStatus == OrderStatus.ACCEPTED ||
+               toStatus == OrderStatus.REJECTED ||
+               toStatus == OrderStatus.PAID ||
                toStatus == OrderStatus.COMPLETED ||
                toStatus == OrderStatus.CANCELLED;
     }
@@ -134,12 +134,12 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
     private static boolean isStatusProgression(OrderStatus from, OrderStatus to) {
         // 정방향 진행 판단 로직
         return switch (from) {
-            case REQUESTED -> to == OrderStatus.OWNER_ACCEPTED || to == OrderStatus.CONFIRMED ||
-                              to == OrderStatus.PAID || to == OrderStatus.COMPLETED;
-            case OWNER_ACCEPTED -> to == OrderStatus.CONFIRMED || to == OrderStatus.PREPARING || to == OrderStatus.PAID;
-            case CONFIRMED -> to == OrderStatus.PREPARING || to == OrderStatus.PAID || to == OrderStatus.COMPLETED;
-            case PREPARING -> to == OrderStatus.READY;
-            case READY -> to == OrderStatus.COMPLETED || to == OrderStatus.PAID;
+            case REQUESTED -> to == OrderStatus.ACCEPTED || to == OrderStatus.REJECTED ||
+                              to == OrderStatus.CANCELLED;
+            case ACCEPTED -> to == OrderStatus.RESERVED || to == OrderStatus.CANCELLED;
+            case RESERVED -> to == OrderStatus.PAYMENT_PENDING || to == OrderStatus.PAID || to == OrderStatus.CANCELLED;
+            case PAYMENT_PENDING -> to == OrderStatus.PAID || to == OrderStatus.CANCELLED;
+            case PAID -> to == OrderStatus.COMPLETED;
             default -> false;
         };
     }
@@ -149,22 +149,19 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
         return !(to == OrderStatus.COMPLETED ||
                 to == OrderStatus.PAID ||
                 to == OrderStatus.CANCELLED ||
-                to == OrderStatus.REFUNDED ||
-                to == OrderStatus.OWNER_REJECTED);
+                to == OrderStatus.REJECTED);
     }
 
     private String getStatusDisplayName(OrderStatus status) {
         return switch (status) {
             case REQUESTED -> "요청됨";
-            case OWNER_ACCEPTED -> "점주승인";
-            case OWNER_REJECTED -> "점주거절";
-            case CONFIRMED -> "확인됨";
+            case ACCEPTED -> "승인됨";
+            case REJECTED -> "거절됨";
+            case RESERVED -> "예약됨";
+            case PAYMENT_PENDING -> "결제대기";
             case PAID -> "결제완료";
-            case PREPARING -> "준비중";
-            case READY -> "준비완료";
             case COMPLETED -> "완료";
             case CANCELLED -> "취소됨";
-            case REFUNDED -> "환불됨";
         };
     }
 

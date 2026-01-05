@@ -30,6 +30,6 @@ class PopupSessionControllerTest extends PopupControllerTestBase {
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].status").value("OPEN"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].price").value(12000));
 	}
 }

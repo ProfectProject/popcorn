@@ -63,7 +63,6 @@ public class CreateOrderRequest {
 				.allMatch(item ->
 						"RESERVATION".equals(item.getOrderItemType())
 								&& item.getSessionId() != null
-								&& item.getOptionId() != null
 				);
 	}
 

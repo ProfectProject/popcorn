@@ -283,13 +283,13 @@ class OrderControllerTest {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001111");
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.OWNER_ACCEPTED)
+				.status(OrderStatus.ACCEPTED)
 				.build();
 
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "approved");
+		String jsonRequest = buildUpdateStatusRequest("ACCEPTED", "approved");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -297,22 +297,22 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 성공 - OWNER_ACCEPTED → CONFIRMED")
+	@DisplayName("주문 상태 변경 성공 - ACCEPTED → RESERVED")
 	void updateOrderStatus_ownerAcceptedToConfirmed() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001115");
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.CONFIRMED)
+				.status(OrderStatus.RESERVED)
 				.build();
 
-		when(orderCommandService.updateStatus(orderId, "CONFIRMED", "confirmed"))
+		when(orderCommandService.updateStatus(orderId, "RESERVED", "confirmed"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = buildUpdateStatusRequest("CONFIRMED", "confirmed");
+		String jsonRequest = buildUpdateStatusRequest("RESERVED", "confirmed");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -320,22 +320,22 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("CONFIRMED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("RESERVED"));
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 성공 - CONFIRMED → PREPARING")
+	@DisplayName("주문 상태 변경 성공 - RESERVED → PAYMENT_PENDING")
 	void updateOrderStatus_confirmedToPreparing() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001116");
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.PREPARING)
+				.status(OrderStatus.PAYMENT_PENDING)
 				.build();
 
-		when(orderCommandService.updateStatus(orderId, "PREPARING", "preparing"))
+		when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "preparing"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = buildUpdateStatusRequest("PREPARING", "preparing");
+		String jsonRequest = buildUpdateStatusRequest("PAYMENT_PENDING", "preparing");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -343,17 +343,17 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PREPARING"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PAYMENT_PENDING"));
 	}
 
 	@Test
 	@DisplayName("주문 상태 변경 실패 - 허용되지 않은 전이")
 	void updateOrderStatus_invalidTransition() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-		when(orderCommandService.updateStatus(orderId, "READY", "reason"))
+		when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "reason"))
 				.thenThrow(OrderValidationException.invalidStatusTransition());
 
-		String jsonRequest = buildUpdateStatusRequest("READY", "reason");
+		String jsonRequest = buildUpdateStatusRequest("PAYMENT_PENDING", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -367,10 +367,10 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 주문 없음")
 	void updateOrderStatus_notFound() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "reason"))
 				.thenThrow(OrderNotFoundException.orderNotFound());
 
-		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "reason");
+		String jsonRequest = buildUpdateStatusRequest("ACCEPTED", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -384,10 +384,10 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 이미 취소됨")
 	void updateOrderStatus_alreadyCanceled() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001113");
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "reason"))
 				.thenThrow(OrderConflictException.alreadyCanceled());
 
-		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "reason");
+		String jsonRequest = buildUpdateStatusRequest("ACCEPTED", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)

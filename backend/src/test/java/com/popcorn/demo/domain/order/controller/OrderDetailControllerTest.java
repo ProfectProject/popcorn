@@ -61,7 +61,7 @@ class OrderDetailControllerTest {
 				.customerId(1L)
 				.customer(OrderDetailDto.CustomerDto.builder()
 						.id(1L)
-						.role("USER")
+						.role("CUSTOMER")
 						.build())
 				.storeId(storeId)
 				.productId(productId)
@@ -75,7 +75,7 @@ class OrderDetailControllerTest {
 								.orderItemType("RESERVATION")
 								.productId(productId)
 								.productTitle("Seed Popup 55")
-								.productCategory("POPUP")
+								.productCategory("FOOD")
 								.productStatus("OPEN")
 								.qty(2)
 								.unitPrice(2000)
@@ -91,7 +91,7 @@ class OrderDetailControllerTest {
 				.payment(OrderDetailDto.PaymentDto.builder()
 						.id(UUID.fromString("00000000-0000-0000-0000-000000004001"))
 						.method("CARD")
-						.status("APPROVED")
+						.status("PAID")
 						.amount(4000)
 						.build())
 				.build();
@@ -116,7 +116,6 @@ class OrderDetailControllerTest {
 		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000155");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002010");
 		UUID sessionId = UUID.fromString("00000000-0000-0000-0000-000000000201");
-		UUID optionId = UUID.fromString("00000000-0000-0000-0000-000000000301");
 		LocalDateTime sessionStart = LocalDateTime.now().minusDays(1);
 		LocalDateTime sessionEnd = LocalDateTime.now().plusDays(1);
 
@@ -128,7 +127,7 @@ class OrderDetailControllerTest {
 				.customerId(1L)
 				.customer(OrderDetailDto.CustomerDto.builder()
 						.id(1L)
-						.role("USER")
+						.role("CUSTOMER")
 						.build())
 				.storeId(storeId)
 				.productId(productId)
@@ -142,10 +141,9 @@ class OrderDetailControllerTest {
 								.orderItemType("RESERVATION")
 								.productId(productId)
 								.productTitle("Seed Popup 55")
-								.productCategory("POPUP")
+								.productCategory("FOOD")
 								.productStatus("OPEN")
 								.sessionId(sessionId)
-								.optionId(optionId)
 								.sessionStartAt(sessionStart)
 								.sessionEndAt(sessionEnd)
 								.qty(2)
@@ -161,7 +159,7 @@ class OrderDetailControllerTest {
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionId").value(sessionId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].optionId").value(optionId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].optionId").doesNotExist())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionStartAt").exists())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionEndAt").exists());
 	}

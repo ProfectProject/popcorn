@@ -21,14 +21,12 @@ class CreateOrderRequestTest {
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
 								.sessionId(UUID.randomUUID())
-								.optionId(UUID.randomUUID())
 								.qty(2)
 								.unitPrice(1000)
 								.build(),
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
 								.sessionId(UUID.randomUUID())
-								.optionId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1200)
 								.build()
@@ -80,7 +78,6 @@ class CreateOrderRequestTest {
 						OrderItemRequest.builder()
 								.orderItemType("RESERVATION")
 								.sessionId(UUID.randomUUID())
-								.optionId(UUID.randomUUID())
 								.qty(1)
 								.unitPrice(1000)
 								.build(),

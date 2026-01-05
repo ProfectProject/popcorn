@@ -136,7 +136,7 @@ class OrderCancelControllerTest {
 	@Test
 	@DisplayName("실패: 취소할 수 없는 상태의 주문 (준비 중인 주문)")
 	void cancelOrder_CannotCancel_PreparingOrder() throws Exception {
-		// Given: PREPARING 상태인 주문에 대한 취소 요청
+		// Given: PAYMENT_PENDING 상태인 주문에 대한 취소 요청
 		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
 				.thenThrow(OrderValidationException.invalidStatusTransition());
 

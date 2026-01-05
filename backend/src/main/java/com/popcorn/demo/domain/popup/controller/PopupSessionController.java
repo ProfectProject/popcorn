@@ -56,15 +56,10 @@ public class PopupSessionController extends BaseController {
 							        "id": "00000000-0000-0000-0000-000000000201",
 							        "startAt": "2025-01-01T10:00:00",
 							        "endAt": "2025-01-05T18:00:00",
-							        "status": "OPEN",
-							        "location": {
-							          "id": "00000000-0000-0000-0000-000000009001",
-							          "name": "팝업 테스트 장소",
-							          "address1": "서울특별시 강남구 테헤란로 123",
-							          "address2": "ABC빌딩 12층",
-							          "latitude": 37.498,
-							          "longitude": 127.027
-							        }
+							        "price": 12000,
+							        "capacity": 50,
+							        "remainingCapacity": 50,
+							        "isActive": true
 							      }
 							    ]
 							  }

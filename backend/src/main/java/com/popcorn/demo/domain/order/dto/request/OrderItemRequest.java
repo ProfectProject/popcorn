@@ -42,7 +42,6 @@ public class OrderItemRequest {
 	public boolean isValidReservationItem() {
 		return isReservationType()
 				&& sessionId != null
-				&& optionId != null
 				&& qty != null
 				&& qty > 0;
 	}
@@ -75,8 +74,8 @@ public class OrderItemRequest {
 	}
 
 	public String getSessionOptionKey() {
-		if (isReservationType() && sessionId != null && optionId != null) {
-			return sessionId + "-" + optionId;
+		if (isReservationType() && sessionId != null) {
+			return sessionId.toString();
 		}
 		return null;
 	}
@@ -93,7 +92,7 @@ public class OrderItemRequest {
 
 	public String getDisplayDescription() {
 		if (isReservationType()) {
-			return String.format("예약 (세션: %s, 옵션: %s) x %d개", sessionId, optionId, qty);
+			return String.format("예약 (스케줄: %s) x %d개", sessionId, qty);
 		}
 		if (isMerchType()) {
 			return String.format("굿즈 (변형: %s) x %d개", merchVariantId, qty);

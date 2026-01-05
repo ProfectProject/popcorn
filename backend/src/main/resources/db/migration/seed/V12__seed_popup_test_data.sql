@@ -1,307 +1,69 @@
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_users (
-    id BIGINT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    role VARCHAR(20) NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP
+-- Popup integration test seed data (V0 schema)
+DELETE FROM p_goods_variants WHERE goods_id IN (
+	'00000000-0000-0000-0000-000000000451'::uuid
 );
-
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_stores (
-    id UUID PRIMARY KEY,
-    owner_id BIGINT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    publish_status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+DELETE FROM p_popup_schedules WHERE schedule_id IN (
+	'00000000-0000-0000-0000-000000000201'::uuid
 );
-
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_products (
-    id UUID PRIMARY KEY,
-    store_id UUID NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    description VARCHAR(500),
-    category VARCHAR(20) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
-    region_id BIGINT,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    deleted_at TIMESTAMP
+DELETE FROM p_popups WHERE popup_id IN (
+	'00000000-0000-0000-0000-000000000101'::uuid,
+	'00000000-0000-0000-0000-000000000155'::uuid
 );
-
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_product_locations (
-    id UUID PRIMARY KEY,
-    product_id UUID NOT NULL,
-    name VARCHAR(100),
-    address1 VARCHAR(255),
-    address2 VARCHAR(255),
-    latitude DECIMAL(10,7),
-    longitude DECIMAL(10,7),
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    deleted_at TIMESTAMP
+DELETE FROM p_stores WHERE store_id IN (
+	'00000000-0000-0000-0000-000000000001'::uuid
 );
+DELETE FROM p_users WHERE user_id IN (1, 10);
 
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_product_sessions (
-    id UUID PRIMARY KEY,
-    product_id UUID NOT NULL,
-    start_at TIMESTAMP NOT NULL,
-    end_at TIMESTAMP NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    deleted_at TIMESTAMP
-);
-
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_session_options (
-    id UUID PRIMARY KEY,
-    session_id UUID NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    price INT NOT NULL,
-    capacity INT NOT NULL,
-    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    deleted_at TIMESTAMP
-);
-
--- Hibernate-created tables may not include deleted_at in tests.
-ALTER TABLE p_session_options ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
-
--- noinspection SqlResolve
-CREATE TABLE IF NOT EXISTS p_merch_variants (
-    id UUID PRIMARY KEY,
-    product_id UUID NOT NULL,
-    sku VARCHAR(64),
-    name VARCHAR(100) NOT NULL,
-    price INT NOT NULL,
-    stock INT NOT NULL,
-    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    deleted_at TIMESTAMP
-);
-
--- noinspection SqlResolve
 INSERT INTO p_users (
-    id, email, password, phone, name, role, is_active, created_at, updated_at
-)
-SELECT 1,
-    'seed@popcorn.local',
-    'test',
-    '01000000000',
-    'Seed User',
-    'USER',
-    TRUE,
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_users WHERE id = 1
-);
+	user_id, password, name, phone, email, role, is_active, created_at, updated_at
+) VALUES
+	(1, 'test', 'Seed User', '01000000000', 'seed@popcorn.local', 'CUSTOMER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+	(10, 'test', 'Seed Owner', '01011112222', 'owner@popcorn.local', 'OWNER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- noinspection SqlResolve
 INSERT INTO p_stores (
-    id, owner_id, name, publish_status, created_at, updated_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000001',
-    1,
-    'Seed Store',
-    'PUBLISHED',
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_stores WHERE id = '00000000-0000-0000-0000-000000000001'
+	store_id, user_id, store_name, status, created_at, updated_at
+) VALUES (
+	'00000000-0000-0000-0000-000000000001'::uuid,
+	10,
+	'Seed Store',
+	'ACTIVE',
+	CURRENT_TIMESTAMP,
+	CURRENT_TIMESTAMP
 );
 
--- noinspection SqlResolve
-INSERT INTO p_products (
-    id, store_id, title, description, category, status, is_hidden, region_id, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000101',
-    '00000000-0000-0000-0000-000000000001',
-    'Seed Popup 1',
-    '예약형 팝업',
-    'POPUP',
-    'OPEN',
-    FALSE,
-    101,
-    TIMESTAMP '2025-01-01 10:00:00',
-    TIMESTAMP '2025-01-01 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_products WHERE id = '00000000-0000-0000-0000-000000000101'
+INSERT INTO p_popups (
+	popup_id, store_id, title, description, category, status, created_at, updated_at
+) VALUES
+	('00000000-0000-0000-0000-000000000101'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
+	 'Seed Popup 1', '예약형 팝업', 'FOOD', 'OPEN', TIMESTAMP '2025-01-01 10:00:00', TIMESTAMP '2025-01-01 10:00:00'),
+	('00000000-0000-0000-0000-000000000155'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
+	 'Popup Merch 55', '굿즈형 팝업', 'FOOD', 'OPEN', TIMESTAMP '2025-01-02 10:00:00', TIMESTAMP '2025-01-02 10:00:00');
+
+INSERT INTO p_popup_schedules (
+	schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, created_at, updated_at
+) VALUES (
+	'00000000-0000-0000-0000-000000000201'::uuid,
+	'00000000-0000-0000-0000-000000000101'::uuid,
+	TIMESTAMP '2025-01-01 10:00:00',
+	TIMESTAMP '2025-01-05 18:00:00',
+	12000,
+	50,
+	50,
+	TRUE,
+	TIMESTAMP '2025-01-01 10:00:00',
+	TIMESTAMP '2025-01-01 10:00:00'
 );
 
--- noinspection SqlResolve
-INSERT INTO p_products (
-    id, store_id, title, description, category, status, is_hidden, region_id, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000155',
-    '00000000-0000-0000-0000-000000000001',
-    'Popup Merch 55',
-    '머치형 팝업',
-    'POPUP',
-    'OPEN',
-    FALSE,
-    101,
-    TIMESTAMP '2025-01-02 10:00:00',
-    TIMESTAMP '2025-01-02 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_products WHERE id = '00000000-0000-0000-0000-000000000155'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_product_locations (
-    id, product_id, name, address1, address2, latitude, longitude, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000009001',
-    '00000000-0000-0000-0000-000000000101',
-    '팝업 테스트 장소',
-    '서울특별시 강남구 테헤란로 123',
-    'ABC빌딩 12층',
-    37.4980000,
-    127.0270000,
-    TIMESTAMP '2025-01-01 09:00:00',
-    TIMESTAMP '2025-01-01 09:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_product_locations WHERE id = '00000000-0000-0000-0000-000000009001'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_product_sessions (
-    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000201',
-    '00000000-0000-0000-0000-000000000101',
-    TIMESTAMP '2025-01-01 10:00:00',
-    TIMESTAMP '2025-01-05 18:00:00',
-    'OPEN',
-    TIMESTAMP '2025-01-01 10:00:00',
-    TIMESTAMP '2025-01-01 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000201'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_product_sessions (
-    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000202',
-    '00000000-0000-0000-0000-000000000101',
-    TIMESTAMP '2025-01-10 10:00:00',
-    TIMESTAMP '2025-01-10 18:00:00',
-    'ENDED',
-    TIMESTAMP '2025-01-10 10:00:00',
-    TIMESTAMP '2025-01-10 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000202'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_product_sessions (
-    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000203',
-    '00000000-0000-0000-0000-000000000101',
-    TIMESTAMP '2025-01-15 11:00:00',
-    TIMESTAMP '2025-01-15 15:00:00',
-    'OPEN',
-    TIMESTAMP '2025-01-15 11:00:00',
-    TIMESTAMP '2025-01-15 11:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000203'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_product_sessions (
-    id, product_id, start_at, end_at, status, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000204',
-    '00000000-0000-0000-0000-000000000101',
-    TIMESTAMP '2025-01-20 13:00:00',
-    TIMESTAMP '2025-01-20 16:00:00',
-    'OPEN',
-    TIMESTAMP '2025-01-20 13:00:00',
-    TIMESTAMP '2025-01-20 13:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_product_sessions WHERE id = '00000000-0000-0000-0000-000000000204'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_merch_variants (
-    id, product_id, sku, name, price, stock, is_hidden, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000401',
-    '00000000-0000-0000-0000-000000000155',
-    'SEED-POPUP-MERCH-55',
-    'Popup Merch 55',
-    5000,
-    100,
-    FALSE,
-    TIMESTAMP '2025-01-02 10:00:00',
-    TIMESTAMP '2025-01-02 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_merch_variants WHERE id = '00000000-0000-0000-0000-000000000401'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_session_options (
-    id, session_id, name, price, capacity, is_hidden, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000301',
-    '00000000-0000-0000-0000-000000000201',
-    '일반 좌석',
-    10000,
-    20,
-    FALSE,
-    TIMESTAMP '2025-01-01 10:00:00',
-    TIMESTAMP '2025-01-01 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_session_options WHERE id = '00000000-0000-0000-0000-000000000301'
-);
-
--- noinspection SqlResolve
-INSERT INTO p_session_options (
-    id, session_id, name, price, capacity, is_hidden, created_at, updated_at, deleted_at
-)
-SELECT
-    '00000000-0000-0000-0000-000000000302',
-    '00000000-0000-0000-0000-000000000201',
-    '프리미엄 좌석',
-    15000,
-    10,
-    FALSE,
-    TIMESTAMP '2025-01-01 10:00:00',
-    TIMESTAMP '2025-01-01 10:00:00',
-    NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM p_session_options WHERE id = '00000000-0000-0000-0000-000000000302'
+INSERT INTO p_goods_variants (
+	goods_id, popup_id, stock_unit, goods_name, goods_price, stock, is_active, created_at, updated_at
+) VALUES (
+	'00000000-0000-0000-0000-000000000451'::uuid,
+	'00000000-0000-0000-0000-000000000155'::uuid,
+	'SKU-055',
+	'Popup Merch 55',
+	15000,
+	30,
+	TRUE,
+	TIMESTAMP '2025-01-02 10:00:00',
+	TIMESTAMP '2025-01-02 10:00:00'
 );
