@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS p_stores (
     owner_id BIGINT NOT NULL,
     name VARCHAR(100) NOT NULL,
     publish_status VARCHAR(20) NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );
@@ -111,13 +112,14 @@ WHERE NOT EXISTS (
 
 -- noinspection SqlResolve
 INSERT INTO p_stores (
-    id, owner_id, name, publish_status, created_at, updated_at
+    id, owner_id, name, publish_status, version, created_at, updated_at
 )
 SELECT
     '00000000-0000-0000-0000-000000000001',
     1,
     'Seed Store',
     'PUBLISHED',
+    0,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
