@@ -25,8 +25,7 @@ public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
 			  FROM p_popups p
 			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
-			   AND (:regionId IS NULL OR :regionId IS NOT NULL)
-			   AND (:category IS NULL OR p.category = :category)
+			   AND (:category IS NULL OR p.category = CAST(:category AS popup_category))
 			   AND (:keyword IS NULL OR p.title ILIKE CONCAT('%', :keyword, '%') OR p.description ILIKE CONCAT('%', :keyword, '%'))
 			   AND (:storeId IS NULL OR p.store_id = :storeId)
 			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
@@ -44,8 +43,7 @@ public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
 			SELECT COUNT(1)
 			  FROM p_popups p
 			 WHERE p.deleted_at IS NULL
-			   AND (:regionId IS NULL OR :regionId IS NOT NULL)
-			   AND (:category IS NULL OR p.category = :category)
+			   AND (:category IS NULL OR p.category = CAST(:category AS popup_category))
 			   AND (:keyword IS NULL OR p.title ILIKE CONCAT('%', :keyword, '%') OR p.description ILIKE CONCAT('%', :keyword, '%'))
 			   AND (:storeId IS NULL OR p.store_id = :storeId)
 			""", nativeQuery = true)

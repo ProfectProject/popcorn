@@ -342,8 +342,8 @@ public class OrderService {
 		return orderQueryRepository.countStoreManager(userId, storeId) > 0;
 	}
 
-	private List<OrderDetailDto.ItemDto> fetchOrderItems(UUID orderId, UUID fallbackProductId) {
-		List<OrderItemDetailView> rows = orderQueryRepository.findOrderItems(orderId, fallbackProductId);
+	private List<OrderDetailDto.ItemDto> fetchOrderItems(UUID orderId, UUID fallbackPopupId) {
+		List<OrderItemDetailView> rows = orderQueryRepository.findOrderItems(orderId, fallbackPopupId);
 		return rows.stream()
 				.map(row -> OrderDetailDto.ItemDto.builder()
 						.id(row.getOrderItemId())

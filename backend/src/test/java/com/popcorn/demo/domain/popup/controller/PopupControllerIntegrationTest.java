@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Sql(scripts = "/db/migration/seed/V12__seed_popup_test_data.sql")
+@Sql(scripts = {"/sql/test-schema.sql", "/sql/popup-test-data.sql"})
 class PopupControllerIntegrationTest {
 
 	@Autowired

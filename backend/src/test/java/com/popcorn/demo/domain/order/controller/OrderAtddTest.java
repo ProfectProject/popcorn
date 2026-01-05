@@ -26,6 +26,8 @@ import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.PaymentCommandService;
+import com.popcorn.demo.domain.order.controller.OrderCommandController;
+import com.popcorn.demo.domain.order.controller.OrderExceptionHandler;
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderAtddTest {
@@ -43,10 +45,10 @@ class OrderAtddTest {
 		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
-		// ATDD 테스트 - 주문 생성과 상태 변경은 Command 작업이므로 OrderCommandController를 사용
-		OrderCommandController commandController = new OrderCommandController(
-				orderCommandService, objectMapper, paymentCommandService);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
+		// Mock을 사용하여 컨트롤러 생성
+		mockMvc = MockMvcBuilders.standaloneSetup(
+				new OrderCommandController(orderCommandService, objectMapper, paymentCommandService)
+		)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -57,7 +59,7 @@ class OrderAtddTest {
 	void createOrder_then_updateStatus() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000002001");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID popupId = UUID.fromString("00000000-0000-0000-000000000101");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000020");
 
 		CreateOrderResponse response = CreateOrderResponse.builder()

@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class OrderValidationService {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderValidationService.class);
+	private final JdbcTemplate jdbcTemplate;
 
 	/**
 	 * 주문 검증 처리 (비동기 최적화)
@@ -75,7 +77,7 @@ public class OrderValidationService {
 	}
 
 	/**
-	 * 고객 검증 (최적화됨)
+	 * 고객 검증 (데이터베이스 실제 확인)
 	 */
 	private boolean validateCustomer(Long userId) {
 		if (userId == null || userId <= 0) {
@@ -83,11 +85,23 @@ public class OrderValidationService {
 			return false;
 		}
 
-		// TODO: 실제 사용자 시스템과 연동
-		boolean isValidCustomer = true;
-		log.debug("👤 고객 확인 - 사용자ID: {}, 유효성: {}", userId, isValidCustomer);
+		try {
+			// 실제 데이터베이스에서 사용자 존재 여부 확인
+			String sql = "SELECT COUNT(*) FROM p_users WHERE user_id = ? AND is_active = TRUE";
+			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId);
+			boolean isValidCustomer = count != null && count > 0;
 
-		return isValidCustomer;
+			log.debug("👤 고객 확인 - 사용자ID: {}, 유효성: {}", userId, isValidCustomer);
+
+			if (!isValidCustomer) {
+				log.warn("⚠️ 사용자를 찾을 수 없음 - ID: {}", userId);
+			}
+
+			return isValidCustomer;
+		} catch (Exception e) {
+			log.error("❌ 사용자 검증 중 데이터베이스 오류 - 사용자ID: {}", userId, e);
+			return false;
+		}
 	}
 
 	/**

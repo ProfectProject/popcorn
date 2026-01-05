@@ -55,7 +55,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			SELECT og.order_goods_id AS orderItemId,
 			       CASE
 			         WHEN og.schedule_id IS NOT NULL THEN 'RESERVATION'
-			         WHEN og.goods_variant_id IS NOT NULL THEN 'MERCH'
+			         WHEN og.goods_variant_id IS NOT NULL THEN 'GOODS'
 			         ELSE NULL
 			       END AS orderItemType,
 			       og.schedule_id AS sessionOptionId,
@@ -75,12 +75,12 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			  FROM p_order_goods og
 			  LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
 			  LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
-			  LEFT JOIN p_popups p ON p.popup_id = COALESCE(ps.popup_id, gv.popup_id, :fallbackProductId)
+			  LEFT JOIN p_popups p ON p.popup_id = COALESCE(ps.popup_id, gv.popup_id, :fallbackPopupId)
 			 WHERE og.order_id = :orderId
 			   AND og.deleted_at IS NULL
 			""", nativeQuery = true)
 	List<OrderItemDetailView> findOrderItems(@Param("orderId") UUID orderId,
-			@Param("fallbackProductId") UUID fallbackProductId);
+			@Param("fallbackPopupId") UUID fallbackPopupId);
 
 	@Query(value = """
 			SELECT ua.address1 AS address1,

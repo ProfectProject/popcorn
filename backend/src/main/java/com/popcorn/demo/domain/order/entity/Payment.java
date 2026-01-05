@@ -26,7 +26,7 @@ public class Payment extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
-	@Column(name = "id")
+	@Column(name = "payment_id")
 	private UUID id;
 
 	@Column(name = "order_id", nullable = false)
