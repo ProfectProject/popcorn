@@ -1,10 +1,10 @@
-package com.popcorn.demo.domain.merch.exception;
+package com.popcorn.demo.domain.goods.exception;
 
 import com.popcorn.demo.common.dto.ResponseCode;
 import com.popcorn.demo.common.exception.BaseException;
 
-public class MerchNotFoundException extends BaseException {
-    public MerchNotFoundException() {
+public class GoodsNotFoundException extends BaseException {
+    public GoodsNotFoundException() {
         super(ResponseCode.NOT_FOUND);
     }
 }
