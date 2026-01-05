@@ -2,10 +2,14 @@ package com.popcorn.demo.domain.goods.service;
 
 import com.popcorn.demo.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsIdResponse;
+import com.popcorn.demo.domain.goods.dto.GoodsItemResponse;
+import com.popcorn.demo.domain.goods.dto.GoodsListResponse;
 import com.popcorn.demo.domain.goods.entity.GoodsVariant;
 import com.popcorn.demo.domain.goods.exception.GoodsNotFoundException;
 import com.popcorn.demo.domain.goods.repository.GoodsVariantRepository;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GoodsService {
     private final GoodsVariantRepository goodsVariantRepository;
+
+    @Transactional(readOnly = true)
+    public GoodsListResponse list(UUID popupId) {
+        List<GoodsItemResponse> items = goodsVariantRepository
+                .findAllByPopupIdAndDeletedAtIsNullOrderByCreatedAtDesc(popupId)
+                .stream()
+                .map(GoodsItemResponse::from)
+                .collect(Collectors.toList());
+        return new GoodsListResponse(items);
+    }
 
     @Transactional
     public GoodsIdResponse create(UUID popupId, GoodsCreateRequest request) {
