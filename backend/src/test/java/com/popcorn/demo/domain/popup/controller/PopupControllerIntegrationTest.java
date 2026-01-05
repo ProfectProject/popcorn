@@ -60,14 +60,4 @@ class PopupControllerIntegrationTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].status").value("OPEN"))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].location.name").value("팝업 테스트 장소"));
 	}
-
-	@Test
-	@DisplayName("옵션 조회 통합 테스트")
-	void getProductOptions() throws Exception {
-		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/products/{productId}/options",
-						"00000000-0000-0000-0000-000000000101"))
-				.andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].name").value("일반 좌석"));
-	}
 }

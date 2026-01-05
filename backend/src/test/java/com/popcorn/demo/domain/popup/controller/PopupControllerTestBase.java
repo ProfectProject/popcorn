@@ -12,27 +12,26 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
-import com.popcorn.demo.domain.popup.application.PopupApplicationService;
+import com.popcorn.demo.domain.popup.service.PopupService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 public abstract class PopupControllerTestBase {
 
 	protected MockMvc mockMvc;
-protected PopupApplicationService popupApplicationService;
+	protected PopupService popupService;
 	protected ObjectMapper objectMapper;
 
 	@BeforeEach
 	void setUpBase() {
-		popupApplicationService = Mockito.mock(PopupApplicationService.class);
+		popupService = Mockito.mock(PopupService.class);
 		objectMapper = new CommonConfig().objectMapper();
 		mockMvc = MockMvcBuilders.standaloneSetup(
-						new PopupController(popupApplicationService),
-						new PopupSessionController(popupApplicationService),
-						new PopupOptionController(popupApplicationService))
+						new PopupController(popupService),
+						new PopupSessionController(popupService))
 				.setControllerAdvice(new PopupExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
-		Mockito.reset(popupApplicationService);
+		Mockito.reset(popupService);
 	}
 
 	protected PopupListResponse createPopupListResponse() {
@@ -79,18 +78,6 @@ protected PopupApplicationService popupApplicationService;
 								.latitude(37.498)
 								.longitude(127.027)
 								.build())
-						.build()))
-				.build();
-	}
-
-	protected com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse createOptionListResponse() {
-		return com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse.builder()
-				.items(List.of(com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse.ItemDto.builder()
-						.id(UUID.fromString("00000000-0000-0000-0000-000000000301"))
-						.name("일반 좌석")
-						.price(10000)
-						.capacity(20)
-						.isHidden(false)
 						.build()))
 				.build();
 	}

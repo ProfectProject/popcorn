@@ -18,7 +18,7 @@ import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderCreatedDto;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.service.OrderService;
 
 @Profile({ "local", "dev" })
@@ -69,7 +69,7 @@ public class OrderTestController extends BaseController {
 
 	private OrderItemType resolveItemType(String orderType) {
 		if (orderType == null) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		String normalized = orderType.toUpperCase();
@@ -80,7 +80,7 @@ public class OrderTestController extends BaseController {
 			return OrderItemType.MERCH;
 		}
 
-		throw OrderException.invalidRequest();
+		throw OrderValidationException.invalidRequest();
 	}
 
 	private OrderCreatedDto convertToOrderCreatedDto(CreateOrderResponse response) {

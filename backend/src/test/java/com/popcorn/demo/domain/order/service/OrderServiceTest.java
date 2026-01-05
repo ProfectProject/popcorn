@@ -37,7 +37,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.global.exception.BaseException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
 import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
@@ -117,9 +117,66 @@ class OrderServiceTest {
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.empty());
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.OPTION_NOT_FOUND));
+		}
+
+		@Test
+		@DisplayName("주문 생성 - 옵션 ID 누락")
+		void createOrder_optionIdMissing() {
+			CreateOrderCommand command = CreateOrderCommand.builder()
+					.userId(1001L)
+					.storeId(UUID.randomUUID())
+					.productId(UUID.randomUUID())
+					.orderType("RESERVATION")
+					.idempotencyKey("test-key-001")
+					.items(List.of(
+							CreateOrderCommand.OrderItemCommand.builder()
+									.orderItemType(OrderItemType.RESERVATION)
+									.sessionId(UUID.randomUUID())
+									.optionId(null)
+									.qty(2)
+									.unitPrice(1000)
+									.build()
+					))
+					.build();
+
+			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
+			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
+
+			assertThatThrownBy(() -> orderService.createOrder(command))
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
+							.isEqualTo(OrderResponseCode.OPTION_NOT_FOUND));
+		}
+
+		@Test
+		@DisplayName("주문 생성 - 상품 변형 ID 누락")
+		void createOrder_merchVariantIdMissing() {
+			CreateOrderCommand command = CreateOrderCommand.builder()
+					.userId(1001L)
+					.storeId(UUID.randomUUID())
+					.productId(UUID.randomUUID())
+					.orderType("PURCHASE")
+					.idempotencyKey("test-key-001")
+					.items(List.of(
+							CreateOrderCommand.OrderItemCommand.builder()
+									.orderItemType(OrderItemType.MERCH)
+									.merchVariantId(null)
+									.qty(1)
+									.unitPrice(1000)
+									.build()
+					))
+					.build();
+
+			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
+			when(orderRepository.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
+
+			assertThatThrownBy(() -> orderService.createOrder(command))
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
+							.isEqualTo(OrderResponseCode.MERCH_VARIANT_NOT_FOUND));
 		}
 
 		@Test
@@ -157,8 +214,8 @@ class OrderServiceTest {
 			when(orderDomainService.canChangeStatus(OrderStatus.READY, OrderStatus.OWNER_ACCEPTED)).thenReturn(false);
 
 			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.INVALID_STATUS_TRANSITION));
 		}
 
@@ -169,8 +226,8 @@ class OrderServiceTest {
 			when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
 
 			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.ORDER_NOT_FOUND));
 		}
 
@@ -185,8 +242,8 @@ class OrderServiceTest {
 			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
 			assertThatThrownBy(() -> orderService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.ALREADY_CANCELED));
 		}
 
@@ -201,8 +258,8 @@ class OrderServiceTest {
 			when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
 			assertThatThrownBy(() -> orderService.updateStatus(orderId, "NOT_A_STATUS", "reason"))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(CommonResponseCode.INVALID_REQUEST));
 		}
 	}
@@ -239,8 +296,8 @@ class OrderServiceTest {
 			when(idempotencyCache.isDuplicate(anyString())).thenReturn(true);
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.DUPLICATE_IDEMPOTENCY_KEY));
 
 			verify(orderRepository, never()).save(any());
@@ -271,8 +328,8 @@ class OrderServiceTest {
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(CommonResponseCode.INVALID_REQUEST));
 
 			verify(orderRepository, never()).save(any());
@@ -398,8 +455,8 @@ class OrderServiceTest {
 			when(orderQueryRepository.findOrderDetail(orderId)).thenReturn(null);
 
 			assertThatThrownBy(() -> orderService.getOrderDetail(orderId, 1001L, "CUSTOMER"))
-					.isInstanceOf(OrderException.class)
-					.satisfies(ex -> assertThat(((OrderException) ex).getResponseCode())
+					.isInstanceOf(BaseException.class)
+					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
 							.isEqualTo(OrderResponseCode.ORDER_NOT_FOUND));
 		}
 	}

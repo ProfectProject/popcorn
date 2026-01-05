@@ -20,7 +20,7 @@ class PopupSessionControllerTest extends PopupControllerTestBase {
 	@DisplayName("회차(슬롯) 조회")
 	void getProductSessions() throws Exception {
 		PopupSessionListResponse response = createSessionListResponse();
-		when(popupApplicationService.getProductSessions(any(PopupSessionListQuery.class)))
+		when(popupService.getProductSessions(any(PopupSessionListQuery.class)))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/products/{productId}/sessions",

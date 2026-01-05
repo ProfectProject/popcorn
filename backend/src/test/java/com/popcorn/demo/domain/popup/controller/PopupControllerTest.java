@@ -23,7 +23,7 @@ class PopupControllerTest extends PopupControllerTestBase {
 	void getPopups() throws Exception {
 		PopupListResponse response = createPopupListResponse();
 
-		when(popupApplicationService.getPopups(any(PopupListQuery.class)))
+		when(popupService.getPopups(any(PopupListQuery.class)))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/popups")
@@ -42,7 +42,7 @@ class PopupControllerTest extends PopupControllerTestBase {
 		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		PopupDetailResponse response = createPopupDetailResponse(productId);
 
-		when(popupApplicationService.getPopupDetail(any(PopupDetailQuery.class))).thenReturn(response);
+		when(popupService.getPopupDetail(any(PopupDetailQuery.class))).thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/popups/{productId}", productId)
 						.contentType(MediaType.APPLICATION_JSON))

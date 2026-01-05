@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupOptionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
@@ -91,17 +90,6 @@ class PopupValidationServiceTest {
 						.from(java.time.LocalDateTime.of(2025, 1, 10, 0, 0))
 						.to(java.time.LocalDateTime.of(2025, 1, 1, 0, 0))
 						.build()));
-
-		assertEquals(PopupResponseCode.INVALID_REQUEST, exception.getResponseCode());
-	}
-
-	@Test
-	@DisplayName("옵션 조회 - productId 없으면 실패")
-	void normalizeOptionQuery_requiresProductId() {
-		PopupValidationService service = new PopupValidationService();
-
-		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeOptionQuery(PopupOptionListQuery.builder().build()));
 
 		assertEquals(PopupResponseCode.INVALID_REQUEST, exception.getResponseCode());
 	}

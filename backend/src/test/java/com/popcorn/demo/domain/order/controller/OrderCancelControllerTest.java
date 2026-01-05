@@ -23,8 +23,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderConflictException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 /**
@@ -42,6 +45,7 @@ class OrderCancelControllerTest {
 
 	private MockMvc mockMvc;
 	private OrderCommandService orderCommandService;
+	private PaymentCommandService paymentCommandService;
 	private ObjectMapper objectMapper;
 
 	private UUID testOrderId;
@@ -50,10 +54,12 @@ class OrderCancelControllerTest {
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
+		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// 주문 취소는 Command 작업이므로 OrderCommandController를 사용
-		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		OrderCommandController commandController = new OrderCommandController(
+				orderCommandService, objectMapper, paymentCommandService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -90,7 +96,7 @@ class OrderCancelControllerTest {
 		UUID nonExistentOrderId = UUID.fromString("99999999-9999-9999-9999-999999999999");
 
 		when(orderCommandService.updateStatus(eq(nonExistentOrderId), eq("CANCELLED"), any(String.class)))
-				.thenThrow(OrderException.orderNotFound());
+				.thenThrow(OrderNotFoundException.orderNotFound());
 
 		// When & Then: 404 응답 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", nonExistentOrderId)
@@ -104,7 +110,7 @@ class OrderCancelControllerTest {
 	void cancelOrder_AlreadyCancelled() throws Exception {
 		// Given: 이미 CANCELLED 상태인 주문
 		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
-				.thenThrow(OrderException.alreadyCanceled());
+				.thenThrow(OrderConflictException.alreadyCanceled());
 
 		// When & Then: 409 응답 반환 (비즈니스 규칙 위반)
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
@@ -118,7 +124,7 @@ class OrderCancelControllerTest {
 	void cancelOrder_CannotCancel_CompletedOrder() throws Exception {
 		// Given: COMPLETED 상태인 주문에 대한 취소 요청
 		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
-				.thenThrow(OrderException.invalidStatusTransition());
+				.thenThrow(OrderValidationException.invalidStatusTransition());
 
 		// When & Then: 400 응답 반환 (잘못된 요청)
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
@@ -132,7 +138,7 @@ class OrderCancelControllerTest {
 	void cancelOrder_CannotCancel_PreparingOrder() throws Exception {
 		// Given: PREPARING 상태인 주문에 대한 취소 요청
 		when(orderCommandService.updateStatus(eq(testOrderId), eq("CANCELLED"), any(String.class)))
-				.thenThrow(OrderException.invalidStatusTransition());
+				.thenThrow(OrderValidationException.invalidStatusTransition());
 
 		// When & Then: 400 응답 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)

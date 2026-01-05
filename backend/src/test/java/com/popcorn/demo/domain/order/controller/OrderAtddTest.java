@@ -25,6 +25,7 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderAtddTest {
@@ -34,14 +35,17 @@ class OrderAtddTest {
 	private ObjectMapper objectMapper;
 
 	private OrderCommandService orderCommandService;
+	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
+		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// ATDD 테스트 - 주문 생성과 상태 변경은 Command 작업이므로 OrderCommandController를 사용
-		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		OrderCommandController commandController = new OrderCommandController(
+				orderCommandService, objectMapper, paymentCommandService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))

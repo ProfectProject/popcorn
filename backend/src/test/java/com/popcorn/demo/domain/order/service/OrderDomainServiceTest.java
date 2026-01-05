@@ -18,7 +18,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.global.exception.BaseException;
 
 /**
 	* OrderDomainService 단위 테스트
@@ -95,7 +95,31 @@ class OrderDomainServiceTest {
 
 		// when & then
 		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
-				.isInstanceOf(OrderException.class);
+				.isInstanceOf(BaseException.class);
+	}
+
+	@Test
+	@DisplayName("주문 생성 검증 - 스토어 ID가 null이면 예외 발생")
+	void validateOrderCreation_NullStoreId_ThrowsException() {
+		Long customerId = 1001L;
+		UUID storeId = null;
+		UUID productId = UUID.randomUUID();
+		List<OrderItem> orderItems = createSampleOrderItems();
+
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
+				.isInstanceOf(BaseException.class);
+	}
+
+	@Test
+	@DisplayName("주문 생성 검증 - 상품 ID가 null이면 예외 발생")
+	void validateOrderCreation_NullProductId_ThrowsException() {
+		Long customerId = 1001L;
+		UUID storeId = UUID.randomUUID();
+		UUID productId = null;
+		List<OrderItem> orderItems = createSampleOrderItems();
+
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
+				.isInstanceOf(BaseException.class);
 	}
 
 	@Test
@@ -109,7 +133,7 @@ class OrderDomainServiceTest {
 
 		// when & then
 		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
-				.isInstanceOf(OrderException.class);
+				.isInstanceOf(BaseException.class);
 	}
 
 	@Test

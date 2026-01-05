@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 /**
  * 최적화된 주문 컨트롤러 테스트
@@ -79,7 +79,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
 
             // Given: 예외 상황 Mock 설정
             when(orderCommandService.createOrder(any()))
-                    .thenThrow(OrderException.emptyItems());
+                    .thenThrow(OrderValidationException.emptyItems());
 
             // When & Then: 한 번의 호출로 예외 검증
             String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 1);
@@ -144,7 +144,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             // Given: 예외 Mock 설정
             UUID orderId = TestUUIDs.ORDER_ID;
             when(orderCommandService.updateStatus(orderId, "READY", "reason"))
-                    .thenThrow(OrderException.invalidStatusTransition());
+                    .thenThrow(OrderValidationException.invalidStatusTransition());
 
             // When & Then
             String statusJson = createStatusUpdateJson("READY", "reason");

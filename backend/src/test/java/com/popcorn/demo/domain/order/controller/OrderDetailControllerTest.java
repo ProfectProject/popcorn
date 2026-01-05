@@ -19,7 +19,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.global.config.CommonConfig;
 
@@ -226,7 +227,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_notFound() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
 		when(orderQueryService.getOrderDetail(orderId, null, null))
-				.thenThrow(OrderException.orderNotFound());
+				.thenThrow(OrderNotFoundException.orderNotFound());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId))
 				.andExpect(MockMvcResultMatchers.status().isNotFound())
@@ -239,7 +240,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_forbidden() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009998");
 		when(orderQueryService.getOrderDetail(orderId, null, null))
-				.thenThrow(OrderException.forbidden());
+				.thenThrow(OrderForbiddenException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId))
 				.andExpect(MockMvcResultMatchers.status().isForbidden())

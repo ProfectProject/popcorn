@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
@@ -33,7 +34,7 @@ import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,15 +55,18 @@ class OrderControllerBusinessTest {
 
 	private OrderCommandService orderCommandService;
 	private OrderQueryService orderQueryService;
+	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
 		orderQueryService = Mockito.mock(OrderQueryService.class);
+		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// 비즈니스 테스트 - 전체 시나리오 테스트를 위해 Command와 Query 컨트롤러 모두 설정
-		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		OrderCommandController commandController = new OrderCommandController(
+				orderCommandService, objectMapper, paymentCommandService);
 		OrderQueryController queryController = new OrderQueryController(orderQueryService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
 				.setControllerAdvice(new OrderExceptionHandler())
@@ -151,7 +155,7 @@ class OrderControllerBusinessTest {
 
 			// Given: 해당 시간대가 이미 매진된 상황
 			when(orderCommandService.createOrder(any()))
-					.thenThrow(OrderException.emptyItems()); // 실제로는 "매진" 예외가 더 적절
+					.thenThrow(OrderValidationException.emptyItems()); // 실제로는 "매진" 예외가 더 적절
 
 			// When: 고객이 매진된 시간대에 예약을 시도한다
 			String 매진된_시간대_예약요청 = """
@@ -189,7 +193,7 @@ class OrderControllerBusinessTest {
 
 			// Given: 비즈니스 규칙상 허용되지 않는 수량 (예: 0개 이하, 최대 수량 초과)
 			when(orderCommandService.createOrder(any()))
-					.thenThrow(OrderException.invalidQty());
+					.thenThrow(OrderValidationException.invalidQty());
 
 			// When: 고객이 잘못된 수량으로 예약을 시도한다
 			String 잘못된_수량_예약요청 = """
@@ -270,7 +274,7 @@ class OrderControllerBusinessTest {
 			// Given: 이미 완료된 예약을 다시 변경하려는 상황 (비즈니스 규칙 위반)
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
 			when(orderCommandService.updateStatus(orderId, "READY", "reason"))
-					.thenThrow(OrderException.invalidStatusTransition());
+					.thenThrow(OrderValidationException.invalidStatusTransition());
 
 			// When: 점주가 허용되지 않은 상태 변경을 시도한다
 			String 잘못된_상태변경_요청 = """
