@@ -475,6 +475,21 @@ private final PaymentCommandService paymentCommandService;
 		return ok(response);
 	}
 
+	@Operation(
+			summary = "모든 주문 데이터 삭제 (개발/테스트용)",
+			description = "⚠️ 경고: 모든 주문 관련 데이터를 삭제합니다. 개발 및 테스트 환경에서만 사용하세요."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "모든 주문 데이터 삭제 완료"
+	)
+	@DeleteMapping("/all")
+	public ResponseEntity<BaseResponse<String>> deleteAllOrders() {
+		log.warn("🚨 모든 주문 데이터 삭제 요청");
+		orderCommandService.deleteAllOrders();
+		return ok("모든 주문 데이터가 삭제되었습니다.");
+	}
+
 	/**
 	 * CreateOrderResponse를 OrderCreatedDto로 변환하는 헬퍼 메서드
 	 * Clean Architecture의 Response를 Controller Layer의 DTO로 변환

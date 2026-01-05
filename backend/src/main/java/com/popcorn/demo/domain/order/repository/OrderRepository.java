@@ -31,6 +31,8 @@ public interface OrderRepository {
 
 	void deleteById(UUID orderId);
 
+	void deleteAllOrders();
+
 	boolean existsById(UUID orderId);
 
 	List<Order> findByCustomerId(Long customerId);

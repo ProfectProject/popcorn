@@ -76,6 +76,14 @@ public class OrderRepositoryImpl implements OrderRepository {
 	}
 
 	@Override
+	public void deleteAllOrders() {
+		// 외래키 관계 때문에 순서대로 삭제
+		orderStatusHistoryRepository.deleteAll();
+		orderItemRepository.deleteAll();
+		orderRepository.deleteAll();
+	}
+
+	@Override
 	public boolean existsById(UUID orderId) {
 		return orderRepository.existsById(orderId);
 	}

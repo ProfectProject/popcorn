@@ -115,11 +115,9 @@ public class OrderCommandService {
 		// 동기 저장 (트랜잭션 내)
 		Order savedOrder = orderRepository.save(order);
 
-		// 주문 아이템 저장
-		List<OrderItem> itemsWithOrderId = savedOrder.getOrderItems().stream()
-				.peek(item -> item.setOrderId(savedOrder.getId()))
-				.toList();
-		orderRepository.saveOrderItems(itemsWithOrderId);
+		// 주문 아이템 저장 - orderId 설정 후 저장
+		savedOrder.getOrderItems().forEach(item -> item.setOrderId(savedOrder.getId()));
+		orderRepository.saveOrderItems(savedOrder.getOrderItems());
 
 		// 상태 이력 저장 (주문 생성)
 		OrderStatusHistory createdHistory = savedOrder.toHistory(null, "주문 생성");
@@ -229,6 +227,16 @@ public class OrderCommandService {
 		return savedOrder;
 	}
 
+	/**
+	 * 모든 주문 데이터 삭제 (개발/테스트용)
+	 */
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public void deleteAllOrders() {
+		log.warn("🗑️ 모든 주문 데이터 삭제 시작");
+		orderRepository.deleteAllOrders();
+		log.warn("🗑️ 모든 주문 데이터 삭제 완료");
+	}
+
 	// ================ 내부 헬퍼 메서드들 ================
 
 
@@ -242,7 +250,7 @@ public class OrderCommandService {
 		Integer unitPrice = resolveUnitPrice(itemCommand);
 		Integer lineAmount = unitPrice * itemCommand.getQty();
 		return OrderItem.builder()
-				.id(UUID.randomUUID())
+				// ID는 JPA가 자동 생성하도록 제거
 				.orderItemType(itemCommand.getOrderItemType())
 				.qty(itemCommand.getQty())
 				.unitPrice(unitPrice)
