@@ -60,6 +60,7 @@ public class SecurityConfig {
 								"/webjars/**"
 						).permitAll()
 						.requestMatchers("/api/v1/orders/**").permitAll()
+						.requestMatchers("/api/v1/qr/**").permitAll()
 						.requestMatchers("/actuator/health").permitAll()
 						.anyRequest().authenticated()
 				)
