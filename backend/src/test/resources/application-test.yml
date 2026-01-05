@@ -8,7 +8,11 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: VARCHAR
 
   flyway:
     enabled: false

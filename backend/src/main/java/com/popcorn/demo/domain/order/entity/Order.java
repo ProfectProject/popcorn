@@ -110,19 +110,13 @@ public class Order extends BaseEntity {
 
 
 	/** 주문 타입 (예약형/구매형) */
-
 	@Enumerated(EnumType.STRING)
-	@Column(name = "order_type")
-
+	@Column(name = "order_type", length = 20, nullable = false)
 	private OrderType orderType;
 
-
-
 	/** 주문 상태 */
-
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status")
-
+	@Column(name = "status", length = 30, nullable = false)
 	private OrderStatus status;
 
 
