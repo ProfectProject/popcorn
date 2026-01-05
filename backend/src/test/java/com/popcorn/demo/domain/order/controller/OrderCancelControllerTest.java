@@ -181,7 +181,7 @@ class OrderCancelControllerTest {
 				.orderNo("O20261203-000001")
 				.customerId(1001L)
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
-				.productId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
+				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.orderType(OrderType.RESERVATION)
 				.status(status)
 				.totalAmount(50000)

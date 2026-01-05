@@ -50,7 +50,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000155");
+		UUID popupId = UUID.fromString("00000000-0000-0000-000000000155");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002001");
 
 		OrderDetailDto detail = OrderDetailDto.builder()
@@ -64,7 +64,7 @@ class OrderDetailControllerTest {
 						.role("CUSTOMER")
 						.build())
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(4000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -73,7 +73,7 @@ class OrderDetailControllerTest {
 						OrderDetailDto.ItemDto.builder()
 								.id(itemId)
 								.orderItemType("RESERVATION")
-								.productId(productId)
+								.popupId(popupId)
 								.productTitle("Seed Popup 55")
 								.productCategory("FOOD")
 								.productStatus("OPEN")
@@ -113,7 +113,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_reservationFields() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001010");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000155");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000155");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002010");
 		UUID sessionId = UUID.fromString("00000000-0000-0000-0000-000000000201");
 		LocalDateTime sessionStart = LocalDateTime.now().minusDays(1);
@@ -130,7 +130,7 @@ class OrderDetailControllerTest {
 						.role("CUSTOMER")
 						.build())
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -139,7 +139,7 @@ class OrderDetailControllerTest {
 						OrderDetailDto.ItemDto.builder()
 								.id(itemId)
 								.orderItemType("RESERVATION")
-								.productId(productId)
+								.popupId(popupId)
 								.productTitle("Seed Popup 55")
 								.productCategory("FOOD")
 								.productStatus("OPEN")

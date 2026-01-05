@@ -72,13 +72,13 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
 		// when & then
 		// when & then - 예외가 발생하지 않으면 성공
 		try {
-			orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems);
+			orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems);
 		} catch (Exception e) {
 			throw new AssertionError("예외가 발생하지 않아야 함", e);
 		}
@@ -90,11 +90,11 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = null;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
 		// when & then
-		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
 				.isInstanceOf(BaseException.class);
 	}
 
@@ -103,10 +103,10 @@ class OrderDomainServiceTest {
 	void validateOrderCreation_NullStoreId_ThrowsException() {
 		Long customerId = 1001L;
 		UUID storeId = null;
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
-		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
 				.isInstanceOf(BaseException.class);
 	}
 
@@ -115,10 +115,10 @@ class OrderDomainServiceTest {
 	void validateOrderCreation_NullProductId_ThrowsException() {
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = null;
+		UUID popupId = null;
 		List<OrderItem> orderItems = createSampleOrderItems();
 
-		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
 				.isInstanceOf(BaseException.class);
 	}
 
@@ -128,11 +128,11 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = new ArrayList<>();
 
 		// when & then
-		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
 				.isInstanceOf(BaseException.class);
 	}
 
@@ -188,7 +188,7 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		OrderType orderType = OrderType.RESERVATION;
 		List<OrderItem> orderItems = createSampleOrderItems();
 		String idempotencyKey = "test-key-001";
@@ -197,7 +197,7 @@ class OrderDomainServiceTest {
 		Order order = orderDomainService.createOrder(
 				customerId,
 				storeId,
-				productId,
+				popupId,
 				orderType,
 				orderItems,
 				idempotencyKey
@@ -207,7 +207,7 @@ class OrderDomainServiceTest {
 		assertThat(order).isNotNull();
 		assertThat(order.getCustomerId()).isEqualTo(customerId);
 		assertThat(order.getStoreId()).isEqualTo(storeId);
-		assertThat(order.getProductId()).isEqualTo(productId);
+		assertThat(order.getPopupId()).isEqualTo(popupId);
 		assertThat(order.getOrderType()).isEqualTo(orderType);
 		assertThat(order.getStatus()).isEqualTo(OrderStatus.REQUESTED);
 		assertThat(order.getIdempotencyKey()).isEqualTo(idempotencyKey);
@@ -294,7 +294,7 @@ class OrderDomainServiceTest {
 				.orderNo("O20231230-000001")
 				.customerId(1001L)
 				.storeId(UUID.randomUUID())
-				.productId(UUID.randomUUID())
+				.popupId(UUID.randomUUID())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(29000)

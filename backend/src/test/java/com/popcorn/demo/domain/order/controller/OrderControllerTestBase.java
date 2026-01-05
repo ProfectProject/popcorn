@@ -82,14 +82,14 @@ public abstract class OrderControllerTestBase {
     /**
      * 테스트용 주문 응답 생성 헬퍼 (재사용 가능)
      */
-    protected CreateOrderResponse createTestOrderResponse(UUID orderId, UUID storeId, UUID productId) {
+    protected CreateOrderResponse createTestOrderResponse(UUID orderId, UUID storeId, UUID popupId) {
         return CreateOrderResponse.builder()
                 .orderId(orderId)
                 .orderNo("O" + System.currentTimeMillis())
                 .orderType("RESERVATION")
                 .status("REQUESTED")
                 .storeId(storeId)
-                .productId(productId)
+                .popupId(popupId)
                 .totalAmount(2000)
                 .cancelableUntil(LocalDateTime.now().plusMinutes(15))
                 .createdAt(LocalDateTime.now())
@@ -108,12 +108,12 @@ public abstract class OrderControllerTestBase {
     /**
      * 테스트용 주문 생성 JSON 헬퍼 (재사용 가능)
      */
-    protected String createOrderRequestJson(UUID storeId, UUID productId, int qty) {
+    protected String createOrderRequestJson(UUID storeId, UUID popupId, int qty) {
         return """
                 {
                     "orderType": "RESERVATION",
                     "storeId": "%s",
-                    "productId": "%s",
+                    "popupId": "%s",
                     "items": [
                         {
                             "orderItemType": "RESERVATION",
@@ -123,7 +123,7 @@ public abstract class OrderControllerTestBase {
                         }
                     ]
                 }
-                """.formatted(storeId, productId, qty);
+                """.formatted(storeId, popupId, qty);
     }
 
     /**

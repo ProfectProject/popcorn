@@ -42,7 +42,7 @@ class PopupSessionQueryServiceTest {
 				.thenReturn(List.of(view));
 
 		PopupSessionListResponse response = service.getProductSessions(PopupSessionListQuery.builder()
-				.productId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
+				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.from(LocalDateTime.of(2025, 1, 1, 0, 0))
 				.to(LocalDateTime.of(2025, 1, 31, 23, 59))
 				.build());
@@ -77,7 +77,7 @@ class PopupSessionQueryServiceTest {
 				.thenReturn(List.of(view));
 
 		PopupSessionListResponse response = service.getProductSessions(PopupSessionListQuery.builder()
-				.productId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
+				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.build());
 
 		assertEquals(1, response.getItems().size());

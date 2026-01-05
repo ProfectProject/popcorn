@@ -86,7 +86,7 @@ class OrderControllerBusinessTest {
 			// Given: 고객이 예약하려는 팝콘 정보
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 			UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-			UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+			UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 			UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
 			// 비즈니스 관점: 성공적인 예약 결과
@@ -96,7 +96,7 @@ class OrderControllerBusinessTest {
 					.orderType("RESERVATION")
 					.status("REQUESTED") // 예약 요청 상태
 					.storeId(storeId)
-					.productId(productId)
+					.popupId(popupId)
 					.totalAmount(2000)
 					.cancelableUntil(LocalDateTime.now().plusMinutes(15)) // 15분 후 취소 불가
 					.createdAt(LocalDateTime.now())
@@ -118,7 +118,7 @@ class OrderControllerBusinessTest {
 					{
 						"orderType": "RESERVATION",
 						"storeId": "%s",
-						"productId": "%s",
+						"popupId": "%s",
 						"items": [
 							{
 								"orderItemType": "RESERVATION",
@@ -128,7 +128,7 @@ class OrderControllerBusinessTest {
 							}
 						]
 					}
-					""".formatted(storeId, productId);
+					""".formatted(storeId, popupId);
 
 			// Then: 예약이 성공적으로 접수된다
 			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
@@ -162,7 +162,7 @@ class OrderControllerBusinessTest {
 					{
 						"orderType": "RESERVATION",
 						"storeId": "00000000-0000-0000-0000-000000000001",
-						"productId": "00000000-0000-0000-0000-000000000101",
+						"popupId": "00000000-0000-0000-0000-000000000101",
 						"items": [
 							{
 								"orderItemType": "RESERVATION",
@@ -200,7 +200,7 @@ class OrderControllerBusinessTest {
 					{
 						"orderType": "RESERVATION",
 						"storeId": "00000000-0000-0000-0000-000000000001",
-						"productId": "00000000-0000-0000-0000-000000000101",
+						"popupId": "00000000-0000-0000-0000-000000000101",
 						"items": [
 							{
 								"orderItemType": "RESERVATION",

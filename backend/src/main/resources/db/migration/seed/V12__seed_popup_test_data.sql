@@ -1,69 +1,49 @@
--- Popup integration test seed data (V0 schema)
-DELETE FROM p_goods_variants WHERE goods_id IN (
-	'00000000-0000-0000-0000-000000000451'::uuid
-);
-DELETE FROM p_popup_schedules WHERE schedule_id IN (
+-- Popup integration test seed data (actual schema)
+DELETE FROM p_product_sessions WHERE id IN (
 	'00000000-0000-0000-0000-000000000201'::uuid
 );
-DELETE FROM p_popups WHERE popup_id IN (
+DELETE FROM p_products WHERE id IN (
 	'00000000-0000-0000-0000-000000000101'::uuid,
 	'00000000-0000-0000-0000-000000000155'::uuid
 );
-DELETE FROM p_stores WHERE store_id IN (
+DELETE FROM p_stores WHERE id IN (
 	'00000000-0000-0000-0000-000000000001'::uuid
 );
-DELETE FROM p_users WHERE user_id IN (1, 10);
+DELETE FROM p_users WHERE id IN (1, 10);
 
 INSERT INTO p_users (
-	user_id, password, name, phone, email, role, is_active, created_at, updated_at
+	id, email, password, phone, name, role, is_active, created_at, updated_at
 ) VALUES
-	(1, 'test', 'Seed User', '01000000000', 'seed@popcorn.local', 'CUSTOMER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-	(10, 'test', 'Seed Owner', '01011112222', 'owner@popcorn.local', 'OWNER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+	(1, 'seed@popcorn.local', 'test', '01000000000', 'Seed User', 'CUSTOMER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+	(10, 'owner@popcorn.local', 'test', '01011112222', 'Seed Owner', 'OWNER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 INSERT INTO p_stores (
-	store_id, user_id, store_name, status, created_at, updated_at
+	id, owner_id, name, publish_status, created_at, updated_at
 ) VALUES (
 	'00000000-0000-0000-0000-000000000001'::uuid,
 	10,
 	'Seed Store',
-	'ACTIVE',
+	'PUBLISHED',
 	CURRENT_TIMESTAMP,
 	CURRENT_TIMESTAMP
 );
 
-INSERT INTO p_popups (
-	popup_id, store_id, title, description, category, status, created_at, updated_at
+INSERT INTO p_products (
+	id, store_id, title, description, category, status, is_hidden, created_at, updated_at
 ) VALUES
 	('00000000-0000-0000-0000-000000000101'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
-	 'Seed Popup 1', '예약형 팝업', 'FOOD', 'OPEN', TIMESTAMP '2025-01-01 10:00:00', TIMESTAMP '2025-01-01 10:00:00'),
+	 'Seed Product 1', '예약형 상품', 'FOOD', 'ACTIVE', FALSE, TIMESTAMP '2025-01-01 10:00:00', TIMESTAMP '2025-01-01 10:00:00'),
 	('00000000-0000-0000-0000-000000000155'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
-	 'Popup Merch 55', '굿즈형 팝업', 'FOOD', 'OPEN', TIMESTAMP '2025-01-02 10:00:00', TIMESTAMP '2025-01-02 10:00:00');
+	 'Product Merch 55', '굿즈형 상품', 'FOOD', 'ACTIVE', FALSE, TIMESTAMP '2025-01-02 10:00:00', TIMESTAMP '2025-01-02 10:00:00');
 
-INSERT INTO p_popup_schedules (
-	schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, created_at, updated_at
+INSERT INTO p_product_sessions (
+	id, product_id, start_at, end_at, status, created_at, updated_at
 ) VALUES (
 	'00000000-0000-0000-0000-000000000201'::uuid,
 	'00000000-0000-0000-0000-000000000101'::uuid,
 	TIMESTAMP '2025-01-01 10:00:00',
 	TIMESTAMP '2025-01-05 18:00:00',
-	12000,
-	50,
-	50,
-	TRUE,
+	'ACTIVE',
 	TIMESTAMP '2025-01-01 10:00:00',
 	TIMESTAMP '2025-01-01 10:00:00'
-);
-
-INSERT INTO p_goods_variants (
-	goods_id, popup_id, stock_unit, goods_name, goods_price, stock, is_active, created_at, updated_at
-) VALUES (
-	'00000000-0000-0000-0000-000000000451'::uuid,
-	'00000000-0000-0000-0000-000000000155'::uuid,
-	'SKU-055',
-	'Popup Merch 55',
-	15000,
-	30,
-	TRUE,
-	TIMESTAMP '2025-01-02 10:00:00',
-	TIMESTAMP '2025-01-02 10:00:00'
 );

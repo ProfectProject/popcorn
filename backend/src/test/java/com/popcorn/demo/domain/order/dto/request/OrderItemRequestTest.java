@@ -21,7 +21,7 @@ class OrderItemRequestTest {
 				.build();
 
 		assertThat(item.isReservationType()).isTrue();
-		assertThat(item.isMerchType()).isFalse();
+		assertThat(item.isGoodsType()).isFalse();
 		assertThat(item.hasRequiredFields()).isTrue();
 		assertThat(item.hasUnnecessaryFields()).isFalse();
 		assertThat(item.getSessionOptionKey()).isEqualTo(sessionId.toString());
@@ -61,14 +61,14 @@ class OrderItemRequestTest {
 				.unitPrice(1000)
 				.build();
 
-		OrderItemRequest merchItem = OrderItemRequest.builder()
-				.orderItemType("MERCH")
+		OrderItemRequest goodsItem = OrderItemRequest.builder()
+				.orderItemType("GOODS")
 				.qty(1)
 				.unitPrice(1500)
 				.build();
 
 		assertThat(reservationItem.hasRequiredFields()).isFalse();
-		assertThat(merchItem.hasRequiredFields()).isFalse();
+		assertThat(goodsItem.hasRequiredFields()).isFalse();
 	}
 
 	@Test
@@ -77,7 +77,7 @@ class OrderItemRequestTest {
 		UUID sessionId = UUID.randomUUID();
 		UUID goodsVariantId = UUID.randomUUID();
 
-		OrderItemRequest reservationWithMerch = OrderItemRequest.builder()
+		OrderItemRequest reservationWithGoods = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
 				.sessionId(sessionId)
 				.goodsVariantId(goodsVariantId)
@@ -85,7 +85,7 @@ class OrderItemRequestTest {
 				.unitPrice(1000)
 				.build();
 
-		OrderItemRequest merchWithReservationFields = OrderItemRequest.builder()
+		OrderItemRequest goodsWithReservationFields = OrderItemRequest.builder()
 				.orderItemType("GOODS")
 				.sessionId(sessionId)
 				.goodsVariantId(goodsVariantId)
@@ -93,7 +93,7 @@ class OrderItemRequestTest {
 				.unitPrice(1500)
 				.build();
 
-		assertThat(reservationWithMerch.hasUnnecessaryFields()).isTrue();
-		assertThat(merchWithReservationFields.hasUnnecessaryFields()).isTrue();
+		assertThat(reservationWithGoods.hasUnnecessaryFields()).isTrue();
+		assertThat(goodsWithReservationFields.hasUnnecessaryFields()).isTrue();
 	}
 }

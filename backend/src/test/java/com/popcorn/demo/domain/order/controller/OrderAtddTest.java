@@ -57,7 +57,7 @@ class OrderAtddTest {
 	void createOrder_then_updateStatus() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000002001");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+		UUID popupId = UUID.fromString("00000000-0000-0000-000000000101");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000020");
 
 		CreateOrderResponse response = CreateOrderResponse.builder()
@@ -66,7 +66,7 @@ class OrderAtddTest {
 				.orderType("RESERVATION")
 				.status("REQUESTED")
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -94,7 +94,7 @@ class OrderAtddTest {
 				{
 					"orderType": "RESERVATION",
 					"storeId": "%s",
-					"productId": "%s",
+					"popupId": "%s",
 					"items": [
 						{
 							"orderItemType": "RESERVATION",
@@ -104,7 +104,7 @@ class OrderAtddTest {
 						}
 					]
 				}
-				""".formatted(storeId, productId);
+				""".formatted(storeId, popupId);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)

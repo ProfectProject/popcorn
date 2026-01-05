@@ -86,7 +86,7 @@ class PopupValidationServiceTest {
 
 		PopupException exception = assertThrows(PopupException.class,
 				() -> service.normalizeSessionQuery(PopupSessionListQuery.builder()
-						.productId(java.util.UUID.fromString("00000000-0000-0000-0000-000000000101"))
+						.popupId(java.util.UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.from(java.time.LocalDateTime.of(2025, 1, 10, 0, 0))
 						.to(java.time.LocalDateTime.of(2025, 1, 1, 0, 0))
 						.build()));

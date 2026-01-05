@@ -76,7 +76,7 @@ class PaymentCommandServiceTest {
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
-		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(false);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any(String.class)))
 				.thenReturn(updatedOrder);
@@ -110,7 +110,7 @@ class PaymentCommandServiceTest {
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
-		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(true);
+		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(true);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.COMPLETED.name()), any(String.class)))
 				.thenReturn(updatedOrder);
@@ -134,7 +134,7 @@ class PaymentCommandServiceTest {
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
-		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(false);
+		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(false);
 
 		BaseException exception = assertThrows(BaseException.class,
 				() -> paymentCommandService.createReservationPayment(orderId, "VIRTUAL", 4000, null));
@@ -151,7 +151,7 @@ class PaymentCommandServiceTest {
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(paymentRepository.existsByOrderId(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
-		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(true);
+		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(true);
 
 		BaseException exception = assertThrows(BaseException.class,
 				() -> paymentCommandService.createOrderPayment(orderId, "CASH", 3000, null));
@@ -182,7 +182,7 @@ class PaymentCommandServiceTest {
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
-		when(orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId)).thenReturn(true);
+		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(true);
 
 		BaseException exception = assertThrows(BaseException.class,
 				() -> paymentCommandService.createReservationPayment(orderId, "CARD", 4000, null));

@@ -79,7 +79,7 @@ class OrderControllerTest {
 				.orderType("RESERVATION")
 				.status("REQUESTED")
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(productId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -425,7 +425,7 @@ class OrderControllerTest {
 				.orderType("RESERVATION")
 				.status("REQUESTED")
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(productId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -595,7 +595,7 @@ class OrderControllerTest {
 								.totalAmount(2000)
 								.cancelableUntil(LocalDateTime.now().plusMinutes(30))
 								.createdAt(LocalDateTime.now())
-								.productId(productId)
+								.popupId(productId)
 								.storeId(storeId)
 								.title("팝업 테스트")
 								.sessionStartAt(LocalDateTime.now().plusDays(1))
@@ -633,12 +633,12 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("잘못된 요청입니다."));
 	}
 
-	private String buildReservationOrderRequest(String storeId, String productId, int qty) {
+	private String buildReservationOrderRequest(String storeId, String popupId, int qty) {
 		return """
 				{
 					"orderType": "RESERVATION",
 					"storeId": "%s",
-					"productId": "%s",
+					"popupId": "%s",
 					"items": [
 						{
 							"orderItemType": "RESERVATION",
@@ -648,7 +648,7 @@ class OrderControllerTest {
 						}
 					]
 				}
-				""".formatted(storeId, productId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
+				""".formatted(storeId, popupId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
 	}
 
 	private String buildUpdateStatusRequest(String status, String reason) {

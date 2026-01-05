@@ -193,7 +193,7 @@ class OrderRepositoryImplTest {
 				.orderNo(orderNo)
 				.customerId(customerId)
 				.storeId(UUID.randomUUID())
-				.productId(UUID.randomUUID())
+				.popupId(UUID.randomUUID())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(1000)

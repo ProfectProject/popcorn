@@ -86,7 +86,7 @@ class PopupServiceTest {
 		assertEquals(productId, result.getId());
 		ArgumentCaptor<PopupViewedEvent> captor = ArgumentCaptor.forClass(PopupViewedEvent.class);
 		verify(publisher).publishEvent(captor.capture());
-		assertEquals(productId, captor.getValue().getProductId());
+		assertEquals(productId, captor.getValue().getPopupId());
 	}
 
 	@Test
@@ -100,7 +100,7 @@ class PopupServiceTest {
 				queryService, sessionQueryService, validationService, publisher);
 
 		PopupSessionListQuery query = PopupSessionListQuery.builder()
-				.productId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
+				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.build();
 		PopupSessionListResponse response = PopupSessionListResponse.builder()
 				.items(java.util.List.of())
