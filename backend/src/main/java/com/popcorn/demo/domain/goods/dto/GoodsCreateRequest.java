@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.merch.dto;
+package com.popcorn.demo.domain.goods.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -8,19 +8,19 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class MerchCreateRequest {
-    private String sku;
+public class GoodsCreateRequest {
+    private String stockUnit;
 
     @NotBlank
-    private String name;
+    private String goodsName;
 
     @NotNull
     @Min(0)
-    private Integer price;
+    private Integer goodsPrice;
 
     @NotNull
     @Min(0)
     private Integer stock;
 
-    private Boolean isHidden;
+    private Boolean isActive;
 }
