@@ -133,7 +133,7 @@ public class PaymentCommandService {
 
 	private void validateOrderType(UUID orderId, boolean expectReservation) {
 		boolean hasSchedule = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
-		boolean hasGoods = orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId);
+		boolean hasGoods = orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId);
 		if (hasSchedule && hasGoods) {
 			throw PaymentException.invalidRequest();
 		}

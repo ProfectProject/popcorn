@@ -29,9 +29,9 @@ public class OrderValidationService {
 	 * - 고객 신용도 확인
 	 * - 프로모션 유효성 확인
 	 */
-	public boolean validateOrderAsync(Long userId, UUID productId, Integer qty) {
+	public boolean validateOrderAsync(Long userId, UUID popupId, Integer qty) {
 		try {
-			if (productId == null) {
+			if (popupId == null) {
 				log.warn("⚠️ 잘못된 상품 ID: null");
 				return false;
 			}
@@ -44,16 +44,16 @@ public class OrderValidationService {
 					.supplyAsync(() -> validateCustomer(userId));
 
 			CompletableFuture<Boolean> productValidation = CompletableFuture
-					.supplyAsync(() -> validateProduct(productId));
+					.supplyAsync(() -> validateProduct(popupId));
 
 			// 모든 검증 결과 조합
 			boolean result = stockValidation.get() && userValidation.get() && productValidation.get();
 
-			log.info("📋 주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, productId, result);
+			log.info("📋 주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, popupId, result);
 			return result;
 
 		} catch (Exception e) {
-			log.error("❌ 주문 검증 중 오류 발생 - 사용자: {}, 상품: {}", userId, productId, e);
+			log.error("❌ 주문 검증 중 오류 발생 - 사용자: {}, 상품: {}", userId, popupId, e);
 			return false;
 		}
 	}
@@ -93,10 +93,10 @@ public class OrderValidationService {
 	/**
 	 * 상품 검증 (최적화됨)
 	 */
-	private boolean validateProduct(UUID productId) {
+	private boolean validateProduct(UUID popupId) {
 		// TODO: 실제 상품 시스템과 연동
 		boolean isValidProduct = true; // 임시 로직
-		log.debug("📱 상품 확인 - 상품ID: {}, 유효성: {}", productId, isValidProduct);
+		log.debug("📱 상품 확인 - 상품ID: {}, 유효성: {}", popupId, isValidProduct);
 
 		return isValidProduct;
 	}

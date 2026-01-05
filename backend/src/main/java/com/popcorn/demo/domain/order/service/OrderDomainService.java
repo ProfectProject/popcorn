@@ -111,7 +111,7 @@ public class OrderDomainService {
 
 		* @param storeId 스토어 ID
 
-		* @param productId 상품 ID
+		* @param popupId 상품 ID
 
 		* @param orderItems 주문 항목들
 
@@ -119,7 +119,7 @@ public class OrderDomainService {
 
 		*/
 
-	public void validateOrderCreation(Long customerId, UUID storeId, UUID productId,
+	public void validateOrderCreation(Long customerId, UUID storeId, UUID popupId,
 
 			List<OrderItem> orderItems) {
 
@@ -139,7 +139,7 @@ public class OrderDomainService {
 
 
 
-		if (productId == null) {
+		if (popupId == null) {
 
 			throw OrderNotFoundException.productNotFound();
 
@@ -255,7 +255,7 @@ public class OrderDomainService {
 
 		* @param storeId 스토어 ID
 
-		* @param productId 상품 ID
+		* @param popupId 상품 ID
 
 		* @param orderType 주문 타입
 
@@ -267,7 +267,7 @@ public class OrderDomainService {
 
 		*/
 
-	public Order createOrder(Long customerId, UUID storeId, UUID productId,
+	public Order createOrder(Long customerId, UUID storeId, UUID popupId,
 
 			OrderType orderType, List<OrderItem> orderItems,
 
@@ -277,7 +277,7 @@ public class OrderDomainService {
 
 		// 1. 검증: 필수 값과 아이템 조건을 사전에 체크합니다.
 
-		validateOrderCreation(customerId, storeId, productId, orderItems);
+		validateOrderCreation(customerId, storeId, popupId, orderItems);
 
 
 
@@ -299,7 +299,7 @@ public class OrderDomainService {
 
 				.storeId(storeId)
 
-				.productId(productId)
+				.popupId(popupId)
 
 				.orderType(orderType)
 

@@ -132,8 +132,8 @@ public class OrderBusinessRuleService {
 					throw OrderNotFoundException.sessionNotFound();
 				}
 			}
-			case MERCH -> {
-				if (item.getMerchVariantId() == null) {
+			case GOODS -> {
+				if (item.getGoodsVariantId() == null) {
 					throw OrderNotFoundException.merchVariantNotFound();
 				}
 			}
@@ -174,7 +174,7 @@ public class OrderBusinessRuleService {
 			case PURCHASE -> {
 				// 구매형 주문은 굿즈 아이템만 허용
 				boolean hasNonMerchItem = items.stream()
-						.anyMatch(item -> item.getOrderItemType() != OrderItemType.MERCH);
+						.anyMatch(item -> item.getOrderItemType() != OrderItemType.GOODS);
 				if (hasNonMerchItem) {
 					log.warn("❌ 구매형 주문에 비굿즈 아이템 포함");
 					throw OrderValidationException.invalidOrderItemCombination();

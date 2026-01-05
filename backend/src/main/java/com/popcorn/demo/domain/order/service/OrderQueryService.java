@@ -54,17 +54,17 @@ public class OrderQueryService {
 	/**
 	 * 점주용 주문 예약 목록 조회 (캐싱 적용)
 	 */
-	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #productId + '_' + #status")
+	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #popupId + '_' + #status")
 	public StoreOrderReservationListResponse getStoreOrderReservations(
 			UUID storeId,
-			UUID productId,
+			UUID popupId,
 			String status,
 			LocalDateTime startDate,
 			LocalDateTime endDate,
 			Integer limit,
 			Long offset) {
 
-		log.info("📊 점주 주문 목록 조회 - 매장: {}, 상품: {}, 상태: {}", storeId, productId, status);
+		log.info("📊 점주 주문 목록 조회 - 매장: {}, 상품: {}, 상태: {}", storeId, popupId, status);
 
 		// 설정값 기반 페이징 (매직 넘버 제거)
 		int pageLimit = (limit != null && limit > 0)
@@ -74,7 +74,7 @@ public class OrderQueryService {
 
 		// 📈 성능 최적화: 카운트와 데이터 조회를 병렬로 처리
 		long totalCount = orderQueryRepository.countStoreOrders(
-				storeId, productId, status, startDate, endDate);
+				storeId, popupId, status, startDate, endDate);
 
 		if (totalCount == 0) {
 			return StoreOrderReservationListResponse.builder()
@@ -87,7 +87,7 @@ public class OrderQueryService {
 
 		// 🚀 배치 조회로 N+1 쿼리 해결
 		List<StoreOrderReservationView> views = orderQueryRepository.findStoreOrders(
-				storeId, productId, status, startDate, endDate, pageLimit, pageOffset);
+				storeId, popupId, status, startDate, endDate, pageLimit, pageOffset);
 
 		List<StoreOrderReservationListResponse.ItemDto> items = views.stream()
 				.map(this::convertToOrderReservation)
@@ -234,7 +234,7 @@ public class OrderQueryService {
 
 		validateOrderAccessIfPresent(view.getOrderId(), requesterId, requesterType);
 
-		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, view.getProductId());
+		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, view.getPopupId());
 		OrderDetailDto.AddressDto address = fetchDefaultAddress(view.getCustomerId());
 		OrderDetailDto.PaymentDto payment = fetchPayment(orderId);
 
@@ -317,7 +317,7 @@ public class OrderQueryService {
 				.totalAmount(view.getTotalAmount())
 				.cancelableUntil(view.getCancelableUntil())
 				.createdAt(view.getCreatedAt())
-				.productId(view.getProductId())
+				.popupId(view.getPopupId())
 				.storeId(view.getStoreId())
 				.title(view.getProductTitle())
 				.sessionStartAt(view.getSessionStartAt())
@@ -345,7 +345,7 @@ public class OrderQueryService {
 						.role(view.getCustomerRole())
 						.build())
 				.storeId(view.getStoreId())
-				.productId(view.getProductId())
+				.popupId(view.getPopupId())
 				.totalAmount(view.getTotalAmount())
 				.cancelableUntil(view.getCancelableUntil())
 				.createdAt(view.getCreatedAt())
@@ -362,14 +362,14 @@ public class OrderQueryService {
 				.map(row -> OrderDetailDto.ItemDto.builder()
 						.id(row.getOrderItemId())
 						.orderItemType(row.getOrderItemType())
-						.productId(row.getProductId())
+						.popupId(row.getPopupId())
 						.productTitle(row.getProductTitle())
 						.productCategory(row.getProductCategory())
 						.productStatus(row.getProductStatus())
 						.sessionId(row.getSessionId())
 						.sessionStartAt(row.getSessionStartAt())
 						.sessionEndAt(row.getSessionEndAt())
-						.merchVariantId(row.getMerchVariantId())
+						.goodsVariantId(row.getGoodsVariantId())
 						.merchVariantName(row.getMerchVariantName())
 						.merchSku(row.getMerchSku())
 						.qty(row.getQty())

@@ -72,7 +72,7 @@ public class OrderService {
 		OrderType orderType = OrderType.valueOf(command.getOrderType());
 		int totalQty = calculateTotalQuantity(orderItems);
 
-		boolean isValid = validateOrderAsync(command.getUserId(), command.getProductId(), totalQty);
+		boolean isValid = validateOrderAsync(command.getUserId(), command.getPopupId(), totalQty);
 		if (!isValid) {
 			throw OrderValidationException.invalidRequest();
 		}
@@ -80,14 +80,14 @@ public class OrderService {
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderItems
 		);
 
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderType,
 				orderItems,
 				command.getIdempotencyKey()
@@ -123,7 +123,7 @@ public class OrderService {
 		OrderDetailView orderRow = fetchOrderDetailRow(orderId);
 		validateOrderAccess(userId, role, orderRow);
 
-		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, orderRow.getProductId());
+		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, orderRow.getPopupId());
 		OrderDetailDto.AddressDto address = fetchDefaultAddress(orderRow.getCustomerId());
 		OrderDetailDto.PaymentDto payment = fetchPayment(orderId);
 
@@ -138,7 +138,7 @@ public class OrderService {
 						.role(orderRow.getCustomerRole())
 						.build())
 				.storeId(orderRow.getStoreId())
-				.productId(orderRow.getProductId())
+				.popupId(orderRow.getPopupId())
 				.totalAmount(orderRow.getTotalAmount())
 				.cancelableUntil(orderRow.getCancelableUntil())
 				.createdAt(orderRow.getCreatedAt())
@@ -152,7 +152,7 @@ public class OrderService {
 	@Transactional(readOnly = true, transactionManager = "jdbcTransactionManager")
 	public StoreOrderReservationListResponse getStoreOrderReservations(
 			UUID storeId,
-			UUID productId,
+			UUID popupId,
 			String status,
 			LocalDateTime from,
 			LocalDateTime to,
@@ -166,7 +166,7 @@ public class OrderService {
 		String normalizedStatus = normalizeStatusFilter(status);
 		long total = orderQueryRepository.countStoreOrders(
 				storeId,
-				productId,
+				popupId,
 				normalizedStatus,
 				from,
 				to
@@ -174,7 +174,7 @@ public class OrderService {
 
 		List<StoreOrderReservationView> rows = orderQueryRepository.findStoreOrders(
 				storeId,
-				productId,
+				popupId,
 				normalizedStatus,
 				from,
 				to,
@@ -251,7 +251,7 @@ public class OrderService {
 						.totalAmount(row.getTotalAmount())
 						.cancelableUntil(row.getCancelableUntil())
 						.createdAt(row.getCreatedAt())
-						.productId(row.getProductId())
+						.popupId(row.getPopupId())
 						.storeId(row.getStoreId())
 						.title(row.getProductTitle())
 						.sessionStartAt(row.getSessionStartAt())
@@ -348,15 +348,15 @@ public class OrderService {
 				.map(row -> OrderDetailDto.ItemDto.builder()
 						.id(row.getOrderItemId())
 						.orderItemType(row.getOrderItemType())
-						.productId(row.getProductId())
+						.popupId(row.getPopupId())
 						.productTitle(row.getProductTitle())
 						.productCategory(row.getProductCategory())
 						.productStatus(row.getProductStatus())
 						.sessionId(row.getSessionId())
-						.optionId(null)
+						// .optionId(null) // optionId 필드가 없음
 						.sessionStartAt(row.getSessionStartAt())
 						.sessionEndAt(row.getSessionEndAt())
-						.merchVariantId(row.getMerchVariantId())
+						.goodsVariantId(row.getGoodsVariantId())
 						.merchVariantName(row.getMerchVariantName())
 						.merchSku(row.getMerchSku())
 						.qty(row.getQty())
@@ -451,12 +451,12 @@ public class OrderService {
 	 * - 고객 신용도 확인
 	 * - 프로모션 유효성 확인
 	 */
-	public boolean validateOrderAsync(Long userId, UUID productId, Integer qty) {
+	public boolean validateOrderAsync(Long userId, UUID popupId, Integer qty) {
 		boolean stock = validateStock(qty);
 		boolean user = validateCustomer(userId);
-		boolean product = validateProduct(productId);
+		boolean product = validateProduct(popupId);
 		boolean result = stock && user && product;
-		log.info("주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, productId, result);
+		log.info("주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, popupId, result);
 		return result;
 	}
 
@@ -478,8 +478,8 @@ public class OrderService {
 		return userId != null && userId > 0;
 	}
 
-	private boolean validateProduct(UUID productId) {
-		return productId != null;
+	private boolean validateProduct(UUID popupId) {
+		return popupId != null;
 	}
 
 	private void checkIdempotency(String rawKey, String normalizedKey) {
@@ -507,7 +507,7 @@ public class OrderService {
 				.unitPrice(unitPrice)
 				.lineAmount(lineAmount)
 				.sessionOptionId(itemCommand.getSessionId())
-				.merchVariantId(itemCommand.getMerchVariantId())
+				.goodsVariantId(itemCommand.getGoodsVariantId())
 				.build();
 	}
 
@@ -521,12 +521,12 @@ public class OrderService {
 			return orderItemPriceService.findSessionOptionPrice(scheduleId)
 					.orElseThrow(OrderNotFoundException::sessionNotFound);
 		}
-		if (OrderItemType.MERCH.equals(orderItemType)) {
-			UUID merchVariantId = itemCommand.getMerchVariantId();
-			if (merchVariantId == null) {
+		if (OrderItemType.GOODS.equals(orderItemType)) {
+			UUID goodsVariantId = itemCommand.getGoodsVariantId();
+			if (goodsVariantId == null) {
 				throw OrderNotFoundException.merchVariantNotFound();
 			}
-			return orderItemPriceService.findMerchVariantPrice(merchVariantId)
+			return orderItemPriceService.findMerchVariantPrice(goodsVariantId)
 					.orElseThrow(OrderNotFoundException::merchVariantNotFound);
 		}
 		throw OrderValidationException.invalidRequest();

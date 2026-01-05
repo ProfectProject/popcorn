@@ -39,16 +39,16 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
     }
 
     @Override
-    public Optional<Integer> findMerchVariantPrice(UUID merchVariantId) {
-        if (merchVariantId == null) {
+    public Optional<Integer> findMerchVariantPrice(UUID goodsVariantId) {
+        if (goodsVariantId == null) {
             log.debug("머치 변형 ID가 null입니다.");
             return Optional.empty();
         }
 
-        log.debug("굿즈 변형 가격 조회 - ID: {}", merchVariantId);
+        log.debug("굿즈 변형 가격 조회 - ID: {}", goodsVariantId);
         return findPrice(
                 "SELECT goods_price FROM p_goods_variants WHERE goods_id = ? AND deleted_at IS NULL",
-                merchVariantId,
+                goodsVariantId,
                 "goods_price",
                 "굿즈 변형"
         );

@@ -87,7 +87,7 @@ public class OrderCommandService {
 		// 비동기 검증 (성능 최적화)
 		boolean isValid = orderValidationService.validateOrderAsync(
 			command.getUserId(),
-			command.getProductId(),
+			command.getPopupId(),
 			calculateTotalQuantity(orderItems)
 		);
 		if (!isValid) {
@@ -98,7 +98,7 @@ public class OrderCommandService {
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderItems
 		);
 
@@ -106,7 +106,7 @@ public class OrderCommandService {
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderType,
 				orderItems,
 				command.getIdempotencyKey()
@@ -248,7 +248,7 @@ public class OrderCommandService {
 				.unitPrice(unitPrice)
 				.lineAmount(lineAmount)
 				.sessionOptionId(itemCommand.getSessionId())
-				.merchVariantId(itemCommand.getMerchVariantId())
+				.goodsVariantId(itemCommand.getGoodsVariantId())
 				.build();
 	}
 
@@ -262,12 +262,12 @@ public class OrderCommandService {
 			return orderItemPriceService.findSessionOptionPrice(scheduleId)
 					.orElseThrow(OrderNotFoundException::sessionNotFound);
 		}
-		if (OrderItemType.MERCH.equals(orderItemType)) {
-			UUID merchVariantId = itemCommand.getMerchVariantId();
-			if (merchVariantId == null) {
+		if (OrderItemType.GOODS.equals(orderItemType)) {
+			UUID goodsVariantId = itemCommand.getGoodsVariantId();
+			if (goodsVariantId == null) {
 				throw OrderNotFoundException.merchVariantNotFound();
 			}
-			return orderItemPriceService.findMerchVariantPrice(merchVariantId)
+			return orderItemPriceService.findMerchVariantPrice(goodsVariantId)
 					.orElseThrow(OrderNotFoundException::merchVariantNotFound);
 		}
 		throw OrderValidationException.invalidRequest();
