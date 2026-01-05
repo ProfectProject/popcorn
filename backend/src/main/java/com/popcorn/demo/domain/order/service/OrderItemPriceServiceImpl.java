@@ -25,15 +25,16 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
     @Override
     public Optional<Integer> findSessionOptionPrice(UUID sessionOptionId) {
         if (sessionOptionId == null) {
-            log.debug("세션 옵션 ID가 null입니다.");
+        log.debug("스케줄 ID가 null입니다.");
             return Optional.empty();
         }
 
-        log.debug("세션 옵션 가격 조회 - ID: {}", sessionOptionId);
+        log.debug("스케줄 가격 조회 - ID: {}", sessionOptionId);
         return findPrice(
-                "SELECT price FROM p_session_options WHERE id = ? AND deleted_at IS NULL",
+                "SELECT price FROM p_popup_schedules WHERE schedule_id = ? AND deleted_at IS NULL",
                 sessionOptionId,
-                "세션 옵션"
+                "price",
+                "스케줄"
         );
     }
 
@@ -44,22 +45,23 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
             return Optional.empty();
         }
 
-        log.debug("머치 변형 가격 조회 - ID: {}", merchVariantId);
+        log.debug("굿즈 변형 가격 조회 - ID: {}", merchVariantId);
         return findPrice(
-                "SELECT price FROM p_merch_variants WHERE id = ? AND deleted_at IS NULL",
+                "SELECT goods_price FROM p_goods_variants WHERE goods_id = ? AND deleted_at IS NULL",
                 merchVariantId,
-                "머치 변형"
+                "goods_price",
+                "굿즈 변형"
         );
     }
 
     /**
      * 공통 가격 조회 메서드
      */
-    private Optional<Integer> findPrice(String sql, UUID id, String itemType) {
+    private Optional<Integer> findPrice(String sql, UUID id, String priceColumn, String itemType) {
         try {
             Integer price = jdbcTemplate.query(sql, rs -> {
                 if (rs.next()) {
-                    int priceValue = rs.getInt("price");
+                    int priceValue = rs.getInt(priceColumn);
                     return rs.wasNull() ? null : priceValue;
                 }
                 return null;

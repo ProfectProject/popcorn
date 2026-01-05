@@ -84,8 +84,7 @@ public class OrderAuthorizationService {
 
 		// 취소 불가 상태 검증
 		if (order.getStatus() == OrderStatus.COMPLETED ||
-			order.getStatus() == OrderStatus.CANCELLED ||
-			order.getStatus() == OrderStatus.REFUNDED) {
+			order.getStatus() == OrderStatus.CANCELLED) {
 			log.warn("❌ 취소 불가 상태 - 주문: {}, 현재상태: {}", order.getId(), order.getStatus());
 			throw OrderValidationException.orderCannotBeCancelled();
 		}
@@ -141,7 +140,7 @@ public class OrderAuthorizationService {
 	private boolean isOwnerAllowedStatusChange(OrderStatus from, OrderStatus to) {
 		// 점주/매니저가 할 수 있는 상태 변경
 		return switch (to) {
-			case OWNER_ACCEPTED, OWNER_REJECTED, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED, PAID -> true;
+			case ACCEPTED, REJECTED, RESERVED, PAYMENT_PENDING, PAID, COMPLETED, CANCELLED -> true;
 			default -> false;
 		};
 	}

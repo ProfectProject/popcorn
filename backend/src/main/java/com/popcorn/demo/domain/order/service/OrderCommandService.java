@@ -247,7 +247,7 @@ public class OrderCommandService {
 				.qty(itemCommand.getQty())
 				.unitPrice(unitPrice)
 				.lineAmount(lineAmount)
-				.sessionOptionId(itemCommand.getOptionId())
+				.sessionOptionId(itemCommand.getSessionId())
 				.merchVariantId(itemCommand.getMerchVariantId())
 				.build();
 	}
@@ -255,12 +255,12 @@ public class OrderCommandService {
 	private Integer resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
 		OrderItemType orderItemType = itemCommand.getOrderItemType();
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
-			UUID optionId = itemCommand.getOptionId();
-			if (optionId == null) {
-				throw OrderNotFoundException.optionNotFound();
+			UUID scheduleId = itemCommand.getSessionId();
+			if (scheduleId == null) {
+				throw OrderNotFoundException.sessionNotFound();
 			}
-			return orderItemPriceService.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderNotFoundException::optionNotFound);
+			return orderItemPriceService.findSessionOptionPrice(scheduleId)
+					.orElseThrow(OrderNotFoundException::sessionNotFound);
 		}
 		if (OrderItemType.MERCH.equals(orderItemType)) {
 			UUID merchVariantId = itemCommand.getMerchVariantId();

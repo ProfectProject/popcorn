@@ -367,7 +367,6 @@ public class OrderQueryService {
 						.productCategory(row.getProductCategory())
 						.productStatus(row.getProductStatus())
 						.sessionId(row.getSessionId())
-						.optionId(row.getSessionOptionId())
 						.sessionStartAt(row.getSessionStartAt())
 						.sessionEndAt(row.getSessionEndAt())
 						.merchVariantId(row.getMerchVariantId())

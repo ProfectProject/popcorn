@@ -17,7 +17,10 @@ public class PopupValidationService {
 	private static final int DEFAULT_PAGE = 1;
 	private static final int DEFAULT_SIZE = 20;
 	private static final int MAX_SIZE = 100;
-	private static final Set<String> ALLOWED_CATEGORIES = Set.of("POPUP", "MERCH", "EVENT");
+	private static final Set<String> ALLOWED_CATEGORIES = Set.of(
+			"FOOD", "IDOL", "EXHIBITION", "WORKSHOP", "FASHION", "BEAUTY",
+			"LIFESTYLE", "ART", "GAME", "TECH", "SPORTS", "BOOK", "PET", "ETC"
+	);
 
 	public PopupListQuery normalizeListQuery(PopupListQuery query) {
 		if (query == null) {

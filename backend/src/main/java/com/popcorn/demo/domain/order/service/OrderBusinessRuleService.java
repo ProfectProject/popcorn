@@ -66,8 +66,7 @@ public class OrderBusinessRuleService {
 	public void validateOrderCancellationRules(OrderStatus currentStatus, LocalDateTime orderCreatedAt) {
 		// 취소 불가 상태 검증
 		if (currentStatus == OrderStatus.COMPLETED ||
-			currentStatus == OrderStatus.CANCELLED ||
-			currentStatus == OrderStatus.REFUNDED) {
+			currentStatus == OrderStatus.CANCELLED) {
 			log.warn("❌ 취소 불가 상태: {}", currentStatus);
 			throw OrderValidationException.orderCannotBeCancelled();
 		}
@@ -132,9 +131,6 @@ public class OrderBusinessRuleService {
 				if (item.getSessionId() == null) {
 					throw OrderNotFoundException.sessionNotFound();
 				}
-				if (item.getOptionId() == null) {
-					throw OrderNotFoundException.optionNotFound();
-				}
 			}
 			case MERCH -> {
 				if (item.getMerchVariantId() == null) {
@@ -190,41 +186,35 @@ public class OrderBusinessRuleService {
 	private boolean isValidStatusTransition(OrderStatus from, OrderStatus to) {
 		// 상태 전이 규칙 매트릭스
 		return switch (from) {
-			case REQUESTED -> to == OrderStatus.OWNER_ACCEPTED ||
-							  to == OrderStatus.OWNER_REJECTED ||
-							  to == OrderStatus.COMPLETED ||
-							  to == OrderStatus.PAID ||
+			case REQUESTED -> to == OrderStatus.ACCEPTED ||
+							  to == OrderStatus.REJECTED ||
 							  to == OrderStatus.CANCELLED;
 
-			case OWNER_ACCEPTED -> to == OrderStatus.CONFIRMED ||
-								   to == OrderStatus.PAID ||
-								   to == OrderStatus.CANCELLED;
+			case ACCEPTED -> to == OrderStatus.RESERVED ||
+							 to == OrderStatus.CANCELLED;
 
-			case CONFIRMED -> to == OrderStatus.PREPARING ||
-							  to == OrderStatus.COMPLETED ||
-							  to == OrderStatus.PAID ||
-							  to == OrderStatus.CANCELLED;
+			case RESERVED -> to == OrderStatus.PAYMENT_PENDING ||
+							 to == OrderStatus.PAID ||
+							 to == OrderStatus.CANCELLED;
 
-			case PREPARING -> to == OrderStatus.READY ||
-							  to == OrderStatus.CANCELLED;
+			case PAYMENT_PENDING -> to == OrderStatus.PAID ||
+									to == OrderStatus.CANCELLED;
 
-			case READY -> to == OrderStatus.COMPLETED ||
-						  to == OrderStatus.PAID ||
-						  to == OrderStatus.CANCELLED;
+			case PAID -> to == OrderStatus.COMPLETED;
 
-			case OWNER_REJECTED, CANCELLED, COMPLETED, REFUNDED, PAID -> false; // 최종 상태들
+			case REJECTED, CANCELLED, COMPLETED -> false; // 최종 상태들
 		};
 	}
 
 	private void validateStatusTransitionTiming(OrderStatus currentStatus, OrderStatus targetStatus) {
 		// 특정 상태 전이에 대한 시간 제약 검증
-		// 예: READY -> COMPLETED는 픽업 시간 이후에만 가능
+		// 예: PAYMENT_PENDING -> PAID는 승인 시점 이후에만 가능
 		// TODO: 실제 비즈니스 요구사항에 따라 구현
 	}
 
 	private void validateStatusTransitionReason(OrderStatus targetStatus, String reason) {
 		// 특정 상태 변경 시 사유 필수
-		if ((targetStatus == OrderStatus.OWNER_REJECTED ||
+		if ((targetStatus == OrderStatus.REJECTED ||
 			 targetStatus == OrderStatus.CANCELLED) &&
 			(reason == null || reason.trim().isEmpty())) {
 			log.warn("❌ 거절/취소 상태 변경 시 사유 필수");

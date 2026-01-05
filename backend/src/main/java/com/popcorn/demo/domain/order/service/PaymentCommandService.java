@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.entity.Payment;
 import com.popcorn.demo.domain.order.entity.PaymentMethod;
 import com.popcorn.demo.domain.order.entity.PaymentStatus;
@@ -18,6 +17,7 @@ import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.exception.PaymentException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaPaymentRepository;
+import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -30,10 +30,12 @@ public class PaymentCommandService {
 	private final OrderRepository orderRepository;
 	private final OrderCommandService orderCommandService;
 	private final JpaPaymentRepository paymentRepository;
+	private final JpaOrderItemRepository orderItemRepository;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public PaymentCreationResult createReservationPayment(UUID orderId, String method, Integer amount, String rawPayload) {
-		Order order = loadOrder(orderId, OrderType.RESERVATION);
+		Order order = loadOrder(orderId);
+		validateOrderType(orderId, true);
 		PaymentMethod paymentMethod = parseMethod(method);
 		validateReservationMethod(paymentMethod);
 		return createPayment(order, paymentMethod, amount, rawPayload, OrderStatus.PAID);
@@ -41,7 +43,8 @@ public class PaymentCommandService {
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public PaymentCreationResult createOrderPayment(UUID orderId, String method, Integer amount, String rawPayload) {
-		Order order = loadOrder(orderId, OrderType.PURCHASE);
+		Order order = loadOrder(orderId);
+		validateOrderType(orderId, false);
 		PaymentMethod paymentMethod = parseMethod(method);
 		if (paymentMethod != PaymentMethod.CARD) {
 			throw PaymentException.invalidRequest();
@@ -49,13 +52,10 @@ public class PaymentCommandService {
 		return createPayment(order, paymentMethod, amount, rawPayload, OrderStatus.COMPLETED);
 	}
 
-	private Order loadOrder(UUID orderId, OrderType expectedType) {
+	private Order loadOrder(UUID orderId) {
 		Order order = orderRepository.findById(orderId)
 				.orElseThrow(OrderNotFoundException::orderNotFound);
-		if (order.getOrderType() != expectedType) {
-			throw PaymentException.invalidRequest();
-		}
-		if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.REFUNDED) {
+		if (order.getStatus() == OrderStatus.CANCELLED) {
 			throw OrderValidationException.invalidStatusTransition();
 		}
 		if (paymentRepository.existsByOrderId(orderId)) {
@@ -74,7 +74,7 @@ public class PaymentCommandService {
 			throw PaymentException.invalidRequest();
 		}
 
-		PaymentStatus paymentStatus = PaymentStatus.APPROVED;
+		PaymentStatus paymentStatus = PaymentStatus.PAID;
 		LocalDateTime approvedAt = LocalDateTime.now();
 
 		Payment payment = Payment.builder()
@@ -125,8 +125,22 @@ public class PaymentCommandService {
 
 	private void validateReservationMethod(PaymentMethod method) {
 		if (method != PaymentMethod.CARD
-				&& method != PaymentMethod.CASH
-				&& method != PaymentMethod.TRANSFER) {
+				&& method != PaymentMethod.TRANSFER
+				&& method != PaymentMethod.EASY_PAY) {
+			throw PaymentException.invalidRequest();
+		}
+	}
+
+	private void validateOrderType(UUID orderId, boolean expectReservation) {
+		boolean hasSchedule = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
+		boolean hasGoods = orderItemRepository.existsByOrderIdAndMerchVariantIdIsNotNull(orderId);
+		if (hasSchedule && hasGoods) {
+			throw PaymentException.invalidRequest();
+		}
+		if (expectReservation && !hasSchedule) {
+			throw PaymentException.invalidRequest();
+		}
+		if (!expectReservation && !hasGoods) {
 			throw PaymentException.invalidRequest();
 		}
 	}

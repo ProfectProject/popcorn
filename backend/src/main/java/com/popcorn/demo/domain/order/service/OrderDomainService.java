@@ -45,40 +45,28 @@ public class OrderDomainService {
 		java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> transitions =
 				new java.util.EnumMap<>(OrderStatus.class);
 		transitions.put(OrderStatus.REQUESTED, java.util.EnumSet.of(
-				OrderStatus.CONFIRMED,
-				OrderStatus.OWNER_ACCEPTED,
-				OrderStatus.OWNER_REJECTED,
-				OrderStatus.COMPLETED,
+				OrderStatus.ACCEPTED,
+				OrderStatus.REJECTED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.ACCEPTED, java.util.EnumSet.of(
+				OrderStatus.RESERVED,
+				OrderStatus.CANCELLED
+		));
+		transitions.put(OrderStatus.RESERVED, java.util.EnumSet.of(
+				OrderStatus.PAYMENT_PENDING,
 				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
-		transitions.put(OrderStatus.OWNER_ACCEPTED, java.util.EnumSet.of(
-				OrderStatus.PREPARING,
-				OrderStatus.CONFIRMED,
-				OrderStatus.READY,
-				OrderStatus.COMPLETED,
+		transitions.put(OrderStatus.PAYMENT_PENDING, java.util.EnumSet.of(
 				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
-		transitions.put(OrderStatus.CONFIRMED, java.util.EnumSet.of(
-				OrderStatus.PREPARING,
-				OrderStatus.COMPLETED,
-				OrderStatus.PAID,
-				OrderStatus.CANCELLED
+		transitions.put(OrderStatus.PAID, java.util.EnumSet.of(
+				OrderStatus.COMPLETED
 		));
-		transitions.put(OrderStatus.PREPARING, java.util.EnumSet.of(
-				OrderStatus.READY,
-				OrderStatus.CANCELLED
-		));
-		transitions.put(OrderStatus.READY, java.util.EnumSet.of(
-				OrderStatus.COMPLETED,
-				OrderStatus.PAID,
-				OrderStatus.CANCELLED
-		));
-		transitions.put(OrderStatus.PAID, java.util.EnumSet.noneOf(OrderStatus.class));
-		transitions.put(OrderStatus.OWNER_REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class));
-		transitions.put(OrderStatus.REFUNDED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.COMPLETED, java.util.EnumSet.noneOf(OrderStatus.class));
 		return transitions;
 	}

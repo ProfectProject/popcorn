@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.order.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -354,7 +353,7 @@ public class OrderService {
 						.productCategory(row.getProductCategory())
 						.productStatus(row.getProductStatus())
 						.sessionId(row.getSessionId())
-						.optionId(row.getSessionOptionId())
+						.optionId(null)
 						.sessionStartAt(row.getSessionStartAt())
 						.sessionEndAt(row.getSessionEndAt())
 						.merchVariantId(row.getMerchVariantId())
@@ -491,12 +490,6 @@ public class OrderService {
 			log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", normalizedKey);
 			throw OrderConflictException.duplicateIdempotencyKey();
 		}
-		Optional<Order> existingOrder = orderRepository.findByIdempotencyKey(rawKey);
-		if (orderDomainService.isDuplicateOrder(existingOrder, rawKey)) {
-			log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", rawKey);
-			idempotencyCache.mark(normalizedKey);
-			throw OrderConflictException.duplicateIdempotencyKey();
-		}
 	}
 
 	private List<OrderItem> convertToOrderItems(List<CreateOrderCommand.OrderItemCommand> itemCommands) {
@@ -513,7 +506,7 @@ public class OrderService {
 				.qty(itemCommand.getQty())
 				.unitPrice(unitPrice)
 				.lineAmount(lineAmount)
-				.sessionOptionId(itemCommand.getOptionId())
+				.sessionOptionId(itemCommand.getSessionId())
 				.merchVariantId(itemCommand.getMerchVariantId())
 				.build();
 	}
@@ -521,12 +514,12 @@ public class OrderService {
 	private Integer resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
 		OrderItemType orderItemType = itemCommand.getOrderItemType();
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
-			UUID optionId = itemCommand.getOptionId();
-			if (optionId == null) {
-				throw OrderNotFoundException.optionNotFound();
+			UUID scheduleId = itemCommand.getSessionId();
+			if (scheduleId == null) {
+				throw OrderNotFoundException.sessionNotFound();
 			}
-			return orderItemPriceService.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderNotFoundException::optionNotFound);
+			return orderItemPriceService.findSessionOptionPrice(scheduleId)
+					.orElseThrow(OrderNotFoundException::sessionNotFound);
 		}
 		if (OrderItemType.MERCH.equals(orderItemType)) {
 			UUID merchVariantId = itemCommand.getMerchVariantId();
