@@ -20,6 +20,7 @@ import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,6 +114,69 @@ public class OrderQueryController extends BaseController {
 	}
 
 	@Operation(
+			summary = "주문/예약 상태 단건 조회 (OWNER/MANAGER)",
+			description = "OWNER/MANAGER가 주문 상태를 조회합니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "주문 상태 조회 성공",
+			content = @Content(schema = @Schema(implementation = OrderStatusDto.class))
+	)
+	@ApiResponse(responseCode = "403", description = "권한 없음")
+	@ApiResponse(responseCode = "404", description = "주문 없음")
+	@GetMapping("/{orderId}/status/ops")
+	public ResponseEntity<BaseResponse<OrderStatusDto>> getOrderStatusForStaff(
+			@Parameter(description = "주문 ID", required = true,
+					example = "00000000-0000-0000-0000-000000001001")
+			@PathVariable UUID orderId,
+			@Parameter(description = "요청자 ID", required = true, example = "2001")
+			@RequestParam Long userId,
+			@Parameter(description = "역할(OWNER/MANAGER)", required = true, example = "OWNER")
+			@RequestParam String role) {
+
+		OrderStatusDto response = orderQueryService.getOrderStatusForStaff(orderId, userId, role);
+		return ok(response);
+	}
+
+	@Operation(
+			summary = "가게 주문/예약 상태 목록 조회 (OWNER/MANAGER)",
+			description = "OWNER/MANAGER가 가게/상품 기준으로 주문 상태 목록을 조회합니다. storeId 또는 productId 중 하나는 필수입니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "주문 상태 목록 조회 성공",
+			content = @Content(schema = @Schema(implementation = StoreOrderReservationListResponse.class))
+	)
+	@ApiResponse(responseCode = "403", description = "권한 없음")
+	@GetMapping("/status/ops")
+	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrderStatusesForStaff(
+			@Parameter(description = "스토어 ID",
+					example = "00000000-0000-0000-0000-000000000001")
+			@RequestParam(required = false) UUID storeId,
+			@Parameter(description = "상품 ID",
+					example = "00000000-0000-0000-0000-000000000101")
+			@RequestParam(required = false) UUID productId,
+			@Parameter(description = "주문 상태",
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false) OrderStatus status,
+			@Parameter(description = "페이지 (기본 1)")
+			@RequestParam(required = false, defaultValue = "1") Integer page,
+			@Parameter(description = "사이즈 (기본 20)")
+			@RequestParam(required = false, defaultValue = "20") Integer size) {
+
+		if (storeId == null && productId == null) {
+			throw OrderValidationException.invalidRequest();
+		}
+
+		Long offset = (long) (page - 1) * size;
+		String statusStr = status == null ? null : status.name();
+		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
+				storeId, productId, statusStr, null, null, size, offset
+		);
+		return ok(response);
+	}
+
+	@Operation(
 			summary = "내 가게 주문/예약 목록",
 			description = "OWNER/MANAGER가 가게 기준으로 주문/예약 목록을 조회합니다."
 	)
@@ -185,7 +249,7 @@ public class OrderQueryController extends BaseController {
 		// page/size를 limit/offset으로 변환하고 파라미터명 맞춤
 		Long offset = (long) (page - 1) * size;
 		Long resolvedCustomerId = customerId != null ? customerId : 1001L;
-		String normalizedOrderType = (orderType != null && "ALL".equalsIgnoreCase(orderType))
+		String normalizedOrderType = "ALL".equalsIgnoreCase(orderType)
 				? null
 				: orderType;
 		String statusStr = status == null ? null : status.name();
