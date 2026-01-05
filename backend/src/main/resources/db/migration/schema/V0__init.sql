@@ -88,24 +88,6 @@ CREATE TABLE IF NOT EXISTS p_popup_schedules (
     deleted_by  BIGINT
 );
 
-CREATE TABLE IF NOT EXISTS p_schedule_options (
-    schedule_option_id UUID NOT NULL,
-    schedule_id        UUID NOT NULL,
-    option_name        varchar(100) NOT NULL,
-    option_code        varchar(20) NOT NULL,
-    price              int NOT NULL,
-    capacity           int NOT NULL,
-    remaining_capacity int NOT NULL,
-    sort_order         int DEFAULT 0,
-    is_available       boolean DEFAULT true,
-    created_at         timestamp NOT NULL,
-    updated_at         timestamp NOT NULL,
-    deleted_at         timestamp,
-    created_by         BIGINT,
-    updated_by         BIGINT,
-    deleted_by         BIGINT
-);
-
 CREATE TABLE IF NOT EXISTS p_goods_variants (
     goods_id    UUID NOT NULL,
     popup_id    UUID NOT NULL,
@@ -141,7 +123,7 @@ CREATE TABLE IF NOT EXISTS p_orders (
 CREATE TABLE IF NOT EXISTS p_order_goods (
     order_goods_id     UUID NOT NULL,
     order_id           UUID NOT NULL,
-    schedule_option_id UUID,
+    schedule_id        UUID,
     goods_variant_id   UUID,
     qty                int NOT NULL,
     unit_price         int NOT NULL,
@@ -210,7 +192,6 @@ ALTER TABLE p_customer_addresses      ADD CONSTRAINT pk_p_customer_addresses PRI
 ALTER TABLE p_stores                  ADD CONSTRAINT pk_p_stores PRIMARY KEY (store_id);
 ALTER TABLE p_popups                  ADD CONSTRAINT pk_p_popups PRIMARY KEY (popup_id);
 ALTER TABLE p_popup_schedules         ADD CONSTRAINT pk_p_popup_schedules PRIMARY KEY (schedule_id);
-ALTER TABLE p_schedule_options        ADD CONSTRAINT pk_p_schedule_options PRIMARY KEY (schedule_option_id);
 ALTER TABLE p_goods_variants          ADD CONSTRAINT pk_p_goods_variants PRIMARY KEY (goods_id);
 ALTER TABLE p_orders                  ADD CONSTRAINT pk_p_orders PRIMARY KEY (order_id);
 ALTER TABLE p_order_goods             ADD CONSTRAINT pk_p_order_goods PRIMARY KEY (order_goods_id);
@@ -228,12 +209,11 @@ ALTER TABLE p_customer_addresses     ADD CONSTRAINT fk_addr_user           FOREI
 ALTER TABLE p_stores                 ADD CONSTRAINT fk_stores_owner        FOREIGN KEY (user_id) REFERENCES p_users(user_id);
 ALTER TABLE p_popups                 ADD CONSTRAINT fk_popups_store        FOREIGN KEY (store_id) REFERENCES p_stores(store_id);
 ALTER TABLE p_popup_schedules        ADD CONSTRAINT fk_schedules_popup     FOREIGN KEY (popup_id) REFERENCES p_popups(popup_id);
-ALTER TABLE p_schedule_options       ADD CONSTRAINT fk_options_schedule    FOREIGN KEY (schedule_id) REFERENCES p_popup_schedules(schedule_id);
 ALTER TABLE p_goods_variants         ADD CONSTRAINT fk_goods_popup         FOREIGN KEY (popup_id) REFERENCES p_popups(popup_id);
 ALTER TABLE p_orders                 ADD CONSTRAINT fk_orders_user         FOREIGN KEY (user_id) REFERENCES p_users(user_id);
 ALTER TABLE p_orders                 ADD CONSTRAINT fk_orders_store        FOREIGN KEY (store_id) REFERENCES p_stores(store_id);
 ALTER TABLE p_order_goods            ADD CONSTRAINT fk_order_goods_order   FOREIGN KEY (order_id) REFERENCES p_orders(order_id);
-ALTER TABLE p_order_goods            ADD CONSTRAINT fk_order_goods_option  FOREIGN KEY (schedule_option_id) REFERENCES p_schedule_options(schedule_option_id);
+ALTER TABLE p_order_goods            ADD CONSTRAINT fk_order_goods_schedule FOREIGN KEY (schedule_id) REFERENCES p_popup_schedules(schedule_id);
 ALTER TABLE p_order_goods            ADD CONSTRAINT fk_order_goods_variant FOREIGN KEY (goods_variant_id) REFERENCES p_goods_variants(goods_id);
 ALTER TABLE p_payments               ADD CONSTRAINT fk_payments_order      FOREIGN KEY (order_id) REFERENCES p_orders(order_id);
 ALTER TABLE p_order_status_histories ADD CONSTRAINT fk_order_status_order  FOREIGN KEY (order_id) REFERENCES p_orders(order_id);
