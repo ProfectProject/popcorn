@@ -66,8 +66,8 @@ public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
 			  FROM p_popups p
 			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
-			   AND p.popup_id = :productId
+			   AND p.popup_id = :popupId
 			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
 			""", nativeQuery = true)
-	Optional<PopupListView> findPopupDetail(@Param("productId") UUID productId);
+	Optional<PopupListView> findPopupDetail(@Param("popupId") UUID popupId);
 }

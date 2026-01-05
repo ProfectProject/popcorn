@@ -23,12 +23,12 @@ public interface PopupSessionQueryRepository extends Repository<PopupSession, UU
 			       ps.is_active AS isActive
 			  FROM p_popup_schedules ps
 			 WHERE ps.deleted_at IS NULL
-			   AND ps.popup_id = :productId
+			   AND ps.popup_id = :popupId
 			   AND (CAST(:from AS TIMESTAMP) IS NULL OR ps.start_at >= CAST(:from AS TIMESTAMP))
 			   AND (CAST(:to AS TIMESTAMP) IS NULL OR ps.end_at <= CAST(:to AS TIMESTAMP))
 			 ORDER BY ps.start_at ASC
 			""", nativeQuery = true)
-	List<PopupSessionView> findProductSessions(@Param("productId") UUID productId,
+	List<PopupSessionView> findProductSessions(@Param("popupId") UUID popupId,
 			@Param("from") LocalDateTime from,
 			@Param("to") LocalDateTime to);
 }

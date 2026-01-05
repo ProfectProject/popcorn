@@ -143,13 +143,13 @@ public class PopupController extends BaseController {
 					}
 					"""))
 	)
-	@GetMapping("/{productId}")
+	@GetMapping("/{popupId}")
 	public ResponseEntity<BaseResponse<PopupDetailResponse>> getPopupDetail(
 			@Parameter(description = "상품 ID", required = true,
 					example = "00000000-0000-0000-0000-000000000101")
-			@PathVariable UUID productId) {
+			@PathVariable UUID popupId) {
 
-		PopupDetailResponse response = popupService.getPopupDetail(PopupDetailQuery.of(productId));
+		PopupDetailResponse response = popupService.getPopupDetail(PopupDetailQuery.of(popupId));
 		return ok(response);
 	}
 }

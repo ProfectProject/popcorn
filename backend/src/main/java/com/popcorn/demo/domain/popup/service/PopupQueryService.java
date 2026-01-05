@@ -70,9 +70,9 @@ public class PopupQueryService {
 				.build();
 	}
 
-	@Cacheable(value = "popupDetail", key = "#query.productId")
+	@Cacheable(value = "popupDetail", key = "#query.popupId")
 	public PopupDetailResponse getPopupDetail(PopupDetailQuery query) {
-		PopupListView view = popupQueryRepository.findPopupDetail(query.getProductId())
+		PopupListView view = popupQueryRepository.findPopupDetail(query.getPopupId())
 				.orElseThrow(com.popcorn.demo.domain.popup.exception.PopupException::popupNotFound);
 
 		return PopupDetailResponse.builder()

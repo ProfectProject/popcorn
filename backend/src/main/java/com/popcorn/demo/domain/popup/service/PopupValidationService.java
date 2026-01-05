@@ -57,13 +57,13 @@ public class PopupValidationService {
 	}
 
 	public void validateDetailQuery(PopupDetailQuery query) {
-		if (query == null || query.getProductId() == null) {
+		if (query == null || query.getPopupId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
 	}
 
 	public PopupSessionListQuery normalizeSessionQuery(PopupSessionListQuery query) {
-		if (query == null || query.getProductId() == null) {
+		if (query == null || query.getPopupId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
 		if (query.getFrom() != null && query.getTo() != null

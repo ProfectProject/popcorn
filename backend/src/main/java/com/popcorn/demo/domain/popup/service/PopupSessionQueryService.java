@@ -21,10 +21,10 @@ public class PopupSessionQueryService {
 
 	private final PopupSessionQueryRepository popupSessionQueryRepository;
 
-	@Cacheable(value = "popupSessions", key = "#query.productId + '_' + #query.from + '_' + #query.to")
+	@Cacheable(value = "popupSessions", key = "#query.popupId + '_' + #query.from + '_' + #query.to")
 	public PopupSessionListResponse getProductSessions(PopupSessionListQuery query) {
 		List<PopupSessionView> views = popupSessionQueryRepository.findProductSessions(
-				query.getProductId(), query.getFrom(), query.getTo());
+				query.getPopupId(), query.getFrom(), query.getTo());
 
 		List<PopupSessionListResponse.ItemDto> items = views.stream()
 				.map(view -> PopupSessionListResponse.ItemDto.builder()

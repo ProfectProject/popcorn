@@ -25,7 +25,7 @@ public class PopupSession extends BaseEntity {
 	private UUID id;
 
 	@Column(name = "popup_id")
-	private UUID productId;
+	private UUID popupId;
 
 	@Column(name = "start_at")
 	private LocalDateTime startAt;

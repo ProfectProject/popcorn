@@ -18,7 +18,7 @@ public class PopupEventHandler {
 
 	@EventListener
 	public void handleViewed(PopupViewedEvent event) {
-		log.info("👀 팝업 조회 이벤트 - productId: {}, storeId: {}, category: {}",
-				event.getProductId(), event.getStoreId(), event.getCategory());
+		log.info("👀 팝업 조회 이벤트 - popupId: {}, storeId: {}, category: {}",
+				event.getPopupId(), event.getStoreId(), event.getCategory());
 	}
 }

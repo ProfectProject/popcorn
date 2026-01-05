@@ -67,11 +67,11 @@ public class PopupSessionController extends BaseController {
 							""")
 			)
 	)
-	@GetMapping("/{productId}/sessions")
+	@GetMapping("/{popupId}/sessions")
 	public ResponseEntity<BaseResponse<PopupSessionListResponse>> getProductSessions(
 			@Parameter(description = "상품 ID", required = true,
 					example = "00000000-0000-0000-0000-000000000101")
-			@PathVariable UUID productId,
+			@PathVariable UUID popupId,
 			@Parameter(description = "조회 시작 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -81,7 +81,7 @@ public class PopupSessionController extends BaseController {
 
 		PopupSessionListResponse response = popupService.getProductSessions(
 				PopupSessionListQuery.builder()
-						.productId(productId)
+						.popupId(popupId)
 						.from(from)
 						.to(to)
 						.build());

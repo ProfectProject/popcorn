@@ -47,7 +47,7 @@ public class PopupService {
 		PopupDetailResponse response = popupQueryService.getPopupDetail(query);
 
 		eventPublisher.publishEvent(PopupViewedEvent.builder()
-				.productId(response.getId())
+				.popupId(response.getId())
 				.storeId(response.getStoreId())
 				.category(response.getCategory())
 				.occurredAt(LocalDateTime.now())
