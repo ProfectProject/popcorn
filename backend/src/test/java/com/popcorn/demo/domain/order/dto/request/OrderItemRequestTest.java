@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class OrderItemRequestTest {
 
 	@Test
-	@DisplayName("Reservation item validation and identifiers")
+	@DisplayName("예약 아이템 검증 및 식별자 확인")
 	void reservationItemValidationAndIdentifiers() {
 		UUID sessionId = UUID.randomUUID();
 		UUID optionId = UUID.randomUUID();
@@ -36,7 +36,7 @@ class OrderItemRequestTest {
 	}
 
 	@Test
-	@DisplayName("Merch item validation and identifiers")
+	@DisplayName("굿즈 아이템 검증 및 식별자 확인")
 	void merchItemValidationAndIdentifiers() {
 		UUID merchVariantId = UUID.randomUUID();
 
@@ -57,7 +57,7 @@ class OrderItemRequestTest {
 	}
 
 	@Test
-	@DisplayName("Missing required fields fail validation")
+	@DisplayName("필수 값 누락 시 검증 실패")
 	void missingRequiredFieldsFailValidation() {
 		OrderItemRequest reservationItem = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
@@ -76,7 +76,7 @@ class OrderItemRequestTest {
 	}
 
 	@Test
-	@DisplayName("Unnecessary fields are detected")
+	@DisplayName("불필요한 필드 감지")
 	void unnecessaryFieldsAreDetected() {
 		UUID sessionId = UUID.randomUUID();
 		UUID optionId = UUID.randomUUID();

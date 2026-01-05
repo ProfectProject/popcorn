@@ -25,12 +25,7 @@ WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar app.jar
 
-ENV SPRING_PROFILES_ACTIVE=local \
-    DB_HOST=host.docker.internal \
-    DB_PORT=5432 \
-    DB_NAME=popcorn_db \
-    DB_USERNAME=postgres \
-    DB_PASSWORD=1234
+ENV SPRING_PROFILES_ACTIVE=local
 
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
