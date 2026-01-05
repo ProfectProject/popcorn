@@ -26,12 +26,13 @@ public class Payment extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
+	@Column(name = "id")
 	private UUID id;
 
 	@Column(name = "order_id", nullable = false)
 	private UUID orderId;
 
-	@Convert(converter = PaymentMethodConverter.class)
+	@Enumerated(EnumType.STRING)
 	@Column(name = "method", nullable = false)
 	private PaymentMethod method;
 

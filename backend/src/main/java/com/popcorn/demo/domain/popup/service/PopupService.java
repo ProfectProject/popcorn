@@ -50,7 +50,6 @@ public class PopupService {
 				.productId(response.getId())
 				.storeId(response.getStoreId())
 				.category(response.getCategory())
-				.regionId(response.getRegionId())
 				.occurredAt(LocalDateTime.now())
 				.build());
 

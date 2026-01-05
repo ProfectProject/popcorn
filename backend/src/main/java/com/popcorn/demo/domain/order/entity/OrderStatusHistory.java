@@ -12,6 +12,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
@@ -33,6 +34,7 @@ public class OrderStatusHistory extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
+	@Column(name = "id")
 	private UUID id;
 
 	@Column(name = "order_id")
@@ -46,7 +48,7 @@ public class OrderStatusHistory extends BaseEntity {
 	@Column(name = "to_status")
 	private OrderStatus toStatus;
 
-	@Column(name = "changed_by")
+	@Transient
 	private Long changedBy;
 
 	@Column(name = "reason")
