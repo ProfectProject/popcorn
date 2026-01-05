@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.merch.dto;
+package com.popcorn.demo.domain.goods.dto;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class MerchStatusUpdateRequest {
+public class GoodsStatusUpdateRequest {
     @NotNull
-    private Boolean isHidden;
+    private Boolean isActive;
 }
