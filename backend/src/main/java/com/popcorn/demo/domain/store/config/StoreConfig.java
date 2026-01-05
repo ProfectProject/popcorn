@@ -19,26 +19,24 @@ public class StoreConfig {
 
 	@Bean(name = "storeTaskExecutor")
 	public Executor storeTaskExecutor() {
-		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(5);
-		executor.setMaxPoolSize(10);
-		executor.setQueueCapacity(100);
-		executor.setThreadNamePrefix("StoreAsync-");
-		executor.setWaitForTasksToCompleteOnShutdown(true);
-		executor.setAwaitTerminationSeconds(60);
-		executor.initialize();
-		return executor;
+		return createExecutor(5, 10, 100, "StoreAsync-", 60);
 	}
 
 	@Bean(name = "storeValidationTaskExecutor")
 	public Executor storeValidationTaskExecutor() {
+		return createExecutor(2, 5, 50, "StoreValidation-", 30);
+	}
+
+	private ThreadPoolTaskExecutor createExecutor(int corePoolSize, int maxPoolSize, 
+												  int queueCapacity, String threadNamePrefix, 
+												  int awaitTerminationSeconds) {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(2);
-		executor.setMaxPoolSize(5);
-		executor.setQueueCapacity(50);
-		executor.setThreadNamePrefix("StoreValidation-");
+		executor.setCorePoolSize(corePoolSize);
+		executor.setMaxPoolSize(maxPoolSize);
+		executor.setQueueCapacity(queueCapacity);
+		executor.setThreadNamePrefix(threadNamePrefix);
 		executor.setWaitForTasksToCompleteOnShutdown(true);
-		executor.setAwaitTerminationSeconds(30);
+		executor.setAwaitTerminationSeconds(awaitTerminationSeconds);
 		executor.initialize();
 		return executor;
 	}

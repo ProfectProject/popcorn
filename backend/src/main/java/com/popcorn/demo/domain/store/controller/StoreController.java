@@ -34,39 +34,20 @@ public class StoreController extends BaseController {
         this.storeService = storeService;
     }
     
-    @Operation(
-        summary = "스토어 생성",
-        description = "새로운 스토어를 생성합니다. 오너 권한이 필요합니다."
-    )
+    @Operation(summary = "스토어 생성", description = "새로운 스토어를 생성합니다. 오너 권한이 필요합니다.")
     @ApiResponses({
-        @ApiResponse(
-            responseCode = "201",
-            description = "스토어 생성 성공",
-            content = @Content(schema = @Schema(implementation = StoreCreatedDto.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "잘못된 요청 (필수값 누락, 형식 오류, 비즈니스 검증 실패)"
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "권한 없음 (오너 권한 필요)"
-        ),
-        @ApiResponse(
-            responseCode = "409",
-            description = "중복된 스토어 이름"
-        )
+        @ApiResponse(responseCode = "201", description = "스토어 생성 성공", 
+                    content = @Content(schema = @Schema(implementation = StoreCreatedDto.class))),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
+        @ApiResponse(responseCode = "409", description = "중복된 스토어 이름")
     })
     @PostMapping
     public ResponseEntity<BaseResponse<StoreCreatedDto>> createStore(
-            @Parameter(description = "스토어 생성 요청 데이터", required = true)
-            @Valid @RequestBody CreateStoreRequest request,
-            
-            @Parameter(description = "인증된 사용자 ID", required = true)
-            @RequestHeader("X-User-Id") Long userId) {
+            @Parameter(description = "스토어 생성 요청 데이터", required = true) @Valid @RequestBody CreateStoreRequest request,
+            @Parameter(description = "인증된 사용자 ID", required = true) @RequestHeader("X-User-Id") Long userId) {
 
-        StoreCreatedDto result = storeService.createStore(userId, request);
-        BaseResponse<StoreCreatedDto> response = BaseResponse.success(result);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(BaseResponse.success(storeService.createStore(userId, request)));
     }
 }
