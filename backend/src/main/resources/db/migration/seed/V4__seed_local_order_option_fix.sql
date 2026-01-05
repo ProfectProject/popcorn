@@ -1,1 +1,0 @@
--- V0 schema uses p_popup_schedules/p_goods_variants; legacy option fix is no-op.

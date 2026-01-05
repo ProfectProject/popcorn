@@ -1,1 +1,0 @@
--- V0 schema alignment: session seeds moved to popup schedule seeds.

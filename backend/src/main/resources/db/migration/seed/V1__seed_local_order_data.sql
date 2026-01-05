@@ -1,1 +1,0 @@
--- V0 schema alignment: base local order data is seeded in newer scripts.

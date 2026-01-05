@@ -1,1 +1,0 @@
--- V0__init.sql is the source of truth; no additional schema update needed.

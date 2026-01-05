@@ -1,1 +1,0 @@
--- V0 schema alignment: timeline extras consolidated in V14__seed_payment_api_test_data.sql.
