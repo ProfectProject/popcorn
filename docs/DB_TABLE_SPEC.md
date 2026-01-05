@@ -253,7 +253,7 @@
 |--------------------|-----------|----------|---------------------------------------------------------|---------------|
 | order_goods_id     | UUID      | YES      | PK                                                      | 주문 항목 ID      |
 | order_id           | UUID      | YES      | FK(order_id → p_orders.order_id)                        | 주문 ID         |
-| schedule_option_id | UUID      |          | FK(schedule_option_id → p_schedule_options.schedule_id) | 스케줄 옵션 ID     |
+| schedule_id        | UUID      |          | FK(schedule_id → p_popup_schedules.schedule_id)         | 스케줄 ID         |
 | goods_variant_id   | UUID      |          | FK(goods_variant_id → p_goods_variants.goods_id)        | 굿즈 옵션 ID      |
 | qty                | int       | YES      |                                                         | 수량            |
 | unit_price         | int       | YES      |                                                         | 단가            |
