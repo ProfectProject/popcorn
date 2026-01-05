@@ -132,6 +132,39 @@ public class OrderExceptionHandler extends BaseController {
 		return error(CommonResponseCode.INVALID_REQUEST, userMessage);
 	}
 
+	/**
+	 * 잘못된 타입 변환 오류 처리 (400 Bad Request)
+	 * 예: 잘못된 UUID 형식
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+		log.warn("Order parameter type mismatch: parameter={}, value={}, requiredType={}",
+				ex.getName(), ex.getValue(), ex.getRequiredType().getSimpleName());
+
+		String message = String.format("잘못된 %s 형식입니다: %s", ex.getRequiredType().getSimpleName(), ex.getValue());
+
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
+		BaseResponse<BaseError> response = BaseResponse.error(error);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+	}
+
+	/**
+	 * 멱등성 처리 오류 (409 Conflict)
+	 */
+	@ExceptionHandler(IdempotencyService.IdempotencyException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleIdempotencyException(IdempotencyService.IdempotencyException ex) {
+		if (ex.getIdempotencyKey() != null) {
+			log.warn("🔄 멱등성 처리 중 오류 - 키: {}, 메시지: {}", ex.getIdempotencyKey(), ex.getMessage());
+		} else {
+			log.warn("🔄 멱등성 처리 중 오류 - 메시지: {}", ex.getMessage());
+		}
+
+		String userMessage = "동일한 요청이 이미 처리되고 있거나 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, userMessage);
+		BaseResponse<BaseError> response = BaseResponse.error(error);
+		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+	}
+
 
 
 	/**
