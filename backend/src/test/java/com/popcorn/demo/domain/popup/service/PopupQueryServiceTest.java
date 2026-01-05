@@ -78,6 +78,49 @@ class PopupQueryServiceTest {
 	}
 
 	@Test
+	@DisplayName("팝업 목록 조회 - 전체 개수 비활성화 시 카운트 생략")
+	void getPopups_skipsCountWhenWithTotalFalse() {
+		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
+		PopupQueryService service = new PopupQueryService(repository);
+
+		PopupListView view = new TestPopupView(
+				"00000000-0000-0000-0000-000000000101",
+				"00000000-0000-0000-0000-000000000001",
+				"Seed Popup 1",
+				"RESERVATION",
+				"POPUP",
+				101L,
+				false,
+				LocalDateTime.of(2025, 1, 1, 10, 0),
+				LocalDateTime.of(2025, 1, 5, 18, 0),
+				"00000000-0000-0000-0000-000000009001",
+				"팝업 테스트 장소",
+				"서울특별시 강남구 테헤란로 123",
+				"ABC빌딩 12층",
+				BigDecimal.valueOf(37.498),
+				BigDecimal.valueOf(127.027)
+		);
+
+		when(repository.findPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null), eq(20), eq(0L)))
+				.thenReturn(List.of(view));
+
+		PopupListQuery query = PopupListQuery.builder()
+				.regionId(101L)
+				.category("POPUP")
+				.keyword("팝업")
+				.page(1)
+				.size(20)
+				.withTotal(false)
+				.build();
+
+		PopupListResponse response = service.getPopups(query);
+
+		assertEquals(-1L, response.getTotal());
+		verify(repository, Mockito.never()).countPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null));
+		verify(repository).findPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null), eq(20), eq(0L));
+	}
+
+	@Test
 	@DisplayName("팝업 목록 조회 - 위치 정보가 없으면 null 반환")
 	void getPopups_returnsNullLocationWhenEmpty() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);

@@ -27,6 +27,7 @@ public class ApiVersionInfo {
     /**
      * API 버전 상태
      */
+    @Getter
     public enum ApiVersionStatus {
         BETA("베타"),
         STABLE("안정"),
@@ -37,10 +38,6 @@ public class ApiVersionInfo {
 
         ApiVersionStatus(String displayName) {
             this.displayName = displayName;
-        }
-
-        public String getDisplayName() {
-            return displayName;
         }
     }
 

@@ -31,6 +31,11 @@ public class OrderValidationService {
 	 */
 	public boolean validateOrderAsync(Long userId, UUID productId, Integer qty) {
 		try {
+			if (productId == null) {
+				log.warn("⚠️ 잘못된 상품 ID: null");
+				return false;
+			}
+
 			// 병렬 검증으로 성능 최적화
 			CompletableFuture<Boolean> stockValidation = CompletableFuture
 					.supplyAsync(() -> validateStock(qty));
@@ -79,7 +84,7 @@ public class OrderValidationService {
 		}
 
 		// TODO: 실제 사용자 시스템과 연동
-		boolean isValidCustomer = userId > 0;
+		boolean isValidCustomer = true;
 		log.debug("👤 고객 확인 - 사용자ID: {}, 유효성: {}", userId, isValidCustomer);
 
 		return isValidCustomer;
@@ -89,11 +94,6 @@ public class OrderValidationService {
 	 * 상품 검증 (최적화됨)
 	 */
 	private boolean validateProduct(UUID productId) {
-		if (productId == null) {
-			log.warn("⚠️ 잘못된 상품 ID: {}", productId);
-			return false;
-		}
-
 		// TODO: 실제 상품 시스템과 연동
 		boolean isValidProduct = true; // 임시 로직
 		log.debug("📱 상품 확인 - 상품ID: {}, 유효성: {}", productId, isValidProduct);

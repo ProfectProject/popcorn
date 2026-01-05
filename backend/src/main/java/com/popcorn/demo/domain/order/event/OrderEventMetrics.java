@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.order.event;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -8,6 +9,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import lombok.Getter;
 
 /**
  * 주문 이벤트 메트릭스 수집 서비스
@@ -208,14 +211,14 @@ public class OrderEventMetrics {
 
     private String getMostProcessedEventType() {
         return eventProcessedCounts.entrySet().stream()
-                .max(Map.Entry.comparingByValue((a, b) -> Long.compare(a.get(), b.get())))
+                .max(Map.Entry.comparingByValue(Comparator.comparingLong(AtomicLong::get)))
                 .map(Map.Entry::getKey)
                 .orElse("없음");
     }
 
     private String getMostCommonErrorType() {
         return errorTypeCounts.entrySet().stream()
-                .max(Map.Entry.comparingByValue((a, b) -> Long.compare(a.get(), b.get())))
+                .max(Map.Entry.comparingByValue(Comparator.comparingLong(AtomicLong::get)))
                 .map(Map.Entry::getKey)
                 .orElse("없음");
     }
@@ -235,6 +238,7 @@ public class OrderEventMetrics {
     /**
      * 전체 이벤트 메트릭
      */
+    @Getter
     public static class EventMetrics {
         private final long totalEventsProcessed;
         private final long totalErrorsOccurred;
@@ -259,18 +263,6 @@ public class OrderEventMetrics {
             this.mostProcessedEventType = builder.mostProcessedEventType;
             this.mostCommonErrorType = builder.mostCommonErrorType;
         }
-
-        // Getters
-        public long getTotalEventsProcessed() { return totalEventsProcessed; }
-        public long getTotalErrorsOccurred() { return totalErrorsOccurred; }
-        public Map<String, Long> getEventProcessedCounts() { return eventProcessedCounts; }
-        public Map<String, Long> getEventErrorCounts() { return eventErrorCounts; }
-        public Map<String, Long> getPriorityProcessedCounts() { return priorityProcessedCounts; }
-        public Map<String, Long> getErrorTypeCounts() { return errorTypeCounts; }
-        public LocalDateTime getLastResetTime() { return lastResetTime; }
-        public double getErrorRate() { return errorRate; }
-        public String getMostProcessedEventType() { return mostProcessedEventType; }
-        public String getMostCommonErrorType() { return mostCommonErrorType; }
 
         public static Builder builder() { return new Builder(); }
 
@@ -304,6 +296,7 @@ public class OrderEventMetrics {
     /**
      * 이벤트 타입별 메트릭
      */
+    @Getter
     public static class EventTypeMetrics {
         private final String eventType;
         private final long processedCount;
@@ -318,13 +311,6 @@ public class OrderEventMetrics {
             this.errorRate = builder.errorRate;
             this.isHealthy = builder.isHealthy;
         }
-
-        // Getters
-        public String getEventType() { return eventType; }
-        public long getProcessedCount() { return processedCount; }
-        public long getErrorCount() { return errorCount; }
-        public double getErrorRate() { return errorRate; }
-        public boolean isHealthy() { return isHealthy; }
 
         public static Builder builder() { return new Builder(); }
 

@@ -4,12 +4,15 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
+import lombok.Getter;
+
 /**
  * 주문 결제 처리 이벤트
  *
  * 주문의 결제가 처리되었을 때 발생하는 이벤트
  * 정산, 재고 차감, 영수증 발급 등에 활용
  */
+@Getter
 public class OrderPaymentProcessedEvent extends BaseOrderEvent {
 
     private final String paymentMethod;      // 결제 방법
@@ -59,17 +62,6 @@ public class OrderPaymentProcessedEvent extends BaseOrderEvent {
         this.paymentAt = LocalDateTime.now();
         this.paymentProvider = paymentProvider;
     }
-
-    // ================ Getters ================
-
-    public String getPaymentMethod() { return paymentMethod; }
-    public String getPaymentStatus() { return paymentStatus; }
-    public Integer getPaidAmount() { return paidAmount; }
-    public Integer getDiscountAmount() { return discountAmount; }
-    public String getPaymentId() { return paymentId; }
-    public String getTransactionId() { return transactionId; }
-    public LocalDateTime getPaymentAt() { return paymentAt; }
-    public String getPaymentProvider() { return paymentProvider; }
 
     // ================ Business Logic ================
 
@@ -199,10 +191,9 @@ public class OrderPaymentProcessedEvent extends BaseOrderEvent {
     // ================ Helper Methods ================
 
     private static boolean isSuccessfulPayment(String status) {
-        return status != null &&
-               ("COMPLETED".equalsIgnoreCase(status) ||
+        return "COMPLETED".equalsIgnoreCase(status) ||
                 "SUCCESS".equalsIgnoreCase(status) ||
-                "PAID".equalsIgnoreCase(status));
+                "PAID".equalsIgnoreCase(status);
     }
 
     private static String calculatePaymentRisk(Integer amount, String method) {

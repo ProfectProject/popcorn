@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.CommonResponseCode;
@@ -16,14 +17,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
-public class PopupExceptionHandler {
+public class PopupExceptionHandler extends BaseController {
 
 	@ExceptionHandler(PopupException.class)
 	public ResponseEntity<BaseResponse<BaseError>> handleBaseException(PopupException ex) {
 		logBusinessException(ex);
 		String message = getUserFriendlyMessage(ex);
-		BaseResponse<BaseError> response = BaseResponse.error(ex.getResponseCode(), message);
-		return ResponseEntity.status(ex.getResponseCode().getHttpStatus()).body(response);
+		return error(ex.getResponseCode(), message);
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -32,9 +32,7 @@ public class PopupExceptionHandler {
 				.map(error -> error.getField() + ": " + error.getDefaultMessage())
 				.findFirst()
 				.orElse("입력값이 올바르지 않습니다.");
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 
 	@ExceptionHandler(BindException.class)
@@ -43,9 +41,7 @@ public class PopupExceptionHandler {
 				.map(error -> error.getField() + ": " + error.getDefaultMessage())
 				.findFirst()
 				.orElse("입력값이 올바르지 않습니다.");
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -53,16 +49,13 @@ public class PopupExceptionHandler {
 		String message = String.format("잘못된 %s 형식입니다: %s",
 				ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "요청",
 				ex.getValue());
-		BaseError error = BaseError.of(CommonResponseCode.INVALID_REQUEST, message);
-		BaseResponse<BaseError> response = BaseResponse.error(error);
-		return ResponseEntity.status(CommonResponseCode.INVALID_REQUEST.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex) {
 		log.error("🚨 팝업 처리 중 오류 발생 - 타입: {}, 메시지: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
-		BaseResponse<BaseError> response = BaseResponse.error(CommonResponseCode.INTERNAL_ERROR, "일시적인 오류가 발생했습니다.");
-		return ResponseEntity.status(CommonResponseCode.INTERNAL_ERROR.getHttpStatus()).body(response);
+		return error(CommonResponseCode.INTERNAL_ERROR, "일시적인 오류가 발생했습니다.");
 	}
 
 	private void logBusinessException(PopupException ex) {

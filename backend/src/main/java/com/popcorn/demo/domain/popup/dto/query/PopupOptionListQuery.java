@@ -11,13 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PopupListQuery {
+public class PopupOptionListQuery {
 
-	private Long regionId;
-	private String category;
-	private String keyword;
-	private UUID storeId;
-	private Integer page;
-	private Integer size;
-	private Boolean withTotal;
+	private UUID productId;
 }

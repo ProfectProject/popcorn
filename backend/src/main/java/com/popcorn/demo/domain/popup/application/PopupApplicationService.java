@@ -7,11 +7,17 @@ import org.springframework.stereotype.Service;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupOptionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
 import com.popcorn.demo.domain.popup.event.PopupSearchEvent;
 import com.popcorn.demo.domain.popup.event.PopupViewedEvent;
+import com.popcorn.demo.domain.popup.service.PopupOptionQueryService;
 import com.popcorn.demo.domain.popup.service.PopupQueryService;
+import com.popcorn.demo.domain.popup.service.PopupSessionQueryService;
 import com.popcorn.demo.domain.popup.service.PopupValidationService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +27,8 @@ import lombok.RequiredArgsConstructor;
 public class PopupApplicationService {
 
 	private final PopupQueryService popupQueryService;
+	private final PopupSessionQueryService popupSessionQueryService;
+	private final PopupOptionQueryService popupOptionQueryService;
 	private final PopupValidationService popupValidationService;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -55,5 +63,15 @@ public class PopupApplicationService {
 				.build());
 
 		return response;
+	}
+
+	public PopupSessionListResponse getProductSessions(PopupSessionListQuery query) {
+		PopupSessionListQuery normalizedQuery = popupValidationService.normalizeSessionQuery(query);
+		return popupSessionQueryService.getProductSessions(normalizedQuery);
+	}
+
+	public PopupOptionListResponse getProductOptions(PopupOptionListQuery query) {
+		PopupOptionListQuery normalizedQuery = popupValidationService.normalizeOptionQuery(query);
+		return popupOptionQueryService.getProductOptions(normalizedQuery);
 	}
 }

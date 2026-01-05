@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.cache.IdempotencyCacheStats;
+import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 
@@ -30,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @ApiVersion("v1")
 @RequestMapping("/api/v1/orders/idempotency")
 @RequiredArgsConstructor
-public class OrderIdempotencyController {
+public class OrderIdempotencyController extends BaseController {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderIdempotencyController.class);
 
@@ -50,7 +51,7 @@ public class OrderIdempotencyController {
 			log.debug("📈 캐시 통계 - 히트율: {:.2f}%, 캐시크기: {}",
 					stats.getHitRate() * 100, stats.getCacheSize());
 
-			return ResponseEntity.ok(BaseResponse.success(stats));
+			return ok(stats);
 
 		} catch (Exception e) {
 			log.error("❌ 캐시 통계 조회 실패", e);
@@ -72,7 +73,7 @@ public class OrderIdempotencyController {
 			String textStats = stats.toString();
 
 			log.debug("📄 텍스트 통계 생성 완료");
-			return ResponseEntity.ok(textStats);
+			return okText(textStats);
 
 		} catch (Exception e) {
 			log.error("❌ 텍스트 통계 조회 실패", e);
@@ -95,7 +96,7 @@ public class OrderIdempotencyController {
 			String message = "모든 멱등성 캐시가 성공적으로 삭제되었습니다";
 			log.info("✅ {}", message);
 
-			return ResponseEntity.ok(BaseResponse.success(message));
+			return ok(message);
 
 		} catch (Exception e) {
 			log.error("❌ 전체 캐시 삭제 실패", e);
@@ -123,7 +124,7 @@ public class OrderIdempotencyController {
 			String message = String.format("멱등성 키 '%s'의 캐시가 성공적으로 삭제되었습니다", idempotencyKey);
 			log.info("✅ {}", message);
 
-			return ResponseEntity.ok(BaseResponse.success(message));
+			return ok(message);
 
 		} catch (Exception e) {
 			log.error("❌ 키 캐시 삭제 실패 - 키: {}", idempotencyKey, e);
@@ -149,7 +150,7 @@ public class OrderIdempotencyController {
 			if (isHealthy) {
 				String message = String.format("멱등성 서비스 정상 - 캐시크기: %d, 히트율: %.2f%%",
 						stats.getCacheSize(), stats.getHitRate() * 100);
-				return ResponseEntity.ok(BaseResponse.success(message));
+				return ok(message);
 			} else {
 				throw new RuntimeException("멱등성 서비스 상태 이상 감지");
 			}

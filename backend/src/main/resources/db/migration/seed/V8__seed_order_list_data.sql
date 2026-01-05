@@ -47,6 +47,21 @@ INSERT INTO p_orders (
     'PURCHASE',
     NULL,
     0
+),
+(
+    '00000000-0000-0000-0000-000000001303',
+    'O20260102-130103',
+    1001,
+    '00000000-0000-0000-0000-000000000001',
+    'REQUESTED',
+    NOW() + INTERVAL '45 minutes',
+    8000,
+    NOW() - INTERVAL '30 minutes',
+    NOW() - INTERVAL '30 minutes',
+    '00000000-0000-0000-0000-000000000101',
+    'RESERVATION',
+    NULL,
+    0
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 매장(OWNER/MANAGER) 목록용 주문 데이터
@@ -113,4 +128,16 @@ INSERT INTO p_order_items (
     NOW() - INTERVAL '1 hours',
     NOW() - INTERVAL '1 hours',
     'MERCH'
+),
+(
+    '00000000-0000-0000-0000-000000002303',
+    '00000000-0000-0000-0000-000000001303',
+    '00000000-0000-0000-0000-000000000301',
+    NULL,
+    2,
+    4000,
+    8000,
+    NOW() - INTERVAL '30 minutes',
+    NOW() - INTERVAL '30 minutes',
+    'RESERVATION'
 ) ON CONFLICT (id) DO NOTHING;

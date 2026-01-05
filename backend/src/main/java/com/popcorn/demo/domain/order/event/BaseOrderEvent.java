@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import lombok.Getter;
 /**
  * 주문 도메인 이벤트의 기본 클래스
  *
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(value = OrderCompletedEvent.class, name = "order_completed"),
     @JsonSubTypes.Type(value = OrderPaymentProcessedEvent.class, name = "order_payment_processed")
 })
+@Getter
 public abstract class BaseOrderEvent {
 
     private final UUID eventId;            // 이벤트 고유 ID
@@ -49,17 +51,6 @@ public abstract class BaseOrderEvent {
     protected BaseOrderEvent(UUID orderId, String eventType, Long userId) {
         this(orderId, eventType, userId, null);
     }
-
-    // ================ Getters ================
-
-    public UUID getEventId() { return eventId; }
-    public UUID getOrderId() { return orderId; }
-    public String getEventType() { return eventType; }
-    public LocalDateTime getTimestamp() { return timestamp; }
-    public String getEventVersion() { return eventVersion; }
-    public UUID getCorrelationId() { return correlationId; }
-    public Long getUserId() { return userId; }
-    public Map<String, Object> getMetadata() { return metadata; }
 
     // ================ Event Context ================
 
@@ -115,6 +106,7 @@ public abstract class BaseOrderEvent {
     /**
      * 이벤트 컨텍스트 정보
      */
+    @Getter
     public static class EventContext {
         private final UUID eventId;
         private final UUID correlationId;
@@ -127,11 +119,6 @@ public abstract class BaseOrderEvent {
             this.timestamp = builder.timestamp;
             this.version = builder.version;
         }
-
-        public UUID getEventId() { return eventId; }
-        public UUID getCorrelationId() { return correlationId; }
-        public LocalDateTime getTimestamp() { return timestamp; }
-        public String getVersion() { return version; }
 
         public static Builder builder() {
             return new Builder();

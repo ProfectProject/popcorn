@@ -94,12 +94,9 @@ public class SecurityConfig {
 	@Profile({"local", "test"})
 	public UserDetailsService localUserDetailsService() {
 		// 개발 환경에서는 실제 인증을 사용하지 않으므로 더미 서비스 제공
-		return new UserDetailsService() {
-			@Override
-			public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-				// 개발 환경에서는 모든 요청이 permitAll()이므로 실제로 호출되지 않음
-				throw new UsernameNotFoundException("Development mode - authentication disabled");
-			}
+		return username -> {
+			// 개발 환경에서는 모든 요청이 permitAll()이므로 실제로 호출되지 않음
+			throw new UsernameNotFoundException("Development mode - authentication disabled");
 		};
 	}
 

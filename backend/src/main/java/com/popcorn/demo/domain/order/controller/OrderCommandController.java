@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.order.controller;
 import java.util.UUID;
 import java.time.LocalDateTime;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -180,7 +179,7 @@ public class OrderCommandController extends BaseController {
 		// 유스케이스 결과를 표준 응답으로 감싸서 반환합니다.
 		CreateOrderResponse response = orderCommandService.createOrder(command);
 		OrderCreatedDto dto = convertToOrderCreatedDto(response);
-		return new ResponseEntity<>(BaseResponse.success(dto), HttpStatus.CREATED);
+		return created(dto);
 	}
 
 	@Operation(
@@ -311,7 +310,7 @@ public class OrderCommandController extends BaseController {
 				.status(updatedOrder.getStatus().name())
 				.updatedAt(updatedOrder.getUpdatedAt())
 				.build();
-		return ResponseEntity.ok(BaseResponse.success(response));
+		return ok(response);
 	}
 
 	@Operation(
@@ -348,7 +347,7 @@ public class OrderCommandController extends BaseController {
 				.status("CANCELED")  // 사용자 스펙에 맞게 "CANCELED" 사용
 				.build();
 
-		return ResponseEntity.ok(BaseResponse.success(response));
+		return ok(response);
 	}
 
 	/**

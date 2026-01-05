@@ -5,12 +5,15 @@ import java.util.UUID;
 
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 
+import lombok.Getter;
+
 /**
  * 주문 상태 변경 이벤트
  *
  * 주문 상태가 변경되었을 때 발생하는 이벤트
  * 상태 전이 추적 및 비즈니스 로직 트리거에 활용
  */
+@Getter
 public class OrderStatusChangedEvent extends BaseOrderEvent {
 
     private final OrderStatus fromStatus;
@@ -48,14 +51,6 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
         this.changedBy = changedBy != null ? changedBy : "SYSTEM";
         this.changeType = determineChangeType(changedBy);
     }
-
-    // ================ Getters ================
-
-    public OrderStatus getFromStatus() { return fromStatus; }
-    public OrderStatus getToStatus() { return toStatus; }
-    public String getReason() { return reason; }
-    public String getChangedBy() { return changedBy; }
-    public String getChangeType() { return changeType; }
 
     // ================ Business Logic ================
 

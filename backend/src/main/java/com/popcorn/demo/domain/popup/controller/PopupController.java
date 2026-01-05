@@ -82,18 +82,20 @@ public class PopupController extends BaseController {
 	)
 	@GetMapping
 	public ResponseEntity<BaseResponse<PopupListResponse>> getPopups(
-			@Parameter(description = "지역 필터", required = false, example = "101")
+			@Parameter(description = "지역 필터", example = "101")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) Long regionId,
-			@Parameter(description = "카테고리(POPUP/MERCH/EVENT)", required = false, example = "POPUP")
+			@Parameter(description = "카테고리(POPUP/MERCH/EVENT)", example = "POPUP")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String category,
-			@Parameter(description = "검색어", required = false, example = "팝업")
+			@Parameter(description = "검색어", example = "팝업")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
-			@Parameter(description = "가게 필터", required = false, example = "00000000-0000-0000-0000-000000000001")
+			@Parameter(description = "가게 필터", example = "00000000-0000-0000-0000-000000000001")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) java.util.UUID storeId,
-			@Parameter(description = "페이지(기본 1)", required = false, example = "1")
+			@Parameter(description = "페이지(기본 1)", example = "1")
 			@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "1") Integer page,
-			@Parameter(description = "사이즈(기본 20, 최대 100)", required = false, example = "20")
-			@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "20") Integer size) {
+			@Parameter(description = "사이즈(기본 20, 최대 100)", example = "20")
+			@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "20") Integer size,
+			@Parameter(description = "전체 개수 포함 여부(기본 true)", example = "true")
+			@org.springframework.web.bind.annotation.RequestParam(required = false) Boolean withTotal) {
 
 		PopupListQuery requestQuery = PopupListQuery.builder()
 				.regionId(regionId)
@@ -102,6 +104,7 @@ public class PopupController extends BaseController {
 				.storeId(storeId)
 				.page(page)
 				.size(size)
+				.withTotal(withTotal)
 				.build();
 
 		PopupListResponse response = popupApplicationService.getPopups(requestQuery);
