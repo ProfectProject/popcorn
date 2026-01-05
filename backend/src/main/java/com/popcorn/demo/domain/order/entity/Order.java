@@ -105,7 +105,7 @@ public class Order extends BaseEntity {
 
 	@Transient
 
-	private UUID productId;
+	private UUID popupId;
 
 
 

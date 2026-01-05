@@ -69,7 +69,7 @@ public class OrderItem extends BaseEntity {
 
 	@Column(name = "goods_variant_id")
 
-	private UUID merchVariantId;
+	private UUID goodsVariantId;
 
 
 
@@ -101,9 +101,9 @@ public class OrderItem extends BaseEntity {
 
 
 
-	public boolean isMerchType() {
+	public boolean isGoodsType() {
 
-		return OrderItemType.MERCH.equals(orderItemType);
+		return OrderItemType.GOODS.equals(orderItemType);
 
 	}
 
