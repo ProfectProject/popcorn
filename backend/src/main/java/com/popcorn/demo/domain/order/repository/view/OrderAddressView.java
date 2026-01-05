@@ -5,7 +5,6 @@ public interface OrderAddressView {
 	String getAddress1();
 
 	String getAddress2();
-
 	String getReceiverName();
 
 	String getPhone();

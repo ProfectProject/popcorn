@@ -29,7 +29,7 @@ public class OrderPostProcessingListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	@Async("applicationTaskExecutor")
 	public void handle(OrderCreatedEvent event) {
-		Order order = event.order();
+		Order order = event.getOrder();
 		UUID orderId = order.getId();
 
 		log.info("🧩 주문 후처리 이벤트 처리 시작 - 주문ID: {}", orderId);
