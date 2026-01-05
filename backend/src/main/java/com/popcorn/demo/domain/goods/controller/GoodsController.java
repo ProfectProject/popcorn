@@ -6,6 +6,7 @@ import com.popcorn.demo.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsIdResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsItemResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsListResponse;
+import com.popcorn.demo.domain.goods.dto.GoodsUpdateRequest;
 import com.popcorn.demo.domain.goods.service.GoodsService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,5 +47,14 @@ public class GoodsController extends BaseController {
             @PathVariable UUID goodsId
     ) {
         return ok(goodsService.get(popupId, goodsId));
+    }
+
+    @PutMapping("/{goodsId}")
+    public ResponseEntity<BaseResponse<GoodsIdResponse>> update(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId,
+            @Valid @RequestBody GoodsUpdateRequest request
+    ) {
+        return ok(goodsService.update(popupId, goodsId, request));
     }
 }

@@ -4,6 +4,7 @@ import com.popcorn.demo.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsIdResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsItemResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsListResponse;
+import com.popcorn.demo.domain.goods.dto.GoodsUpdateRequest;
 import com.popcorn.demo.domain.goods.entity.GoodsVariant;
 import com.popcorn.demo.domain.goods.exception.GoodsNotFoundException;
 import com.popcorn.demo.domain.goods.repository.GoodsVariantRepository;
@@ -48,6 +49,19 @@ public class GoodsService {
     public GoodsItemResponse get(UUID popupId, UUID goodsId) {
         GoodsVariant goods = getGoods(popupId, goodsId);
         return GoodsItemResponse.from(goods);
+    }
+
+    @Transactional
+    public GoodsIdResponse update(UUID popupId, UUID goodsId, GoodsUpdateRequest request) {
+        GoodsVariant goods = getGoods(popupId, goodsId);
+        goods.update(
+                request.getStockUnit(),
+                request.getGoodsName(),
+                request.getGoodsPrice(),
+                request.getStock(),
+                request.getIsActive()
+        );
+        return new GoodsIdResponse(goods.getId());
     }
 
     private GoodsVariant getGoods(UUID popupId, UUID goodsId) {
