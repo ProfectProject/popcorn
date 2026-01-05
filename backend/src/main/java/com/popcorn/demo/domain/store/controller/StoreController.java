@@ -23,10 +23,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-/**
- * 스토어 관련 REST API를 처리하는 컨트롤러
- * BaseController를 상속받아 표준화된 응답 처리를 제공합니다.
- */
 @Tag(name = "Stores", description = "스토어 관리 API")
 @RestController
 @RequestMapping("/api/v1/stores")
@@ -38,13 +34,6 @@ public class StoreController extends BaseController {
         this.storeService = storeService;
     }
     
-    /**
-     * 새로운 스토어를 생성합니다.
-     *
-     * @param request 스토어 생성 요청 데이터
-     * @param userId 인증된 사용자 ID
-     * @return 생성된 스토어 정보
-     */
     @Operation(
         summary = "스토어 생성",
         description = "새로운 스토어를 생성합니다. 오너 권한이 필요합니다."
@@ -76,55 +65,8 @@ public class StoreController extends BaseController {
             @Parameter(description = "인증된 사용자 ID", required = true)
             @RequestHeader("X-User-Id") Long userId) {
 
-        // 스토어 생성
         StoreCreatedDto result = storeService.createStore(userId, request);
-        
-        // 성공 응답
         BaseResponse<StoreCreatedDto> response = BaseResponse.success(result);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
-
-    /*
-     * ==================== API 테스트용 Request Body 예시 ====================
-     *
-     * 스토어 생성 예시:
-     * POST /api/v1/stores
-     * Content-Type: application/json
-     * X-User-Id: 123
-     *
-     * {
-     *   "name": "맛있는 팝콘 스토어",
-     *   "ownerId": 123
-     * }
-     *
-     * ==================== 응답 예시 ====================
-     *
-     * 성공 응답 (201 Created):
-     * {
-     *   "code": "SUCCESS",
-     *   "message": "요청이 성공했습니다.",
-     *   "data": {
-     *     "id": "550e8400-e29b-41d4-a716-446655440000",
-     *     "name": "맛있는 팝콘 스토어",
-     *     "ownerId": 123,
-     *     "publishStatus": "DRAFT",
-     *     "createdAt": "2025-01-02T10:15:30",
-     *     "createdBy": 123
-     *   }
-     * }
-     *
-     * 오류 응답 (400 Bad Request):
-     * {
-     *   "code": "EMPTY_NAME",
-     *   "message": "이름이 비어있습니다.",
-     *   "data": null
-     * }
-     *
-     * 권한 오류 (403 Forbidden):
-     * {
-     *   "code": "FORBIDDEN",
-     *   "message": "스토어 생성 권한이 없습니다.",
-     *   "data": null
-     * }
-     */
 }
