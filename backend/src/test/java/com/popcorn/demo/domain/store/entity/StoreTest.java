@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.store.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,10 +60,10 @@ class StoreTest {
                 .build();
 
         // When
-        store.updatePublishStatus(StorePublishStatus.PUBLISHED);
+        store.updatePublishStatus(StorePublishStatus.ACTIVE);
 
         // Then
-        assertThat(store.getPublishStatus()).isEqualTo(StorePublishStatus.PUBLISHED);
+        assertThat(store.getPublishStatus()).isEqualTo(StorePublishStatus.ACTIVE);
         assertThat(store.isPublished()).isTrue();
         assertThat(store.isDraft()).isFalse();
     }

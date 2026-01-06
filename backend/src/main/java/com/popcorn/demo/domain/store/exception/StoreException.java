@@ -43,6 +43,14 @@ public class StoreException extends BaseException {
     public static StoreException storeCreationLimitExceeded(Long ownerId, int maxStores) {
         return new StoreException(StoreResponseCode.STORE_CREATION_LIMIT_EXCEEDED);
     }
+    
+    public static StoreException storeIdRequired() {
+        return new StoreException(StoreResponseCode.STORE_ID_REQUIRED);
+    }
+    
+    public static StoreException userIdRequired() {
+        return new StoreException(StoreResponseCode.USER_ID_REQUIRED);
+    }
 
     // ================ 리소스 없음 예외들 (404 Not Found) ================
 

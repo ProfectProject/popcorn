@@ -125,7 +125,7 @@ public class Store extends BaseEntity {
      * @return 공개 상태이면 true
      */
     public boolean isPublished() {
-        return StorePublishStatus.PUBLISHED.equals(this.publishStatus);
+        return StorePublishStatus.ACTIVE.equals(this.publishStatus);
     }
 
     /**
