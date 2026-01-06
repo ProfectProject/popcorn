@@ -16,8 +16,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
-import jakarta.persistence.Version;
 
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -73,6 +74,7 @@ public class Order extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
+	@Column(name = "order_id")
 	private UUID id;
 
 
@@ -87,7 +89,7 @@ public class Order extends BaseEntity {
 
 	/** 고객 ID */
 
-	@Column(name = "customer_id")
+	@Column(name = "user_id")
 
 	private Long customerId;
 
@@ -101,22 +103,22 @@ public class Order extends BaseEntity {
 
 
 
-	/** 상품 ID */
+	/** 팝업 ID (요청값 보관용, 저장되지 않음) */
 
-	@Column(name = "product_id")
+	@Transient
 
-	private UUID productId;
+	private UUID popupId;
 
 
 
-	/** 주문 타입 (예약형/구매형) */
-	@Enumerated(EnumType.STRING)
-	@Column(name = "order_type", length = 20, nullable = false)
+	/** 주문 타입 (요청값 보관용, 저장되지 않음) */
+	@Transient
 	private OrderType orderType;
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", length = 30, nullable = false)
+	@Column(name = "status", columnDefinition = "order_status")
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	private OrderStatus status;
 
 
@@ -131,24 +133,17 @@ public class Order extends BaseEntity {
 
 	/** 총 주문 금액 (원 단위) */
 
-	@Column(name = "total_amount")
+	@Column(name = "total_price")
 
 	private Integer totalAmount;
 
 
 
-	/** 멱등성 키 (중복 주문 방지용) */
+	/** 멱등성 키 (요청값 보관용, 저장되지 않음) */
 
-	@Column(name = "idempotency_key")
+	@Transient
 
 	private String idempotencyKey;
-
-	/** 낙관적 락 버전 */
-
-	@Version
-	@Column(name = "version")
-
-	private Long version;
 
 
 

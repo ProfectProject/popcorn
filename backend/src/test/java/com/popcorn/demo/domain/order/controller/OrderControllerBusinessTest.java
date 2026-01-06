@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
@@ -33,7 +34,7 @@ import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,15 +55,18 @@ class OrderControllerBusinessTest {
 
 	private OrderCommandService orderCommandService;
 	private OrderQueryService orderQueryService;
+	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
 		orderQueryService = Mockito.mock(OrderQueryService.class);
+		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
 		// 비즈니스 테스트 - 전체 시나리오 테스트를 위해 Command와 Query 컨트롤러 모두 설정
-		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
+		OrderCommandController commandController = new OrderCommandController(
+				orderCommandService, objectMapper, paymentCommandService);
 		OrderQueryController queryController = new OrderQueryController(orderQueryService);
 		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
 				.setControllerAdvice(new OrderExceptionHandler())
@@ -82,7 +86,7 @@ class OrderControllerBusinessTest {
 			// Given: 고객이 예약하려는 팝콘 정보
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 			UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-			UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+			UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 			UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
 			// 비즈니스 관점: 성공적인 예약 결과
@@ -92,7 +96,7 @@ class OrderControllerBusinessTest {
 					.orderType("RESERVATION")
 					.status("REQUESTED") // 예약 요청 상태
 					.storeId(storeId)
-					.productId(productId)
+					.popupId(popupId)
 					.totalAmount(2000)
 					.cancelableUntil(LocalDateTime.now().plusMinutes(15)) // 15분 후 취소 불가
 					.createdAt(LocalDateTime.now())
@@ -114,7 +118,7 @@ class OrderControllerBusinessTest {
 					{
 						"orderType": "RESERVATION",
 						"storeId": "%s",
-						"productId": "%s",
+						"popupId": "%s",
 						"items": [
 							{
 								"orderItemType": "RESERVATION",
@@ -124,7 +128,7 @@ class OrderControllerBusinessTest {
 							}
 						]
 					}
-					""".formatted(storeId, productId);
+					""".formatted(storeId, popupId);
 
 			// Then: 예약이 성공적으로 접수된다
 			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
@@ -151,14 +155,14 @@ class OrderControllerBusinessTest {
 
 			// Given: 해당 시간대가 이미 매진된 상황
 			when(orderCommandService.createOrder(any()))
-					.thenThrow(OrderException.emptyItems()); // 실제로는 "매진" 예외가 더 적절
+					.thenThrow(OrderValidationException.emptyItems()); // 실제로는 "매진" 예외가 더 적절
 
 			// When: 고객이 매진된 시간대에 예약을 시도한다
 			String 매진된_시간대_예약요청 = """
 					{
 						"orderType": "RESERVATION",
 						"storeId": "00000000-0000-0000-0000-000000000001",
-						"productId": "00000000-0000-0000-0000-000000000101",
+						"popupId": "00000000-0000-0000-0000-000000000101",
 						"items": [
 							{
 								"orderItemType": "RESERVATION",
@@ -189,14 +193,14 @@ class OrderControllerBusinessTest {
 
 			// Given: 비즈니스 규칙상 허용되지 않는 수량 (예: 0개 이하, 최대 수량 초과)
 			when(orderCommandService.createOrder(any()))
-					.thenThrow(OrderException.invalidQty());
+					.thenThrow(OrderValidationException.invalidQty());
 
 			// When: 고객이 잘못된 수량으로 예약을 시도한다
 			String 잘못된_수량_예약요청 = """
 					{
 						"orderType": "RESERVATION",
 						"storeId": "00000000-0000-0000-0000-000000000001",
-						"productId": "00000000-0000-0000-0000-000000000101",
+						"popupId": "00000000-0000-0000-0000-000000000101",
 						"items": [
 							{
 								"orderItemType": "RESERVATION",
@@ -233,16 +237,16 @@ class OrderControllerBusinessTest {
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001111");
 			Order 승인된_예약 = Order.builder()
 					.id(orderId)
-					.status(OrderStatus.OWNER_ACCEPTED)
+					.status(OrderStatus.ACCEPTED)
 					.build();
 
-			when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인"))
+			when(orderCommandService.updateStatus(orderId, "ACCEPTED", "점주 승인"))
 					.thenReturn(승인된_예약);
 
 			// When: 점주가 예약 요청을 승인한다
 			String 점주의_승인처리 = """
 					{
-						"status": "OWNER_ACCEPTED",
+						"status": "ACCEPTED",
 						"reason": "점주 승인"
 					}
 					""";
@@ -254,10 +258,10 @@ class OrderControllerBusinessTest {
 					.andExpect(MockMvcResultMatchers.status().isOk())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
+					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
 
 			// 비즈니스 검증: 승인 프로세스가 올바르게 수행되었는지 확인
-			verify(orderCommandService, times(1)).updateStatus(orderId, "OWNER_ACCEPTED", "점주 승인");
+			verify(orderCommandService, times(1)).updateStatus(orderId, "ACCEPTED", "점주 승인");
 
 			log.info("✅ 점주의 예약 승인 처리가 성공적으로 완료되었습니다");
 		}
@@ -269,13 +273,13 @@ class OrderControllerBusinessTest {
 
 			// Given: 이미 완료된 예약을 다시 변경하려는 상황 (비즈니스 규칙 위반)
 			UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-			when(orderCommandService.updateStatus(orderId, "READY", "reason"))
-					.thenThrow(OrderException.invalidStatusTransition());
+			when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "reason"))
+					.thenThrow(OrderValidationException.invalidStatusTransition());
 
 			// When: 점주가 허용되지 않은 상태 변경을 시도한다
 			String 잘못된_상태변경_요청 = """
 					{
-						"status": "READY",
+						"status": "PAYMENT_PENDING",
 						"reason": "reason"
 					}
 					""";

@@ -11,7 +11,7 @@ public interface OrderItemDetailView {
 
 	UUID getSessionOptionId();
 
-	UUID getMerchVariantId();
+	UUID getGoodsVariantId();
 
 	Integer getQty();
 
@@ -29,7 +29,7 @@ public interface OrderItemDetailView {
 
 	String getMerchSku();
 
-	UUID getProductId();
+	UUID getPopupId();
 
 	String getProductTitle();
 

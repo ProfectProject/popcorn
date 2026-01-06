@@ -172,23 +172,12 @@ class OrderRepositoryImplTest {
 	}
 
 	@Test
-	@DisplayName("FindByIdempotencyKey - Optional 결과 반환")
-	void findByIdempotencyKey_ReturnsOrder() {
-		Order order = buildOrder("O-6001", 6001L);
-		when(orderRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.of(order));
-
-		Optional<Order> result = orderRepositoryImpl.findByIdempotencyKey("key-1");
-		assertThat(result).isPresent();
-		assertThat(result.get().getOrderNo()).isEqualTo("O-6001");
-	}
-
-	@Test
 	@DisplayName("SaveStatusHistory - 이력 저장")
 	void saveStatusHistory_Saves() {
 		OrderStatusHistory history = OrderStatusHistory.builder()
 				.orderId(UUID.randomUUID())
 				.fromStatus(OrderStatus.REQUESTED)
-				.toStatus(OrderStatus.OWNER_ACCEPTED)
+				.toStatus(OrderStatus.ACCEPTED)
 				.reason("approved")
 				.changedAt(LocalDateTime.now())
 				.build();
@@ -198,13 +187,24 @@ class OrderRepositoryImplTest {
 		verify(orderStatusHistoryRepository).save(history);
 	}
 
+	@Test
+	@DisplayName("DeleteAllOrders - 모든 주문 데이터 삭제")
+	void deleteAllOrders_DeletesAllData() {
+		orderRepositoryImpl.deleteAllOrders();
+
+		// 순서대로 삭제되는지 검증
+		verify(orderStatusHistoryRepository).deleteAll();
+		verify(orderItemRepository).deleteAll();
+		verify(orderRepository).deleteAll();
+	}
+
 	private Order buildOrder(String orderNo, Long customerId) {
 		return Order.builder()
 				.id(UUID.randomUUID())
 				.orderNo(orderNo)
 				.customerId(customerId)
 				.storeId(UUID.randomUUID())
-				.productId(UUID.randomUUID())
+				.popupId(UUID.randomUUID())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(1000)

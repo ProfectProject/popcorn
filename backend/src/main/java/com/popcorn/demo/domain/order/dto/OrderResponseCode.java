@@ -51,7 +51,9 @@ public enum OrderResponseCode implements com.popcorn.demo.common.dto.ResponseCod
 
     DUPLICATE_IDEMPOTENCY_KEY(1302, 409, "중복된 요청입니다."),
 
-    ALREADY_CANCELED(1303, 409, "이미 취소된 주문입니다.");
+    ALREADY_CANCELED(1303, 409, "이미 취소된 주문입니다."),
+
+    PAYMENT_ALREADY_EXISTS(1304, 409, "해당 주문에 결제 기록이 이미 존재합니다.");
 
     private final int code;
     private final int httpStatus;

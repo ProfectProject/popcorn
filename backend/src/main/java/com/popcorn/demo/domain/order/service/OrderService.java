@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.order.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -26,7 +25,10 @@ import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderConflictException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.service.OrderItemPriceService;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
@@ -70,22 +72,22 @@ public class OrderService {
 		OrderType orderType = OrderType.valueOf(command.getOrderType());
 		int totalQty = calculateTotalQuantity(orderItems);
 
-		boolean isValid = validateOrderAsync(command.getUserId(), command.getProductId(), totalQty);
+		boolean isValid = validateOrderAsync(command.getUserId(), command.getPopupId(), totalQty);
 		if (!isValid) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderItems
 		);
 
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderType,
 				orderItems,
 				command.getIdempotencyKey()
@@ -121,7 +123,7 @@ public class OrderService {
 		OrderDetailView orderRow = fetchOrderDetailRow(orderId);
 		validateOrderAccess(userId, role, orderRow);
 
-		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, orderRow.getProductId());
+		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, orderRow.getPopupId());
 		OrderDetailDto.AddressDto address = fetchDefaultAddress(orderRow.getCustomerId());
 		OrderDetailDto.PaymentDto payment = fetchPayment(orderId);
 
@@ -136,7 +138,7 @@ public class OrderService {
 						.role(orderRow.getCustomerRole())
 						.build())
 				.storeId(orderRow.getStoreId())
-				.productId(orderRow.getProductId())
+				.popupId(orderRow.getPopupId())
 				.totalAmount(orderRow.getTotalAmount())
 				.cancelableUntil(orderRow.getCancelableUntil())
 				.createdAt(orderRow.getCreatedAt())
@@ -150,7 +152,7 @@ public class OrderService {
 	@Transactional(readOnly = true, transactionManager = "jdbcTransactionManager")
 	public StoreOrderReservationListResponse getStoreOrderReservations(
 			UUID storeId,
-			UUID productId,
+			UUID popupId,
 			String status,
 			LocalDateTime from,
 			LocalDateTime to,
@@ -164,7 +166,7 @@ public class OrderService {
 		String normalizedStatus = normalizeStatusFilter(status);
 		long total = orderQueryRepository.countStoreOrders(
 				storeId,
-				productId,
+				popupId,
 				normalizedStatus,
 				from,
 				to
@@ -172,7 +174,7 @@ public class OrderService {
 
 		List<StoreOrderReservationView> rows = orderQueryRepository.findStoreOrders(
 				storeId,
-				productId,
+				popupId,
 				normalizedStatus,
 				from,
 				to,
@@ -249,7 +251,7 @@ public class OrderService {
 						.totalAmount(row.getTotalAmount())
 						.cancelableUntil(row.getCancelableUntil())
 						.createdAt(row.getCreatedAt())
-						.productId(row.getProductId())
+						.popupId(row.getPopupId())
 						.storeId(row.getStoreId())
 						.title(row.getProductTitle())
 						.sessionStartAt(row.getSessionStartAt())
@@ -273,24 +275,24 @@ public class OrderService {
 		log.info("🧾 주문 상태 변경 요청 - 주문ID: {}, 변경상태: {}, 사유: {}", orderId, status, reason);
 
 		Order order = orderRepository.findById(orderId)
-				.orElseThrow(OrderException::orderNotFound);
+				.orElseThrow(OrderNotFoundException::orderNotFound);
 
 		OrderStatus currentStatus = order.getStatus();
 		if (currentStatus == OrderStatus.CANCELLED) {
-			throw OrderException.alreadyCanceled();
+			throw OrderConflictException.alreadyCanceled();
 		}
 
 		OrderStatus newStatus;
 		try {
 			newStatus = OrderStatus.valueOf(status);
 		} catch (IllegalArgumentException ex) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
 			log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}, 요청상태: {}, 사유: {}",
 					orderId, currentStatus, newStatus, reason);
-			throw OrderException.invalidStatusTransition();
+			throw OrderValidationException.invalidStatusTransition();
 		}
 
 		order.setStatus(newStatus);
@@ -313,7 +315,7 @@ public class OrderService {
 	private OrderDetailView fetchOrderDetailRow(UUID orderId) {
 		OrderDetailView row = orderQueryRepository.findOrderDetail(orderId);
 		if (row == null) {
-			throw OrderException.orderNotFound();
+			throw OrderNotFoundException.orderNotFound();
 		}
 		return row;
 	}
@@ -332,7 +334,7 @@ public class OrderService {
 			default -> false;
 		};
 		if (!allowed) {
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 	}
 
@@ -340,21 +342,21 @@ public class OrderService {
 		return orderQueryRepository.countStoreManager(userId, storeId) > 0;
 	}
 
-	private List<OrderDetailDto.ItemDto> fetchOrderItems(UUID orderId, UUID fallbackProductId) {
-		List<OrderItemDetailView> rows = orderQueryRepository.findOrderItems(orderId, fallbackProductId);
+	private List<OrderDetailDto.ItemDto> fetchOrderItems(UUID orderId, UUID fallbackPopupId) {
+		List<OrderItemDetailView> rows = orderQueryRepository.findOrderItems(orderId, fallbackPopupId);
 		return rows.stream()
 				.map(row -> OrderDetailDto.ItemDto.builder()
 						.id(row.getOrderItemId())
 						.orderItemType(row.getOrderItemType())
-						.productId(row.getProductId())
+						.popupId(row.getPopupId())
 						.productTitle(row.getProductTitle())
 						.productCategory(row.getProductCategory())
 						.productStatus(row.getProductStatus())
 						.sessionId(row.getSessionId())
-						.optionId(row.getSessionOptionId())
+						// .optionId(null) // optionId 필드가 없음
 						.sessionStartAt(row.getSessionStartAt())
 						.sessionEndAt(row.getSessionEndAt())
-						.merchVariantId(row.getMerchVariantId())
+						.goodsVariantId(row.getGoodsVariantId())
 						.merchVariantName(row.getMerchVariantName())
 						.merchSku(row.getMerchSku())
 						.qty(row.getQty())
@@ -449,12 +451,12 @@ public class OrderService {
 	 * - 고객 신용도 확인
 	 * - 프로모션 유효성 확인
 	 */
-	public boolean validateOrderAsync(Long userId, UUID productId, Integer qty) {
+	public boolean validateOrderAsync(Long userId, UUID popupId, Integer qty) {
 		boolean stock = validateStock(qty);
 		boolean user = validateCustomer(userId);
-		boolean product = validateProduct(productId);
+		boolean product = validateProduct(popupId);
 		boolean result = stock && user && product;
-		log.info("주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, productId, result);
+		log.info("주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, popupId, result);
 		return result;
 	}
 
@@ -476,8 +478,8 @@ public class OrderService {
 		return userId != null && userId > 0;
 	}
 
-	private boolean validateProduct(UUID productId) {
-		return productId != null;
+	private boolean validateProduct(UUID popupId) {
+		return popupId != null;
 	}
 
 	private void checkIdempotency(String rawKey, String normalizedKey) {
@@ -486,13 +488,7 @@ public class OrderService {
 		}
 		if (idempotencyCache.isDuplicate(normalizedKey)) {
 			log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", normalizedKey);
-			throw OrderException.duplicateIdempotencyKey();
-		}
-		Optional<Order> existingOrder = orderRepository.findByIdempotencyKey(rawKey);
-		if (orderDomainService.isDuplicateOrder(existingOrder, rawKey)) {
-			log.warn("⚠️ 중복 주문 요청 - 멱등성키: {}", rawKey);
-			idempotencyCache.mark(normalizedKey);
-			throw OrderException.duplicateIdempotencyKey();
+			throw OrderConflictException.duplicateIdempotencyKey();
 		}
 	}
 
@@ -510,30 +506,30 @@ public class OrderService {
 				.qty(itemCommand.getQty())
 				.unitPrice(unitPrice)
 				.lineAmount(lineAmount)
-				.sessionOptionId(itemCommand.getOptionId())
-				.merchVariantId(itemCommand.getMerchVariantId())
+				.sessionOptionId(itemCommand.getSessionId())
+				.goodsVariantId(itemCommand.getGoodsVariantId())
 				.build();
 	}
 
 	private Integer resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
 		OrderItemType orderItemType = itemCommand.getOrderItemType();
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
-			UUID optionId = itemCommand.getOptionId();
-			if (optionId == null) {
-				throw OrderException.optionNotFound();
+			UUID scheduleId = itemCommand.getSessionId();
+			if (scheduleId == null) {
+				throw OrderNotFoundException.sessionNotFound();
 			}
-			return orderItemPriceService.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderException::optionNotFound);
+			return orderItemPriceService.findSessionOptionPrice(scheduleId)
+					.orElseThrow(OrderNotFoundException::sessionNotFound);
 		}
-		if (OrderItemType.MERCH.equals(orderItemType)) {
-			UUID merchVariantId = itemCommand.getMerchVariantId();
-			if (merchVariantId == null) {
-				throw OrderException.merchVariantNotFound();
+		if (OrderItemType.GOODS.equals(orderItemType)) {
+			UUID goodsVariantId = itemCommand.getGoodsVariantId();
+			if (goodsVariantId == null) {
+				throw OrderNotFoundException.merchVariantNotFound();
 			}
-			return orderItemPriceService.findMerchVariantPrice(merchVariantId)
-					.orElseThrow(OrderException::merchVariantNotFound);
+			return orderItemPriceService.findMerchVariantPrice(goodsVariantId)
+					.orElseThrow(OrderNotFoundException::merchVariantNotFound);
 		}
-		throw OrderException.invalidRequest();
+		throw OrderValidationException.invalidRequest();
 	}
 
 	private String normalizeIdempotencyKey(String idempotencyKey) {
