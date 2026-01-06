@@ -1,4 +1,4 @@
-/*package com.popcorn.demo.domain.user.controller;
+package com.popcorn.demo.domain.user.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,5 +43,3 @@ class UserControllerTest {
     }
 
 }
-
-*/
