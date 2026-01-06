@@ -1,0 +1,50 @@
+-- Popup integration test seed data (actual schema)
+-- Clean ALL existing seed data first (올바른 순서로 삭제)
+-- 1. 가장 하위 테이블부터 삭제 (외래 키 의존성 순서)
+DELETE FROM p_order_goods;
+DELETE FROM p_order_status_histories;
+DELETE FROM p_orders;
+DELETE FROM p_popup_schedules;
+DELETE FROM p_popups;
+DELETE FROM p_stores;
+DELETE FROM p_users WHERE user_id IN (1, 10);
+
+INSERT INTO p_users (
+	user_id, email, password, phone, name, role, is_active, created_at, updated_at
+) VALUES
+	(1, 'seed@popcorn.local', 'test', '01000000000', 'Seed User', 'CUSTOMER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+	(10, 'owner@popcorn.local', 'test', '01011112222', 'Seed Owner', 'OWNER', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO p_stores (
+	store_id, user_id, store_name, status, created_at, updated_at
+) VALUES (
+	'00000000-0000-0000-0000-000000000001'::uuid,
+	10,
+	'Seed Store',
+	'ACTIVE',
+	CURRENT_TIMESTAMP,
+	CURRENT_TIMESTAMP
+);
+
+INSERT INTO p_popups (
+	popup_id, store_id, title, description, category, status, created_at, updated_at
+) VALUES
+	('00000000-0000-0000-0000-000000000101'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
+	 'Seed Product 1', '예약형 상품', 'FOOD', 'OPEN', TIMESTAMP '2025-01-01 10:00:00', TIMESTAMP '2025-01-01 10:00:00'),
+	('00000000-0000-0000-0000-000000000155'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
+	 'Product Merch 55', '굿즈형 상품', 'FOOD', 'OPEN', TIMESTAMP '2025-01-02 10:00:00', TIMESTAMP '2025-01-02 10:00:00');
+
+INSERT INTO p_popup_schedules (
+	schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, created_at, updated_at
+) VALUES (
+	'00000000-0000-0000-0000-000000000201'::uuid,
+	'00000000-0000-0000-0000-000000000101'::uuid,
+	TIMESTAMP '2025-01-01 10:00:00',
+	TIMESTAMP '2025-01-05 18:00:00',
+	15000,
+	30,
+	30,
+	TRUE,
+	TIMESTAMP '2025-01-01 10:00:00',
+	TIMESTAMP '2025-01-01 10:00:00'
+);

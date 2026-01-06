@@ -20,8 +20,8 @@ public interface OrderItemPriceService {
 
     /**
      * 머치 변형 가격 조회
-     * @param merchVariantId 머치 변형 ID
+     * @param goodsVariantId 머치 변형 ID
      * @return 가격 (원 단위)
      */
-    Optional<Integer> findMerchVariantPrice(UUID merchVariantId);
+    Optional<Integer> findMerchVariantPrice(UUID goodsVariantId);
 }

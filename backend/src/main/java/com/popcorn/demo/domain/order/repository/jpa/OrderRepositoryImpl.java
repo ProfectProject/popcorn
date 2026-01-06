@@ -76,6 +76,14 @@ public class OrderRepositoryImpl implements OrderRepository {
 	}
 
 	@Override
+	public void deleteAllOrders() {
+		// 외래키 관계 때문에 순서대로 삭제
+		orderStatusHistoryRepository.deleteAll();
+		orderItemRepository.deleteAll();
+		orderRepository.deleteAll();
+	}
+
+	@Override
 	public boolean existsById(UUID orderId) {
 		return orderRepository.existsById(orderId);
 	}
@@ -117,11 +125,6 @@ public class OrderRepositoryImpl implements OrderRepository {
 	}
 
 	@Override
-	public List<Order> findByProductId(UUID productId) {
-		return orderRepository.findByProductId(productId);
-	}
-
-	@Override
 	public List<Order> findByStatus(OrderStatus status) {
 		return orderRepository.findByStatus(status);
 	}
@@ -155,16 +158,6 @@ public class OrderRepositoryImpl implements OrderRepository {
 	public long sumTotalAmountByCustomerIdAndCreatedAtBetween(
 			Long customerId, LocalDateTime startDate, LocalDateTime endDate) {
 		return orderRepository.sumTotalAmountByCustomerIdAndCreatedAtBetween(customerId, startDate, endDate);
-	}
-
-	@Override
-	public java.util.Optional<Order> findByIdempotencyKey(String idempotencyKey) {
-		return orderRepository.findByIdempotencyKey(idempotencyKey);
-	}
-
-	@Override
-	public boolean existsByIdempotencyKey(String idempotencyKey) {
-		return orderRepository.existsByIdempotencyKey(idempotencyKey);
 	}
 
 	@Override

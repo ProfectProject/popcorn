@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 
 @Builder
 
-public class MerchDetail {
+public class GoodsDetail {
 
 
 
@@ -39,13 +39,13 @@ public class MerchDetail {
 
 		* 상품 변형 ID
 
-		* - p_merch_variants 테이블의 ID 참조
+		* - p_goods_variants 테이블의 goods_id 참조
 
 		* - 구매하려는 굿즈의 특정 변형 (사이즈, 색상, 옵션 등)
 
 		*/
 
-	private UUID merchVariantId;
+	private UUID goodsVariantId;
 
 
 
@@ -55,7 +55,7 @@ public class MerchDetail {
 
 		* - 상품 식별 코드
 
-		* - merchVariantId를 통해 조회된 SKU 값
+		* - goodsVariantId를 통해 조회된 SKU 값
 
 		*/
 
@@ -67,7 +67,7 @@ public class MerchDetail {
 
 		* 상품명
 
-		* - merchVariantId를 통해 조회된 상품명
+		* - goodsVariantId를 통해 조회된 상품명
 
 		*/
 
@@ -95,23 +95,23 @@ public class MerchDetail {
 
 		* 굿즈 세부정보 생성
 
-		* @param merchVariantId 상품 변형 ID (필수)
+		* @param goodsVariantId 상품 변형 ID (필수)
 
-		* @return MerchDetail 인스턴스
+		* @return GoodsDetail 인스턴스
 
-		* @throws IllegalArgumentException merchVariantId가 null인 경우
+		* @throws IllegalArgumentException goodsVariantId가 null인 경우
 
 		*/
 
-	public static MerchDetail of(UUID merchVariantId) {
+	public static GoodsDetail of(UUID goodsVariantId) {
 
-		validateMerchVariantId(merchVariantId);
+		validateGoodsVariantId(goodsVariantId);
 
 
 
-		return MerchDetail.builder()
+		return GoodsDetail.builder()
 
-				.merchVariantId(merchVariantId)
+				.goodsVariantId(goodsVariantId)
 
 				.build();
 
@@ -123,7 +123,7 @@ public class MerchDetail {
 
 		* 굿즈 세부정보 생성 (상세 정보 포함)
 
-		* @param merchVariantId 상품 변형 ID (필수)
+		* @param goodsVariantId 상품 변형 ID (필수)
 
 		* @param sku 상품 식별 코드
 
@@ -131,21 +131,21 @@ public class MerchDetail {
 
 		* @param variantName 변형 옵션명
 
-		* @return MerchDetail 인스턴스
+		* @return GoodsDetail 인스턴스
 
-		* @throws IllegalArgumentException merchVariantId가 null인 경우
+		* @throws IllegalArgumentException goodsVariantId가 null인 경우
 
 		*/
 
-	public static MerchDetail of(UUID merchVariantId, String sku, String productName, String variantName) {
+	public static GoodsDetail of(UUID goodsVariantId, String sku, String productName, String variantName) {
 
-		validateMerchVariantId(merchVariantId);
+		validateGoodsVariantId(goodsVariantId);
 
 
 
-		return MerchDetail.builder()
+		return GoodsDetail.builder()
 
-				.merchVariantId(merchVariantId)
+				.goodsVariantId(goodsVariantId)
 
 				.sku(sku)
 
@@ -167,15 +167,15 @@ public class MerchDetail {
 
 		* 상품 변형 ID 검증
 
-		* @param merchVariantId 검증할 상품 변형 ID
+		* @param goodsVariantId 검증할 상품 변형 ID
 
-		* @throws IllegalArgumentException merchVariantId가 null인 경우
+		* @throws IllegalArgumentException goodsVariantId가 null인 경우
 
 		*/
 
-	private static void validateMerchVariantId(UUID merchVariantId) {
+	private static void validateGoodsVariantId(UUID goodsVariantId) {
 
-		if (merchVariantId == null) {
+		if (goodsVariantId == null) {
 
 			throw new IllegalArgumentException("상품 변형 ID는 필수입니다.");
 
@@ -193,13 +193,13 @@ public class MerchDetail {
 
 		* 유효한 굿즈 세부정보인지 확인
 
-		* @return merchVariantId가 존재하면 true
+		* @return goodsVariantId가 존재하면 true
 
 		*/
 
 	public boolean isValid() {
 
-		return merchVariantId != null;
+		return goodsVariantId != null;
 
 	}
 
@@ -209,15 +209,15 @@ public class MerchDetail {
 
 		* 특정 상품 변형인지 확인
 
-		* @param merchVariantId 확인할 상품 변형 ID
+		* @param goodsVariantId 확인할 상품 변형 ID
 
 		* @return 해당 상품 변형이면 true
 
 		*/
 
-	public boolean isSameVariant(UUID merchVariantId) {
+	public boolean isSameVariant(UUID goodsVariantId) {
 
-		return this.merchVariantId != null && this.merchVariantId.equals(merchVariantId);
+		return this.goodsVariantId != null && this.goodsVariantId.equals(goodsVariantId);
 
 	}
 
@@ -253,7 +253,7 @@ public class MerchDetail {
 
 		if (productName == null && variantName == null) {
 
-			return "상품 ID: " + merchVariantId;
+			return "상품 ID: " + goodsVariantId;
 
 		}
 
@@ -291,7 +291,7 @@ public class MerchDetail {
 
 	public String getStockIdentifier() {
 
-		return sku != null ? sku : "VARIANT_" + merchVariantId;
+		return sku != null ? sku : "VARIANT_" + goodsVariantId;
 
 	}
 

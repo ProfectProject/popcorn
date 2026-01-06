@@ -96,13 +96,13 @@ public class OrderCancelledEvent extends BaseOrderEvent {
      * 취소 심각도 평가
      */
     public String getCancellationSeverity() {
-        if (previousStatus == OrderStatus.READY || previousStatus == OrderStatus.PREPARING) {
-            return "HIGH";  // 준비 단계에서 취소 - 높은 손실
+        if (previousStatus == OrderStatus.PAID) {
+            return "HIGH";  // 결제 완료 후 취소
         }
-        if (previousStatus == OrderStatus.CONFIRMED) {
-            return "MEDIUM"; // 확인 후 취소 - 중간 손실
+        if (previousStatus == OrderStatus.RESERVED || previousStatus == OrderStatus.PAYMENT_PENDING) {
+            return "MEDIUM"; // 예약/결제 대기 단계 취소
         }
-        return "LOW";  // 초기 단계 취소 - 낮은 손실
+        return "LOW";  // 초기 단계 취소
     }
 
     // ================ Event Payload ================
@@ -159,22 +159,20 @@ public class OrderCancelledEvent extends BaseOrderEvent {
     }
 
     private static boolean isEarlyCancellation(OrderStatus status) {
-        return status == OrderStatus.REQUESTED || status == OrderStatus.OWNER_ACCEPTED;
+        return status == OrderStatus.REQUESTED || status == OrderStatus.ACCEPTED;
     }
 
     private static boolean requiresCompensation(OrderStatus status) {
-        return status == OrderStatus.PREPARING ||
-               status == OrderStatus.READY ||
-               status == OrderStatus.CONFIRMED;
+        return status == OrderStatus.PAID;
     }
 
     private String getStatusDisplayName(OrderStatus status) {
         return switch (status) {
             case REQUESTED -> "요청됨";
-            case OWNER_ACCEPTED -> "점주승인";
-            case CONFIRMED -> "확인됨";
-            case PREPARING -> "준비중";
-            case READY -> "준비완료";
+            case ACCEPTED -> "승인됨";
+            case RESERVED -> "예약됨";
+            case PAYMENT_PENDING -> "결제대기";
+            case PAID -> "결제완료";
             default -> status.name();
         };
     }

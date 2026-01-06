@@ -16,11 +16,11 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "p_products")
+@Table(name = "p_popups")
 public class PopupProduct extends BaseEntity {
 
 	@Id
-	@Column(name = "id")
+	@Column(name = "popup_id")
 	private UUID id;
 
 	@Column(name = "store_id")
@@ -37,12 +37,6 @@ public class PopupProduct extends BaseEntity {
 
 	@Column(name = "status")
 	private String status;
-
-	@Column(name = "is_hidden")
-	private boolean hidden;
-
-	@Column(name = "region_id")
-	private Long regionId;
 
 	@Column(name = "deleted_at")
 	private java.time.LocalDateTime deletedAt;

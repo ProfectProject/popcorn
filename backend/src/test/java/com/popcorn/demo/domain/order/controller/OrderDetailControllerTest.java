@@ -19,7 +19,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.global.config.CommonConfig;
 
@@ -36,9 +37,10 @@ class OrderDetailControllerTest {
 		orderQueryService = Mockito.mock(OrderQueryService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
-		// 주문 상세 조회는 Query 작업이므로 OrderQueryController를 사용
-		OrderQueryController queryController = new OrderQueryController(orderQueryService);
-		mockMvc = MockMvcBuilders.standaloneSetup(queryController)
+		// Mock을 사용하여 컨트롤러 생성
+		mockMvc = MockMvcBuilders.standaloneSetup(
+				new OrderQueryController(orderQueryService)
+		)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -49,7 +51,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000155");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000155");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002001");
 
 		OrderDetailDto detail = OrderDetailDto.builder()
@@ -60,10 +62,10 @@ class OrderDetailControllerTest {
 				.customerId(1L)
 				.customer(OrderDetailDto.CustomerDto.builder()
 						.id(1L)
-						.role("USER")
+						.role("CUSTOMER")
 						.build())
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(4000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -72,9 +74,9 @@ class OrderDetailControllerTest {
 						OrderDetailDto.ItemDto.builder()
 								.id(itemId)
 								.orderItemType("RESERVATION")
-								.productId(productId)
+								.popupId(popupId)
 								.productTitle("Seed Popup 55")
-								.productCategory("POPUP")
+								.productCategory("FOOD")
 								.productStatus("OPEN")
 								.qty(2)
 								.unitPrice(2000)
@@ -90,7 +92,7 @@ class OrderDetailControllerTest {
 				.payment(OrderDetailDto.PaymentDto.builder()
 						.id(UUID.fromString("00000000-0000-0000-0000-000000004001"))
 						.method("CARD")
-						.status("APPROVED")
+						.status("PAID")
 						.amount(4000)
 						.build())
 				.build();
@@ -112,10 +114,9 @@ class OrderDetailControllerTest {
 	void getOrderDetail_reservationFields() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001010");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000010");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000155");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000155");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002010");
 		UUID sessionId = UUID.fromString("00000000-0000-0000-0000-000000000201");
-		UUID optionId = UUID.fromString("00000000-0000-0000-0000-000000000301");
 		LocalDateTime sessionStart = LocalDateTime.now().minusDays(1);
 		LocalDateTime sessionEnd = LocalDateTime.now().plusDays(1);
 
@@ -127,10 +128,10 @@ class OrderDetailControllerTest {
 				.customerId(1L)
 				.customer(OrderDetailDto.CustomerDto.builder()
 						.id(1L)
-						.role("USER")
+						.role("CUSTOMER")
 						.build())
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -139,12 +140,11 @@ class OrderDetailControllerTest {
 						OrderDetailDto.ItemDto.builder()
 								.id(itemId)
 								.orderItemType("RESERVATION")
-								.productId(productId)
+								.popupId(popupId)
 								.productTitle("Seed Popup 55")
-								.productCategory("POPUP")
+								.productCategory("FOOD")
 								.productStatus("OPEN")
 								.sessionId(sessionId)
-								.optionId(optionId)
 								.sessionStartAt(sessionStart)
 								.sessionEndAt(sessionEnd)
 								.qty(2)
@@ -160,19 +160,19 @@ class OrderDetailControllerTest {
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionId").value(sessionId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].optionId").value(optionId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].optionId").doesNotExist())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionStartAt").exists())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionEndAt").exists());
 	}
 
 	@Test
 	@DisplayName("주문 상세 조회 - 굿즈 항목 정보 노출")
-	void getOrderDetail_merchFields() throws Exception {
+		void getOrderDetail_goodsFields() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001011");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000102");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000102");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000002011");
-		UUID merchVariantId = UUID.fromString("00000000-0000-0000-0000-000000000401");
+		UUID goodsVariantId = UUID.fromString("00000000-0000-0000-0000-000000000401");
 
 		OrderDetailDto detail = OrderDetailDto.builder()
 				.id(orderId)
@@ -185,7 +185,7 @@ class OrderDetailControllerTest {
 						.role("USER")
 						.build())
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(3000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -193,12 +193,12 @@ class OrderDetailControllerTest {
 				.items(List.of(
 						OrderDetailDto.ItemDto.builder()
 								.id(itemId)
-								.orderItemType("MERCH")
-								.productId(productId)
+								.orderItemType("GOODS")
+								.popupId(popupId)
 								.productTitle("Seed Merch 2")
 								.productCategory("MERCH")
 								.productStatus("OPEN")
-								.merchVariantId(merchVariantId)
+								.goodsVariantId(goodsVariantId)
 								.merchVariantName("Seed Merch Variant")
 								.merchSku("SEED-SKU-401")
 								.qty(2)
@@ -213,8 +213,8 @@ class OrderDetailControllerTest {
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].merchVariantId")
-						.value(merchVariantId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].goodsVariantId")
+						.value(goodsVariantId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].merchVariantName")
 						.value("Seed Merch Variant"))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].merchSku")
@@ -226,7 +226,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_notFound() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
 		when(orderQueryService.getOrderDetail(orderId, null, null))
-				.thenThrow(OrderException.orderNotFound());
+				.thenThrow(OrderNotFoundException.orderNotFound());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId))
 				.andExpect(MockMvcResultMatchers.status().isNotFound())
@@ -239,7 +239,7 @@ class OrderDetailControllerTest {
 	void getOrderDetail_forbidden() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009998");
 		when(orderQueryService.getOrderDetail(orderId, null, null))
-				.thenThrow(OrderException.forbidden());
+				.thenThrow(OrderForbiddenException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId))
 				.andExpect(MockMvcResultMatchers.status().isForbidden())

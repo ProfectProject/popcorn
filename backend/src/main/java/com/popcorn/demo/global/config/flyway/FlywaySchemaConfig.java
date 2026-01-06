@@ -23,7 +23,7 @@ public class FlywaySchemaConfig {
 
 				.dataSource(dataSource)
 
-				.locations("classpath:db/migration/schema")
+				.locations("classpath:db/migration/schema", "classpath:db/migration/seed")
 
 				.table("flyway_schema_history")
 

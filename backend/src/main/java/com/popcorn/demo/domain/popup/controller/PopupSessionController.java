@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
-import com.popcorn.demo.domain.popup.application.PopupApplicationService;
+import com.popcorn.demo.domain.popup.service.PopupService;
 import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
 
@@ -35,7 +35,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 public class PopupSessionController extends BaseController {
 
-	private final PopupApplicationService popupApplicationService;
+	private final PopupService popupService;
 
 	@Operation(
 			summary = "회차(슬롯) 조회",
@@ -56,15 +56,10 @@ public class PopupSessionController extends BaseController {
 							        "id": "00000000-0000-0000-0000-000000000201",
 							        "startAt": "2025-01-01T10:00:00",
 							        "endAt": "2025-01-05T18:00:00",
-							        "status": "OPEN",
-							        "location": {
-							          "id": "00000000-0000-0000-0000-000000009001",
-							          "name": "팝업 테스트 장소",
-							          "address1": "서울특별시 강남구 테헤란로 123",
-							          "address2": "ABC빌딩 12층",
-							          "latitude": 37.498,
-							          "longitude": 127.027
-							        }
+							        "price": 12000,
+							        "capacity": 50,
+							        "remainingCapacity": 50,
+							        "isActive": true
 							      }
 							    ]
 							  }
@@ -72,11 +67,11 @@ public class PopupSessionController extends BaseController {
 							""")
 			)
 	)
-	@GetMapping("/{productId}/sessions")
+	@GetMapping("/{popupId}/sessions")
 	public ResponseEntity<BaseResponse<PopupSessionListResponse>> getProductSessions(
 			@Parameter(description = "상품 ID", required = true,
 					example = "00000000-0000-0000-0000-000000000101")
-			@PathVariable UUID productId,
+			@PathVariable UUID popupId,
 			@Parameter(description = "조회 시작 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -84,9 +79,9 @@ public class PopupSessionController extends BaseController {
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
-		PopupSessionListResponse response = popupApplicationService.getProductSessions(
+		PopupSessionListResponse response = popupService.getProductSessions(
 				PopupSessionListQuery.builder()
-						.productId(productId)
+						.popupId(popupId)
 						.from(from)
 						.to(to)
 						.build());

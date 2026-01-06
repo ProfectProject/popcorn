@@ -25,6 +25,9 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
+import com.popcorn.demo.domain.order.controller.OrderCommandController;
+import com.popcorn.demo.domain.order.controller.OrderExceptionHandler;
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderAtddTest {
@@ -34,15 +37,18 @@ class OrderAtddTest {
 	private ObjectMapper objectMapper;
 
 	private OrderCommandService orderCommandService;
+	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
+		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
-		// ATDD 테스트 - 주문 생성과 상태 변경은 Command 작업이므로 OrderCommandController를 사용
-		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
+		// Mock을 사용하여 컨트롤러 생성
+		mockMvc = MockMvcBuilders.standaloneSetup(
+				new OrderCommandController(orderCommandService, objectMapper, paymentCommandService)
+		)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -53,7 +59,7 @@ class OrderAtddTest {
 	void createOrder_then_updateStatus() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000002001");
 		UUID storeId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		UUID itemId = UUID.fromString("00000000-0000-0000-0000-000000000020");
 
 		CreateOrderResponse response = CreateOrderResponse.builder()
@@ -62,7 +68,7 @@ class OrderAtddTest {
 				.orderType("RESERVATION")
 				.status("REQUESTED")
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -81,16 +87,16 @@ class OrderAtddTest {
 
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.OWNER_ACCEPTED)
+				.status(OrderStatus.ACCEPTED)
 				.build();
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
 		String createJsonRequest = """
 				{
 					"orderType": "RESERVATION",
 					"storeId": "%s",
-					"productId": "%s",
+					"popupId": "%s",
 					"items": [
 						{
 							"orderItemType": "RESERVATION",
@@ -100,7 +106,7 @@ class OrderAtddTest {
 						}
 					]
 				}
-				""".formatted(storeId, productId);
+				""".formatted(storeId, popupId);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -110,7 +116,7 @@ class OrderAtddTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].id").value(itemId.toString()));
 
 		UpdateOrderStatusRequest statusRequest = UpdateOrderStatusRequest.builder()
-				.status("OWNER_ACCEPTED")
+				.status("ACCEPTED")
 				.reason("approved")
 				.build();
 		String statusBody = objectMapper.writeValueAsString(statusRequest);
@@ -120,6 +126,6 @@ class OrderAtddTest {
 						.content(statusBody))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
 	}
 }
