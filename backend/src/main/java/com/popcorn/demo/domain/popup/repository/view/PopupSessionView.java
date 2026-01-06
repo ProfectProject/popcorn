@@ -1,6 +1,5 @@
 package com.popcorn.demo.domain.popup.repository.view;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public interface PopupSessionView {
@@ -11,17 +10,11 @@ public interface PopupSessionView {
 
 	LocalDateTime getEndAt();
 
-	String getStatus();
+	Integer getPrice();
 
-	String getLocationId();
+	Integer getCapacity();
 
-	String getLocationName();
+	Integer getRemainingCapacity();
 
-	String getLocationAddress1();
-
-	String getLocationAddress2();
-
-	BigDecimal getLocationLatitude();
-
-	BigDecimal getLocationLongitude();
+	Boolean getIsActive();
 }

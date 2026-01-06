@@ -1,0 +1,3 @@
+-- This file is intentionally left blank.
+-- The original content has been moved to V12__seed_popup_test_data.sql.ignore
+-- This is to prevent test data from being loaded in non-test environments.

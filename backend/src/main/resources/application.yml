@@ -15,6 +15,16 @@ spring:
     activate:
       on-profile: local
 
+  # Flyway 설정 (Local)
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations:
+      - classpath:db/migration/schema
+      - classpath:db/migration/seed
+    schemas: public
+    create-schemas: true
+    clean-disabled: false  # 개발 환경에서만 허용
 ---
 # Development 환경 설정 (보안 설정 분리)
 spring:
@@ -22,6 +32,17 @@ spring:
     import: classpath:security/application-dev.yml
     activate:
       on-profile: dev
+
+  # Flyway 설정 (Dev)
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations:
+      - classpath:db/migration/schema
+      - classpath:db/migration/seed
+    schemas: public
+    create-schemas: true
+    clean-disabled: true  # 개발/운영 환경에서는 비활성화
 
 ---
 # Production 환경 설정 (보안 설정 분리)
@@ -31,6 +52,17 @@ spring:
     activate:
       on-profile: prod
 
+  # Flyway 설정 (Prod)
+  flyway:
+    enabled: true
+    baseline-on-migrate: false  # 운영 환경에서는 false
+    locations:
+      - classpath:db/migration/schema
+      - classpath:db/migration/seed
+    schemas: public
+    create-schemas: false  # 운영 환경에서는 false
+    clean-disabled: true  # 운영 환경에서는 반드시 true
+    validate-on-migrate: true  # 운영 환경에서 마이그레이션 검증
 
 # Actuator 설정
 management:

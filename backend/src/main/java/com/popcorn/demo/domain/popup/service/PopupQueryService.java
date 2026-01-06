@@ -1,6 +1,5 @@
 package com.popcorn.demo.domain.popup.service;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,21 +55,10 @@ public class PopupQueryService {
 						.id(toUuid(view.getId()))
 						.storeId(toUuid(view.getStoreId()))
 						.title(view.getTitle())
-						.productType(view.getProductType())
 						.category(view.getCategory())
-						.regionId(view.getRegionId())
-						.isHidden(Boolean.TRUE.equals(view.getIsHidden()))
+						.status(view.getStatus())
 						.eventStartAt(view.getEventStartAt())
 						.eventEndAt(view.getEventEndAt())
-						.location(buildListLocation(
-								toUuid(view.getLocationId()),
-								view.getLocationName(),
-								view.getLocationAddress1(),
-								view.getLocationAddress2(),
-								view.getLocationLatitude(),
-								view.getLocationLongitude(),
-								null
-						))
 						.build())
 				.toList();
 
@@ -82,67 +70,21 @@ public class PopupQueryService {
 				.build();
 	}
 
-	@Cacheable(value = "popupDetail", key = "#query.productId")
+	@Cacheable(value = "popupDetail", key = "#query.popupId")
 	public PopupDetailResponse getPopupDetail(PopupDetailQuery query) {
-		PopupListView view = popupQueryRepository.findPopupDetail(query.getProductId())
+		PopupListView view = popupQueryRepository.findPopupDetail(query.getPopupId())
 				.orElseThrow(com.popcorn.demo.domain.popup.exception.PopupException::popupNotFound);
 
 		return PopupDetailResponse.builder()
 				.id(toUuid(view.getId()))
 				.storeId(toUuid(view.getStoreId()))
 				.title(view.getTitle())
-				.productType(view.getProductType())
+				.description(view.getDescription())
 				.category(view.getCategory())
-				.regionId(view.getRegionId())
-				.isHidden(Boolean.TRUE.equals(view.getIsHidden()))
+				.status(view.getStatus())
 				.eventStartAt(view.getEventStartAt())
 				.eventEndAt(view.getEventEndAt())
-				.location(buildDetailLocation(
-						toUuid(view.getLocationId()),
-						view.getLocationName(),
-						view.getLocationAddress1(),
-						view.getLocationAddress2(),
-						view.getLocationLatitude(),
-						view.getLocationLongitude(),
-						null
-				))
 				.build();
-	}
-
-	private PopupListResponse.LocationDto buildListLocation(UUID id, String name, String address1, String address2,
-			BigDecimal latitude, BigDecimal longitude, String placeNote) {
-		if (id == null && name == null && address1 == null && address2 == null && latitude == null && longitude == null) {
-			return null;
-		}
-		return PopupListResponse.LocationDto.builder()
-				.id(id)
-				.name(name)
-				.address1(address1)
-				.address2(address2)
-				.latitude(toDouble(latitude))
-				.longitude(toDouble(longitude))
-				.placeNote(placeNote)
-				.build();
-	}
-
-	private PopupDetailResponse.LocationDto buildDetailLocation(UUID id, String name, String address1, String address2,
-			BigDecimal latitude, BigDecimal longitude, String placeNote) {
-		if (id == null && name == null && address1 == null && address2 == null && latitude == null && longitude == null) {
-			return null;
-		}
-		return PopupDetailResponse.LocationDto.builder()
-				.id(id)
-				.name(name)
-				.address1(address1)
-				.address2(address2)
-				.latitude(toDouble(latitude))
-				.longitude(toDouble(longitude))
-				.placeNote(placeNote)
-				.build();
-	}
-
-	private Double toDouble(BigDecimal value) {
-		return value == null ? null : value.doubleValue();
 	}
 
 	private UUID toUuid(String value) {

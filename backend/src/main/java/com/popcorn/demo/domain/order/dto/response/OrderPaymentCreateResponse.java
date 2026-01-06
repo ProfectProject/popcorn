@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.popup.dto.query;
+package com.popcorn.demo.domain.order.dto.response;
 
 import java.util.UUID;
 
@@ -8,10 +8,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PopupOptionListQuery {
+@Builder
+public class OrderPaymentCreateResponse {
 
-	private UUID productId;
+	private UUID paymentId;
+	private String status;
+	private String orderStatus;
 }

@@ -27,9 +27,13 @@ import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListRespo
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderConflictException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 class OrderControllerTest {
@@ -43,16 +47,20 @@ class OrderControllerTest {
 
 	private OrderCommandService orderCommandService;
 	private OrderQueryService orderQueryService;
+	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		orderCommandService = Mockito.mock(OrderCommandService.class);
 		orderQueryService = Mockito.mock(OrderQueryService.class);
+		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		ObjectMapper objectMapper = new CommonConfig().objectMapper();
 
-		OrderCommandController commandController = new OrderCommandController(orderCommandService, objectMapper);
-		OrderQueryController queryController = new OrderQueryController(orderQueryService);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
+		// Mock을 사용하여 컨트롤러 생성
+		mockMvc = MockMvcBuilders.standaloneSetup(
+				new OrderCommandController(orderCommandService, objectMapper, paymentCommandService),
+				new OrderQueryController(orderQueryService)
+		)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -72,7 +80,7 @@ class OrderControllerTest {
 				.orderType("RESERVATION")
 				.status("REQUESTED")
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(productId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -103,7 +111,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 빈 아이템")
 	void createOrder_fail_emptyItems() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderException.emptyItems());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderValidationException.emptyItems());
 
 		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
 
@@ -140,9 +148,90 @@ class OrderControllerTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 조회 성공 (OWNER/MANAGER)")
+	void getOrderStatusForStaff_success() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+		OrderStatusDto response = OrderStatusDto.builder()
+				.orderId(orderId)
+				.orderNo("O20251231-001001")
+				.status("REQUESTED")
+				.paymentStatus("READY")
+				.cancelableUntil(LocalDateTime.now().plusMinutes(15))
+				.updatedAt(LocalDateTime.now())
+				.build();
+
+		when(orderQueryService.getOrderStatusForStaff(orderId, 2001L, "OWNER")).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status/ops", orderId)
+						.param("userId", "2001")
+						.param("role", "OWNER")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.paymentStatus").value("READY"));
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회 실패 (OWNER/MANAGER) - 권한 없음")
+	void getOrderStatusForStaff_forbidden() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+
+		when(orderQueryService.getOrderStatusForStaff(orderId, 2001L, "OWNER"))
+				.thenThrow(OrderForbiddenException.forbidden());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status/ops", orderId)
+						.param("userId", "2001")
+						.param("role", "OWNER")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isForbidden())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(403))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("권한이 없습니다."));
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회 실패 (OWNER/MANAGER) - 주문 없음")
+	void getOrderStatusForStaff_notFound() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
+
+		when(orderQueryService.getOrderStatusForStaff(orderId, 2001L, "MANAGER"))
+				.thenThrow(OrderNotFoundException.orderNotFound());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status/ops", orderId)
+						.param("userId", "2001")
+						.param("role", "MANAGER")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isNotFound())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1100))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("주문을 찾을 수 없습니다."));
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회 실패 (OWNER/MANAGER) - userId 누락")
+	void getOrderStatusForStaff_missingUserId() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status/ops", orderId)
+						.param("role", "OWNER")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isBadRequest());
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회 실패 (OWNER/MANAGER) - role 누락")
+	void getOrderStatusForStaff_missingRole() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status/ops", orderId)
+						.param("userId", "2001")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isBadRequest());
+	}
+
+	@Test
 	@DisplayName("주문 생성 실패 - 잘못된 수량")
 	void createOrder_fail_invalidQty() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderException.invalidQty());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderValidationException.invalidQty());
 
 		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
 
@@ -157,7 +246,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 상품 없음")
 	void createOrder_fail_productNotFound() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderException.productNotFound());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderNotFoundException.productNotFound());
 
 		String jsonRequest = buildReservationOrderRequest(
 				DEFAULT_STORE_ID,
@@ -176,7 +265,7 @@ class OrderControllerTest {
 	@Test
 	@DisplayName("주문 생성 실패 - 멱등성 키 중복")
 	void createOrder_fail_duplicateIdempotency() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderException.duplicateIdempotencyKey());
+		when(orderCommandService.createOrder(any())).thenThrow(OrderConflictException.duplicateIdempotencyKey());
 
 		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
 
@@ -195,13 +284,13 @@ class OrderControllerTest {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001111");
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.OWNER_ACCEPTED)
+				.status(OrderStatus.ACCEPTED)
 				.build();
 
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "approved"))
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "approved"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "approved");
+		String jsonRequest = buildUpdateStatusRequest("ACCEPTED", "approved");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -209,22 +298,22 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OWNER_ACCEPTED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 성공 - OWNER_ACCEPTED → CONFIRMED")
+	@DisplayName("주문 상태 변경 성공 - ACCEPTED → RESERVED")
 	void updateOrderStatus_ownerAcceptedToConfirmed() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001115");
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.CONFIRMED)
+				.status(OrderStatus.RESERVED)
 				.build();
 
-		when(orderCommandService.updateStatus(orderId, "CONFIRMED", "confirmed"))
+		when(orderCommandService.updateStatus(orderId, "RESERVED", "confirmed"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = buildUpdateStatusRequest("CONFIRMED", "confirmed");
+		String jsonRequest = buildUpdateStatusRequest("RESERVED", "confirmed");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -232,22 +321,22 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("CONFIRMED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("RESERVED"));
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 성공 - CONFIRMED → PREPARING")
+	@DisplayName("주문 상태 변경 성공 - RESERVED → PAYMENT_PENDING")
 	void updateOrderStatus_confirmedToPreparing() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001116");
 		Order updatedOrder = Order.builder()
 				.id(orderId)
-				.status(OrderStatus.PREPARING)
+				.status(OrderStatus.PAYMENT_PENDING)
 				.build();
 
-		when(orderCommandService.updateStatus(orderId, "PREPARING", "preparing"))
+		when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "preparing"))
 				.thenReturn(updatedOrder);
 
-		String jsonRequest = buildUpdateStatusRequest("PREPARING", "preparing");
+		String jsonRequest = buildUpdateStatusRequest("PAYMENT_PENDING", "preparing");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -255,17 +344,17 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PREPARING"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PAYMENT_PENDING"));
 	}
 
 	@Test
 	@DisplayName("주문 상태 변경 실패 - 허용되지 않은 전이")
 	void updateOrderStatus_invalidTransition() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001112");
-		when(orderCommandService.updateStatus(orderId, "READY", "reason"))
-				.thenThrow(OrderException.invalidStatusTransition());
+		when(orderCommandService.updateStatus(orderId, "PAYMENT_PENDING", "reason"))
+				.thenThrow(OrderValidationException.invalidStatusTransition());
 
-		String jsonRequest = buildUpdateStatusRequest("READY", "reason");
+		String jsonRequest = buildUpdateStatusRequest("PAYMENT_PENDING", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -279,10 +368,10 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 주문 없음")
 	void updateOrderStatus_notFound() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
-				.thenThrow(OrderException.orderNotFound());
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "reason"))
+				.thenThrow(OrderNotFoundException.orderNotFound());
 
-		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "reason");
+		String jsonRequest = buildUpdateStatusRequest("ACCEPTED", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -296,10 +385,10 @@ class OrderControllerTest {
 	@DisplayName("주문 상태 변경 실패 - 이미 취소됨")
 	void updateOrderStatus_alreadyCanceled() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001113");
-		when(orderCommandService.updateStatus(orderId, "OWNER_ACCEPTED", "reason"))
-				.thenThrow(OrderException.alreadyCanceled());
+		when(orderCommandService.updateStatus(orderId, "ACCEPTED", "reason"))
+				.thenThrow(OrderConflictException.alreadyCanceled());
 
-		String jsonRequest = buildUpdateStatusRequest("OWNER_ACCEPTED", "reason");
+		String jsonRequest = buildUpdateStatusRequest("ACCEPTED", "reason");
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -314,7 +403,7 @@ class OrderControllerTest {
 	void updateOrderStatus_invalidStatus() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001114");
 		when(orderCommandService.updateStatus(orderId, "NOT_A_STATUS", "reason"))
-				.thenThrow(OrderException.invalidRequest());
+				.thenThrow(OrderValidationException.invalidRequest());
 
 		String jsonRequest = buildUpdateStatusRequest("NOT_A_STATUS", "reason");
 
@@ -337,7 +426,7 @@ class OrderControllerTest {
 				.orderType("RESERVATION")
 				.status("REQUESTED")
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(productId)
 				.totalAmount(2000)
 				.cancelableUntil(LocalDateTime.now())
 				.createdAt(LocalDateTime.now())
@@ -391,10 +480,97 @@ class OrderControllerTest {
 	}
 
 	@Test
+	@DisplayName("가게 주문/예약 상태 목록 조회 성공 (OWNER/MANAGER)")
+	void getStoreOrderStatusesForStaff_success() throws Exception {
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
+		UUID reservationId = UUID.fromString("00000000-0000-0000-0000-000000001201");
+		LocalDateTime createdAt = LocalDateTime.now().minusHours(1);
+
+		StoreOrderReservationListResponse response = StoreOrderReservationListResponse.builder()
+				.items(List.of(
+						StoreOrderReservationListResponse.ItemDto.builder()
+								.id(reservationId)
+								.reservationNo("O20260102-000001")
+								.status("REQUESTED")
+								.totalAmount(5000)
+								.cancelableUntil(createdAt.plusMinutes(30))
+								.createdAt(createdAt)
+								.build()
+				))
+				.page(1)
+				.size(20)
+				.total(1)
+				.build();
+
+		when(orderQueryService.getStoreOrderReservations(
+				storeId, productId, "REQUESTED", null, null, 20, 0L
+		)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
+						.param("storeId", storeId.toString())
+						.param("popupId", productId.toString())
+						.param("status", "REQUESTED")
+						.param("page", "1")
+						.param("size", "20"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].id").value(reservationId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].reservationNo").value("O20260102-000001"));
+	}
+
+	@Test
+	@DisplayName("가게 주문/예약 상태 목록 조회 실패 (OWNER/MANAGER) - 권한 없음")
+	void getStoreOrderStatusesForStaff_forbidden() throws Exception {
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
+
+		when(orderQueryService.getStoreOrderReservations(
+				storeId, productId, null, null, null, 20, 0L
+		)).thenThrow(OrderForbiddenException.forbidden());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
+						.param("storeId", storeId.toString())
+						.param("popupId", productId.toString())
+						.param("page", "1")
+						.param("size", "20"))
+				.andExpect(MockMvcResultMatchers.status().isForbidden())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(403))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("권한이 없습니다."));
+	}
+
+	@Test
+	@DisplayName("가게 주문/예약 상태 목록 조회 실패 (OWNER/MANAGER) - storeId/productId 누락")
+	void getStoreOrderStatusesForStaff_missingFilter() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
+						.param("page", "1")
+						.param("size", "20"))
+				.andExpect(MockMvcResultMatchers.status().isBadRequest())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(400))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("잘못된 요청입니다."));
+	}
+
+	@Test
+	@DisplayName("가게 주문/예약 상태 목록 조회 실패 (OWNER/MANAGER) - status 파라미터 오류")
+	void getStoreOrderStatusesForStaff_invalidStatus() throws Exception {
+		UUID storeId = UUID.fromString(DEFAULT_STORE_ID);
+		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
+						.param("storeId", storeId.toString())
+						.param("popupId", productId.toString())
+						.param("status", "NOT_A_STATUS")
+						.param("page", "1")
+						.param("size", "20"))
+				.andExpect(MockMvcResultMatchers.status().isBadRequest())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(400));
+	}
+
+	@Test
 	@DisplayName("가게 주문/예약 목록 조회 실패 - 권한 없음")
 	void getStoreOrders_forbidden() throws Exception {
 		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
-				.thenThrow(OrderException.forbidden());
+				.thenThrow(OrderForbiddenException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
 						.param("storeId", DEFAULT_STORE_ID))
@@ -420,7 +596,7 @@ class OrderControllerTest {
 								.totalAmount(2000)
 								.cancelableUntil(LocalDateTime.now().plusMinutes(30))
 								.createdAt(LocalDateTime.now())
-								.productId(productId)
+								.popupId(productId)
 								.storeId(storeId)
 								.title("팝업 테스트")
 								.sessionStartAt(LocalDateTime.now().plusDays(1))
@@ -450,7 +626,7 @@ class OrderControllerTest {
 	@DisplayName("내 주문/예약 타임라인 조회 실패 - 잘못된 요청")
 	void getMyOrders_invalidRequest() throws Exception {
 		when(orderQueryService.getMyOrderTimeline(any(), any(), any(), any(), any(), any(), any()))
-				.thenThrow(OrderException.invalidRequest());
+				.thenThrow(OrderValidationException.invalidRequest());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/me"))
 				.andExpect(MockMvcResultMatchers.status().isBadRequest())
@@ -458,12 +634,24 @@ class OrderControllerTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("잘못된 요청입니다."));
 	}
 
-	private String buildReservationOrderRequest(String storeId, String productId, int qty) {
+	@Test
+	@DisplayName("모든 주문 데이터 삭제 성공")
+	void deleteAllOrders_success() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/orders/all")
+						.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data").value("모든 주문 데이터가 삭제되었습니다."));
+
+		verify(orderCommandService).deleteAllOrders();
+	}
+
+	private String buildReservationOrderRequest(String storeId, String popupId, int qty) {
 		return """
 				{
 					"orderType": "RESERVATION",
 					"storeId": "%s",
-					"productId": "%s",
+					"popupId": "%s",
 					"items": [
 						{
 							"orderItemType": "RESERVATION",
@@ -473,7 +661,7 @@ class OrderControllerTest {
 						}
 					]
 				}
-				""".formatted(storeId, productId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
+				""".formatted(storeId, popupId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
 	}
 
 	private String buildUpdateStatusRequest(String status, String reason) {

@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupOptionListQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
@@ -18,7 +17,10 @@ public class PopupValidationService {
 	private static final int DEFAULT_PAGE = 1;
 	private static final int DEFAULT_SIZE = 20;
 	private static final int MAX_SIZE = 100;
-	private static final Set<String> ALLOWED_CATEGORIES = Set.of("POPUP", "MERCH", "EVENT");
+	private static final Set<String> ALLOWED_CATEGORIES = Set.of(
+			"FOOD", "IDOL", "EXHIBITION", "WORKSHOP", "FASHION", "BEAUTY",
+			"LIFESTYLE", "ART", "GAME", "TECH", "SPORTS", "BOOK", "PET", "ETC"
+	);
 
 	public PopupListQuery normalizeListQuery(PopupListQuery query) {
 		if (query == null) {
@@ -55,24 +57,17 @@ public class PopupValidationService {
 	}
 
 	public void validateDetailQuery(PopupDetailQuery query) {
-		if (query == null || query.getProductId() == null) {
+		if (query == null || query.getPopupId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
 	}
 
 	public PopupSessionListQuery normalizeSessionQuery(PopupSessionListQuery query) {
-		if (query == null || query.getProductId() == null) {
+		if (query == null || query.getPopupId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
 		if (query.getFrom() != null && query.getTo() != null
 				&& query.getFrom().isAfter(query.getTo())) {
-			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
-		}
-		return query;
-	}
-
-	public PopupOptionListQuery normalizeOptionQuery(PopupOptionListQuery query) {
-		if (query == null || query.getProductId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
 		return query;

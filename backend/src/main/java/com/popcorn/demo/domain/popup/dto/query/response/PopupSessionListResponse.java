@@ -25,20 +25,9 @@ public class PopupSessionListResponse {
 		private UUID id;
 		private LocalDateTime startAt;
 		private LocalDateTime endAt;
-		private String status;
-		private LocationDto location;
-	}
-
-	@Getter
-	@Builder
-	@NoArgsConstructor
-	@AllArgsConstructor
-	public static class LocationDto {
-		private UUID id;
-		private String name;
-		private String address1;
-		private String address2;
-		private Double latitude;
-		private Double longitude;
+		private Integer price;
+		private Integer capacity;
+		private Integer remainingCapacity;
+		private Boolean isActive;
 	}
 }

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PopupSessionListQuery {
 
-	private UUID productId;
+	private UUID popupId;
 	private LocalDateTime from;
 	private LocalDateTime to;
 }

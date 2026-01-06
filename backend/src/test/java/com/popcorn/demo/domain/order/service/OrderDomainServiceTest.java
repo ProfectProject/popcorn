@@ -18,7 +18,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.global.exception.BaseException;
 
 /**
 	* OrderDomainService 단위 테스트
@@ -72,13 +72,13 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
 		// when & then
 		// when & then - 예외가 발생하지 않으면 성공
 		try {
-			orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems);
+			orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems);
 		} catch (Exception e) {
 			throw new AssertionError("예외가 발생하지 않아야 함", e);
 		}
@@ -90,12 +90,36 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = null;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = createSampleOrderItems();
 
 		// when & then
-		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
-				.isInstanceOf(OrderException.class);
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
+				.isInstanceOf(BaseException.class);
+	}
+
+	@Test
+	@DisplayName("주문 생성 검증 - 스토어 ID가 null이면 예외 발생")
+	void validateOrderCreation_NullStoreId_ThrowsException() {
+		Long customerId = 1001L;
+		UUID storeId = null;
+		UUID popupId = UUID.randomUUID();
+		List<OrderItem> orderItems = createSampleOrderItems();
+
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
+				.isInstanceOf(BaseException.class);
+	}
+
+	@Test
+	@DisplayName("주문 생성 검증 - 상품 ID가 null이면 예외 발생")
+	void validateOrderCreation_NullProductId_ThrowsException() {
+		Long customerId = 1001L;
+		UUID storeId = UUID.randomUUID();
+		UUID popupId = null;
+		List<OrderItem> orderItems = createSampleOrderItems();
+
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
+				.isInstanceOf(BaseException.class);
 	}
 
 	@Test
@@ -104,12 +128,12 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		List<OrderItem> orderItems = new ArrayList<>();
 
 		// when & then
-		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, productId, orderItems))
-				.isInstanceOf(OrderException.class);
+		assertThatThrownBy(() -> orderDomainService.validateOrderCreation(customerId, storeId, popupId, orderItems))
+				.isInstanceOf(BaseException.class);
 	}
 
 	@Test
@@ -164,7 +188,7 @@ class OrderDomainServiceTest {
 		// given
 		Long customerId = 1001L;
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 		OrderType orderType = OrderType.RESERVATION;
 		List<OrderItem> orderItems = createSampleOrderItems();
 		String idempotencyKey = "test-key-001";
@@ -173,7 +197,7 @@ class OrderDomainServiceTest {
 		Order order = orderDomainService.createOrder(
 				customerId,
 				storeId,
-				productId,
+				popupId,
 				orderType,
 				orderItems,
 				idempotencyKey
@@ -183,7 +207,7 @@ class OrderDomainServiceTest {
 		assertThat(order).isNotNull();
 		assertThat(order.getCustomerId()).isEqualTo(customerId);
 		assertThat(order.getStoreId()).isEqualTo(storeId);
-		assertThat(order.getProductId()).isEqualTo(productId);
+		assertThat(order.getPopupId()).isEqualTo(popupId);
 		assertThat(order.getOrderType()).isEqualTo(orderType);
 		assertThat(order.getStatus()).isEqualTo(OrderStatus.REQUESTED);
 		assertThat(order.getIdempotencyKey()).isEqualTo(idempotencyKey);
@@ -194,11 +218,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 CONFIRMED로 변경 가능")
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 RESERVED로 변경 가능")
 	void canChangeStatus_RequestedToConfirmed_ReturnsTrue() {
 		// given
 		OrderStatus currentStatus = OrderStatus.REQUESTED;
-		OrderStatus newStatus = OrderStatus.CONFIRMED;
+		OrderStatus newStatus = OrderStatus.RESERVED;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -208,11 +232,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - OWNER_ACCEPTED에서 CONFIRMED로 변경 가능")
+	@DisplayName("주문 상태 변경 가능 검증 - ACCEPTED에서 RESERVED로 변경 가능")
 	void canChangeStatus_OwnerAcceptedToConfirmed_ReturnsTrue() {
 		// given
-		OrderStatus currentStatus = OrderStatus.OWNER_ACCEPTED;
-		OrderStatus newStatus = OrderStatus.CONFIRMED;
+		OrderStatus currentStatus = OrderStatus.ACCEPTED;
+		OrderStatus newStatus = OrderStatus.RESERVED;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -222,11 +246,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - CONFIRMED에서 PREPARING으로 변경 가능")
+	@DisplayName("주문 상태 변경 가능 검증 - RESERVED에서 PAYMENT_PENDING으로 변경 가능")
 	void canChangeStatus_ConfirmedToPreparing_ReturnsTrue() {
 		// given
-		OrderStatus currentStatus = OrderStatus.CONFIRMED;
-		OrderStatus newStatus = OrderStatus.PREPARING;
+		OrderStatus currentStatus = OrderStatus.RESERVED;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -236,11 +260,11 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 READY로 변경 불가")
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 불가")
 	void canChangeStatus_RequestedToReady_ReturnsFalse() {
 		// given
 		OrderStatus currentStatus = OrderStatus.REQUESTED;
-		OrderStatus newStatus = OrderStatus.READY;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
 
 		// when
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
@@ -270,7 +294,7 @@ class OrderDomainServiceTest {
 				.orderNo("O20231230-000001")
 				.customerId(1001L)
 				.storeId(UUID.randomUUID())
-				.productId(UUID.randomUUID())
+				.popupId(UUID.randomUUID())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(29000)

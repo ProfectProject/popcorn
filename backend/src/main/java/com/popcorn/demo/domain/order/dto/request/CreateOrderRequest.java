@@ -25,7 +25,7 @@ public class CreateOrderRequest {
 	private UUID storeId;
 
 	@NotNull(message = "상품 ID는 필수입니다.")
-	private UUID productId;
+	private UUID popupId;
 
 	private UUID reservationId;
 
@@ -49,7 +49,7 @@ public class CreateOrderRequest {
 			return false;
 		}
 
-		String expectedItemType = isReservationType() ? "RESERVATION" : "MERCH";
+		String expectedItemType = isReservationType() ? "RESERVATION" : "GOODS";
 		return items.stream()
 				.allMatch(item -> expectedItemType.equals(item.getOrderItemType()));
 	}
@@ -63,7 +63,6 @@ public class CreateOrderRequest {
 				.allMatch(item ->
 						"RESERVATION".equals(item.getOrderItemType())
 								&& item.getSessionId() != null
-								&& item.getOptionId() != null
 				);
 	}
 
@@ -74,8 +73,8 @@ public class CreateOrderRequest {
 
 		boolean hasValidItems = items.stream()
 				.allMatch(item ->
-						"MERCH".equals(item.getOrderItemType())
-								&& item.getMerchVariantId() != null
+						"GOODS".equals(item.getOrderItemType())
+								&& item.getGoodsVariantId() != null
 				);
 
 		boolean hasValidAddress = address != null
