@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS p_payments (
 CREATE TABLE IF NOT EXISTS p_order_status_histories (
     order_status_id UUID NOT NULL,
     order_id        UUID NOT NULL,
-    from_status     order_status NOT NULL,
+    from_status     order_status,
     to_status       order_status NOT NULL,
     reason          varchar(255),
     changed_at      timestamp NOT NULL,
