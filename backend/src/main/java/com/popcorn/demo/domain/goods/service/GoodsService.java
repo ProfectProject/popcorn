@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +53,7 @@ public class GoodsService {
     @Transactional(readOnly = true)
     public GoodsItemResponse get(UUID popupId, UUID goodsId) {
         GoodsVariant goods = getGoods(popupId, goodsId);
-        return GoodsItemResponse.from(goods);
+        return isOwnerOrManager() ? GoodsItemResponse.fromOwner(goods) : GoodsItemResponse.fromUser(goods);
     }
 
     @Transactional
@@ -88,5 +90,15 @@ public class GoodsService {
         return goodsVariantRepository
                 .findByIdAndPopupIdAndDeletedAtIsNull(goodsId, popupId)
                 .orElseThrow(GoodsNotFoundException::new);
+    }
+
+    private boolean isOwnerOrManager() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
+                        || "ROLE_MANAGER".equals(authority.getAuthority()));
     }
 }
