@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.util.UUID;
 
@@ -54,9 +55,10 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 2);
 
             // Then: 검증 로직 최적화
-            mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+            mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestJson))
+                            .content(requestJson)
+                            .principal(createCustomerAuthentication()))
                     .andDo(MockMvcResultHandlers.print())
                     .andExpectAll( // 여러 검증을 한 번에 수행 (성능 최적화)
                         MockMvcResultMatchers.status().isCreated(),
@@ -84,9 +86,10 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             // When & Then: 한 번의 호출로 예외 검증
             String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 1);
 
-            mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+            mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestJson))
+                            .content(requestJson)
+                            .principal(createCustomerAuthentication()))
                     .andExpectAll(
                         MockMvcResultMatchers.status().isBadRequest(),
                         MockMvcResultMatchers.jsonPath("$.code").value(1000),
@@ -184,9 +187,10 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
 
                 String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 1);
 
-                mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+                mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(requestJson))
+                                .content(requestJson)
+                                .principal(createCustomerAuthentication()))
                         .andExpect(MockMvcResultMatchers.status().isCreated());
             }
 

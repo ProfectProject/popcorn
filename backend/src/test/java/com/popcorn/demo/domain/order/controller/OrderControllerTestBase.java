@@ -6,16 +6,29 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.domain.order.service.PaymentCommandService;
+import com.popcorn.demo.domain.users.entity.User;
+import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import com.popcorn.demo.global.config.CommonConfig;
 
 import lombok.extern.slf4j.Slf4j;
@@ -72,9 +85,39 @@ public abstract class OrderControllerTestBase {
         return MockMvcBuilders.standaloneSetup(commandController, queryController)
                 .setControllerAdvice(new OrderExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                .setCustomArgumentResolvers(new AuthenticationArgumentResolver())
                 .alwaysDo(result -> log.debug("테스트 실행 결과: {}",
                     result.getResponse().getContentAsString()))
                 .build();
+    }
+
+    /**
+     * Authentication 파라미터 주입을 위한 커스텀 Argument Resolver
+     */
+    private static class AuthenticationArgumentResolver implements HandlerMethodArgumentResolver {
+        @Override
+        public boolean supportsParameter(MethodParameter parameter) {
+            return parameter.getParameterType().equals(Authentication.class);
+        }
+
+        @Override
+        public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+                                      NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+            // MockHttpServletRequest에서 principal을 가져와서 Authentication 객체 반환
+            HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+            if (request != null && request.getUserPrincipal() instanceof Authentication) {
+                return request.getUserPrincipal();
+            }
+
+            // principal이 CustomUserDetails인 경우 Authentication 객체로 래핑
+            Object principal = request != null ? request.getUserPrincipal() : null;
+            if (principal instanceof CustomUserDetails) {
+                return new UsernamePasswordAuthenticationToken(
+                    principal, null, ((CustomUserDetails) principal).getAuthorities());
+            }
+
+            return null;
+        }
     }
 
     // ================ 공통 테스트 데이터 헬퍼 메서드들 ================
@@ -157,5 +200,32 @@ public abstract class OrderControllerTestBase {
 
     protected void logTestComplete(String testName) {
         log.info("✅ 테스트 완료: {}", testName);
+    }
+
+    /**
+     * 테스트용 Authentication 객체 생성 헬퍼
+     */
+    protected Authentication createTestAuthentication(Long userId, String email, UserRole role) {
+        User testUser = new User();
+        testUser.setUserId(userId);
+        testUser.setEmail(email);
+        testUser.setPassword("password");
+        testUser.setRole(role);
+        testUser.setName("Test User");
+        testUser.setActive(true);
+
+        CustomUserDetails customUserDetails = new CustomUserDetails(testUser);
+        return new UsernamePasswordAuthenticationToken(
+                customUserDetails,
+                null,
+                customUserDetails.getAuthorities()
+        );
+    }
+
+    /**
+     * 기본 고객 Authentication 객체 생성 헬퍼
+     */
+    protected Authentication createCustomerAuthentication() {
+        return createTestAuthentication(1001L, "testuser@example.com", UserRole.CUSTOMER);
     }
 }

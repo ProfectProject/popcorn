@@ -2,8 +2,6 @@ package com.popcorn.demo.domain.users.entity;
 
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
@@ -39,7 +37,6 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private UserRole role;
 
     @Column(nullable = false)

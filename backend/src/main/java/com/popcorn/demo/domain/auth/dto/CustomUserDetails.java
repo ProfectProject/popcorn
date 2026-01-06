@@ -68,8 +68,17 @@ public class CustomUserDetails implements UserDetails {
         return true;
     }
 
+    // JWT 인증 후 사용자 정보 접근을 위한 getter 메서드
+    public User getUserEntity() {
+        return userEntity;
+    }
+
     public Long getUserId() {
         return userEntity.getUserId();
+    }
+
+    public String getRole() {
+        return userEntity.getRole().name();
     }
 
 }

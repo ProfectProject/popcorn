@@ -9,28 +9,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Nested;
-import org.mockito.Mockito;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
-import com.popcorn.demo.domain.order.service.OrderCommandService;
-import com.popcorn.demo.domain.order.service.OrderQueryService;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
-import com.popcorn.demo.global.config.CommonConfig;
-import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
-import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
-import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
@@ -47,32 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  * 3. 실제 사용자 스토리를 반영한 테스트 케이스
  */
 @Slf4j
-class OrderControllerBusinessTest {
-
-	private MockMvc mockMvc;
-
-	private ObjectMapper objectMapper;
-
-	private OrderCommandService orderCommandService;
-	private OrderQueryService orderQueryService;
-	private PaymentCommandService paymentCommandService;
-
-	@BeforeEach
-	void setUp() {
-		orderCommandService = Mockito.mock(OrderCommandService.class);
-		orderQueryService = Mockito.mock(OrderQueryService.class);
-		paymentCommandService = Mockito.mock(PaymentCommandService.class);
-		objectMapper = new CommonConfig().objectMapper();
-
-		// 비즈니스 테스트 - 전체 시나리오 테스트를 위해 Command와 Query 컨트롤러 모두 설정
-		OrderCommandController commandController = new OrderCommandController(
-				orderCommandService, objectMapper, paymentCommandService);
-		OrderQueryController queryController = new OrderQueryController(orderQueryService);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController, queryController)
-				.setControllerAdvice(new OrderExceptionHandler())
-				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
-				.build();
-	}
+class OrderControllerBusinessTest extends OrderControllerTestBase {
 
 	@Nested
 	@DisplayName("고객이 팝콘 예약을 하는 시나리오")
@@ -131,9 +93,10 @@ class OrderControllerBusinessTest {
 					""".formatted(storeId, popupId);
 
 			// Then: 예약이 성공적으로 접수된다
-			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 							.contentType(MediaType.APPLICATION_JSON)
-							.content(고객의_예약요청))
+							.content(고객의_예약요청)
+							.principal(createCustomerAuthentication()))
 					.andDo(MockMvcResultHandlers.print())
 					.andExpect(MockMvcResultMatchers.status().isCreated())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
@@ -175,9 +138,10 @@ class OrderControllerBusinessTest {
 					""";
 
 			// Then: 고객에게 매진 안내가 전달된다
-			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 							.contentType(MediaType.APPLICATION_JSON)
-							.content(매진된_시간대_예약요청))
+							.content(매진된_시간대_예약요청)
+							.principal(createCustomerAuthentication()))
 					.andDo(MockMvcResultHandlers.print())
 					.andExpect(MockMvcResultMatchers.status().isBadRequest())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1000))
@@ -213,9 +177,10 @@ class OrderControllerBusinessTest {
 					""";
 
 			// Then: 고객에게 수량 오류 안내가 전달된다
-			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 							.contentType(MediaType.APPLICATION_JSON)
-							.content(잘못된_수량_예약요청))
+							.content(잘못된_수량_예약요청)
+							.principal(createCustomerAuthentication()))
 					.andExpect(MockMvcResultMatchers.status().isBadRequest())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1001))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("수량은 1 이상이어야 합니다."));
@@ -254,7 +219,8 @@ class OrderControllerBusinessTest {
 			// Then: 예약이 승인 상태로 변경된다
 			mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 							.contentType(MediaType.APPLICATION_JSON)
-							.content(점주의_승인처리))
+							.content(점주의_승인처리)
+							.principal(createCustomerAuthentication()))
 					.andExpect(MockMvcResultMatchers.status().isOk())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
@@ -287,7 +253,8 @@ class OrderControllerBusinessTest {
 			// Then: 비즈니스 규칙 위반 안내가 전달된다
 			mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 							.contentType(MediaType.APPLICATION_JSON)
-							.content(잘못된_상태변경_요청))
+							.content(잘못된_상태변경_요청)
+							.principal(createCustomerAuthentication()))
 					.andExpect(MockMvcResultMatchers.status().isBadRequest())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1201))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("허용되지 않은 상태 변경입니다."));
