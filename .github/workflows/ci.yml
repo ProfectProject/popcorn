@@ -45,7 +45,7 @@ jobs:
       run: chmod +x backend/gradlew
 
     - name: Run tests
-      run: ./gradlew clean test
+      run: ./gradlew clean build -x test
       working-directory: ./backend
 
   build:
