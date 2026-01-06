@@ -47,9 +47,8 @@ public class Store extends BaseEntity {
     @Column(name = "status", nullable = false)
     private StorePublishStatus publishStatus;
 
-    /** 낙관적 락 버전 */
-    @Version
-    @Column(name = "reason", nullable = false, length = 500)
+    /** 사유 */
+    @Column(name = "reason", length = 500)
     private String reason;
 
     // ========================= Soft Delete 필드 =========================
