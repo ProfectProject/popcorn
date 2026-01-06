@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.popcorn.demo.common.controller.BaseController;
+import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
@@ -69,9 +72,14 @@ public class OrderQueryController extends BaseController {
 					required = true,
 					example = "00000000-0000-0000-0000-000000001001"
 			)
-			@PathVariable UUID orderId) {
+			@PathVariable UUID orderId,
+			Authentication authentication) {
 
-		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, null, null);
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long userId = userDetails.getUserId();
+		String role = userDetails.getRole();
+
+		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, userId, role);
 		return ok(detail);
 	}
 
@@ -106,8 +114,10 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "주문 ID", required = true,
 					example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId,
-			@Parameter(hidden = true)
-			@RequestParam(required = false) Long customerId) {
+			Authentication authentication) {
+
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long customerId = userDetails.getUserId();
 
 		OrderStatusDto response = orderQueryService.getOrderStatusForCustomer(orderId, customerId);
 		return ok(response);
@@ -129,10 +139,11 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "주문 ID", required = true,
 					example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId,
-			@Parameter(description = "요청자 ID", required = true, example = "2001")
-			@RequestParam Long userId,
-			@Parameter(description = "역할(OWNER/MANAGER)", required = true, example = "OWNER")
-			@RequestParam String role) {
+			Authentication authentication) {
+
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long userId = userDetails.getUserId();
+		String role = userDetails.getRole();
 
 		OrderStatusDto response = orderQueryService.getOrderStatusForStaff(orderId, userId, role);
 		return ok(response);
@@ -228,8 +239,6 @@ public class OrderQueryController extends BaseController {
 	)
 	@GetMapping("/me")
 	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
-			@Parameter(hidden = true)
-			@RequestParam(required = false) Long customerId,
 			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)")
 			@RequestParam(required = false, defaultValue = "ALL") String orderType,
 			@Parameter(description = "주문 상태",
@@ -244,17 +253,21 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "페이지 (기본 1)")
 			@RequestParam(required = false, defaultValue = "1") Integer page,
 			@Parameter(description = "사이즈 (기본 20)")
-			@RequestParam(required = false, defaultValue = "20") Integer size) {
+			@RequestParam(required = false, defaultValue = "20") Integer size,
+			Authentication authentication) {
+
+		// JWT에서 현재 인증된 사용자 정보 추출
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long customerId = userDetails.getUserId();
 
 		// page/size를 limit/offset으로 변환하고 파라미터명 맞춤
 		Long offset = (long) (page - 1) * size;
-		Long resolvedCustomerId = customerId != null ? customerId : 1001L;
 		String normalizedOrderType = "ALL".equalsIgnoreCase(orderType)
 				? null
 				: orderType;
 		String statusStr = status == null ? null : status.name();
 		MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
-				resolvedCustomerId, normalizedOrderType, statusStr, from, to, size, offset
+				customerId, normalizedOrderType, statusStr, from, to, size, offset
 		);
 		return ok(response);
 	}

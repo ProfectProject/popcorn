@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.controller;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CancelOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
@@ -98,11 +100,8 @@ private final PaymentCommandService paymentCommandService;
 		responseCode = "409",
 		description = "비즈니스 규칙 위반 (재고부족, 정원초과, 상태오류 등)"
 	)
-	@PostMapping("/{userId}")
+	@PostMapping
 	public ResponseEntity<BaseResponse<OrderCreatedDto>> createOrder(
-			@Parameter(description = "주문 생성 사용자 ID", required = true, example = "1001")
-			@PathVariable Long userId,
-
 			@io.swagger.v3.oas.annotations.parameters.RequestBody(
 				description = "주문 생성 요청 데이터",
 				required = true,
@@ -159,9 +158,15 @@ private final PaymentCommandService paymentCommandService;
 			@Valid @RequestBody CreateOrderRequest request,
 
 			@Parameter(hidden = true)
-			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+
+			Authentication authentication) {
 
 		logRequestDebug("주문 생성 요청", request);
+
+		// JWT에서 현재 인증된 사용자 정보 추출
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long userId = userDetails.getUserId();
 
 		// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
 		CreateOrderCommand command = CreateOrderCommand.builder()
@@ -457,9 +462,15 @@ private final PaymentCommandService paymentCommandService;
 					required = true,
 					example = "00000000-0000-0000-0000-000000001001"
 			)
-			@PathVariable UUID orderId) {
+			@PathVariable UUID orderId,
+			Authentication authentication) {
 
-		// 주문을 CANCELLED 상태로 변경
+		// JWT에서 현재 인증된 사용자 정보 추출
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long userId = userDetails.getUserId();
+		String role = userDetails.getRole();
+
+		// 주문을 CANCELLED 상태로 변경 (권한 검증은 서비스 레이어에서 처리)
 		Order cancelledOrder = orderCommandService.updateStatus(
 				orderId,
 				OrderStatus.CANCELLED.name(),
