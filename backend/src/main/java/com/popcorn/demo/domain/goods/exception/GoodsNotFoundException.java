@@ -1,10 +1,10 @@
 package com.popcorn.demo.domain.goods.exception;
 
-import com.popcorn.demo.common.dto.ResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.demo.global.exception.BaseException;
 
 public class GoodsNotFoundException extends BaseException {
     public GoodsNotFoundException() {
-        super(ResponseCode.NOT_FOUND);
+        super(CommonResponseCode.NOT_FOUND);
     }
 }
