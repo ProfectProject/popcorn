@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class GoodsUpdateRequest {
-    private String stockUnit;
-
     @NotBlank
     private String goodsName;
 
@@ -22,6 +20,4 @@ public class GoodsUpdateRequest {
     @Min(0)
     private Integer stock;
 
-    @NotNull
-    private Boolean isActive;
 }

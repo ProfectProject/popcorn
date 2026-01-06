@@ -63,17 +63,13 @@ public class GoodsVariant extends BaseEntity {
     }
 
     public void update(
-            String stockUnit,
             String goodsName,
             int goodsPrice,
-            int stock,
-            boolean isActive
+            int stock
     ) {
-        this.stockUnit = stockUnit;
         this.goodsName = goodsName;
         this.goodsPrice = goodsPrice;
         this.stock = stock;
-        this.isActive = isActive;
     }
 
     public void updateStatus(boolean isActive) {
