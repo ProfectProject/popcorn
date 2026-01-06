@@ -26,18 +26,17 @@ public class GoodsService {
 
     @Transactional(readOnly = true)
     public GoodsListResponse list(UUID popupId) {
-        boolean ownerView = isOwnerOrManager();
         List<GoodsItemResponse> items = goodsVariantRepository
                 .findAllByPopupIdAndDeletedAtIsNullOrderByCreatedAtDesc(popupId)
                 .stream()
-                .map(goods -> ownerView ? GoodsItemResponse.fromOwner(goods) : GoodsItemResponse.fromUser(goods))
+                .map(GoodsItemResponse::from)
                 .collect(Collectors.toList());
         return new GoodsListResponse(items);
     }
 
     @Transactional
     public GoodsIdResponse create(UUID popupId, GoodsCreateRequest request) {
-        boolean isActive = Boolean.TRUE.equals(request.getIsActive());
+        boolean isActive = request.getIsActive() == null || request.getIsActive();
         GoodsVariant goods = GoodsVariant.create(
                 popupId,
                 request.getStockUnit(),
