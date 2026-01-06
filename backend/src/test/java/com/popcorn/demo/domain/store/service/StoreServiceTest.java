@@ -9,8 +9,13 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import com.popcorn.demo.domain.store.dto.StoreDeletedDto;
 import com.popcorn.demo.domain.store.dto.StoreDetailDto;
 import com.popcorn.demo.domain.store.dto.StoreListDto;
+import com.popcorn.demo.domain.store.dto.StoreStatusUpdatedDto;
+import com.popcorn.demo.domain.store.dto.StoreUpdatedDto;
+import com.popcorn.demo.domain.store.dto.UpdateStoreRequest;
+import com.popcorn.demo.domain.store.dto.UpdateStoreStatusRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -258,6 +263,196 @@ class StoreServiceTest {
                 .isInstanceOf(StoreException.class)
                 .hasMessageContaining("사용자 ID는 필수입니다.");
 
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 성공")
+    void 스토어_기본_정보_수정_성공() {
+        UpdateStoreRequest request = UpdateStoreRequest.builder()
+                .name("수정된 스토어")
+                .build();
+
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+        when(storeRepository.findByName("수정된 스토어")).thenReturn(Optional.empty());
+        when(storeRepository.save(any(Store.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StoreUpdatedDto result = storeService.updateStore(storeId1, request, userId1);
+
+        assertThat(result.getId()).isEqualTo(storeId1);
+        assertThat(result.getName()).isEqualTo("수정된 스토어");
+        assertThat(result.getUpdatedBy()).isEqualTo(userId1);
+        assertThat(activeStore.getName()).isEqualTo("수정된 스토어");
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 실패 - 존재하지 않는 스토어")
+    void 스토어_기본_정보_수정_실패_존재하지_않는_스토어() {
+        UpdateStoreRequest request = UpdateStoreRequest.builder()
+                .name("수정된 스토어")
+                .build();
+
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> storeService.updateStore(storeId1, request, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("스토어를 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 실패 - 권한 없음")
+    void 스토어_기본_정보_수정_실패_권한_없음() {
+        UpdateStoreRequest request = UpdateStoreRequest.builder()
+                .name("수정된 스토어")
+                .build();
+
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+
+        assertThatThrownBy(() -> storeService.updateStore(storeId1, request, userId2))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("접근 권한이 없습니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 실패 - 삭제된 스토어")
+    void 스토어_기본_정보_수정_실패_삭제된_스토어() {
+        UpdateStoreRequest request = UpdateStoreRequest.builder()
+                .name("수정된 스토어")
+                .build();
+
+        activeStore.delete(userId1);
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+
+        assertThatThrownBy(() -> storeService.updateStore(storeId1, request, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("이미 삭제된 스토어입니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 실패 - 중복 이름")
+    void 스토어_기본_정보_수정_실패_중복_이름() {
+        UpdateStoreRequest request = UpdateStoreRequest.builder()
+                .name("중복 스토어")
+                .build();
+
+        Store otherStore = Store.builder()
+                .id(UUID.randomUUID())
+                .name("중복 스토어")
+                .ownerId(userId2)
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .build();
+
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+        when(storeRepository.findByName("중복 스토어")).thenReturn(Optional.of(otherStore));
+
+        assertThatThrownBy(() -> storeService.updateStore(storeId1, request, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("중복된 스토어 이름입니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 상태 수정 성공")
+    void 스토어_상태_수정_성공() {
+        UpdateStoreStatusRequest request = UpdateStoreStatusRequest.builder()
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .build();
+
+        when(storeRepository.findById(storeId2)).thenReturn(Optional.of(draftStore));
+        when(storeRepository.save(any(Store.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StoreStatusUpdatedDto result = storeService.updateStoreStatus(storeId2, request, userId1);
+
+        assertThat(result.getId()).isEqualTo(storeId2);
+        assertThat(result.getPublishStatus()).isEqualTo(StorePublishStatus.ACTIVE);
+        assertThat(result.getUpdatedBy()).isEqualTo(userId1);
+        assertThat(draftStore.getPublishStatus()).isEqualTo(StorePublishStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("스토어 상태 수정 실패 - 존재하지 않는 스토어")
+    void 스토어_상태_수정_실패_존재하지_않는_스토어() {
+        UpdateStoreStatusRequest request = UpdateStoreStatusRequest.builder()
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .build();
+
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> storeService.updateStoreStatus(storeId1, request, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("스토어를 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 상태 수정 실패 - 권한 없음")
+    void 스토어_상태_수정_실패_권한_없음() {
+        UpdateStoreStatusRequest request = UpdateStoreStatusRequest.builder()
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .build();
+
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+
+        assertThatThrownBy(() -> storeService.updateStoreStatus(storeId1, request, userId2))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("접근 권한이 없습니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 상태 수정 실패 - 삭제된 스토어")
+    void 스토어_상태_수정_실패_삭제된_스토어() {
+        UpdateStoreStatusRequest request = UpdateStoreStatusRequest.builder()
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .build();
+
+        activeStore.delete(userId1);
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+
+        assertThatThrownBy(() -> storeService.updateStoreStatus(storeId1, request, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("이미 삭제된 스토어입니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 삭제 성공")
+    void 스토어_삭제_성공() {
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+        when(storeRepository.save(any(Store.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StoreDeletedDto result = storeService.deleteStore(storeId1, userId1);
+
+        assertThat(result.getId()).isEqualTo(storeId1);
+        assertThat(result.getDeletedBy()).isEqualTo(userId1);
+        assertThat(result.getDeletedAt()).isNotNull();
+        assertThat(activeStore.isDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("스토어 삭제 실패 - 존재하지 않는 스토어")
+    void 스토어_삭제_실패_존재하지_않는_스토어() {
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> storeService.deleteStore(storeId1, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("스토어를 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 삭제 실패 - 권한 없음")
+    void 스토어_삭제_실패_권한_없음() {
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+
+        assertThatThrownBy(() -> storeService.deleteStore(storeId1, userId2))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("접근 권한이 없습니다.");
+    }
+
+    @Test
+    @DisplayName("스토어 삭제 실패 - 이미 삭제됨")
+    void 스토어_삭제_실패_이미_삭제됨() {
+        activeStore.delete(userId1);
+        when(storeRepository.findById(storeId1)).thenReturn(Optional.of(activeStore));
+
+        assertThatThrownBy(() -> storeService.deleteStore(storeId1, userId1))
+                .isInstanceOf(StoreException.class)
+                .hasMessageContaining("이미 삭제된 스토어입니다.");
     }
 
 
