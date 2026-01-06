@@ -1,8 +1,5 @@
 -- H2 compatible test schema
 
--- Enum types
-CREATE TYPE IF NOT EXISTS popup_category AS ENUM ('FOOD','IDOL','EXHIBITION','WORKSHOP','FASHION','BEAUTY','LIFESTYLE','ART','GAME','TECH','SPORTS','BOOK','PET','ETC');
-
 CREATE TABLE IF NOT EXISTS p_users (
     user_id     BIGINT NOT NULL PRIMARY KEY,
     password    varchar(255) NOT NULL,
@@ -54,7 +51,7 @@ CREATE TABLE IF NOT EXISTS p_popups (
     store_id    UUID NOT NULL,
     title       varchar(200) NOT NULL,
     description text,
-    category    popup_category NOT NULL,
+    category    varchar(255) NOT NULL,
     status      varchar(255) NOT NULL,
     created_at  timestamp NOT NULL,
     updated_at  timestamp NOT NULL,
@@ -176,8 +173,6 @@ CREATE TABLE IF NOT EXISTS p_checkins (
     created_at       timestamp NOT NULL,
     created_by       BIGINT
 );
-
--- Primary keys are now defined inline with CREATE TABLE statements
 
 -- Unique constraints - only add if they don't already exist
 ALTER TABLE p_users  ADD CONSTRAINT IF NOT EXISTS uq_p_users_email UNIQUE (email);
