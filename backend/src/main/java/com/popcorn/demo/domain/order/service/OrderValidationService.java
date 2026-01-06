@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class OrderValidationService {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderValidationService.class);
+	private final JdbcTemplate jdbcTemplate;
 
 	/**
 	 * 주문 검증 처리 (비동기 최적화)
@@ -29,9 +31,9 @@ public class OrderValidationService {
 	 * - 고객 신용도 확인
 	 * - 프로모션 유효성 확인
 	 */
-	public boolean validateOrderAsync(Long userId, UUID productId, Integer qty) {
+	public boolean validateOrderAsync(Long userId, UUID popupId, Integer qty) {
 		try {
-			if (productId == null) {
+			if (popupId == null) {
 				log.warn("⚠️ 잘못된 상품 ID: null");
 				return false;
 			}
@@ -44,16 +46,16 @@ public class OrderValidationService {
 					.supplyAsync(() -> validateCustomer(userId));
 
 			CompletableFuture<Boolean> productValidation = CompletableFuture
-					.supplyAsync(() -> validateProduct(productId));
+					.supplyAsync(() -> validateProduct(popupId));
 
 			// 모든 검증 결과 조합
 			boolean result = stockValidation.get() && userValidation.get() && productValidation.get();
 
-			log.info("📋 주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, productId, result);
+			log.info("📋 주문 검증 완료 - 사용자: {}, 상품: {}, 결과: {}", userId, popupId, result);
 			return result;
 
 		} catch (Exception e) {
-			log.error("❌ 주문 검증 중 오류 발생 - 사용자: {}, 상품: {}", userId, productId, e);
+			log.error("❌ 주문 검증 중 오류 발생 - 사용자: {}, 상품: {}", userId, popupId, e);
 			return false;
 		}
 	}
@@ -75,7 +77,7 @@ public class OrderValidationService {
 	}
 
 	/**
-	 * 고객 검증 (최적화됨)
+	 * 고객 검증 (데이터베이스 실제 확인)
 	 */
 	private boolean validateCustomer(Long userId) {
 		if (userId == null || userId <= 0) {
@@ -83,20 +85,32 @@ public class OrderValidationService {
 			return false;
 		}
 
-		// TODO: 실제 사용자 시스템과 연동
-		boolean isValidCustomer = true;
-		log.debug("👤 고객 확인 - 사용자ID: {}, 유효성: {}", userId, isValidCustomer);
+		try {
+			// 실제 데이터베이스에서 사용자 존재 여부 확인
+			String sql = "SELECT COUNT(*) FROM p_users WHERE user_id = ? AND is_active = TRUE";
+			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId);
+			boolean isValidCustomer = count != null && count > 0;
 
-		return isValidCustomer;
+			log.debug("👤 고객 확인 - 사용자ID: {}, 유효성: {}", userId, isValidCustomer);
+
+			if (!isValidCustomer) {
+				log.warn("⚠️ 사용자를 찾을 수 없음 - ID: {}", userId);
+			}
+
+			return isValidCustomer;
+		} catch (Exception e) {
+			log.error("❌ 사용자 검증 중 데이터베이스 오류 - 사용자ID: {}", userId, e);
+			return false;
+		}
 	}
 
 	/**
 	 * 상품 검증 (최적화됨)
 	 */
-	private boolean validateProduct(UUID productId) {
+	private boolean validateProduct(UUID popupId) {
 		// TODO: 실제 상품 시스템과 연동
 		boolean isValidProduct = true; // 임시 로직
-		log.debug("📱 상품 확인 - 상품ID: {}, 유효성: {}", productId, isValidProduct);
+		log.debug("📱 상품 확인 - 상품ID: {}, 유효성: {}", popupId, isValidProduct);
 
 		return isValidProduct;
 	}

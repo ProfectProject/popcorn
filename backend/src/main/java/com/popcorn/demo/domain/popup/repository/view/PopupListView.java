@@ -1,6 +1,5 @@
 package com.popcorn.demo.domain.popup.repository.view;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -12,27 +11,13 @@ public interface PopupListView {
 
 	String getTitle();
 
-	String getProductType();
+	String getDescription();
 
 	String getCategory();
 
-	Long getRegionId();
-
-	Boolean getIsHidden();
+	String getStatus();
 
 	LocalDateTime getEventStartAt();
 
 	LocalDateTime getEventEndAt();
-
-	String getLocationId();
-
-	String getLocationName();
-
-	String getLocationAddress1();
-
-	String getLocationAddress2();
-
-	BigDecimal getLocationLatitude();
-
-	BigDecimal getLocationLongitude();
 }

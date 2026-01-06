@@ -22,7 +22,7 @@ public class OrderDetailDto {
 	private Long customerId;
 	private CustomerDto customer;
 	private UUID storeId;
-	private UUID productId;
+	private UUID popupId;
 	private Integer totalAmount;
 	private LocalDateTime cancelableUntil;
 	private LocalDateTime createdAt;
@@ -47,15 +47,14 @@ public class OrderDetailDto {
 	public static class ItemDto {
 		private UUID id;
 		private String orderItemType;
-		private UUID productId;
+		private UUID popupId;
 		private String productTitle;
 		private String productCategory;
 		private String productStatus;
 		private UUID sessionId;
-		private UUID optionId;
 		private LocalDateTime sessionStartAt;
 		private LocalDateTime sessionEndAt;
-		private UUID merchVariantId;
+		private UUID goodsVariantId;
 		private String merchVariantName;
 		private String merchSku;
 		private Integer qty;

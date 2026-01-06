@@ -13,47 +13,43 @@ class OrderItemRequestTest {
 	@DisplayName("예약 아이템 검증 및 식별자 확인")
 	void reservationItemValidationAndIdentifiers() {
 		UUID sessionId = UUID.randomUUID();
-		UUID optionId = UUID.randomUUID();
-
 		OrderItemRequest item = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
 				.sessionId(sessionId)
-				.optionId(optionId)
 				.qty(2)
 				.unitPrice(1000)
 				.build();
 
 		assertThat(item.isReservationType()).isTrue();
-		assertThat(item.isMerchType()).isFalse();
+		assertThat(item.isGoodsType()).isFalse();
 		assertThat(item.hasRequiredFields()).isTrue();
 		assertThat(item.hasUnnecessaryFields()).isFalse();
-		assertThat(item.getSessionOptionKey()).isEqualTo(sessionId + "-" + optionId);
-		assertThat(item.getStockIdentifier()).isEqualTo(sessionId + "-" + optionId);
+		assertThat(item.getSessionOptionKey()).isEqualTo(sessionId.toString());
+		assertThat(item.getStockIdentifier()).isEqualTo(sessionId.toString());
 		assertThat(item.getDisplayDescription())
 				.contains(sessionId.toString())
-				.contains(optionId.toString())
 				.contains("2");
 	}
 
 	@Test
 	@DisplayName("굿즈 아이템 검증 및 식별자 확인")
-	void merchItemValidationAndIdentifiers() {
-		UUID merchVariantId = UUID.randomUUID();
+	void goodsItemValidationAndIdentifiers() {
+		UUID goodsVariantId = UUID.randomUUID();
 
 		OrderItemRequest item = OrderItemRequest.builder()
-				.orderItemType("MERCH")
-				.merchVariantId(merchVariantId)
+				.orderItemType("GOODS")
+				.goodsVariantId(goodsVariantId)
 				.qty(1)
 				.unitPrice(1500)
 				.build();
 
 		assertThat(item.isReservationType()).isFalse();
-		assertThat(item.isMerchType()).isTrue();
+		assertThat(item.isGoodsType()).isTrue();
 		assertThat(item.hasRequiredFields()).isTrue();
 		assertThat(item.hasUnnecessaryFields()).isFalse();
 		assertThat(item.getSessionOptionKey()).isNull();
-		assertThat(item.getStockIdentifier()).isEqualTo("VARIANT_" + merchVariantId);
-		assertThat(item.getDisplayDescription()).contains(merchVariantId.toString()).contains("1");
+		assertThat(item.getStockIdentifier()).isEqualTo("VARIANT_" + goodsVariantId);
+		assertThat(item.getDisplayDescription()).contains(goodsVariantId.toString()).contains("1");
 	}
 
 	@Test
@@ -65,42 +61,39 @@ class OrderItemRequestTest {
 				.unitPrice(1000)
 				.build();
 
-		OrderItemRequest merchItem = OrderItemRequest.builder()
-				.orderItemType("MERCH")
+		OrderItemRequest goodsItem = OrderItemRequest.builder()
+				.orderItemType("GOODS")
 				.qty(1)
 				.unitPrice(1500)
 				.build();
 
 		assertThat(reservationItem.hasRequiredFields()).isFalse();
-		assertThat(merchItem.hasRequiredFields()).isFalse();
+		assertThat(goodsItem.hasRequiredFields()).isFalse();
 	}
 
 	@Test
 	@DisplayName("불필요한 필드 감지")
 	void unnecessaryFieldsAreDetected() {
 		UUID sessionId = UUID.randomUUID();
-		UUID optionId = UUID.randomUUID();
-		UUID merchVariantId = UUID.randomUUID();
+		UUID goodsVariantId = UUID.randomUUID();
 
-		OrderItemRequest reservationWithMerch = OrderItemRequest.builder()
+		OrderItemRequest reservationWithGoods = OrderItemRequest.builder()
 				.orderItemType("RESERVATION")
 				.sessionId(sessionId)
-				.optionId(optionId)
-				.merchVariantId(merchVariantId)
+				.goodsVariantId(goodsVariantId)
 				.qty(1)
 				.unitPrice(1000)
 				.build();
 
-		OrderItemRequest merchWithReservationFields = OrderItemRequest.builder()
-				.orderItemType("MERCH")
+		OrderItemRequest goodsWithReservationFields = OrderItemRequest.builder()
+				.orderItemType("GOODS")
 				.sessionId(sessionId)
-				.optionId(optionId)
-				.merchVariantId(merchVariantId)
+				.goodsVariantId(goodsVariantId)
 				.qty(1)
 				.unitPrice(1500)
 				.build();
 
-		assertThat(reservationWithMerch.hasUnnecessaryFields()).isTrue();
-		assertThat(merchWithReservationFields.hasUnnecessaryFields()).isTrue();
+		assertThat(reservationWithGoods.hasUnnecessaryFields()).isTrue();
+		assertThat(goodsWithReservationFields.hasUnnecessaryFields()).isTrue();
 	}
 }

@@ -16,7 +16,7 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
-import com.popcorn.demo.domain.popup.application.PopupApplicationService;
+import com.popcorn.demo.domain.popup.service.PopupService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,7 +35,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 public class PopupController extends BaseController {
 
-	private final PopupApplicationService popupApplicationService;
+	private final PopupService popupService;
 
 	@Operation(
 			summary = "팝업 목록 조회",
@@ -56,20 +56,10 @@ public class PopupController extends BaseController {
 							        "id": "00000000-0000-0000-0000-000000000101",
 							        "storeId": "00000000-0000-0000-0000-000000000001",
 							        "title": "Seed Popup 1",
-							        "productType": "RESERVATION",
-							        "category": "POPUP",
-							        "regionId": 101,
-							        "isHidden": false,
+							        "category": "FOOD",
+							        "status": "OPEN",
 							        "eventStartAt": "2025-01-01T10:00:00",
-							        "eventEndAt": "2025-01-05T18:00:00",
-							        "location": {
-							          "id": "00000000-0000-0000-0000-000000009001",
-							          "name": "팝업 테스트 장소",
-							          "address1": "서울특별시 강남구 테헤란로 123",
-							          "address2": "ABC빌딩 12층",
-							          "latitude": 37.498,
-							          "longitude": 127.027
-							        }
+							        "eventEndAt": "2025-01-05T18:00:00"
 							      }
 							    ],
 							    "page": 1,
@@ -84,7 +74,8 @@ public class PopupController extends BaseController {
 	public ResponseEntity<BaseResponse<PopupListResponse>> getPopups(
 			@Parameter(description = "지역 필터", example = "101")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) Long regionId,
-			@Parameter(description = "카테고리(POPUP/MERCH/EVENT)", example = "POPUP")
+			@Parameter(description = "카테고리(FOOD/IDOL/EXHIBITION/WORKSHOP/FASHION/BEAUTY/LIFESTYLE/ART/GAME/TECH/SPORTS/BOOK/PET/ETC)",
+					example = "FOOD")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String category,
 			@Parameter(description = "검색어", example = "팝업")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
@@ -107,7 +98,7 @@ public class PopupController extends BaseController {
 				.withTotal(withTotal)
 				.build();
 
-		PopupListResponse response = popupApplicationService.getPopups(requestQuery);
+		PopupListResponse response = popupService.getPopups(requestQuery);
 		return ok(response);
 	}
 
@@ -128,21 +119,11 @@ public class PopupController extends BaseController {
 							    "id": "00000000-0000-0000-0000-000000000101",
 							    "storeId": "00000000-0000-0000-0000-000000000001",
 							    "title": "Seed Popup 1",
-							    "productType": "RESERVATION",
-							    "category": "POPUP",
-							    "regionId": 101,
-							    "isHidden": false,
+							    "description": "예약형 팝업",
+							    "category": "FOOD",
+							    "status": "OPEN",
 							    "eventStartAt": "2025-01-01T10:00:00",
-							    "eventEndAt": "2025-01-05T18:00:00",
-							    "location": {
-							      "id": "00000000-0000-0000-0000-000000009001",
-							      "name": "팝업 테스트 장소",
-							      "address1": "서울특별시 강남구 테헤란로 123",
-							      "address2": "ABC빌딩 12층",
-							      "latitude": 37.498,
-							      "longitude": 127.027,
-							      "placeNote": "입구에서 안내 데스크 확인"
-							    }
+							    "eventEndAt": "2025-01-05T18:00:00"
 							  }
 							}
 							""")
@@ -162,13 +143,13 @@ public class PopupController extends BaseController {
 					}
 					"""))
 	)
-	@GetMapping("/{productId}")
+	@GetMapping("/{popupId}")
 	public ResponseEntity<BaseResponse<PopupDetailResponse>> getPopupDetail(
 			@Parameter(description = "상품 ID", required = true,
 					example = "00000000-0000-0000-0000-000000000101")
-			@PathVariable UUID productId) {
+			@PathVariable UUID popupId) {
 
-		PopupDetailResponse response = popupApplicationService.getPopupDetail(PopupDetailQuery.of(productId));
+		PopupDetailResponse response = popupService.getPopupDetail(PopupDetailQuery.of(popupId));
 		return ok(response);
 	}
 }

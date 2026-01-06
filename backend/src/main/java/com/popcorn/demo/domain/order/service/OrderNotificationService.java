@@ -42,17 +42,10 @@ public class OrderNotificationService {
 				order.getTotalAmount());
 	}
 
-	private void notifyOrderRefunded(Order order) {
-		log.info("💰 환불 완료 알림 - 주문번호: {}, 환불금액: {}원",
-				order.getOrderNo(),
-				order.getTotalAmount());
-	}
-
 	private void statusSpecificNotification(Order order) {
 		switch (order.getStatus()) {
 			case COMPLETED -> notifyOrderCompleted(order);
 			case CANCELLED -> notifyOrderCancelled(order);
-			case REFUNDED -> notifyOrderRefunded(order);
 			default -> {
 				// no-op
 			}

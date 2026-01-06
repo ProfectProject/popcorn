@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
@@ -13,9 +14,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import com.popcorn.demo.domain.order.config.OrderProperties;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
 import com.popcorn.demo.domain.order.repository.view.OrderStatusView;
 
@@ -84,7 +87,7 @@ class OrderQueryServiceTest {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		when(repository.findOrderStatus(eq(orderId), eq(1001L))).thenReturn(null);
 
-		OrderException exception = assertThrows(OrderException.class,
+		OrderNotFoundException exception = assertThrows(OrderNotFoundException.class,
 				() -> service.getOrderStatusForCustomer(orderId, 1001L));
 
 		assertEquals(OrderResponseCode.ORDER_NOT_FOUND, exception.getResponseCode());
@@ -144,5 +147,94 @@ class OrderQueryServiceTest {
 		assertEquals("READY", response.getPaymentStatus());
 		assertEquals(cancelableUntil, response.getCancelableUntil());
 		assertEquals(updatedAt, response.getUpdatedAt());
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회(OWNER/MANAGER) - 권한 검증 호출")
+	void getOrderStatusForStaff_callsAuthorization() {
+		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
+		OrderProperties properties = new OrderProperties();
+		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
+		OrderAuthorizationService authorizationService = Mockito.mock(OrderAuthorizationService.class);
+		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
+
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+		LocalDateTime cancelableUntil = LocalDateTime.of(2025, 1, 1, 10, 30);
+		LocalDateTime updatedAt = LocalDateTime.of(2025, 1, 1, 10, 5);
+
+		when(repository.findOrderStatusByOrderId(eq(orderId)))
+				.thenReturn(new OrderStatusView() {
+					@Override
+					public UUID getOrderId() {
+						return orderId;
+					}
+
+					@Override
+					public String getOrderNo() {
+						return "O20251231-001001";
+					}
+
+					@Override
+					public String getStatus() {
+						return "REQUESTED";
+					}
+
+					@Override
+					public String getPaymentStatus() {
+						return "READY";
+					}
+
+					@Override
+					public LocalDateTime getCancelableUntil() {
+						return cancelableUntil;
+					}
+
+					@Override
+					public LocalDateTime getUpdatedAt() {
+						return updatedAt;
+					}
+				});
+
+		OrderStatusDto response = service.getOrderStatusForStaff(orderId, 2001L, "OWNER");
+
+		verify(authorizationService).validateOrderAccess(orderId, 2001L, "OWNER");
+		assertEquals(orderId, response.getOrderId());
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회(OWNER/MANAGER) - 주문 없으면 not found")
+	void getOrderStatusForStaff_throwsWhenNotFound() {
+		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
+		OrderProperties properties = new OrderProperties();
+		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
+		OrderAuthorizationService authorizationService = Mockito.mock(OrderAuthorizationService.class);
+		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
+
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+		when(repository.findOrderStatusByOrderId(eq(orderId))).thenReturn(null);
+
+		OrderNotFoundException exception = assertThrows(OrderNotFoundException.class,
+				() -> service.getOrderStatusForStaff(orderId, 2001L, "OWNER"));
+
+		assertEquals(OrderResponseCode.ORDER_NOT_FOUND, exception.getResponseCode());
+	}
+
+	@Test
+	@DisplayName("주문 상태 조회(OWNER/MANAGER) - 권한 없음")
+	void getOrderStatusForStaff_forbidden() {
+		OrderQueryRepository repository = Mockito.mock(OrderQueryRepository.class);
+		OrderProperties properties = new OrderProperties();
+		OrderBatchQueryService batchQueryService = Mockito.mock(OrderBatchQueryService.class);
+		OrderAuthorizationService authorizationService = Mockito.mock(OrderAuthorizationService.class);
+		OrderQueryService service = new OrderQueryService(repository, properties, batchQueryService, authorizationService);
+
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+		Mockito.doThrow(OrderForbiddenException.forbidden())
+				.when(authorizationService).validateOrderAccess(orderId, 2001L, "OWNER");
+
+		OrderForbiddenException exception = assertThrows(OrderForbiddenException.class,
+				() -> service.getOrderStatusForStaff(orderId, 2001L, "OWNER"));
+
+		assertEquals(CommonResponseCode.FORBIDDEN, exception.getResponseCode());
 	}
 }

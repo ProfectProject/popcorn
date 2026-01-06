@@ -6,11 +6,10 @@ import com.popcorn.demo.common.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
@@ -23,12 +22,12 @@ import lombok.Setter;
 
 	* 주문 아이템 엔티티 (JPA)
 
-	* p_order_items 테이블과 매핑
+	* p_order_goods 테이블과 매핑
 
 	*/
 
 @Entity
-@Table(name = "p_order_items")
+@Table(name = "p_order_goods")
 
 @Getter
 
@@ -47,6 +46,7 @@ public class OrderItem extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
+	@Column(name = "order_goods_id")
 	private UUID id;
 
 
@@ -56,22 +56,20 @@ public class OrderItem extends BaseEntity {
 
 
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "order_item_type")
-
+	@Transient
 	private OrderItemType orderItemType;
 
 
 
-	@Column(name = "session_option_id")
+	@Column(name = "schedule_id")
 
 	private UUID sessionOptionId;
 
 
 
-	@Column(name = "merch_variant_id")
+	@Column(name = "goods_variant_id")
 
-	private UUID merchVariantId;
+	private UUID goodsVariantId;
 
 
 
@@ -87,7 +85,7 @@ public class OrderItem extends BaseEntity {
 
 
 
-	@Column(name = "line_amount")
+	@Column(name = "price")
 
 	private Integer lineAmount;
 
@@ -103,9 +101,9 @@ public class OrderItem extends BaseEntity {
 
 
 
-	public boolean isMerchType() {
+	public boolean isGoodsType() {
 
-		return OrderItemType.MERCH.equals(orderItemType);
+		return OrderItemType.GOODS.equals(orderItemType);
 
 	}
 
