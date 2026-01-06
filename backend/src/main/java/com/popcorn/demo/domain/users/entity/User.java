@@ -23,7 +23,7 @@ import lombok.*;
 public class User extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) 
-    private Long id;
+    private Long userId;
 
     @Column(nullable = false, unique = true, length = 255)
     private String email;
@@ -31,7 +31,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(length = 20)
+    @Column(length = 11)
     private String phone;
 
     @Column(length = 100)
