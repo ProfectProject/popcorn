@@ -82,4 +82,23 @@ public class UserService {
 
         return userRepository.save(user);
     }
+
+    /**
+     * 사용자 계정 탈퇴
+     */
+    @Transactional
+    public void deactivateUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        // 기존 이메일 가져오기
+        String originalEmail = user.getEmail();
+
+        // 개인정보 마스킹 : 이메일로
+        user.setEmail("deleted_" + userId + "_" + originalEmail);
+        user.setName("탈퇴회원"+"("+user.getName()+")");
+
+        user.setActive(false); // 비활성화
+
+        userRepository.save(user);
+    }
 }

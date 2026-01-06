@@ -44,11 +44,12 @@ public class SecurityConfig {
 
         // ★ LoginFilter는 여기서 직접 생성 (Bean 등록 X)
         LoginFilter loginFilter = new LoginFilter(authManager, jwtUtil);
-        loginFilter.setFilterProcessesUrl("/api/v1/auth/login");
+        loginFilter.setFilterProcessesUrl("/api/auth/login");
 
         http.csrf().disable()
             .authorizeHttpRequests()
-                .requestMatchers("/api/v1/auth/login").permitAll()
+                .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/api/v1/auth/login").permitAll() // swagger api 테스트
                 .requestMatchers("/api/v1/users/signup").permitAll()
                 .requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER")
                 .anyRequest().authenticated()
