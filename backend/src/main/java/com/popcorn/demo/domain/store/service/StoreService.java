@@ -54,10 +54,17 @@ public class StoreService {
 
         validateOwnerId(ownerId);
 
-        List<Store> stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(ownerId);
+        List<Store> stores = storeRepository.findAllByOwnerId(ownerId);
+        if (stores == null || stores.isEmpty()) {
+            stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(ownerId);
+        }
+        if (stores == null) {
+            stores = List.of();
+        }
         
         log.info("[STORES_FOUND] count={}", stores.size());
         return stores.stream()
+                .filter(store -> store != null && !store.isDeleted())
                 .map(this::mapToListDto)
                 .toList();
     }
@@ -66,7 +73,8 @@ public class StoreService {
     public StoreDetailDto getStoreDetail(Long userId, UUID storeId) {
         log.info("[STORE_DETAIL_GET] userId={}, storeId={}", userId, storeId);
 
-        validateOwnerId(userId);
+        validateUserId(userId);
+        validateStoreId(storeId);
 
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> StoreException.storeNotFound(storeId));
@@ -186,6 +194,21 @@ public class StoreService {
             throw StoreException.ownerNotFound();
         }
     }
+    
+    private void validateUserId(Long userId) {
+        if (userId == null) {
+            throw StoreException.userIdRequired();
+        }
+        if (userId <= 0) {
+            throw StoreException.ownerNotFound();
+        }
+    }
+    
+    private void validateStoreId(UUID storeId) {
+        if (storeId == null) {
+            throw StoreException.storeIdRequired();
+        }
+    }
 
     private void checkDuplicateName(String name) {
         storeRepository.findByName(name)
@@ -245,7 +268,7 @@ public class StoreService {
                 .ownerId(store.getOwnerId())
                 .ownerName(null) // TODO: User 도메인 연동 시 구현
                 .publishStatus(store.getPublishStatus())
-                .createdAt(store.getCreatedAt())
+                .createdAt(store.getCreatedAt() != null ? store.getCreatedAt() : java.time.LocalDateTime.now())
                 .updatedAt(store.getUpdatedAt())
                 .build();
     }

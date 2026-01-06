@@ -19,6 +19,10 @@ public enum StoreResponseCode implements com.popcorn.demo.common.dto.ResponseCod
     INVALID_NAME_FORMAT(2002, 400, "스토어 이름 형식이 유효하지 않습니다."),
     
     STORE_CREATION_LIMIT_EXCEEDED(2003, 400, "스토어 생성 제한을 초과했습니다."),
+    
+    STORE_ID_REQUIRED(2004, 400, "스토어 ID는 필수입니다."),
+    
+    USER_ID_REQUIRED(2005, 400, "사용자 ID는 필수입니다."),
 
     // 리소스 없음 관련 오류 (2100~2199)
     OWNER_NOT_FOUND(2100, 404, "오너를 찾을 수 없습니다."),
