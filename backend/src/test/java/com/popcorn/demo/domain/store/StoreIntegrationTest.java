@@ -12,6 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.store.dto.CreateStoreRequest;
 import com.popcorn.demo.domain.store.dto.StoreCreatedDto;
+import com.popcorn.demo.domain.store.dto.StoreDeletedDto;
+import com.popcorn.demo.domain.store.dto.StoreDetailDto;
+import com.popcorn.demo.domain.store.dto.StoreListDto;
+import com.popcorn.demo.domain.store.dto.StoreStatusUpdatedDto;
+import com.popcorn.demo.domain.store.dto.StoreUpdatedDto;
+import com.popcorn.demo.domain.store.dto.UpdateStoreRequest;
+import com.popcorn.demo.domain.store.dto.UpdateStoreStatusRequest;
 import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
@@ -81,5 +88,121 @@ class StoreIntegrationTest {
         // When & Then
         assertThatThrownBy(() -> storeService.createStore(secondOwnerId, secondRequest))
                 .isInstanceOf(StoreException.class);
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 전체 플로우 성공")
+    void 스토어_기본_정보_수정_전체_플로우_성공() {
+        Long ownerId = 2001L;
+        CreateStoreRequest request = CreateStoreRequest.builder()
+                .name("수정 전 스토어")
+                .ownerId(ownerId)
+                .build();
+
+        StoreCreatedDto created = storeService.createStore(ownerId, request);
+
+        UpdateStoreRequest updateRequest = UpdateStoreRequest.builder()
+                .name("수정 후 스토어")
+                .build();
+
+        StoreUpdatedDto updated = storeService.updateStore(created.getId(), updateRequest, ownerId);
+
+        assertThat(updated.getId()).isEqualTo(created.getId());
+        assertThat(updated.getName()).isEqualTo("수정 후 스토어");
+        assertThat(updated.getUpdatedBy()).isEqualTo(ownerId);
+
+        Store stored = storeRepository.findById(created.getId()).orElse(null);
+        assertThat(stored).isNotNull();
+        assertThat(stored.getName()).isEqualTo("수정 후 스토어");
+    }
+
+    @Test
+    @DisplayName("스토어 상태 수정 전체 플로우 성공")
+    void 스토어_상태_수정_전체_플로우_성공() {
+        Long ownerId = 3001L;
+        CreateStoreRequest request = CreateStoreRequest.builder()
+                .name("상태 수정 스토어")
+                .ownerId(ownerId)
+                .build();
+
+        StoreCreatedDto created = storeService.createStore(ownerId, request);
+
+        UpdateStoreStatusRequest statusRequest = UpdateStoreStatusRequest.builder()
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .build();
+
+        StoreStatusUpdatedDto updated = storeService.updateStoreStatus(created.getId(), statusRequest, ownerId);
+
+        assertThat(updated.getId()).isEqualTo(created.getId());
+        assertThat(updated.getPublishStatus()).isEqualTo(StorePublishStatus.ACTIVE);
+        assertThat(updated.getUpdatedBy()).isEqualTo(ownerId);
+
+        Store stored = storeRepository.findById(created.getId()).orElse(null);
+        assertThat(stored).isNotNull();
+        assertThat(stored.getPublishStatus()).isEqualTo(StorePublishStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("스토어 삭제 전체 플로우 성공")
+    void 스토어_삭제_전체_플로우_성공() {
+        Long ownerId = 4001L;
+        CreateStoreRequest request = CreateStoreRequest.builder()
+                .name("삭제 테스트 스토어")
+                .ownerId(ownerId)
+                .build();
+
+        StoreCreatedDto created = storeService.createStore(ownerId, request);
+
+        StoreDeletedDto deleted = storeService.deleteStore(created.getId(), ownerId);
+
+        assertThat(deleted.getId()).isEqualTo(created.getId());
+        assertThat(deleted.getDeletedBy()).isEqualTo(ownerId);
+        assertThat(deleted.getDeletedAt()).isNotNull();
+
+        Store stored = storeRepository.findById(created.getId()).orElse(null);
+        assertThat(stored).isNotNull();
+        assertThat(stored.isDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("내 스토어 목록 조회 시 삭제된 스토어 제외")
+    void 내_스토어_목록_조회_삭제된_스토어_제외() {
+        Long ownerId = 5001L;
+        CreateStoreRequest firstRequest = CreateStoreRequest.builder()
+                .name("목록 스토어 1")
+                .ownerId(ownerId)
+                .build();
+        CreateStoreRequest secondRequest = CreateStoreRequest.builder()
+                .name("목록 스토어 2")
+                .ownerId(ownerId)
+                .build();
+
+        StoreCreatedDto first = storeService.createStore(ownerId, firstRequest);
+        StoreCreatedDto second = storeService.createStore(ownerId, secondRequest);
+
+        storeService.deleteStore(second.getId(), ownerId);
+
+        java.util.List<StoreListDto> stores = storeService.getStoresByOwnerId(ownerId);
+
+        assertThat(stores).hasSize(1);
+        assertThat(stores.get(0).getId()).isEqualTo(first.getId());
+    }
+
+    @Test
+    @DisplayName("스토어 상세 조회 전체 플로우 성공")
+    void 스토어_상세_조회_전체_플로우_성공() {
+        Long ownerId = 6001L;
+        CreateStoreRequest request = CreateStoreRequest.builder()
+                .name("상세 조회 스토어")
+                .ownerId(ownerId)
+                .build();
+
+        StoreCreatedDto created = storeService.createStore(ownerId, request);
+
+        StoreDetailDto detail = storeService.getStoreDetail(ownerId, created.getId());
+
+        assertThat(detail.getId()).isEqualTo(created.getId());
+        assertThat(detail.getName()).isEqualTo("상세 조회 스토어");
+        assertThat(detail.getOwnerId()).isEqualTo(ownerId);
     }
 }
