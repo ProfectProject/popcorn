@@ -32,7 +32,7 @@ public class CustomUserDetails implements UserDetails {
         return collection;
     }
 
-     @Override
+    @Override
     public String getPassword() {
 
         return userEntity.getPassword();
@@ -66,6 +66,10 @@ public class CustomUserDetails implements UserDetails {
     public boolean isEnabled() {
 
         return true;
+    }
+
+    public Long getUserId() {
+        return userEntity.getUserId();
     }
 
 }
