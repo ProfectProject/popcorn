@@ -1,17 +1,51 @@
 -- docs/DB_TABLE_SPEC.md 기반 스키마 초기화
 -- 0단계: ENUM 타입 생성
-CREATE TYPE IF NOT EXISTS user_role AS ENUM ('CUSTOMER', 'OWNER', 'MANAGER');
-CREATE TYPE IF NOT EXISTS store_status AS ENUM ('DRAFT', 'PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED', 'HIDDEN');
-CREATE TYPE IF NOT EXISTS popup_status AS ENUM ('DRAFT', 'REQUEST', 'APPROVED', 'OPEN', 'CLOSED', 'CANCELLED', 'HIDDEN');
-CREATE TYPE IF NOT EXISTS popup_category AS ENUM ('FOOD','IDOL','EXHIBITION','WORKSHOP','FASHION','BEAUTY','LIFESTYLE','ART','GAME','TECH','SPORTS','BOOK','PET','ETC');
-CREATE TYPE IF NOT EXISTS order_status AS ENUM ('REQUESTED','ACCEPTED','REJECTED','RESERVED','PAYMENT_PENDING','PAID','COMPLETED','CANCELLED');
-CREATE TYPE IF NOT EXISTS payment_method AS ENUM ('CARD','TRANSFER','EASY_PAY');
-CREATE TYPE IF NOT EXISTS payment_status AS ENUM ('READY','PAID','FAILED','CANCELLED');
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('CUSTOMER', 'OWNER', 'MANAGER');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE store_status AS ENUM ('DRAFT', 'PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED', 'HIDDEN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE popup_status AS ENUM ('DRAFT', 'REQUEST', 'APPROVED', 'OPEN', 'CLOSED', 'CANCELLED', 'HIDDEN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE popup_category AS ENUM ('FOOD','IDOL','EXHIBITION','WORKSHOP','FASHION','BEAUTY','LIFESTYLE','ART','GAME','TECH','SPORTS','BOOK','PET','ETC');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE order_status AS ENUM ('REQUESTED','ACCEPTED','REJECTED','RESERVED','PAYMENT_PENDING','PAID','COMPLETED','CANCELLED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_method AS ENUM ('CARD','TRANSFER','EASY_PAY');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM ('READY','PAID','FAILED','CANCELLED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- 1단계: 테이블 생성 (NOT NULL/DEFAULT만 반영, PK/FK/UNIQUE/CHECK는 제외)
 
 CREATE TABLE IF NOT EXISTS p_users (
-    user_id     BIGINT NOT NULL,
+    user_id     BIGSERIAL NOT NULL,
     password    varchar(255) NOT NULL,
     name        varchar(100) NOT NULL,
     phone       varchar(11),
@@ -155,7 +189,7 @@ CREATE TABLE IF NOT EXISTS p_payments (
 CREATE TABLE IF NOT EXISTS p_order_status_histories (
     order_status_id UUID NOT NULL,
     order_id        UUID NOT NULL,
-    from_status     order_status NOT NULL,
+    from_status     order_status,
     to_status       order_status NOT NULL,
     reason          varchar(255),
     changed_at      timestamp NOT NULL,

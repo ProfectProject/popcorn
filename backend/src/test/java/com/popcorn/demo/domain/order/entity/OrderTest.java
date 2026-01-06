@@ -25,13 +25,13 @@ class OrderTest {
 	@DisplayName("타입 확인 및 취소 가능 로직")
 	void typeChecksAndCancelableLogic() {
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 
 		Order reservationOrder = Order.builder()
 				.orderNo("O-1")
 				.customerId(1L)
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(10000)
@@ -42,7 +42,7 @@ class OrderTest {
 				.orderNo("O-2")
 				.customerId(1L)
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(10000)
@@ -62,13 +62,13 @@ class OrderTest {
 	@DisplayName("총 수량은 아이템 수량 합계")
 	void totalQuantitySumsItems() {
 		UUID storeId = UUID.randomUUID();
-		UUID productId = UUID.randomUUID();
+		UUID popupId = UUID.randomUUID();
 
 		Order order = Order.builder()
 				.orderNo("O-3")
 				.customerId(1L)
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(10000)

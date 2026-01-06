@@ -76,6 +76,10 @@ public class IdempotencyService {
 				return IdempotencyResult.newExecution(result);
 			} catch (Exception e) {
 				metrics.recordOperationError();
+				// 원본 예외를 그대로 전파
+				if (e instanceof RuntimeException) {
+					throw (RuntimeException) e;
+				}
 				throw new IdempotencyException("작업 실행 중 오류 발생", e);
 			}
 		}

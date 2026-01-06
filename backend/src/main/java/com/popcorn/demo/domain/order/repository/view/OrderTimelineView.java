@@ -19,7 +19,7 @@ public interface OrderTimelineView {
 
 	LocalDateTime getCreatedAt();
 
-	UUID getProductId();
+	UUID getPopupId();
 
 	UUID getStoreId();
 

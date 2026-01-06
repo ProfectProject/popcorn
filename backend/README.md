@@ -174,6 +174,7 @@ docker run --name popcorn-postgres \
 - **Database**: PostgreSQL (localhost:5432)
 - **Profile**: `local`
 - **DDL**: `none` (Flyway 관리)
+- **Seed 데이터**: Flyway로 자동 실행
 
 ### Dev (개발 서버)
 - **Database**: 환경변수로 설정
@@ -184,3 +185,18 @@ docker run --name popcorn-postgres \
 - **Database**: 환경변수로 설정
 - **Profile**: `prod`
 - **DDL**: `validate`
+
+## 🗄️ 데이터베이스 관리
+
+### Flyway 마이그레이션
+- **스키마**: `db/migration/schema/` - 테이블 구조 정의
+- **Seed**: `db/migration/seed/` - 테스트/개발용 데이터
+
+### 데이터 초기화
+```bash
+# 데이터베이스 초기화 (필요시)
+docker exec -it popcorn-postgres psql -U postgres -d popcorn_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+# 애플리케이션 재시작으로 스키마 + seed 데이터 자동 생성
+./gradlew bootRun --args='--spring.profiles.active=local'
+```

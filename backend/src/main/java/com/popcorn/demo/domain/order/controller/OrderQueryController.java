@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.popcorn.demo.common.controller.BaseController;
+import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
@@ -20,6 +23,7 @@ import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,9 +72,14 @@ public class OrderQueryController extends BaseController {
 					required = true,
 					example = "00000000-0000-0000-0000-000000001001"
 			)
-			@PathVariable UUID orderId) {
+			@PathVariable UUID orderId,
+			Authentication authentication) {
 
-		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, null, null);
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long userId = userDetails.getUserId();
+		String role = userDetails.getRole();
+
+		OrderDetailDto detail = orderQueryService.getOrderDetail(orderId, userId, role);
 		return ok(detail);
 	}
 
@@ -105,10 +114,76 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "주문 ID", required = true,
 					example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId,
-			@Parameter(hidden = true)
-			@RequestParam(required = false) Long customerId) {
+			Authentication authentication) {
+
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long customerId = userDetails.getUserId();
 
 		OrderStatusDto response = orderQueryService.getOrderStatusForCustomer(orderId, customerId);
+		return ok(response);
+	}
+
+	@Operation(
+			summary = "주문/예약 상태 단건 조회 (OWNER/MANAGER)",
+			description = "OWNER/MANAGER가 주문 상태를 조회합니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "주문 상태 조회 성공",
+			content = @Content(schema = @Schema(implementation = OrderStatusDto.class))
+	)
+	@ApiResponse(responseCode = "403", description = "권한 없음")
+	@ApiResponse(responseCode = "404", description = "주문 없음")
+	@GetMapping("/{orderId}/status/ops")
+	public ResponseEntity<BaseResponse<OrderStatusDto>> getOrderStatusForStaff(
+			@Parameter(description = "주문 ID", required = true,
+					example = "00000000-0000-0000-0000-000000001001")
+			@PathVariable UUID orderId,
+			Authentication authentication) {
+
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long userId = userDetails.getUserId();
+		String role = userDetails.getRole();
+
+		OrderStatusDto response = orderQueryService.getOrderStatusForStaff(orderId, userId, role);
+		return ok(response);
+	}
+
+	@Operation(
+			summary = "가게 주문/예약 상태 목록 조회 (OWNER/MANAGER)",
+			description = "OWNER/MANAGER가 가게/상품 기준으로 주문 상태 목록을 조회합니다. storeId 또는 popupId 중 하나는 필수입니다."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "주문 상태 목록 조회 성공",
+			content = @Content(schema = @Schema(implementation = StoreOrderReservationListResponse.class))
+	)
+	@ApiResponse(responseCode = "403", description = "권한 없음")
+	@GetMapping("/status/ops")
+	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrderStatusesForStaff(
+			@Parameter(description = "스토어 ID",
+					example = "00000000-0000-0000-0000-000000000001")
+			@RequestParam(required = false) UUID storeId,
+			@Parameter(description = "상품 ID",
+					example = "00000000-0000-0000-0000-000000000101")
+			@RequestParam(required = false) UUID popupId,
+			@Parameter(description = "주문 상태",
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false) OrderStatus status,
+			@Parameter(description = "페이지 (기본 1)")
+			@RequestParam(required = false, defaultValue = "1") Integer page,
+			@Parameter(description = "사이즈 (기본 20)")
+			@RequestParam(required = false, defaultValue = "20") Integer size) {
+
+		if (storeId == null && popupId == null) {
+			throw OrderValidationException.invalidRequest();
+		}
+
+		Long offset = (long) (page - 1) * size;
+		String statusStr = status == null ? null : status.name();
+		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
+				storeId, popupId, statusStr, null, null, size, offset
+		);
 		return ok(response);
 	}
 
@@ -130,7 +205,7 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "상품 ID",
 					example = "00000000-0000-0000-0000-000000000101")
 			@RequestParam(required = false,
-					defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
+					defaultValue = "00000000-0000-0000-0000-000000000101") UUID popupId,
 			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
@@ -148,7 +223,7 @@ public class OrderQueryController extends BaseController {
 		// page/size를 limit/offset으로 변환
 		Long offset = (long) (page - 1) * size;
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
-				storeId, productId, status.name(), from, to, size, offset
+				storeId, popupId, status.name(), from, to, size, offset
 		);
 		return ok(response);
 	}
@@ -164,8 +239,6 @@ public class OrderQueryController extends BaseController {
 	)
 	@GetMapping("/me")
 	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
-			@Parameter(hidden = true)
-			@RequestParam(required = false) Long customerId,
 			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)")
 			@RequestParam(required = false, defaultValue = "ALL") String orderType,
 			@Parameter(description = "주문 상태",
@@ -180,17 +253,21 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "페이지 (기본 1)")
 			@RequestParam(required = false, defaultValue = "1") Integer page,
 			@Parameter(description = "사이즈 (기본 20)")
-			@RequestParam(required = false, defaultValue = "20") Integer size) {
+			@RequestParam(required = false, defaultValue = "20") Integer size,
+			Authentication authentication) {
+
+		// JWT에서 현재 인증된 사용자 정보 추출
+		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+		Long customerId = userDetails.getUserId();
 
 		// page/size를 limit/offset으로 변환하고 파라미터명 맞춤
 		Long offset = (long) (page - 1) * size;
-		Long resolvedCustomerId = customerId != null ? customerId : 1001L;
-		String normalizedOrderType = (orderType != null && "ALL".equalsIgnoreCase(orderType))
+		String normalizedOrderType = "ALL".equalsIgnoreCase(orderType)
 				? null
 				: orderType;
 		String statusStr = status == null ? null : status.name();
 		MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
-				resolvedCustomerId, normalizedOrderType, statusStr, from, to, size, offset
+				customerId, normalizedOrderType, statusStr, from, to, size, offset
 		);
 		return ok(response);
 	}

@@ -30,7 +30,6 @@ spring:
     default-schema: public
     schemas: public
 
-logging:
-  level:
-    com.popcorn.demo: WARN
-    org.springframework.security: ERROR
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 3600000

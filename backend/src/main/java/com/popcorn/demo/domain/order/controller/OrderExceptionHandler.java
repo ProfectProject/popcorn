@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.order.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -64,6 +65,17 @@ public class OrderExceptionHandler extends BaseController {
 				.map(error -> error.getField() + ": " + error.getDefaultMessage())
 				.findFirst()
 				.orElse("입력값이 올바르지 않습니다.");
+		return error(CommonResponseCode.INVALID_REQUEST, message);
+	}
+
+	/**
+	 * 필수 요청 파라미터 누락 (400 Bad Request)
+	 */
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleMissingRequestParam(
+			MissingServletRequestParameterException ex) {
+		log.warn("Order missing request parameter: {}", ex.getMessage());
+		String message = String.format("필수 요청 파라미터가 누락되었습니다: %s", ex.getParameterName());
 		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 

@@ -23,7 +23,7 @@ public interface OrderDetailView {
 
 	Long getStoreOwnerId();
 
-	UUID getProductId();
+	UUID getPopupId();
 
 	Integer getTotalAmount();
 
