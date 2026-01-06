@@ -17,8 +17,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
-import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import org.hibernate.annotations.UuidGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -117,8 +115,7 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", columnDefinition = "order_status")
-	@JdbcType(PostgreSQLEnumJdbcType.class)
+	@Column(name = "status")
 	private OrderStatus status;
 
 
