@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.goods.controller;
 
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsIdResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsItemResponse;
@@ -68,7 +69,14 @@ public class GoodsController extends BaseController {
             @PathVariable UUID goodsId,
             @Valid @RequestBody GoodsStatusUpdateRequest request
     ) {
-        return ok(goodsService.updateStatus(popupId, goodsId, request));
+        GoodsStatusResponse response = goodsService.updateStatus(popupId, goodsId, request);
+        return ResponseEntity.ok(
+                BaseResponse.of(
+                        CommonResponseCode.SUCCESS.getCode(),
+                        "변경되었습니다",
+                        response
+                )
+        );
     }
 
     @DeleteMapping("/{goodsId}")
