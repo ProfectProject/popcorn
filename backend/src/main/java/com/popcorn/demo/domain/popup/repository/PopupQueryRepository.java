@@ -68,4 +68,33 @@ public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
 			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
 			""", nativeQuery = true)
 	Optional<PopupListView> findPopupDetail(@Param("popupId") UUID popupId);
+
+	@Query(value = """
+			SELECT CAST(p.popup_id AS VARCHAR) AS id,
+			       CAST(p.store_id AS VARCHAR) AS storeId,
+			       p.title AS title,
+			       p.description AS description,
+			       p.category AS category,
+			       p.status AS status,
+			       MIN(ps.start_at) AS eventStartAt,
+			       MAX(ps.end_at) AS eventEndAt
+			  FROM p_popups p
+			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
+			 WHERE p.deleted_at IS NULL
+			   AND p.status = CAST(:status AS popup_status)
+			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
+			 ORDER BY p.created_at DESC
+			 LIMIT :limit OFFSET :offset
+			""", nativeQuery = true)
+	List<PopupListView> findPopupsByStatus(@Param("status") String status,
+			@Param("limit") int limit,
+			@Param("offset") long offset);
+
+	@Query(value = """
+			SELECT COUNT(1)
+			  FROM p_popups p
+			 WHERE p.deleted_at IS NULL
+			   AND p.status = CAST(:status AS popup_status)
+			""", nativeQuery = true)
+	long countPopupsByStatus(@Param("status") String status);
 }
