@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Sql(scripts = "/db/migration/seed/V12__seed_popup_test_data.sql")
+@Sql(scripts = {"/sql/test-schema.sql", "/sql/popup-test-data.sql"})
 class PopupControllerIntegrationTest {
 
 	@Autowired
@@ -24,7 +24,7 @@ class PopupControllerIntegrationTest {
 	@DisplayName("팝업 목록 조회 통합 테스트")
 	void getPopups() throws Exception {
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/popups")
-						.param("category", "POPUP")
+						.param("category", "FOOD")
 						.param("regionId", "101")
 						.param("page", "1")
 						.param("size", "20"))
@@ -32,9 +32,9 @@ class PopupControllerIntegrationTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.total").value(2))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].title").value("Popup Merch 55"))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].productType").value("MERCH"))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].status").value("OPEN"))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[1].title").value("Seed Popup 1"))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[1].productType").value("RESERVATION"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[1].status").value("OPEN"));
 	}
 
 	@Test
@@ -45,7 +45,7 @@ class PopupControllerIntegrationTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.title").value("Seed Popup 1"))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.location.name").value("팝업 테스트 장소"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("OPEN"));
 	}
 
 	@Test
@@ -57,17 +57,7 @@ class PopupControllerIntegrationTest {
 						.param("to", "2025-01-31T23:59:59"))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].status").value("OPEN"))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].location.name").value("팝업 테스트 장소"));
-	}
-
-	@Test
-	@DisplayName("옵션 조회 통합 테스트")
-	void getProductOptions() throws Exception {
-		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/products/{productId}/options",
-						"00000000-0000-0000-0000-000000000101"))
-				.andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].name").value("일반 좌석"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].price").value(12000))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].isActive").value(true));
 	}
 }

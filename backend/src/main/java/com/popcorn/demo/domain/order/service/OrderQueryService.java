@@ -19,9 +19,12 @@ import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
+import com.popcorn.demo.domain.order.repository.view.OrderAddressView;
 import com.popcorn.demo.domain.order.repository.view.OrderDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderItemDetailView;
+import com.popcorn.demo.domain.order.repository.view.OrderPaymentView;
 import com.popcorn.demo.domain.order.repository.view.OrderStatusView;
 import com.popcorn.demo.domain.order.repository.view.OrderTimelineView;
 import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
@@ -51,17 +54,17 @@ public class OrderQueryService {
 	/**
 	 * 점주용 주문 예약 목록 조회 (캐싱 적용)
 	 */
-	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #productId + '_' + #status")
+	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #popupId + '_' + #status")
 	public StoreOrderReservationListResponse getStoreOrderReservations(
 			UUID storeId,
-			UUID productId,
+			UUID popupId,
 			String status,
 			LocalDateTime startDate,
 			LocalDateTime endDate,
 			Integer limit,
 			Long offset) {
 
-		log.info("📊 점주 주문 목록 조회 - 매장: {}, 상품: {}, 상태: {}", storeId, productId, status);
+		log.info("📊 점주 주문 목록 조회 - 매장: {}, 상품: {}, 상태: {}", storeId, popupId, status);
 
 		// 설정값 기반 페이징 (매직 넘버 제거)
 		int pageLimit = (limit != null && limit > 0)
@@ -71,7 +74,7 @@ public class OrderQueryService {
 
 		// 📈 성능 최적화: 카운트와 데이터 조회를 병렬로 처리
 		long totalCount = orderQueryRepository.countStoreOrders(
-				storeId, productId, status, startDate, endDate);
+				storeId, popupId, status, startDate, endDate);
 
 		if (totalCount == 0) {
 			return StoreOrderReservationListResponse.builder()
@@ -84,7 +87,7 @@ public class OrderQueryService {
 
 		// 🚀 배치 조회로 N+1 쿼리 해결
 		List<StoreOrderReservationView> views = orderQueryRepository.findStoreOrders(
-				storeId, productId, status, startDate, endDate, pageLimit, pageOffset);
+				storeId, popupId, status, startDate, endDate, pageLimit, pageOffset);
 
 		List<StoreOrderReservationListResponse.ItemDto> items = views.stream()
 				.map(this::convertToOrderReservation)
@@ -182,7 +185,28 @@ public class OrderQueryService {
 				? orderQueryRepository.findOrderStatusByOrderId(orderId)
 				: orderQueryRepository.findOrderStatus(orderId, customerId);
 		if (view == null) {
-			throw OrderException.orderNotFound();
+			throw OrderNotFoundException.orderNotFound();
+		}
+
+		return OrderStatusDto.builder()
+				.orderId(view.getOrderId())
+				.orderNo(view.getOrderNo())
+				.status(view.getStatus())
+				.paymentStatus(view.getPaymentStatus())
+				.cancelableUntil(view.getCancelableUntil())
+				.updatedAt(view.getUpdatedAt())
+				.build();
+	}
+
+	/**
+	 * 운영자(OWNER/MANAGER)용 주문 상태 단건 조회
+	 */
+	public OrderStatusDto getOrderStatusForStaff(UUID orderId, Long userId, String role) {
+		orderAuthorizationService.validateOrderAccess(orderId, userId, role);
+
+		OrderStatusView view = orderQueryRepository.findOrderStatusByOrderId(orderId);
+		if (view == null) {
+			throw OrderNotFoundException.orderNotFound();
 		}
 
 		return OrderStatusDto.builder()
@@ -205,12 +229,16 @@ public class OrderQueryService {
 		// 🚀 한 번의 쿼리로 모든 정보 조회 (N+1 해결)
 		OrderDetailView view = orderQueryRepository.findOrderDetail(orderId);
 		if (view == null) {
-			throw OrderException.orderNotFound();
+			throw OrderNotFoundException.orderNotFound();
 		}
 
 		validateOrderAccessIfPresent(view.getOrderId(), requesterId, requesterType);
 
-		OrderDetailDto response = convertToOrderDetail(view);
+		List<OrderDetailDto.ItemDto> items = fetchOrderItems(orderId, view.getPopupId());
+		OrderDetailDto.AddressDto address = fetchDefaultAddress(view.getCustomerId());
+		OrderDetailDto.PaymentDto payment = fetchPayment(orderId);
+
+		OrderDetailDto response = convertToOrderDetail(view, items, address, payment);
 
 		log.info("✅ 주문 상세 조회 완료 - 주문번호: {}", view.getOrderNo());
 		return response;
@@ -289,7 +317,7 @@ public class OrderQueryService {
 				.totalAmount(view.getTotalAmount())
 				.cancelableUntil(view.getCancelableUntil())
 				.createdAt(view.getCreatedAt())
-				.productId(view.getProductId())
+				.popupId(view.getPopupId())
 				.storeId(view.getStoreId())
 				.title(view.getProductTitle())
 				.sessionStartAt(view.getSessionStartAt())
@@ -301,7 +329,11 @@ public class OrderQueryService {
 	 * OrderDetailView → OrderDetailDto 변환
 	 * TODO: View 객체의 실제 필드명에 맞게 수정 필요
 	 */
-	private OrderDetailDto convertToOrderDetail(OrderDetailView view) {
+	private OrderDetailDto convertToOrderDetail(
+			OrderDetailView view,
+			List<OrderDetailDto.ItemDto> items,
+			OrderDetailDto.AddressDto address,
+			OrderDetailDto.PaymentDto payment) {
 		return OrderDetailDto.builder()
 				.id(view.getOrderId())
 				.orderNo(view.getOrderNo())
@@ -313,14 +345,64 @@ public class OrderQueryService {
 						.role(view.getCustomerRole())
 						.build())
 				.storeId(view.getStoreId())
-				.productId(view.getProductId())
+				.popupId(view.getPopupId())
 				.totalAmount(view.getTotalAmount())
 				.cancelableUntil(view.getCancelableUntil())
 				.createdAt(view.getCreatedAt())
 				.updatedAt(view.getUpdatedAt())
-				.items(null)
-				.address(null)
-				.payment(null)
+				.items(items)
+				.address(address)
+				.payment(payment)
+				.build();
+	}
+
+	private List<OrderDetailDto.ItemDto> fetchOrderItems(UUID orderId, UUID fallbackPopupId) {
+		List<OrderItemDetailView> rows = orderQueryRepository.findOrderItems(orderId, fallbackPopupId);
+		return rows.stream()
+				.map(row -> OrderDetailDto.ItemDto.builder()
+						.id(row.getOrderItemId())
+						.orderItemType(row.getOrderItemType())
+						.popupId(row.getPopupId())
+						.productTitle(row.getProductTitle())
+						.productCategory(row.getProductCategory())
+						.productStatus(row.getProductStatus())
+						.sessionId(row.getSessionId())
+						.sessionStartAt(row.getSessionStartAt())
+						.sessionEndAt(row.getSessionEndAt())
+						.goodsVariantId(row.getGoodsVariantId())
+						.merchVariantName(row.getMerchVariantName())
+						.merchSku(row.getMerchSku())
+						.qty(row.getQty())
+						.unitPrice(row.getUnitPrice())
+						.lineAmount(row.getLineAmount())
+						.build())
+				.toList();
+	}
+
+	private OrderDetailDto.AddressDto fetchDefaultAddress(Long userId) {
+		OrderAddressView row = orderQueryRepository.findDefaultAddress(userId);
+		if (row == null) {
+			return null;
+		}
+		return OrderDetailDto.AddressDto.builder()
+				.address1(row.getAddress1())
+				.address2(row.getAddress2())
+				.receiverName(row.getReceiverName())
+				.phone(row.getPhone())
+				.build();
+	}
+
+	private OrderDetailDto.PaymentDto fetchPayment(UUID orderId) {
+		OrderPaymentView row = orderQueryRepository.findPayment(orderId);
+		if (row == null) {
+			return null;
+		}
+		return OrderDetailDto.PaymentDto.builder()
+				.id(row.getPaymentId())
+				.method(row.getMethod())
+				.status(row.getStatus())
+				.amount(row.getAmount())
+				.approvedAt(row.getApprovedAt())
 				.build();
 	}
 

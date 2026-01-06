@@ -29,27 +29,26 @@ public class OrderItemRequest {
 
 	private UUID optionId;
 
-	private UUID merchVariantId;
+	private UUID goodsVariantId;
 
 	public boolean isReservationType() {
 		return "RESERVATION".equals(orderItemType);
 	}
 
-	public boolean isMerchType() {
-		return "MERCH".equals(orderItemType);
+	public boolean isGoodsType() {
+		return "GOODS".equals(orderItemType);
 	}
 
 	public boolean isValidReservationItem() {
 		return isReservationType()
 				&& sessionId != null
-				&& optionId != null
 				&& qty != null
 				&& qty > 0;
 	}
 
-	public boolean isValidMerchItem() {
-		return isMerchType()
-				&& merchVariantId != null
+	public boolean isValidGoodsItem() {
+		return isGoodsType()
+				&& goodsVariantId != null
 				&& qty != null
 				&& qty > 0;
 	}
@@ -58,25 +57,25 @@ public class OrderItemRequest {
 		if (isReservationType()) {
 			return isValidReservationItem();
 		}
-		if (isMerchType()) {
-			return isValidMerchItem();
+		if (isGoodsType()) {
+			return isValidGoodsItem();
 		}
 		return false;
 	}
 
 	public boolean hasUnnecessaryFields() {
 		if (isReservationType()) {
-			return merchVariantId != null;
+			return goodsVariantId != null;
 		}
-		if (isMerchType()) {
+		if (isGoodsType()) {
 			return sessionId != null || optionId != null;
 		}
 		return false;
 	}
 
 	public String getSessionOptionKey() {
-		if (isReservationType() && sessionId != null && optionId != null) {
-			return sessionId + "-" + optionId;
+		if (isReservationType() && sessionId != null) {
+			return sessionId.toString();
 		}
 		return null;
 	}
@@ -85,18 +84,18 @@ public class OrderItemRequest {
 		if (isReservationType()) {
 			return getSessionOptionKey();
 		}
-		if (isMerchType()) {
-			return "VARIANT_" + merchVariantId;
+		if (isGoodsType()) {
+			return "VARIANT_" + goodsVariantId;
 		}
 		return null;
 	}
 
 	public String getDisplayDescription() {
 		if (isReservationType()) {
-			return String.format("예약 (세션: %s, 옵션: %s) x %d개", sessionId, optionId, qty);
+			return String.format("예약 (스케줄: %s) x %d개", sessionId, qty);
 		}
-		if (isMerchType()) {
-			return String.format("굿즈 (변형: %s) x %d개", merchVariantId, qty);
+		if (isGoodsType()) {
+			return String.format("굿즈 (변형: %s) x %d개", goodsVariantId, qty);
 		}
 		return String.format("항목 (%s) x %d개", orderItemType, qty);
 	}

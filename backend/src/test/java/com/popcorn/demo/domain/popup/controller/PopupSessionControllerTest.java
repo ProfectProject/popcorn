@@ -20,7 +20,7 @@ class PopupSessionControllerTest extends PopupControllerTestBase {
 	@DisplayName("회차(슬롯) 조회")
 	void getProductSessions() throws Exception {
 		PopupSessionListResponse response = createSessionListResponse();
-		when(popupApplicationService.getProductSessions(any(PopupSessionListQuery.class)))
+		when(popupService.getProductSessions(any(PopupSessionListQuery.class)))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/products/{productId}/sessions",
@@ -30,6 +30,6 @@ class PopupSessionControllerTest extends PopupControllerTestBase {
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].status").value("OPEN"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].price").value(12000));
 	}
 }

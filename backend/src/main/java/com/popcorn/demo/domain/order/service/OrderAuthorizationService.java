@@ -9,7 +9,8 @@ import org.springframework.stereotype.Service;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,7 @@ public class OrderAuthorizationService {
 	public void validateOrderAccess(UUID orderId, Long userId, String role) {
 		if (userId == null || role == null || role.isBlank()) {
 			log.warn("❌ 권한 정보 부족 - 사용자: {}, 역할: {}", userId, role);
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
@@ -48,7 +49,7 @@ public class OrderAuthorizationService {
 			case "CUSTOMER", "USER" -> validateCustomerAccess(orderId, userId);
 			default -> {
 				log.warn("❌ 알 수 없는 역할: {}", normalizedRole);
-				throw OrderException.forbidden();
+				throw OrderForbiddenException.forbidden();
 			}
 		}
 	}
@@ -71,7 +72,7 @@ public class OrderAuthorizationService {
 		if (!allowed) {
 			log.warn("❌ 상태 변경 권한 없음 - 역할: {}, 상태변경: {} → {}",
 					normalizedRole, fromStatus, toStatus);
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 	}
 
@@ -83,10 +84,9 @@ public class OrderAuthorizationService {
 
 		// 취소 불가 상태 검증
 		if (order.getStatus() == OrderStatus.COMPLETED ||
-			order.getStatus() == OrderStatus.CANCELLED ||
-			order.getStatus() == OrderStatus.REFUNDED) {
+			order.getStatus() == OrderStatus.CANCELLED) {
 			log.warn("❌ 취소 불가 상태 - 주문: {}, 현재상태: {}", order.getId(), order.getStatus());
-			throw OrderException.orderCannotBeCancelled();
+			throw OrderValidationException.orderCannotBeCancelled();
 		}
 
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
@@ -95,7 +95,7 @@ public class OrderAuthorizationService {
 		if ("CUSTOMER".equals(normalizedRole) || "USER".equals(normalizedRole)) {
 			if (order.getStatus() != OrderStatus.REQUESTED) {
 				log.warn("❌ 고객 취소 불가 상태 - 주문: {}, 상태: {}", order.getId(), order.getStatus());
-				throw OrderException.customerCannotCancelOrder();
+				throw OrderForbiddenException.customerCannotCancelOrder();
 			}
 		}
 	}
@@ -112,7 +112,7 @@ public class OrderAuthorizationService {
 		// 임시로 기본 검증만 수행
 		if (userId <= 0) {
 			log.warn("❌ 점주 접근 거부 - 주문: {}, 사용자: {}", orderId, userId);
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 		log.debug("🔓 점주 접근 허용 - 주문: {}, 사용자: {}", orderId, userId);
 	}
@@ -122,7 +122,7 @@ public class OrderAuthorizationService {
 		// 임시로 기본 검증만 수행
 		if (userId <= 0) {
 			log.warn("❌ 매니저 접근 거부 - 주문: {}, 사용자: {}", orderId, userId);
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 		log.debug("🔓 매니저 접근 허용 - 주문: {}, 사용자: {}", orderId, userId);
 	}
@@ -132,7 +132,7 @@ public class OrderAuthorizationService {
 		// 임시로 기본 검증만 수행
 		if (userId <= 0) {
 			log.warn("❌ 고객 접근 거부 - 주문: {}, 사용자: {}", orderId, userId);
-			throw OrderException.forbidden();
+			throw OrderForbiddenException.forbidden();
 		}
 		log.debug("🔓 고객 접근 허용 - 주문: {}, 사용자: {}", orderId, userId);
 	}
@@ -140,7 +140,7 @@ public class OrderAuthorizationService {
 	private boolean isOwnerAllowedStatusChange(OrderStatus from, OrderStatus to) {
 		// 점주/매니저가 할 수 있는 상태 변경
 		return switch (to) {
-			case OWNER_ACCEPTED, OWNER_REJECTED, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED -> true;
+			case ACCEPTED, REJECTED, RESERVED, PAYMENT_PENDING, PAID, COMPLETED, CANCELLED -> true;
 			default -> false;
 		};
 	}

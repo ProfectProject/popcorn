@@ -10,7 +10,7 @@ import lombok.Getter;
 @Builder
 public class PopupViewedEvent {
 
-	private final UUID productId;
+	private final UUID popupId;
 	private final UUID storeId;
 	private final String category;
 	private final Long regionId;

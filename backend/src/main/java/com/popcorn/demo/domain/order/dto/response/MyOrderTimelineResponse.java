@@ -32,7 +32,7 @@ public class MyOrderTimelineResponse {
 		private Integer totalAmount;
 		private LocalDateTime cancelableUntil;
 		private LocalDateTime createdAt;
-		private UUID productId;
+		private UUID popupId;
 		private UUID storeId;
 		private String title;
 		private LocalDateTime sessionStartAt;

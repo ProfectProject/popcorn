@@ -119,12 +119,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo(Order.generateOrderNo()) // 도메인 엔티티의 비즈니스 로직 활용
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(20000)
 				.idempotencyKey("jpa-seed-reservation-001")
-				.version(0L)
 				.build();
 
 		// 주문 아이템 생성 (연관관계 활용)
@@ -150,18 +149,17 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo(Order.generateOrderNo())
 				.customerId(1002L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.PURCHASE)
-				.status(OrderStatus.CONFIRMED)
+				.status(OrderStatus.RESERVED)
 				.totalAmount(35000)
 				.idempotencyKey("jpa-seed-purchase-001")
-				.version(0L)
 				.build();
 
 		// 굿즈 아이템 생성
 		OrderItem merchItem = OrderItem.builder()
-				.orderItemType(OrderItemType.MERCH)
-				.merchVariantId(MERCH_VARIANT_ID_1)
+				.orderItemType(OrderItemType.GOODS)
+				.goodsVariantId(MERCH_VARIANT_ID_1)
 				.qty(1)
 				.unitPrice(35000)
 				.lineAmount(35000)
@@ -180,12 +178,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo(Order.generateOrderNo())
 				.customerId(1003L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.CANCELLED) // 취소 상태
 				.totalAmount(15000)
 				.idempotencyKey("jpa-seed-cancelled-001")
-				.version(1L) // 상태 변경으로 인한 버전 증가
 				.build();
 
 		OrderItem cancelledItem = OrderItem.builder()
@@ -214,12 +211,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-140001")
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(10000)
 				.idempotencyKey("cancel-test-001")
-				.version(0L)
 				.build();
 		OrderItem item1401 = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -237,16 +233,15 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-140002")
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(25000)
 				.idempotencyKey("cancel-test-002")
-				.version(0L)
 				.build();
 		OrderItem item1402 = OrderItem.builder()
-				.orderItemType(OrderItemType.MERCH)
-				.merchVariantId(MERCH_VARIANT_ID_1)
+				.orderItemType(OrderItemType.GOODS)
+				.goodsVariantId(MERCH_VARIANT_ID_1)
 				.qty(1)
 				.unitPrice(25000)
 				.lineAmount(25000)
@@ -260,12 +255,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-140003")
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(15000)
 				.idempotencyKey("cancel-test-003")
-				.version(0L)
 				.build();
 		OrderItem item1403 = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -283,16 +277,15 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-140004")
 				.customerId(1002L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(18000)
 				.idempotencyKey("cancel-test-004")
-				.version(0L)
 				.build();
 		OrderItem item1404 = OrderItem.builder()
-				.orderItemType(OrderItemType.MERCH)
-				.merchVariantId(MERCH_VARIANT_ID_1)
+				.orderItemType(OrderItemType.GOODS)
+				.goodsVariantId(MERCH_VARIANT_ID_1)
 				.qty(2)
 				.unitPrice(9000)
 				.lineAmount(18000)
@@ -306,12 +299,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-140005")
 				.customerId(1003L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(22000)
 				.idempotencyKey("cancel-test-005")
-				.version(0L)
 				.build();
 		OrderItem item1405 = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -339,12 +331,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-150001")
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.CANCELLED)
 				.totalAmount(15000)
 				.idempotencyKey("cancel-test-already-cancelled")
-				.version(1L) // 상태 변경으로 인한 버전 증가
 				.build();
 		OrderItem cancelledItem = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -362,16 +353,15 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderNo("O20260103-150002")
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.COMPLETED)
 				.totalAmount(20000)
 				.idempotencyKey("cancel-test-completed")
-				.version(0L)
 				.build();
 		OrderItem completedItem = OrderItem.builder()
-				.orderItemType(OrderItemType.MERCH)
-				.merchVariantId(MERCH_VARIANT_ID_1)
+				.orderItemType(OrderItemType.GOODS)
+				.goodsVariantId(MERCH_VARIANT_ID_1)
 				.qty(1)
 				.unitPrice(20000)
 				.lineAmount(20000)
@@ -379,18 +369,17 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 		completedOrder.addOrderItem(completedItem);
 		orders.add(completedOrder);
 
-		// 1503: 준비 중인 주문 (PREPARING 상태) - 취소 시간은 남았지만 상태상 취소 불가
+		// 1503: 결제 대기 주문 (PAYMENT_PENDING 상태) - 취소 시간은 남았지만 상태상 취소 불가
 		Order preparingOrder = Order.builder()
 				.id(UUID.fromString("00000000-0000-0000-0000-000000001503"))
 				.orderNo("O20260103-150003")
 				.customerId(1001L)
 				.storeId(STORE_ID_1)
-				.productId(PRODUCT_ID_1)
+				.popupId(PRODUCT_ID_1)
 				.orderType(OrderType.RESERVATION)
-				.status(OrderStatus.PREPARING)
+				.status(OrderStatus.PAYMENT_PENDING)
 				.totalAmount(12000)
 				.idempotencyKey("cancel-test-preparing")
-				.version(0L)
 				.build();
 		OrderItem preparingItem = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -425,12 +414,12 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.build();
 		histories.add(cancelHistory);
 
-		// 1502번 주문: REQUESTED → CONFIRMED → COMPLETED 상태 변경 이력
+		// 1502번 주문: REQUESTED → RESERVED → COMPLETED 상태 변경 이력
 		// 실제 운영에서는 여러 단계를 거쳐 완료되므로 이력을 시뮬레이션
 		OrderStatusHistory confirmHistory = OrderStatusHistory.builder()
 				.orderId(UUID.fromString("00000000-0000-0000-0000-000000001502"))
 				.fromStatus(OrderStatus.REQUESTED)
-				.toStatus(OrderStatus.CONFIRMED)
+				.toStatus(OrderStatus.RESERVED)
 				.reason("운영자 승인")
 				.changedBy(2001L) // 운영자 ID
 				.changedAt(LocalDateTime.now().minusHours(2).minusMinutes(30))
@@ -439,7 +428,7 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 
 		OrderStatusHistory completeHistory = OrderStatusHistory.builder()
 				.orderId(UUID.fromString("00000000-0000-0000-0000-000000001502"))
-				.fromStatus(OrderStatus.CONFIRMED)
+				.fromStatus(OrderStatus.RESERVED)
 				.toStatus(OrderStatus.COMPLETED)
 				.reason("서비스 완료")
 				.changedBy(2001L) // 운영자 ID
@@ -447,11 +436,11 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.build();
 		histories.add(completeHistory);
 
-		// 1503번 주문: REQUESTED → CONFIRMED → PREPARING 상태 변경 이력
+		// 1503번 주문: REQUESTED → RESERVED → PAYMENT_PENDING 상태 변경 이력
 		OrderStatusHistory prepareConfirmHistory = OrderStatusHistory.builder()
 				.orderId(UUID.fromString("00000000-0000-0000-0000-000000001503"))
 				.fromStatus(OrderStatus.REQUESTED)
-				.toStatus(OrderStatus.CONFIRMED)
+				.toStatus(OrderStatus.RESERVED)
 				.reason("운영자 승인")
 				.changedBy(2001L) // 운영자 ID
 				.changedAt(LocalDateTime.now().minusHours(1).minusMinutes(30))
@@ -460,8 +449,8 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 
 		OrderStatusHistory preparingHistory = OrderStatusHistory.builder()
 				.orderId(UUID.fromString("00000000-0000-0000-0000-000000001503"))
-				.fromStatus(OrderStatus.CONFIRMED)
-				.toStatus(OrderStatus.PREPARING)
+				.fromStatus(OrderStatus.RESERVED)
+				.toStatus(OrderStatus.PAYMENT_PENDING)
 				.reason("주문 준비 시작")
 				.changedBy(2001L) // 운영자 ID
 				.changedAt(LocalDateTime.now().minusMinutes(30))

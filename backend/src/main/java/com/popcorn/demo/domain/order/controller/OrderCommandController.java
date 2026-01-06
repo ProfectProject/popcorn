@@ -1,7 +1,6 @@
 package com.popcorn.demo.domain.order.controller;
 
 import java.util.UUID;
-import java.time.LocalDateTime;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,13 +23,19 @@ import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
+import com.popcorn.demo.domain.order.dto.request.PaymentCreateRequest;
 import com.popcorn.demo.domain.order.dto.response.OrderCreatedDto;
+import com.popcorn.demo.domain.order.dto.response.OrderPaymentCreateResponse;
+import com.popcorn.demo.domain.order.dto.response.ReservationPaymentCreateResponse;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.entity.PaymentStatus;
 import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.demo.domain.order.exception.PaymentException;
+import com.popcorn.demo.domain.order.service.PaymentCommandService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,8 +65,9 @@ import jakarta.validation.Valid;
 @RequiredArgsConstructor
 public class OrderCommandController extends BaseController {
 
-	private final OrderCommandService orderCommandService;
-	private final ObjectMapper objectMapper;
+private final OrderCommandService orderCommandService;
+private final ObjectMapper objectMapper;
+private final PaymentCommandService paymentCommandService;
 
 	/**
 	 * 새로운 주문을 생성합니다.
@@ -110,7 +116,7 @@ public class OrderCommandController extends BaseController {
 								{
 								  "orderType": "RESERVATION",
 								  "storeId": "00000000-0000-0000-0000-000000000001",
-								  "productId": "00000000-0000-0000-0000-000000000101",
+								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "items": [
 								    {
 								      "orderItemType": "RESERVATION",
@@ -129,12 +135,12 @@ public class OrderCommandController extends BaseController {
 								{
 								  "orderType": "PURCHASE",
 								  "storeId": "00000000-0000-0000-0000-000000000001",
-								  "productId": "00000000-0000-0000-0000-000000000101",
+								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "reservationId": "00000000-0000-0000-0000-000000000601",
 								  "items": [
 								    {
-								      "orderItemType": "MERCH",
-								      "merchVariantId": "00000000-0000-0000-0000-000000000401",
+								      "orderItemType": "GOODS",
+								      "goodsVariantId": "00000000-0000-0000-0000-000000000401",
 								      "qty": 2
 								    }
 								  ],
@@ -161,7 +167,7 @@ public class OrderCommandController extends BaseController {
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
 				.storeId(request.getStoreId())
-				.productId(request.getProductId())
+				.popupId(request.getPopupId())
 				.orderType(request.getOrderType())
 				.idempotencyKey(idempotencyKey)
 				.items(request.getItems().stream()
@@ -169,7 +175,7 @@ public class OrderCommandController extends BaseController {
 								.orderItemType(OrderItemType.valueOf(item.getOrderItemType()))
 								.sessionId(item.getSessionId())
 								.optionId(item.getOptionId())
-								.merchVariantId(item.getMerchVariantId())
+								.goodsVariantId(item.getGoodsVariantId())
 								.qty(item.getQty())
 								.unitPrice(item.getUnitPrice())
 								.build())
@@ -210,52 +216,52 @@ public class OrderCommandController extends BaseController {
 					schema = @Schema(implementation = UpdateOrderStatusRequest.class),
 					examples = {
 						@ExampleObject(
-							name = "운영 승인",
-							summary = "운영자가 주문을 승인하는 경우",
+							name = "주문 승인",
+							summary = "주문을 승인하는 경우",
 							value = """
 								{
-								  "status": "OWNER_ACCEPTED",
-								  "reason": "운영 승인"
+								  "status": "ACCEPTED",
+								  "reason": "주문 승인"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "운영 거절",
-							summary = "운영자가 주문을 거절하는 경우",
+							name = "주문 거절",
+							summary = "주문을 거절하는 경우",
 							value = """
 								{
-								  "status": "OWNER_REJECTED",
+								  "status": "REJECTED",
 								  "reason": "재고 부족으로 인한 거절"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "주문 확인",
-							summary = "주문이 확인되는 경우",
+							name = "예약 확정",
+							summary = "예약이 확정되는 경우",
 							value = """
 								{
-								  "status": "CONFIRMED",
-								  "reason": "주문 확인 완료"
+								  "status": "RESERVED",
+								  "reason": "예약 확정"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "준비 중",
-							summary = "주문 준비를 시작하는 경우",
+							name = "결제 대기",
+							summary = "결제 대기 상태로 전환하는 경우",
 							value = """
 								{
-								  "status": "PREPARING",
-								  "reason": "주문 준비 시작"
+								  "status": "PAYMENT_PENDING",
+								  "reason": "결제 대기"
 								}
 								"""
 						),
 						@ExampleObject(
-							name = "준비 완료",
-							summary = "주문 준비가 완료된 경우",
+							name = "결제 완료",
+							summary = "결제 완료로 전환하는 경우",
 							value = """
 								{
-								  "status": "READY",
-								  "reason": "주문 준비 완료"
+								  "status": "PAID",
+								  "reason": "결제 완료"
 								}
 								"""
 						),
@@ -279,16 +285,6 @@ public class OrderCommandController extends BaseController {
 								}
 								"""
 						),
-						@ExampleObject(
-							name = "환불",
-							summary = "주문을 환불하는 경우",
-							value = """
-								{
-								  "status": "REFUNDED",
-								  "reason": "결제 환불 처리"
-								}
-								"""
-						)
 					}
 				)
 			)
@@ -311,6 +307,135 @@ public class OrderCommandController extends BaseController {
 				.updatedAt(updatedOrder.getUpdatedAt())
 				.build();
 		return ok(response);
+	}
+
+	@Operation(
+			summary = "예약 결제 기록 생성",
+			description = "예약 주문에 대한 결제 기록을 생성합니다."
+	)
+	@ApiResponse(
+			responseCode = "201",
+			description = "예약 결제 기록 생성 성공",
+			content = @Content(schema = @Schema(implementation = ReservationPaymentCreateResponse.class))
+	)
+	@PostMapping("/{orderId}/reservation-payments")
+	public ResponseEntity<BaseResponse<ReservationPaymentCreateResponse>> createReservationPayment(
+			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001003")
+			@PathVariable UUID orderId,
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+				description = "예약 결제 생성 요청",
+				required = true,
+				content = @Content(
+					schema = @Schema(implementation = PaymentCreateRequest.class),
+					examples = {
+						@ExampleObject(
+							name = "CARD 결제",
+							value = """
+								{
+								  "method": "CARD",
+								  "amount": 4000,
+								  "rawPayload": {
+								    "pg": "example",
+								    "transactionId": "T-20250101"
+								  }
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "EASY_PAY 결제",
+							value = """
+								{
+								  "method": "EASY_PAY",
+								  "amount": 4000
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "TRANSFER 결제",
+							value = """
+								{
+								  "method": "TRANSFER",
+								  "amount": 4000,
+								  "rawPayload": {
+								    "bank": "K-BANK",
+								    "account": "123-456-7890"
+								  }
+								}
+								"""
+						)
+					}
+				)
+			)
+			@Valid @RequestBody PaymentCreateRequest request) {
+
+		String rawPayload = toPayloadJson(request.getRawPayload());
+		PaymentCommandService.PaymentCreationResult result =
+				paymentCommandService.createReservationPayment(
+						orderId,
+						request.getMethod(),
+						request.getAmount(),
+						rawPayload);
+
+		ReservationPaymentCreateResponse response = ReservationPaymentCreateResponse.builder()
+				.paymentId(result.getPaymentId())
+				.paymentStatus(toApiPaymentStatus(result.getPaymentStatus()))
+				.orderStatus(result.getOrderStatus().name())
+				.approvedAt(result.getApprovedAt())
+				.build();
+
+		return created(response);
+	}
+
+	@Operation(
+			summary = "주문 결제 기록 생성",
+			description = "구매형 주문에 대한 결제 기록을 생성합니다."
+	)
+	@ApiResponse(
+			responseCode = "201",
+			description = "주문 결제 기록 생성 성공",
+			content = @Content(schema = @Schema(implementation = OrderPaymentCreateResponse.class))
+	)
+	@PostMapping("/{orderId}/payments")
+	public ResponseEntity<BaseResponse<OrderPaymentCreateResponse>> createOrderPayment(
+			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001004")
+			@PathVariable UUID orderId,
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+				description = "구매 결제 생성 요청",
+				required = true,
+				content = @Content(
+					schema = @Schema(implementation = PaymentCreateRequest.class),
+					examples = @ExampleObject(
+						name = "CARD 결제",
+						value = """
+							{
+							  "method": "CARD",
+							  "amount": 3000,
+							  "rawPayload": {
+							    "pg": "example",
+							    "transactionId": "T-20250102"
+							  }
+							}
+							"""
+					)
+				)
+			)
+			@Valid @RequestBody PaymentCreateRequest request) {
+
+		String rawPayload = toPayloadJson(request.getRawPayload());
+		PaymentCommandService.PaymentCreationResult result =
+				paymentCommandService.createOrderPayment(
+						orderId,
+						request.getMethod(),
+						request.getAmount(),
+						rawPayload);
+
+		OrderPaymentCreateResponse response = OrderPaymentCreateResponse.builder()
+				.paymentId(result.getPaymentId())
+				.status(toApiPaymentStatus(result.getPaymentStatus()))
+				.orderStatus(result.getOrderStatus().name())
+				.build();
+
+		return created(response);
 	}
 
 	@Operation(
@@ -350,6 +475,21 @@ public class OrderCommandController extends BaseController {
 		return ok(response);
 	}
 
+	@Operation(
+			summary = "모든 주문 데이터 삭제 (개발/테스트용)",
+			description = "⚠️ 경고: 모든 주문 관련 데이터를 삭제합니다. 개발 및 테스트 환경에서만 사용하세요."
+	)
+	@ApiResponse(
+			responseCode = "200",
+			description = "모든 주문 데이터 삭제 완료"
+	)
+	@DeleteMapping("/all")
+	public ResponseEntity<BaseResponse<String>> deleteAllOrders() {
+		log.warn("🚨 모든 주문 데이터 삭제 요청");
+		orderCommandService.deleteAllOrders();
+		return ok("모든 주문 데이터가 삭제되었습니다.");
+	}
+
 	/**
 	 * CreateOrderResponse를 OrderCreatedDto로 변환하는 헬퍼 메서드
 	 * Clean Architecture의 Response를 Controller Layer의 DTO로 변환
@@ -361,7 +501,7 @@ public class OrderCommandController extends BaseController {
 				response.getOrderType(),
 				response.getStatus(),
 				response.getStoreId(),
-				response.getProductId(),
+				response.getPopupId(),
 				response.getTotalAmount(),
 				response.getCancelableUntil(),
 				response.getCreatedAt(),
@@ -386,5 +526,20 @@ public class OrderCommandController extends BaseController {
 		} catch (JsonProcessingException ex) {
 			log.debug("{}: <failed to serialize request>", label, ex);
 		}
+	}
+
+	private String toPayloadJson(Object payload) {
+		if (payload == null) {
+			return null;
+		}
+		try {
+			return objectMapper.writeValueAsString(payload);
+		} catch (JsonProcessingException ex) {
+			throw PaymentException.invalidRequest();
+		}
+	}
+
+	private String toApiPaymentStatus(PaymentStatus status) {
+		return status == PaymentStatus.PAID ? "PAID" : "FAILED";
 	}
 }

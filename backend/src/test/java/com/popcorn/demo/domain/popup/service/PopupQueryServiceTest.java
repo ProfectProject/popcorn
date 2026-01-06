@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,28 +36,21 @@ class PopupQueryServiceTest {
 				"00000000-0000-0000-0000-000000000101",
 				"00000000-0000-0000-0000-000000000001",
 				"Seed Popup 1",
-				"RESERVATION",
-				"POPUP",
-				101L,
-				false,
+				"예약형 팝업",
+				"FOOD",
+				"OPEN",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
-				LocalDateTime.of(2025, 1, 5, 18, 0),
-				"00000000-0000-0000-0000-000000009001",
-				"팝업 테스트 장소",
-				"서울특별시 강남구 테헤란로 123",
-				"ABC빌딩 12층",
-				BigDecimal.valueOf(37.498),
-				BigDecimal.valueOf(127.027)
+				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
 
-		when(repository.countPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null)))
+		when(repository.countPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null)))
 				.thenReturn(1L);
-		when(repository.findPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null), eq(100), eq(0L)))
+		when(repository.findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(100), eq(0L)))
 				.thenReturn(List.of(view));
 
 		PopupListQuery query = PopupListQuery.builder()
 				.regionId(101L)
-				.category("POPUP")
+				.category("FOOD")
 				.keyword("팝업")
 				.page(1)
 				.size(100)
@@ -71,10 +63,9 @@ class PopupQueryServiceTest {
 		assertEquals(100, response.getSize());
 		assertEquals(1L, response.getTotal());
 		assertEquals("Seed Popup 1", response.getItems().get(0).getTitle());
-		assertEquals("RESERVATION", response.getItems().get(0).getProductType());
-		assertEquals("팝업 테스트 장소", response.getItems().get(0).getLocation().getName());
-		verify(repository).countPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null));
-		verify(repository).findPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null), eq(100), eq(0L));
+		assertEquals("OPEN", response.getItems().get(0).getStatus());
+		verify(repository).countPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null));
+		verify(repository).findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(100), eq(0L));
 	}
 
 	@Test
@@ -87,26 +78,19 @@ class PopupQueryServiceTest {
 				"00000000-0000-0000-0000-000000000101",
 				"00000000-0000-0000-0000-000000000001",
 				"Seed Popup 1",
-				"RESERVATION",
-				"POPUP",
-				101L,
-				false,
+				"예약형 팝업",
+				"FOOD",
+				"OPEN",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
-				LocalDateTime.of(2025, 1, 5, 18, 0),
-				"00000000-0000-0000-0000-000000009001",
-				"팝업 테스트 장소",
-				"서울특별시 강남구 테헤란로 123",
-				"ABC빌딩 12층",
-				BigDecimal.valueOf(37.498),
-				BigDecimal.valueOf(127.027)
+				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
 
-		when(repository.findPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null), eq(20), eq(0L)))
+		when(repository.findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(20), eq(0L)))
 				.thenReturn(List.of(view));
 
 		PopupListQuery query = PopupListQuery.builder()
 				.regionId(101L)
-				.category("POPUP")
+				.category("FOOD")
 				.keyword("팝업")
 				.page(1)
 				.size(20)
@@ -116,13 +100,13 @@ class PopupQueryServiceTest {
 		PopupListResponse response = service.getPopups(query);
 
 		assertEquals(-1L, response.getTotal());
-		verify(repository, Mockito.never()).countPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null));
-		verify(repository).findPopups(eq(101L), eq("POPUP"), eq("팝업"), eq(null), eq(20), eq(0L));
+		verify(repository, Mockito.never()).countPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null));
+		verify(repository).findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(20), eq(0L));
 	}
 
 	@Test
-	@DisplayName("팝업 목록 조회 - 위치 정보가 없으면 null 반환")
-	void getPopups_returnsNullLocationWhenEmpty() {
+	@DisplayName("팝업 목록 조회 - 일정 정보가 없으면 null 반환")
+	void getPopups_returnsNullScheduleWhenEmpty() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
 		PopupQueryService service = new PopupQueryService(repository);
 
@@ -130,16 +114,9 @@ class PopupQueryServiceTest {
 				"00000000-0000-0000-0000-000000000101",
 				"00000000-0000-0000-0000-000000000001",
 				"Seed Popup 1",
-				"RESERVATION",
-				"POPUP",
-				101L,
-				false,
 				null,
-				null,
-				null,
-				null,
-				null,
-				null,
+				"FOOD",
+				"OPEN",
 				null,
 				null
 		);
@@ -152,7 +129,7 @@ class PopupQueryServiceTest {
 		PopupListResponse response = service.getPopups(PopupListQuery.builder().build());
 
 		assertEquals(1, response.getItems().size());
-		assertNull(response.getItems().get(0).getLocation());
+		assertNull(response.getItems().get(0).getEventStartAt());
 	}
 
 	@Test
@@ -178,18 +155,11 @@ class PopupQueryServiceTest {
 				productId.toString(),
 				"00000000-0000-0000-0000-000000000001",
 				"Seed Popup 1",
-				"RESERVATION",
-				"POPUP",
-				101L,
-				false,
+				"예약형 팝업",
+				"FOOD",
+				"OPEN",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
-				LocalDateTime.of(2025, 1, 5, 18, 0),
-				"00000000-0000-0000-0000-000000009001",
-				"팝업 테스트 장소",
-				"서울특별시 강남구 테헤란로 123",
-				"ABC빌딩 12층",
-				BigDecimal.valueOf(37.498),
-				BigDecimal.valueOf(127.027)
+				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
 		when(repository.findPopupDetail(productId)).thenReturn(Optional.of(view));
 
@@ -197,46 +167,29 @@ class PopupQueryServiceTest {
 
 		assertEquals(productId, response.getId());
 		assertEquals("Seed Popup 1", response.getTitle());
-		assertEquals("RESERVATION", response.getProductType());
-		assertEquals("팝업 테스트 장소", response.getLocation().getName());
+		assertEquals("예약형 팝업", response.getDescription());
 	}
 
 	private static class TestPopupView implements PopupListView {
 		private final String id;
 		private final String storeId;
 		private final String title;
-		private final String productType;
+		private final String description;
 		private final String category;
-		private final Long regionId;
-		private final Boolean isHidden;
+		private final String status;
 		private final LocalDateTime eventStartAt;
 		private final LocalDateTime eventEndAt;
-		private final String locationId;
-		private final String locationName;
-		private final String locationAddress1;
-		private final String locationAddress2;
-		private final BigDecimal locationLatitude;
-		private final BigDecimal locationLongitude;
 
-		private TestPopupView(String id, String storeId, String title, String productType, String category,
-				Long regionId, Boolean isHidden, LocalDateTime eventStartAt, LocalDateTime eventEndAt,
-				String locationId, String locationName, String locationAddress1, String locationAddress2,
-				BigDecimal locationLatitude, BigDecimal locationLongitude) {
+		private TestPopupView(String id, String storeId, String title, String description, String category,
+				String status, LocalDateTime eventStartAt, LocalDateTime eventEndAt) {
 			this.id = id;
 			this.storeId = storeId;
 			this.title = title;
-			this.productType = productType;
+			this.description = description;
 			this.category = category;
-			this.regionId = regionId;
-			this.isHidden = isHidden;
+			this.status = status;
 			this.eventStartAt = eventStartAt;
 			this.eventEndAt = eventEndAt;
-			this.locationId = locationId;
-			this.locationName = locationName;
-			this.locationAddress1 = locationAddress1;
-			this.locationAddress2 = locationAddress2;
-			this.locationLatitude = locationLatitude;
-			this.locationLongitude = locationLongitude;
 		}
 
 		@Override
@@ -255,8 +208,8 @@ class PopupQueryServiceTest {
 		}
 
 		@Override
-		public String getProductType() {
-			return productType;
+		public String getDescription() {
+			return description;
 		}
 
 		@Override
@@ -265,13 +218,8 @@ class PopupQueryServiceTest {
 		}
 
 		@Override
-		public Long getRegionId() {
-			return regionId;
-		}
-
-		@Override
-		public Boolean getIsHidden() {
-			return isHidden;
+		public String getStatus() {
+			return status;
 		}
 
 		@Override
@@ -282,36 +230,6 @@ class PopupQueryServiceTest {
 		@Override
 		public LocalDateTime getEventEndAt() {
 			return eventEndAt;
-		}
-
-		@Override
-		public String getLocationId() {
-			return locationId;
-		}
-
-		@Override
-		public String getLocationName() {
-			return locationName;
-		}
-
-		@Override
-		public String getLocationAddress1() {
-			return locationAddress1;
-		}
-
-		@Override
-		public String getLocationAddress2() {
-			return locationAddress2;
-		}
-
-		@Override
-		public BigDecimal getLocationLatitude() {
-			return locationLatitude;
-		}
-
-		@Override
-		public BigDecimal getLocationLongitude() {
-			return locationLongitude;
 		}
 	}
 }

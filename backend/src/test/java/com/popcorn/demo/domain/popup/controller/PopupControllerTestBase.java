@@ -12,27 +12,26 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
-import com.popcorn.demo.domain.popup.application.PopupApplicationService;
+import com.popcorn.demo.domain.popup.service.PopupService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 public abstract class PopupControllerTestBase {
 
 	protected MockMvc mockMvc;
-protected PopupApplicationService popupApplicationService;
+	protected PopupService popupService;
 	protected ObjectMapper objectMapper;
 
 	@BeforeEach
 	void setUpBase() {
-		popupApplicationService = Mockito.mock(PopupApplicationService.class);
+		popupService = Mockito.mock(PopupService.class);
 		objectMapper = new CommonConfig().objectMapper();
 		mockMvc = MockMvcBuilders.standaloneSetup(
-						new PopupController(popupApplicationService),
-						new PopupSessionController(popupApplicationService),
-						new PopupOptionController(popupApplicationService))
+						new PopupController(popupService),
+						new PopupSessionController(popupService))
 				.setControllerAdvice(new PopupExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
-		Mockito.reset(popupApplicationService);
+		Mockito.reset(popupService);
 	}
 
 	protected PopupListResponse createPopupListResponse() {
@@ -41,10 +40,8 @@ protected PopupApplicationService popupApplicationService;
 						.id(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 						.title("테스트 팝업")
-						.productType("RESERVATION")
-						.category("POPUP")
-						.regionId(101L)
-						.isHidden(false)
+						.category("FOOD")
+						.status("OPEN")
 						.build()))
 				.page(1)
 				.size(20)
@@ -57,10 +54,9 @@ protected PopupApplicationService popupApplicationService;
 				.id(productId)
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 				.title("테스트 팝업")
-				.productType("RESERVATION")
-				.category("POPUP")
-				.regionId(101L)
-				.isHidden(false)
+				.description("테스트 설명")
+				.category("FOOD")
+				.status("OPEN")
 				.build();
 	}
 
@@ -70,27 +66,10 @@ protected PopupApplicationService popupApplicationService;
 						.id(UUID.fromString("00000000-0000-0000-0000-000000000201"))
 						.startAt(java.time.LocalDateTime.of(2025, 1, 1, 10, 0))
 						.endAt(java.time.LocalDateTime.of(2025, 1, 5, 18, 0))
-						.status("OPEN")
-						.location(com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse.LocationDto.builder()
-								.id(UUID.fromString("00000000-0000-0000-0000-000000009001"))
-								.name("팝업 테스트 장소")
-								.address1("서울특별시 강남구 테헤란로 123")
-								.address2("ABC빌딩 12층")
-								.latitude(37.498)
-								.longitude(127.027)
-								.build())
-						.build()))
-				.build();
-	}
-
-	protected com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse createOptionListResponse() {
-		return com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse.builder()
-				.items(List.of(com.popcorn.demo.domain.popup.dto.query.response.PopupOptionListResponse.ItemDto.builder()
-						.id(UUID.fromString("00000000-0000-0000-0000-000000000301"))
-						.name("일반 좌석")
-						.price(10000)
-						.capacity(20)
-						.isHidden(false)
+						.price(12000)
+						.capacity(50)
+						.remainingCapacity(50)
+						.isActive(true)
 						.build()))
 				.build();
 	}
