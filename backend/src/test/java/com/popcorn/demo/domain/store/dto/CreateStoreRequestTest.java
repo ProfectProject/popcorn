@@ -56,6 +56,19 @@ class CreateStoreRequestTest {
     }
 
     @Test
+    @DisplayName("스토어 이름이 null인 경우 검증 실패")
+    void 스토어_이름이_null인_경우_검증_실패() {
+        CreateStoreRequest request = CreateStoreRequest.builder()
+                .name(null)
+                .ownerId(123L)
+                .build();
+
+        Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
+
+        assertThat(violations).isNotEmpty();
+    }
+
+    @Test
     @DisplayName("오너 ID가 null인 경우 검증 실패")
     void 오너_ID가_null인_경우_검증_실패() {
         // Given
@@ -84,6 +97,20 @@ class CreateStoreRequestTest {
         Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
 
         // Then
+        assertThat(violations).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("스토어 이름이 최대 길이를 초과한 경우 검증 실패")
+    void 스토어_이름이_최대_길이를_초과한_경우_검증_실패() {
+        String longName = "a".repeat(101);
+        CreateStoreRequest request = CreateStoreRequest.builder()
+                .name(longName)
+                .ownerId(123L)
+                .build();
+
+        Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
+
         assertThat(violations).isNotEmpty();
     }
 }

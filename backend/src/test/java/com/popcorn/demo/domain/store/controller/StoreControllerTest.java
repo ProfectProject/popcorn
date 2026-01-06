@@ -2,15 +2,22 @@ package com.popcorn.demo.domain.store.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
+import com.popcorn.demo.domain.store.dto.StoreDeletedDto;
 import com.popcorn.demo.domain.store.dto.StoreDetailDto;
 import com.popcorn.demo.domain.store.dto.StoreListDto;
+import com.popcorn.demo.domain.store.dto.StoreStatusUpdatedDto;
+import com.popcorn.demo.domain.store.dto.StoreUpdatedDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,6 +132,47 @@ class StoreControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isCreated());
 
         verify(storeService).createStore(eq(userId), any());
+    }
+
+    @Test
+    @DisplayName("스토어 생성 실패 - 검증 오류")
+    void 스토어_생성_실패_검증_오류() throws Exception {
+        Long userId = 123L;
+
+        String jsonRequest = """
+                {
+                    "name": "",
+                    "ownerId": 123
+                }
+                """;
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
+                        .with(user(userId.toString()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest());
+
+        verify(storeService, never()).createStore(eq(userId), any());
+    }
+
+    @Test
+    @DisplayName("스토어 생성 실패 - 오너 ID 누락")
+    void 스토어_생성_실패_오너_ID_누락() throws Exception {
+        Long userId = 123L;
+
+        String jsonRequest = """
+                {
+                    "name": "테스트 스토어"
+                }
+                """;
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
+                        .with(user(userId.toString()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest());
+
+        verify(storeService, never()).createStore(eq(userId), any());
     }
 
     // === 내 스토어 목록 조회 테스트 ===
@@ -242,6 +290,9 @@ class StoreControllerTest {
         when(storeService.getStoreDetail(userId, storeId))
                 .thenThrow(StoreException.accessDenied(userId,storeId));
 
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores/{storeId}", storeId)
+                        .with(user(userId.toString())))
+                .andExpect(MockMvcResultMatchers.status().isForbidden());
     }
 
     @Test
@@ -303,5 +354,144 @@ class StoreControllerTest {
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.publishStatus").value("DRAFT"));
 
         verify(storeService).getStoreDetail(eq(userId), eq(storeId));
+    }
+
+    // === 스토어 수정 테스트 ===
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 성공")
+    void 스토어_기본_정보_수정_성공() throws Exception {
+        Long userId = 123L;
+        UUID storeId = UUID.randomUUID();
+
+        StoreUpdatedDto response = StoreUpdatedDto.builder()
+                .id(storeId)
+                .name("수정된 스토어")
+                .publishStatus(StorePublishStatus.DRAFT)
+                .updatedAt(LocalDateTime.now())
+                .updatedBy(userId)
+                .build();
+
+        when(storeService.updateStore(eq(storeId), any(), eq(userId))).thenReturn(response);
+
+        String jsonRequest = """
+                {
+                    "name": "수정된 스토어"
+                }
+                """;
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/owner/stores/{storeId}", storeId)
+                        .with(user(userId.toString()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(storeId.toString()))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.name").value("수정된 스토어"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.updatedBy").value(userId));
+
+        verify(storeService).updateStore(eq(storeId), any(), eq(userId));
+    }
+
+    @Test
+    @DisplayName("스토어 기본 정보 수정 실패 - 검증 오류")
+    void 스토어_기본_정보_수정_실패_검증_오류() throws Exception {
+        Long userId = 123L;
+        UUID storeId = UUID.randomUUID();
+
+        String jsonRequest = """
+                {
+                    "name": ""
+                }
+                """;
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/owner/stores/{storeId}", storeId)
+                        .with(user(userId.toString()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest());
+
+        verify(storeService, never()).updateStore(eq(storeId), any(), eq(userId));
+    }
+
+    // === 스토어 상태 수정 테스트 ===
+
+    @Test
+    @DisplayName("스토어 상태 수정 성공")
+    void 스토어_상태_수정_성공() throws Exception {
+        Long userId = 123L;
+        UUID storeId = UUID.randomUUID();
+
+        StoreStatusUpdatedDto response = StoreStatusUpdatedDto.builder()
+                .id(storeId)
+                .publishStatus(StorePublishStatus.ACTIVE)
+                .updatedAt(LocalDateTime.now())
+                .updatedBy(userId)
+                .build();
+
+        when(storeService.updateStoreStatus(eq(storeId), any(), eq(userId))).thenReturn(response);
+
+        String jsonRequest = """
+                {
+                    "publishStatus": "ACTIVE"
+                }
+                """;
+
+        mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/owner/stores/{storeId}/status", storeId)
+                        .with(user(userId.toString()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(storeId.toString()))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.publishStatus").value("ACTIVE"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.updatedBy").value(userId));
+
+        verify(storeService).updateStoreStatus(eq(storeId), any(), eq(userId));
+    }
+
+    @Test
+    @DisplayName("스토어 상태 수정 실패 - 검증 오류")
+    void 스토어_상태_수정_실패_검증_오류() throws Exception {
+        Long userId = 123L;
+        UUID storeId = UUID.randomUUID();
+
+        String jsonRequest = """
+                {
+                    "publishStatus": null
+                }
+                """;
+
+        mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/owner/stores/{storeId}/status", storeId)
+                        .with(user(userId.toString()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest());
+
+        verify(storeService, never()).updateStoreStatus(eq(storeId), any(), eq(userId));
+    }
+
+    // === 스토어 삭제 테스트 ===
+
+    @Test
+    @DisplayName("스토어 삭제 성공")
+    void 스토어_삭제_성공() throws Exception {
+        Long userId = 123L;
+        UUID storeId = UUID.randomUUID();
+
+        StoreDeletedDto response = StoreDeletedDto.builder()
+                .id(storeId)
+                .name("삭제될 스토어")
+                .deletedAt(LocalDateTime.now())
+                .deletedBy(userId)
+                .build();
+
+        when(storeService.deleteStore(eq(storeId), eq(userId))).thenReturn(response);
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/owner/stores/{storeId}", storeId)
+                        .with(user(userId.toString())))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(storeId.toString()))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.deletedBy").value(userId));
+
+        verify(storeService).deleteStore(eq(storeId), eq(userId));
     }
 }
