@@ -48,7 +48,7 @@ class UserServiceTest {
         request.setEmail("test@example.com");
         request.setPassword("1234");
         request.setPasswordCheck("1234");
-        request.setPhone("010-1234-5678");
+        request.setPhone("01012345678");
         request.setName("test");
         request.setRole(UserRole.CUSTOMER);
 
@@ -95,7 +95,7 @@ class UserServiceTest {
         request.setEmail("test@example.com");
         request.setPassword("1234");
         request.setPasswordCheck("1234");
-        request.setPhone("010-1234-5678");
+        request.setPhone("01012345678");
         request.setName("test");
         request.setRole(UserRole.CUSTOMER);
 
