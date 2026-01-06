@@ -22,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-@Profile({"dev", "prod"})
 public class SecurityConfig {
 
     private final AuthenticationConfiguration authenticationConfiguration;
@@ -51,7 +50,7 @@ public class SecurityConfig {
             .authorizeHttpRequests()
                 .requestMatchers("/api/v1/auth/login").permitAll()
                 .requestMatchers("/api/v1/users/signup").permitAll()
-                .requestMatchers("/api/v1/users/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER")
                 .anyRequest().authenticated()
             .and()
                 .formLogin().disable()

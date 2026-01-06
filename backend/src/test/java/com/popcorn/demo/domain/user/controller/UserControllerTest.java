@@ -31,7 +31,7 @@ class UserControllerTest {
             "passwordCheck":"1234",
             "phone":"010-2223-5670",
             "name":"test",
-            "role":"USER"
+            "role":"CUSTOMER"
         }
         """;
 

@@ -45,7 +45,7 @@ END $$;
 -- 1단계: 테이블 생성 (NOT NULL/DEFAULT만 반영, PK/FK/UNIQUE/CHECK는 제외)
 
 CREATE TABLE IF NOT EXISTS p_users (
-    user_id     BIGINT NOT NULL,
+    user_id     BIGSERIAL NOT NULL,
     password    varchar(255) NOT NULL,
     name        varchar(100) NOT NULL,
     phone       varchar(11),

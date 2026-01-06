@@ -32,7 +32,7 @@ class UserRepositoryTest {
         request.setPasswordCheck("1234");
         request.setPhone("010-1234-5678");
         request.setName("test");
-        request.setRole(UserRole.USER);
+        request.setRole(UserRole.CUSTOMER);
         
         User savedUser = new User();
         savedUser.setEmail(request.getEmail());
