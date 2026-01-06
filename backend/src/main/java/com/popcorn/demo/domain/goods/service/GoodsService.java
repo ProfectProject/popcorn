@@ -60,11 +60,9 @@ public class GoodsService {
     public GoodsIdResponse update(UUID popupId, UUID goodsId, GoodsUpdateRequest request) {
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.update(
-                request.getStockUnit(),
                 request.getGoodsName(),
                 request.getGoodsPrice(),
-                request.getStock(),
-                request.getIsActive()
+                request.getStock()
         );
         return new GoodsIdResponse(goods.getId());
     }
