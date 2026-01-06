@@ -35,9 +35,9 @@ import lombok.extern.slf4j.Slf4j;
  * - 객체지향적인 도메인 로직 활용
  */
 @Slf4j
-@Component
+// @Component
 @RequiredArgsConstructor
-@Profile("local")
+@Profile("disabled")
 public class OrderJpaDataSeeder implements ApplicationRunner {
 
 	private final JpaOrderRepository orderRepository;
