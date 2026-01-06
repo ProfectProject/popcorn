@@ -22,7 +22,7 @@ import lombok.Setter;
 		"orderType",
 		"status",
 		"storeId",
-		"productId",
+		"popupId",
 		"totalAmount",
 		"cancelableUntil",
 		"createdAt",
@@ -42,7 +42,7 @@ public class OrderCreatedDto {
 	private String orderType;
 	private String status;
 	private UUID storeId;
-	private UUID productId;
+	private UUID popupId;
 	private Integer totalAmount;
 	private LocalDateTime cancelableUntil;
 	private LocalDateTime createdAt;

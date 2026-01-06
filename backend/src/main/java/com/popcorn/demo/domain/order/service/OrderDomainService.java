@@ -12,7 +12,8 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 
 /**
 
@@ -44,33 +45,29 @@ public class OrderDomainService {
 		java.util.Map<OrderStatus, java.util.EnumSet<OrderStatus>> transitions =
 				new java.util.EnumMap<>(OrderStatus.class);
 		transitions.put(OrderStatus.REQUESTED, java.util.EnumSet.of(
-				OrderStatus.CONFIRMED,
-				OrderStatus.OWNER_ACCEPTED,
-				OrderStatus.OWNER_REJECTED,
+				OrderStatus.ACCEPTED,
+				OrderStatus.RESERVED,
+				OrderStatus.REJECTED,
 				OrderStatus.CANCELLED
 		));
-		transitions.put(OrderStatus.OWNER_ACCEPTED, java.util.EnumSet.of(
-				OrderStatus.PREPARING,
-				OrderStatus.CONFIRMED,
-				OrderStatus.READY,
-				OrderStatus.COMPLETED,
+		transitions.put(OrderStatus.ACCEPTED, java.util.EnumSet.of(
+				OrderStatus.RESERVED,
 				OrderStatus.CANCELLED
 		));
-		transitions.put(OrderStatus.CONFIRMED, java.util.EnumSet.of(
-				OrderStatus.PREPARING,
+		transitions.put(OrderStatus.RESERVED, java.util.EnumSet.of(
+				OrderStatus.PAYMENT_PENDING,
+				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
-		transitions.put(OrderStatus.PREPARING, java.util.EnumSet.of(
-				OrderStatus.READY,
+		transitions.put(OrderStatus.PAYMENT_PENDING, java.util.EnumSet.of(
+				OrderStatus.PAID,
 				OrderStatus.CANCELLED
 		));
-		transitions.put(OrderStatus.READY, java.util.EnumSet.of(
-				OrderStatus.COMPLETED,
-				OrderStatus.CANCELLED
+		transitions.put(OrderStatus.PAID, java.util.EnumSet.of(
+				OrderStatus.COMPLETED
 		));
-		transitions.put(OrderStatus.OWNER_REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
+		transitions.put(OrderStatus.REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class));
-		transitions.put(OrderStatus.REFUNDED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.COMPLETED, java.util.EnumSet.noneOf(OrderStatus.class));
 		return transitions;
 	}
@@ -115,21 +112,21 @@ public class OrderDomainService {
 
 		* @param storeId 스토어 ID
 
-		* @param productId 상품 ID
+		* @param popupId 상품 ID
 
 		* @param orderItems 주문 항목들
 
-		* @throws OrderException 검증 실패 시
+		* @throws com.popcorn.demo.global.exception.BaseException 검증 실패 시
 
 		*/
 
-	public void validateOrderCreation(Long customerId, UUID storeId, UUID productId,
+	public void validateOrderCreation(Long customerId, UUID storeId, UUID popupId,
 
 			List<OrderItem> orderItems) {
 
 		if (customerId == null || customerId <= 0) {
 
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 
 		}
 
@@ -137,15 +134,15 @@ public class OrderDomainService {
 
 		if (storeId == null) {
 
-			throw OrderException.storeNotFound();
+			throw OrderNotFoundException.storeNotFound();
 
 		}
 
 
 
-		if (productId == null) {
+		if (popupId == null) {
 
-			throw OrderException.productNotFound();
+			throw OrderNotFoundException.productNotFound();
 
 		}
 
@@ -153,7 +150,7 @@ public class OrderDomainService {
 
 		if (orderItems == null || orderItems.isEmpty()) {
 
-			throw OrderException.emptyItems();
+			throw OrderValidationException.emptyItems();
 
 		}
 
@@ -181,7 +178,7 @@ public class OrderDomainService {
 
 		if (item.getQty() <= 0) {
 
-			throw OrderException.invalidQty();
+			throw OrderValidationException.invalidQty();
 
 		}
 
@@ -189,7 +186,7 @@ public class OrderDomainService {
 
 		if (item.getUnitPrice() <= 0) {
 
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 
 		}
 
@@ -259,7 +256,7 @@ public class OrderDomainService {
 
 		* @param storeId 스토어 ID
 
-		* @param productId 상품 ID
+		* @param popupId 상품 ID
 
 		* @param orderType 주문 타입
 
@@ -271,7 +268,7 @@ public class OrderDomainService {
 
 		*/
 
-	public Order createOrder(Long customerId, UUID storeId, UUID productId,
+	public Order createOrder(Long customerId, UUID storeId, UUID popupId,
 
 			OrderType orderType, List<OrderItem> orderItems,
 
@@ -281,7 +278,7 @@ public class OrderDomainService {
 
 		// 1. 검증: 필수 값과 아이템 조건을 사전에 체크합니다.
 
-		validateOrderCreation(customerId, storeId, productId, orderItems);
+		validateOrderCreation(customerId, storeId, popupId, orderItems);
 
 
 
@@ -303,7 +300,7 @@ public class OrderDomainService {
 
 				.storeId(storeId)
 
-				.productId(productId)
+				.popupId(popupId)
 
 				.orderType(orderType)
 

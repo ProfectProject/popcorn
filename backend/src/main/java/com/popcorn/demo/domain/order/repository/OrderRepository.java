@@ -17,8 +17,6 @@ import com.popcorn.demo.domain.order.entity.OrderStatusHistory;
  */
 public interface OrderRepository {
 
-	Optional<Order> findByIdempotencyKey(String idempotencyKey);
-
 	Optional<Order> findById(UUID orderId);
 
 	Optional<OrderSummaryView> findSummaryById(UUID orderId);
@@ -33,9 +31,9 @@ public interface OrderRepository {
 
 	void deleteById(UUID orderId);
 
-	boolean existsById(UUID orderId);
+	void deleteAllOrders();
 
-	boolean existsByIdempotencyKey(String idempotencyKey);
+	boolean existsById(UUID orderId);
 
 	List<Order> findByCustomerId(Long customerId);
 
@@ -46,8 +44,6 @@ public interface OrderRepository {
 	List<Order> findByStoreId(UUID storeId);
 
 	List<Order> findByStoreIdAndStatus(UUID storeId, OrderStatus status);
-
-	List<Order> findByProductId(UUID productId);
 
 	List<Order> findByStatus(OrderStatus status);
 

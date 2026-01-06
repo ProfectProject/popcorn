@@ -39,7 +39,7 @@ public class ReservationDetail {
 
 		* 세션 옵션 ID
 
-		* - p_session_options 테이블의 ID 참조
+		* - p_popup_schedules 테이블의 schedule_id 참조
 
 		* - 예약하려는 세션의 특정 옵션 (시간대, 가격대 등)
 
@@ -53,9 +53,7 @@ public class ReservationDetail {
 
 		* 세션 ID (편의 메서드용)
 
-		* - sessionOptionId를 통해 조회된 세션 ID
-
-		* - 실제로는 SessionOption에서 가져오는 값
+		* - V0 스키마에서는 sessionOptionId와 동일한 schedule_id 사용
 
 		*/
 
@@ -67,9 +65,7 @@ public class ReservationDetail {
 
 		* 옵션 ID (편의 메서드용)
 
-		* - sessionOptionId를 통해 조회된 옵션 ID
-
-		* - 실제로는 SessionOption에서 가져오는 값
+		* - V0 스키마에서는 옵션 개념이 없으므로 null 유지
 
 		*/
 

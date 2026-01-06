@@ -18,7 +18,7 @@ import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderCreatedDto;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.service.OrderService;
 
 @Profile({ "local", "dev" })
@@ -37,10 +37,10 @@ public class OrderTestController extends BaseController {
 			@PathVariable Long userId,
 			@RequestParam(defaultValue = "RESERVATION") String orderType,
 			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
-			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000101") UUID productId,
+			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000101") UUID popupId,
 			@RequestParam(required = false) UUID sessionId,
 			@RequestParam(required = false) UUID optionId,
-			@RequestParam(required = false) UUID merchVariantId,
+			@RequestParam(required = false) UUID goodsVariantId,
 			@RequestParam(defaultValue = "1") Integer qty,
 			@RequestParam(defaultValue = "1000") Integer unitPrice) {
 		OrderItemType itemType = resolveItemType(orderType);
@@ -48,7 +48,7 @@ public class OrderTestController extends BaseController {
 				.orderItemType(itemType)
 				.sessionId(sessionId)
 				.optionId(optionId)
-				.merchVariantId(merchVariantId)
+				.goodsVariantId(goodsVariantId)
 				.qty(qty)
 				.unitPrice(unitPrice)
 				.build();
@@ -56,7 +56,7 @@ public class OrderTestController extends BaseController {
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
 				.storeId(storeId)
-				.productId(productId)
+				.popupId(popupId)
 				.orderType(orderType.toUpperCase())
 				.items(List.of(itemCommand))
 				.build();
@@ -69,7 +69,7 @@ public class OrderTestController extends BaseController {
 
 	private OrderItemType resolveItemType(String orderType) {
 		if (orderType == null) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		String normalized = orderType.toUpperCase();
@@ -77,10 +77,10 @@ public class OrderTestController extends BaseController {
 			return OrderItemType.RESERVATION;
 		}
 		if ("PURCHASE".equals(normalized)) {
-			return OrderItemType.MERCH;
+			return OrderItemType.GOODS;
 		}
 
-		throw OrderException.invalidRequest();
+		throw OrderValidationException.invalidRequest();
 	}
 
 	private OrderCreatedDto convertToOrderCreatedDto(CreateOrderResponse response) {
@@ -90,7 +90,7 @@ public class OrderTestController extends BaseController {
 				response.getOrderType(),
 				response.getStatus(),
 				response.getStoreId(),
-				response.getProductId(),
+				response.getPopupId(),
 				response.getTotalAmount(),
 				response.getCancelableUntil(),
 				response.getCreatedAt(),

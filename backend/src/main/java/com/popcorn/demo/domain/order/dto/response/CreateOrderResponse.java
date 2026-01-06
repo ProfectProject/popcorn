@@ -18,7 +18,7 @@ public class CreateOrderResponse {
 	private final String orderType;
 	private final String status;
 	private final UUID storeId;
-	private final UUID productId;
+	private final UUID popupId;
 	private final Integer totalAmount;
 	private final LocalDateTime cancelableUntil;
 	private final LocalDateTime createdAt;
@@ -45,7 +45,7 @@ public class CreateOrderResponse {
 				.orderType(order.getOrderType().name())
 				.status(order.getStatus().name())
 				.storeId(order.getStoreId())
-				.productId(order.getProductId())
+				.popupId(order.getPopupId())
 				.totalAmount(order.getTotalAmount())
 				.cancelableUntil(order.getCancelableUntil())
 				.createdAt(order.getCreatedAt())

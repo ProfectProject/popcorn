@@ -23,7 +23,9 @@ import com.popcorn.demo.domain.order.event.OrderCreatedEvent;
 import com.popcorn.demo.domain.order.event.OrderStatusChangedEvent;
 import com.popcorn.demo.domain.order.event.OrderCancelledEvent;
 import com.popcorn.demo.domain.order.event.OrderCompletedEvent;
-import com.popcorn.demo.domain.order.exception.OrderException;
+import com.popcorn.demo.domain.order.exception.OrderConflictException;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -85,18 +87,18 @@ public class OrderCommandService {
 		// 비동기 검증 (성능 최적화)
 		boolean isValid = orderValidationService.validateOrderAsync(
 			command.getUserId(),
-			command.getProductId(),
+			command.getPopupId(),
 			calculateTotalQuantity(orderItems)
 		);
 		if (!isValid) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		// 도메인 검증
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderItems
 		);
 
@@ -104,7 +106,7 @@ public class OrderCommandService {
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
 				command.getStoreId(),
-				command.getProductId(),
+				command.getPopupId(),
 				orderType,
 				orderItems,
 				command.getIdempotencyKey()
@@ -113,11 +115,13 @@ public class OrderCommandService {
 		// 동기 저장 (트랜잭션 내)
 		Order savedOrder = orderRepository.save(order);
 
-		// 주문 아이템 저장
-		List<OrderItem> itemsWithOrderId = savedOrder.getOrderItems().stream()
-				.peek(item -> item.setOrderId(savedOrder.getId()))
-				.toList();
-		orderRepository.saveOrderItems(itemsWithOrderId);
+		// 주문 아이템 저장 - orderId 설정 후 저장
+		savedOrder.getOrderItems().forEach(item -> item.setOrderId(savedOrder.getId()));
+		orderRepository.saveOrderItems(savedOrder.getOrderItems());
+
+		// 상태 이력 저장 (주문 생성)
+		OrderStatusHistory createdHistory = savedOrder.toHistory(null, "주문 생성");
+		orderRepository.saveStatusHistory(createdHistory);
 
 		// 🚀 비동기 후처리 (향상된 이벤트 발행)
 		asyncEventPublisher.publishEventAsync(new OrderCreatedEvent(savedOrder, command.getIdempotencyKey()))
@@ -143,25 +147,25 @@ public class OrderCommandService {
 		log.info("🧾 주문 상태 변경 요청 - 주문ID: {}, 변경상태: {}, 사유: {}", orderId, status, reason);
 
 		Order order = orderRepository.findById(orderId)
-				.orElseThrow(OrderException::orderNotFound);
+				.orElseThrow(OrderNotFoundException::orderNotFound);
 
 		OrderStatus currentStatus = order.getStatus();
 		if (currentStatus == OrderStatus.CANCELLED) {
-			throw OrderException.alreadyCanceled();
+			throw OrderConflictException.alreadyCanceled();
 		}
 
 		OrderStatus newStatus;
 		try {
 			newStatus = OrderStatus.valueOf(status);
 		} catch (IllegalArgumentException ex) {
-			throw OrderException.invalidRequest();
+			throw OrderValidationException.invalidRequest();
 		}
 
 		// 도메인 검증
 		if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
 			log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}, 요청상태: {}, 사유: {}",
 					orderId, currentStatus, newStatus, reason);
-			throw OrderException.invalidStatusTransition();
+			throw OrderValidationException.invalidStatusTransition();
 		}
 
 		// 상태 변경
@@ -223,6 +227,16 @@ public class OrderCommandService {
 		return savedOrder;
 	}
 
+	/**
+	 * 모든 주문 데이터 삭제 (개발/테스트용)
+	 */
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public void deleteAllOrders() {
+		log.warn("🗑️ 모든 주문 데이터 삭제 시작");
+		orderRepository.deleteAllOrders();
+		log.warn("🗑️ 모든 주문 데이터 삭제 완료");
+	}
+
 	// ================ 내부 헬퍼 메서드들 ================
 
 
@@ -236,35 +250,35 @@ public class OrderCommandService {
 		Integer unitPrice = resolveUnitPrice(itemCommand);
 		Integer lineAmount = unitPrice * itemCommand.getQty();
 		return OrderItem.builder()
-				.id(UUID.randomUUID())
+				// ID는 JPA가 자동 생성하도록 제거
 				.orderItemType(itemCommand.getOrderItemType())
 				.qty(itemCommand.getQty())
 				.unitPrice(unitPrice)
 				.lineAmount(lineAmount)
-				.sessionOptionId(itemCommand.getOptionId())
-				.merchVariantId(itemCommand.getMerchVariantId())
+				.sessionOptionId(itemCommand.getSessionId())
+				.goodsVariantId(itemCommand.getGoodsVariantId())
 				.build();
 	}
 
 	private Integer resolveUnitPrice(CreateOrderCommand.OrderItemCommand itemCommand) {
 		OrderItemType orderItemType = itemCommand.getOrderItemType();
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
-			UUID optionId = itemCommand.getOptionId();
-			if (optionId == null) {
-				throw OrderException.optionNotFound();
+			UUID scheduleId = itemCommand.getSessionId();
+			if (scheduleId == null) {
+				throw OrderNotFoundException.sessionNotFound();
 			}
-			return orderItemPriceService.findSessionOptionPrice(optionId)
-					.orElseThrow(OrderException::optionNotFound);
+			return orderItemPriceService.findSessionOptionPrice(scheduleId)
+					.orElseThrow(OrderNotFoundException::sessionNotFound);
 		}
-		if (OrderItemType.MERCH.equals(orderItemType)) {
-			UUID merchVariantId = itemCommand.getMerchVariantId();
-			if (merchVariantId == null) {
-				throw OrderException.merchVariantNotFound();
+		if (OrderItemType.GOODS.equals(orderItemType)) {
+			UUID goodsVariantId = itemCommand.getGoodsVariantId();
+			if (goodsVariantId == null) {
+				throw OrderNotFoundException.merchVariantNotFound();
 			}
-			return orderItemPriceService.findMerchVariantPrice(merchVariantId)
-					.orElseThrow(OrderException::merchVariantNotFound);
+			return orderItemPriceService.findMerchVariantPrice(goodsVariantId)
+					.orElseThrow(OrderNotFoundException::merchVariantNotFound);
 		}
-		throw OrderException.invalidRequest();
+		throw OrderValidationException.invalidRequest();
 	}
 
 

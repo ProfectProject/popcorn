@@ -13,11 +13,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PopupDetailQuery {
 
-	private UUID productId;
+	private UUID popupId;
 
-	public static PopupDetailQuery of(UUID productId) {
+	public static PopupDetailQuery of(UUID popupId) {
 		return PopupDetailQuery.builder()
-				.productId(productId)
+				.popupId(popupId)
 				.build();
 	}
 }

@@ -1,23 +1,12 @@
 spring:
-  main:
-    allow-bean-definition-overriding: true
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb
     username: sa
-    password:
+    password: 
+    driver-class-name: org.h2.Driver
   jpa:
-    open-in-view: false
     hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        type:
-          preferred_enum_jdbc_type: VARCHAR
-
+      ddl-auto: create-drop
+    show-sql: false
   flyway:
     enabled: false
-
-logging:
-  level:
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG

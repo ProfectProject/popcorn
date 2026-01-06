@@ -26,7 +26,7 @@ public class CreateOrderCommand {
 
 	private final UUID storeId;
 
-	private final UUID productId;
+	private final UUID popupId;
 
 	private final String orderType;
 
@@ -54,7 +54,7 @@ public class CreateOrderCommand {
 
 		private final UUID optionId;
 
-		private final UUID merchVariantId;
+		private final UUID goodsVariantId;
 
 		private final Integer qty;
 
