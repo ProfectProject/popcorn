@@ -50,7 +50,7 @@ class UserServiceTest {
         request.setPasswordCheck("1234");
         request.setPhone("010-1234-5678");
         request.setName("test");
-        request.setRole(UserRole.USER);
+        request.setRole(UserRole.CUSTOMER);
 
         when(userRepository.findByEmail("test@example.com"))
                 .thenReturn(Optional.empty());
@@ -81,7 +81,7 @@ class UserServiceTest {
         assertNotNull(response);
         assertEquals("test@example.com", response.getEmail());
         assertEquals("test", response.getName());
-        assertEquals(UserRole.USER, response.getRole());
+        assertEquals(UserRole.CUSTOMER, response.getRole());
 
         //User 저장 검증
         verify(userRepository).save(any(User.class));
@@ -97,7 +97,7 @@ class UserServiceTest {
         request.setPasswordCheck("1234");
         request.setPhone("010-1234-5678");
         request.setName("test");
-        request.setRole(UserRole.USER);
+        request.setRole(UserRole.CUSTOMER);
 
         when(userRepository.findByEmail("test@example.com"))
                 .thenReturn(Optional.of(new User()));
