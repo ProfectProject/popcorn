@@ -72,4 +72,8 @@ public class CustomUserDetails implements UserDetails {
         return userEntity.getUserId();
     }
 
+    public String getRole() {
+        return userEntity.getRole() == null ? null : userEntity.getRole().name();
+    }
+
 }
