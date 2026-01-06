@@ -7,52 +7,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.service.OrderCommandService;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
-import com.popcorn.demo.domain.order.controller.OrderCommandController;
-import com.popcorn.demo.domain.order.controller.OrderExceptionHandler;
-import com.popcorn.demo.global.config.CommonConfig;
 
-class OrderAtddTest {
-
-	private MockMvc mockMvc;
-
-	private ObjectMapper objectMapper;
-
-	private OrderCommandService orderCommandService;
-	private PaymentCommandService paymentCommandService;
-
-	@BeforeEach
-	void setUp() {
-		orderCommandService = Mockito.mock(OrderCommandService.class);
-		paymentCommandService = Mockito.mock(PaymentCommandService.class);
-		objectMapper = new CommonConfig().objectMapper();
-
-		// Mock을 사용하여 컨트롤러 생성
-		mockMvc = MockMvcBuilders.standaloneSetup(
-				new OrderCommandController(orderCommandService, objectMapper, paymentCommandService)
-		)
-				.setControllerAdvice(new OrderExceptionHandler())
-				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
-				.build();
-	}
+class OrderAtddTest extends OrderControllerTestBase {
 
 	@Test
 	@DisplayName("ATDD - 주문 생성 후 상태 변경 시나리오")
@@ -108,9 +75,10 @@ class OrderAtddTest {
 				}
 				""".formatted(storeId, popupId);
 
-		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/1001")
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(createJsonRequest))
+						.content(createJsonRequest)
+						.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isCreated())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].id").value(itemId.toString()));
@@ -123,7 +91,8 @@ class OrderAtddTest {
 
 		mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/orders/" + orderId + "/status")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(statusBody))
+						.content(statusBody)
+						.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("ACCEPTED"));
