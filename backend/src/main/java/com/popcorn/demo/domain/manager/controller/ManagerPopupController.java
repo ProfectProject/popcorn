@@ -30,7 +30,7 @@ import com.popcorn.demo.domain.popup.dto.manager.StoreRejectRequest;
 import com.popcorn.demo.domain.popup.dto.manager.StoreRejectResponse;
 import com.popcorn.demo.domain.popup.dto.manager.StoreWithdrawRequest;
 import com.popcorn.demo.domain.popup.dto.manager.StoreWithdrawResponse;
-import com.popcorn.demo.domain.popup.service.PopupManagerService;
+import com.popcorn.demo.domain.manager.service.PopupManagerService;
 
 import lombok.RequiredArgsConstructor;
 
