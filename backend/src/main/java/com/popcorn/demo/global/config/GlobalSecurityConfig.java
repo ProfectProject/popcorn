@@ -23,7 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig {
+public class GlobalSecurityConfig {
 
 	/**
 	 * 개발 환경용 Security 설정 (local 프로파일)
@@ -139,7 +139,7 @@ public class SecurityConfig {
 	 * 비밀번호 인코더
 	 */
 	@Bean
-	@Profile({"dev", "prod"})
+	@Profile({"local", "dev", "prod"})
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
 	}
