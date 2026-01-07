@@ -82,8 +82,10 @@ class QrControllerTest {
 	@DisplayName("QR 검증 성공")
 	void verifyQr_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
+		UUID checkinId = UUID.fromString("90000000-0000-0000-0000-000000000001");
 		QrVerifyResponse response = QrVerifyResponse.builder()
 				.valid(true)
+				.checkinId(checkinId)
 				.orderId(orderId)
 				.qrCode("qr-test-003")
 				.expiresAt(LocalDateTime.now().plusMinutes(10))
@@ -103,7 +105,8 @@ class QrControllerTest {
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.valid").value(true))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.checkinId").value(checkinId.toString()));
 	}
 
 	@Test
