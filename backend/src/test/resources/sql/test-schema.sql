@@ -1,12 +1,19 @@
 -- H2 compatible test schema
 
+CREATE TYPE IF NOT EXISTS user_role AS ENUM ('CUSTOMER', 'OWNER', 'MANAGER');
+CREATE TYPE IF NOT EXISTS store_status AS ENUM ('DRAFT', 'PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED', 'HIDDEN');
+CREATE TYPE IF NOT EXISTS popup_status AS ENUM ('DRAFT', 'REQUEST', 'APPROVED', 'OPEN', 'CLOSED', 'CANCELLED', 'HIDDEN');
+CREATE TYPE IF NOT EXISTS popup_category AS ENUM ('FOOD','IDOL','EXHIBITION','WORKSHOP','FASHION','BEAUTY','LIFESTYLE','ART','GAME','TECH','SPORTS','BOOK','PET','ETC');
+CREATE TYPE IF NOT EXISTS order_status AS ENUM ('REQUESTED','ACCEPTED','REJECTED','RESERVED','PAYMENT_PENDING','PAID','COMPLETED','CANCELLED');
+CREATE TYPE IF NOT EXISTS payment_method AS ENUM ('CARD','TRANSFER','EASY_PAY');
+CREATE TYPE IF NOT EXISTS payment_status AS ENUM ('READY','PAID','FAILED','CANCELLED');
 CREATE TABLE IF NOT EXISTS p_users (
     user_id     BIGSERIAL NOT NULL PRIMARY KEY,
     password    varchar(255) NOT NULL,
     name        varchar(100) NOT NULL,
     phone       varchar(11),
     email       varchar(255) NOT NULL,
-    role        varchar(255) NOT NULL,
+    role        user_role NOT NULL,
     is_active   boolean NOT NULL DEFAULT true,
     created_at  timestamp NOT NULL,
     updated_at  timestamp NOT NULL,
@@ -36,7 +43,7 @@ CREATE TABLE IF NOT EXISTS p_stores (
     store_id    UUID NOT NULL PRIMARY KEY,
     user_id     BIGINT NOT NULL,
     store_name  varchar(100) NOT NULL,
-    status      varchar(255) NOT NULL DEFAULT 'DRAFT',
+    status      store_status NOT NULL DEFAULT 'DRAFT',
     reason      varchar(500),
     created_at  timestamp NOT NULL,
     updated_at  timestamp NOT NULL,
@@ -51,8 +58,8 @@ CREATE TABLE IF NOT EXISTS p_popups (
     store_id    UUID NOT NULL,
     title       varchar(200) NOT NULL,
     description text,
-    category    varchar(255) NOT NULL,
-    status      varchar(255) NOT NULL,
+    category    popup_category NOT NULL,
+    status      popup_status NOT NULL,
     created_at  timestamp NOT NULL,
     updated_at  timestamp NOT NULL,
     deleted_at  timestamp,
@@ -99,7 +106,7 @@ CREATE TABLE IF NOT EXISTS p_orders (
     order_no          varchar(32),
     user_id           BIGINT NOT NULL,
     store_id          UUID NOT NULL,
-    status            varchar(255) NOT NULL,
+    status            order_status NOT NULL,
     cancelable_until  timestamp,
     total_price       int NOT NULL,
     created_at        timestamp NOT NULL,
@@ -129,8 +136,8 @@ CREATE TABLE IF NOT EXISTS p_order_goods (
 CREATE TABLE IF NOT EXISTS p_payments (
     payment_id  UUID NOT NULL PRIMARY KEY,
     order_id    UUID NOT NULL,
-    method      varchar(255) NOT NULL,
-    status      varchar(255) NOT NULL,
+    method      payment_method NOT NULL,
+    status      payment_status NOT NULL,
     amount      int NOT NULL,
     raw_payload text,
     approved_at timestamp,
@@ -145,8 +152,8 @@ CREATE TABLE IF NOT EXISTS p_payments (
 CREATE TABLE IF NOT EXISTS p_order_status_histories (
     order_status_id UUID NOT NULL PRIMARY KEY,
     order_id        UUID NOT NULL,
-    from_status     varchar(255) NOT NULL,
-    to_status       varchar(255) NOT NULL,
+    from_status     order_status NOT NULL,
+    to_status       order_status NOT NULL,
     reason          varchar(255),
     changed_at      timestamp NOT NULL,
     created_at      timestamp NOT NULL,

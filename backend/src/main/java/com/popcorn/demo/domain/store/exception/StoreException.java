@@ -22,8 +22,6 @@ public class StoreException extends BaseException {
         super(responseCode, cause);
     }
 
-    // ================ 검증 실패 예외들 (400 Bad Request) ================
-
     public static StoreException invalidRequest() {
         return new StoreException(CommonResponseCode.INVALID_REQUEST);
     }
@@ -40,11 +38,21 @@ public class StoreException extends BaseException {
         return new StoreException(StoreResponseCode.INVALID_NAME_FORMAT);
     }
 
+    public static StoreException notOwner() {
+        return new StoreException(StoreResponseCode.USER_NOT_OWNER);
+    }
+
     public static StoreException storeCreationLimitExceeded(Long ownerId, int maxStores) {
         return new StoreException(StoreResponseCode.STORE_CREATION_LIMIT_EXCEEDED);
     }
-
-    // ================ 리소스 없음 예외들 (404 Not Found) ================
+    
+    public static StoreException storeIdRequired() {
+        return new StoreException(StoreResponseCode.STORE_ID_REQUIRED);
+    }
+    
+    public static StoreException userIdRequired() {
+        return new StoreException(StoreResponseCode.USER_ID_REQUIRED);
+    }
 
     public static StoreException ownerNotFound() {
         return new StoreException(StoreResponseCode.OWNER_NOT_FOUND);
@@ -54,7 +62,18 @@ public class StoreException extends BaseException {
         return new StoreException(StoreResponseCode.STORE_NOT_FOUND);
     }
 
-    // ================ 비즈니스 규칙 위반 예외들 (409 Conflict) ================
+    public static StoreException unauthenticated() {
+        return new StoreException(StoreResponseCode.UNAUTHENTICATED);
+    }
+
+    public static StoreException invalidPrincipal() {
+        return new StoreException(StoreResponseCode.INVALID_PRINCIPAL);
+    }
+
+    public static StoreException invalidRole() {
+        return new StoreException(StoreResponseCode.INVALID_ROLE);
+    }
+
 
     public static StoreException duplicateStoreName(String storeName) {
         return new StoreException(StoreResponseCode.DUPLICATE_STORE_NAME);
@@ -71,8 +90,6 @@ public class StoreException extends BaseException {
     public static StoreException storeAlreadyDeleted(Object storeId) {
         return new StoreException(StoreResponseCode.STORE_ALREADY_DELETED);
     }
-
-    // ================ 시스템 오류 예외들 (500 Internal Server Error) ================
 
     public static StoreException validationTimeout() {
         return new StoreException(StoreResponseCode.VALIDATION_TIMEOUT);

@@ -115,7 +115,7 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status")
+	@Column(name = "status", columnDefinition = "order_status")
 	private OrderStatus status;
 
 
