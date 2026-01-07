@@ -26,6 +26,11 @@ public class OwnerPopupRepositoryImpl implements OwnerPopupRepository {
 	}
 
 	@Override
+	public Optional<Popup> findById(UUID popupId) {
+		return jpaOwnerPopupRepository.findById(popupId);
+	}
+
+	@Override
 	public Optional<Popup> findByStoreId(UUID storeId) {
 		return jpaOwnerPopupRepository.findAll().stream()
 				.filter(popup -> popup.getStoreId().equals(storeId))
@@ -35,13 +40,6 @@ public class OwnerPopupRepositoryImpl implements OwnerPopupRepository {
 	@Override
 	public void deleteById(UUID popupId) {
 		jpaOwnerPopupRepository.deleteById(popupId);
-	}
-
-	@Override
-	public List<Popup> findAllByStoreId(UUID storeId) {
-		return jpaOwnerPopupRepository.findAll().stream()
-				.filter(popup -> popup.getStoreId().equals(storeId))
-				.toList();
 	}
 
 	@Override

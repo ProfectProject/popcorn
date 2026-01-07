@@ -4,8 +4,10 @@ import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
+import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
 import com.popcorn.demo.domain.popup.service.owner.OwnerPopupService;
-import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +17,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @Tag(name = "OwnerPopupController", description = "팝업 관리(Owner)")
 @RestController
@@ -38,11 +43,29 @@ public class OwnerPopupController {
                 .body(BaseResponse.success(popupService.createPopup(userId, request)));
     }
 
+    @GetMapping("/popups")
+    public ResponseEntity<BaseResponse<List<PopupListDto>>> getPopupList(
+            Authentication authentication,
+            @Parameter(description = "스토어 ID", required = true) @RequestParam UUID storeId
+    ) {
+        Long userId = getCurrentOwnerId(authentication);
+        return ResponseEntity.ok(BaseResponse.success(popupService.getPopupByStoreId(userId, storeId)));
+    }
+
+    @GetMapping("/popups/{popupId}")
+    public ResponseEntity<BaseResponse<PopupDetailDto>> getPopupDetail(
+            Authentication authentication,
+            @Parameter(description = "팝업 ID", required = true) @PathVariable UUID popupId
+    ) {
+        Long userId = getCurrentOwnerId(authentication);
+        return ResponseEntity.ok(BaseResponse.success(popupService.getPopupDetail(userId, popupId)));
+    }
+
 
     // 인증 정보에서 오너 ID를 추출하고 OWNER 권한을 확인합니다.
     private Long getCurrentOwnerId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw StoreException.unauthenticated();
+            throw OwnerPopupException.unauthenticated();
         }
 
         Long userId = null;
@@ -62,10 +85,12 @@ public class OwnerPopupController {
                 userId = userDetails.getUserId();
             }
             roleValue = userDetails.getRole();
+        } else if (userId == null) {
+            throw OwnerPopupException.invalidPrincipal();
         }
 
         if (userId == null) {
-            throw StoreException.userIdRequired();
+            throw OwnerPopupException.userIdRequired();
         }
 
         if (roleValue == null) {
@@ -74,18 +99,18 @@ public class OwnerPopupController {
                     .filter(auth -> auth != null && !auth.isBlank())
                     .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
                     .findFirst()
-                    .orElseThrow(StoreException::invalidRole);
+                    .orElseThrow(OwnerPopupException::invalidRole);
         }
 
         UserRole role;
         try {
             role = UserRole.valueOf(roleValue);
         } catch (Exception e) {
-            throw StoreException.invalidRole();
+            throw OwnerPopupException.invalidRole();
         }
 
         if (role != UserRole.OWNER) {
-            throw StoreException.notOwner();
+            throw OwnerPopupException.notOwner();
         }
 
         return userId;

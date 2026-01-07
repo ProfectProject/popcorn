@@ -8,7 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
 import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
@@ -55,6 +57,60 @@ public class OwnerPopupService {
 
     }
 
+    @Transactional(readOnly = true)
+    public List<PopupListDto> getPopupByStoreId(Long ownerId, UUID storeId) {
+        log.info("[POPUP_LIST] ownerId={}, storeId={}", ownerId, storeId);
+
+        validateOwner(ownerId);
+        validateStoreId(storeId);
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> StoreException.storeNotFound(storeId));
+
+        if (!store.isOwner(ownerId)) {
+            throw StoreException.accessDenied(ownerId, storeId);
+        }
+        if (store.isDeleted()) {
+            throw StoreException.storeAlreadyDeleted(storeId);
+        }
+
+        List<PopupListDto> result = ownerPopupRepository.findAllByStoreIdAndDeletedAtIsNull(storeId).stream()
+                .map(this::mapToListDto)
+                .toList();
+
+        log.info("[POPUP_LIST_FOUND] storeId={}, count={}", storeId, result.size());
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public PopupDetailDto getPopupDetail(Long ownerId, UUID popupId) {
+        log.info("[POPUP_DETAIL] ownerId={}, popupId={}", ownerId, popupId);
+
+        validateOwner(ownerId);
+        validatePopupId(popupId);
+
+        Popup popup = ownerPopupRepository.findById(popupId)
+                .orElseThrow(PopupException::popupNotFound);
+
+        if (popup.getDeletedAt() != null) {
+            throw PopupException.popupNotFound();
+        }
+
+        Store store = storeRepository.findById(popup.getStoreId())
+                .orElseThrow(() -> StoreException.storeNotFound(popup.getStoreId()));
+
+        if (!store.isOwner(ownerId)) {
+            throw StoreException.accessDenied(ownerId, store.getId());
+        }
+        if (store.isDeleted()) {
+            throw StoreException.storeAlreadyDeleted(store.getId());
+        }
+
+        PopupDetailDto detail = mapToDetailDto(popup);
+        log.info("[POPUP_DETAIL_FOUND] popupId={}, storeId={}", popup.getId(), popup.getStoreId());
+        return detail;
+    }
+
     private PopupCreatedDto mapToDto(Popup popup) {
         return PopupCreatedDto.builder()
                 .popupId(popup.getId())
@@ -65,6 +121,29 @@ public class OwnerPopupService {
                 .status(popup.getStatus())
                 .createdAt(popup.getCreatedAt())
                 .createdBy(popup.getCreatedBy())
+                .build();
+    }
+
+    private PopupListDto mapToListDto(Popup popup) {
+        return PopupListDto.builder()
+                .popupId(popup.getId())
+                .title(popup.getTitle())
+                .popupCategory(popup.getCategory())
+                .status(popup.getStatus())
+                .createdAt(popup.getCreatedAt())
+                .build();
+    }
+
+    private PopupDetailDto mapToDetailDto(Popup popup) {
+        return PopupDetailDto.builder()
+                .popupId(popup.getId())
+                .storeId(popup.getStoreId())
+                .title(popup.getTitle())
+                .description(popup.getDescription())
+                .popupCategory(popup.getCategory())
+                .status(popup.getStatus())
+                .createdAt(popup.getCreatedAt())
+                .updatedAt(popup.getUpdatedAt())
                 .build();
     }
 
@@ -86,6 +165,18 @@ public class OwnerPopupService {
         }
     }
 
+    private void validateStoreId(UUID storeId) {
+        if (storeId == null) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+    }
+
+    private void validatePopupId(UUID popupId) {
+        if (popupId == null) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+    }
+
     private void validateDuplicateTitle(UUID storeId, String title) {
         List<Popup> popups = ownerPopupRepository.findAllByStoreIdAndDeletedAtIsNull(storeId);
         boolean exists = popups.stream()
@@ -95,5 +186,6 @@ public class OwnerPopupService {
             throw new PopupException(PopupResponseCode.INVALID_REQUEST);
         }
     }
+
 
 }

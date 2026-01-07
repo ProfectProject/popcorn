@@ -11,10 +11,10 @@ import java.util.UUID;
 public interface OwnerPopupRepository {
 
     Popup save(Popup popup);
+    Optional<Popup> findById(UUID popupId);
     Optional<Popup> findByStoreId(UUID storeId);
     void deleteById(UUID popupId);
 
-    List<Popup> findAllByStoreId(UUID storeId);
     List<Popup> findAllByStoreIdAndDeletedAtIsNull(UUID storeId);
     List<Popup> findByPublishStatusAndStoreId(PopupStatus status, UUID storeId);
     List<Popup> findByPopupCategoryAndStoreId(PopupCategory category, UUID storeId);

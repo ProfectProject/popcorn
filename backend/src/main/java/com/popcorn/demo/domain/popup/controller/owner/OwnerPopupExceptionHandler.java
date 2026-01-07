@@ -12,6 +12,7 @@ import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.popup.exception.PopupException;
+import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.demo.domain.store.exception.StoreException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,12 @@ public class OwnerPopupExceptionHandler extends BaseController {
 
 	@ExceptionHandler(StoreException.class)
 	public ResponseEntity<BaseResponse<BaseError>> handleStoreException(StoreException ex) {
+		logBusinessException(ex);
+		return error(ex.getResponseCode(), ex.getMessage());
+	}
+
+	@ExceptionHandler(OwnerPopupException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleOwnerPopupException(OwnerPopupException ex) {
 		logBusinessException(ex);
 		return error(ex.getResponseCode(), ex.getMessage());
 	}
@@ -82,6 +89,16 @@ public class OwnerPopupExceptionHandler extends BaseController {
 			} else {
 				log.warn("⚠️ 스토어 요청 오류 - 코드: {}, 메시지: {}", storeException.getResponseCode().getCode(),
 						storeException.getMessage());
+			}
+			return;
+		}
+		if (ex instanceof OwnerPopupException ownerPopupException) {
+			if (ownerPopupException.getResponseCode().getHttpStatus() >= 500) {
+				log.error("🚨 오너 팝업 서버 오류 - 코드: {}, 메시지: {}", ownerPopupException.getResponseCode().getCode(),
+						ownerPopupException.getMessage(), ownerPopupException);
+			} else {
+				log.warn("⚠️ 오너 팝업 요청 오류 - 코드: {}, 메시지: {}", ownerPopupException.getResponseCode().getCode(),
+						ownerPopupException.getMessage());
 			}
 		}
 	}
