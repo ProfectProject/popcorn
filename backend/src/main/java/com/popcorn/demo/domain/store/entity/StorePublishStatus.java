@@ -5,6 +5,6 @@ public enum StorePublishStatus {
     PENDING,
     ACTIVE,
     SUSPENDED,
-    CLOSED,
     HIDDEN,
+    CLOSED
 }
