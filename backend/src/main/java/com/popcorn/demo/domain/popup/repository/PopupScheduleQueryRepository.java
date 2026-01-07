@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-import com.popcorn.demo.domain.popup.entity.PopupSession;
-import com.popcorn.demo.domain.popup.repository.view.PopupSessionView;
+import com.popcorn.demo.domain.popup.entity.PopupSchedule;
+import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 
-public interface PopupSessionQueryRepository extends Repository<PopupSession, UUID> {
+public interface PopupScheduleQueryRepository extends Repository<PopupSchedule, UUID> {
 
 	@Query(value = """
 			SELECT CAST(ps.schedule_id AS VARCHAR) AS id,
@@ -28,7 +28,7 @@ public interface PopupSessionQueryRepository extends Repository<PopupSession, UU
 			   AND (CAST(:to AS TIMESTAMP) IS NULL OR ps.end_at <= CAST(:to AS TIMESTAMP))
 			 ORDER BY ps.start_at ASC
 			""", nativeQuery = true)
-	List<PopupSessionView> findProductSessions(@Param("popupId") UUID popupId,
-			@Param("from") LocalDateTime from,
-			@Param("to") LocalDateTime to);
+	List<PopupScheduleView> findProductSessions(@Param("popupId") UUID popupId,
+												@Param("from") LocalDateTime from,
+												@Param("to") LocalDateTime to);
 }

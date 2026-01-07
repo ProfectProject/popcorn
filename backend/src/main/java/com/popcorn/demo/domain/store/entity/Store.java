@@ -30,7 +30,7 @@ public class Store extends BaseEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = "store_status")
     private StorePublishStatus publishStatus;
 
     @Column(name = "reason", length = 500)
@@ -50,7 +50,7 @@ public class Store extends BaseEntity {
     public void updateName(String name) {
         this.name = name;
     }
-
+    
     public void updatePublishStatus(StorePublishStatus status) {
         this.publishStatus = status;
     }

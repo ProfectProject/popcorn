@@ -20,6 +20,8 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 import com.popcorn.demo.domain.popup.repository.PopupQueryRepository;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
@@ -50,7 +52,7 @@ class PopupQueryServiceTest {
 
 		PopupListQuery query = PopupListQuery.builder()
 				.regionId(101L)
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.keyword("팝업")
 				.page(1)
 				.size(100)
@@ -63,7 +65,7 @@ class PopupQueryServiceTest {
 		assertEquals(100, response.getSize());
 		assertEquals(1L, response.getTotal());
 		assertEquals("Seed Popup 1", response.getItems().get(0).getTitle());
-		assertEquals("OPEN", response.getItems().get(0).getStatus());
+		assertEquals(PopupStatus.OPEN, response.getItems().get(0).getStatus());
 		verify(repository).countPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null));
 		verify(repository).findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(100), eq(0L));
 	}
@@ -90,7 +92,7 @@ class PopupQueryServiceTest {
 
 		PopupListQuery query = PopupListQuery.builder()
 				.regionId(101L)
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.keyword("팝업")
 				.page(1)
 				.size(20)
