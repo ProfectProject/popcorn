@@ -48,4 +48,10 @@ public class Payment extends BaseEntity {
 
 	@Column(name = "approved_at")
 	private LocalDateTime approvedAt;
+
+	@Column(name = "deleted_at")
+	private LocalDateTime deletedAt;
+
+	@Column(name = "deleted_by")
+	private Long deletedBy;
 }

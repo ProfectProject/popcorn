@@ -21,4 +21,8 @@ public class PaymentException extends BaseException {
 	public static PaymentException paymentAlreadyExists() {
 		return new PaymentException(OrderResponseCode.PAYMENT_ALREADY_EXISTS);
 	}
+
+	public static PaymentException paymentNotFound() {
+		return new PaymentException(CommonResponseCode.NOT_FOUND);
+	}
 }

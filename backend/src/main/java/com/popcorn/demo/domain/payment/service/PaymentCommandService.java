@@ -14,6 +14,7 @@ import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.payment.entity.Payment;
 import com.popcorn.demo.domain.payment.entity.PaymentMethod;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
@@ -39,7 +40,7 @@ public class PaymentCommandService {
 		validateOrderType(orderId, true);
 		PaymentMethod paymentMethod = parseMethod(method);
 		validateReservationMethod(paymentMethod);
-		return createPayment(order, paymentMethod, amount, rawPayload, OrderStatus.PAID);
+		return createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
 	}
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
@@ -50,7 +51,69 @@ public class PaymentCommandService {
 		if (paymentMethod != PaymentMethod.CARD) {
 			throw PaymentException.invalidRequest();
 		}
-		return createPayment(order, paymentMethod, amount, rawPayload, OrderStatus.COMPLETED);
+		return createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
+	}
+
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public PaymentCreationResult createReadyPayment(UUID orderId, String method, Integer amount, String rawPayload) {
+		Order order = loadOrder(orderId);
+		PaymentMethod paymentMethod = parseMethod(method);
+		return createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
+	}
+
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public PaymentDetailResult approvePayment(UUID paymentId) {
+		Payment payment = loadPayment(paymentId);
+		ensureStatus(payment, PaymentStatus.READY);
+		PaymentStatus updatedStatus = PaymentStatus.PAID;
+		LocalDateTime approvedAt = LocalDateTime.now();
+		payment.setStatus(updatedStatus);
+		payment.setApprovedAt(approvedAt);
+		Payment saved = paymentRepository.save(payment);
+		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), resolvePaymentOrderStatus(saved.getOrderId()), "결제 승인");
+		return toDetailResult(saved, orderStatus);
+	}
+
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public PaymentDetailResult failPayment(UUID paymentId) {
+		Payment payment = loadPayment(paymentId);
+		ensureStatus(payment, PaymentStatus.READY);
+		payment.setStatus(PaymentStatus.FAILED);
+		Payment saved = paymentRepository.save(payment);
+		return toDetailResult(saved, null);
+	}
+
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public PaymentDetailResult cancelPayment(UUID paymentId) {
+		Payment payment = loadPayment(paymentId);
+		if (payment.getStatus() != PaymentStatus.READY && payment.getStatus() != PaymentStatus.PAID) {
+			throw OrderValidationException.invalidStatusTransition();
+		}
+		payment.setStatus(PaymentStatus.CANCELLED);
+		Payment saved = paymentRepository.save(payment);
+		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), OrderStatus.CANCELLED, "결제 취소");
+		return toDetailResult(saved, orderStatus);
+	}
+
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public void deletePayment(UUID paymentId) {
+		Payment payment = loadPayment(paymentId);
+		payment.setDeletedAt(LocalDateTime.now());
+		paymentRepository.save(payment);
+	}
+
+	@Transactional(readOnly = true)
+	public PaymentDetailResult getPayment(UUID paymentId) {
+		Payment payment = loadPayment(paymentId);
+		return toDetailResult(payment, null);
+	}
+
+	@Transactional(readOnly = true)
+	public java.util.List<PaymentDetailResult> getPaymentsByOrder(UUID orderId) {
+		return paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
+				.stream()
+				.map(payment -> toDetailResult(payment, null))
+				.toList();
 	}
 
 	private Order loadOrder(UUID orderId) {
@@ -59,7 +122,7 @@ public class PaymentCommandService {
 		if (order.getStatus() == OrderStatus.CANCELLED) {
 			throw OrderValidationException.invalidStatusTransition();
 		}
-		if (paymentRepository.existsByOrderId(orderId)) {
+		if (paymentRepository.existsByOrderIdAndDeletedAtIsNull(orderId)) {
 			throw PaymentException.paymentAlreadyExists();
 		}
 		return order;
@@ -70,13 +133,11 @@ public class PaymentCommandService {
 			PaymentMethod method,
 			Integer amount,
 			String rawPayload,
-			OrderStatus successStatus) {
+			PaymentStatus paymentStatus,
+			LocalDateTime approvedAt) {
 		if (amount == null || amount <= 0) {
 			throw PaymentException.invalidRequest();
 		}
-
-		PaymentStatus paymentStatus = PaymentStatus.PAID;
-		LocalDateTime approvedAt = LocalDateTime.now();
 
 		Payment payment = Payment.builder()
 				.orderId(order.getId())
@@ -89,28 +150,12 @@ public class PaymentCommandService {
 
 		Payment saved = paymentRepository.save(payment);
 
-		OrderStatus updatedStatus = resolveUpdatedStatus(order, successStatus);
-
 		return PaymentCreationResult.builder()
 				.paymentId(saved.getId())
 				.paymentStatus(paymentStatus)
-				.orderStatus(updatedStatus)
+				.orderStatus(order.getStatus())
 				.approvedAt(approvedAt)
 				.build();
-	}
-
-	private OrderStatus resolveUpdatedStatus(Order order, OrderStatus successStatus) {
-		if (successStatus == null) {
-			return order.getStatus();
-		}
-		if (order.getStatus() == successStatus) {
-			return successStatus;
-		}
-		Order updatedOrder = orderCommandService.updateStatus(
-				order.getId(),
-				successStatus.name(),
-				"결제 완료");
-		return updatedOrder.getStatus();
 	}
 
 	private PaymentMethod parseMethod(String method) {
@@ -153,5 +198,61 @@ public class PaymentCommandService {
 		private PaymentStatus paymentStatus;
 		private OrderStatus orderStatus;
 		private LocalDateTime approvedAt;
+	}
+
+	@Getter
+	@Builder
+	public static class PaymentDetailResult {
+		private UUID paymentId;
+		private UUID orderId;
+		private PaymentMethod method;
+		private PaymentStatus paymentStatus;
+		private Integer amount;
+		private LocalDateTime approvedAt;
+		private LocalDateTime createdAt;
+		private LocalDateTime updatedAt;
+		private OrderStatus orderStatus;
+	}
+
+	private Payment loadPayment(UUID paymentId) {
+		Payment payment = paymentRepository.findById(paymentId)
+				.orElseThrow(PaymentException::paymentNotFound);
+		if (payment.getDeletedAt() != null) {
+			throw PaymentException.paymentNotFound();
+		}
+		return payment;
+	}
+
+	private void ensureStatus(Payment payment, PaymentStatus expected) {
+		if (payment.getStatus() != expected) {
+			throw OrderValidationException.invalidStatusTransition();
+		}
+	}
+
+	private OrderStatus resolvePaymentOrderStatus(UUID orderId) {
+		boolean hasSchedule = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
+		if (hasSchedule) {
+			return OrderStatus.PAID;
+		}
+		return OrderStatus.COMPLETED;
+	}
+
+	private OrderStatus updateOrderStatus(UUID orderId, OrderStatus status, String reason) {
+		Order updatedOrder = orderCommandService.updateStatus(orderId, status.name(), reason);
+		return updatedOrder.getStatus();
+	}
+
+	private PaymentDetailResult toDetailResult(Payment payment, OrderStatus orderStatus) {
+		return PaymentDetailResult.builder()
+				.paymentId(payment.getId())
+				.orderId(payment.getOrderId())
+				.method(payment.getMethod())
+				.paymentStatus(payment.getStatus())
+				.amount(payment.getAmount())
+				.approvedAt(payment.getApprovedAt())
+				.createdAt(payment.getCreatedAt())
+				.updatedAt(payment.getUpdatedAt())
+				.orderStatus(orderStatus)
+				.build();
 	}
 }
