@@ -52,9 +52,13 @@ public class SecurityConfig {
 				.requestMatchers("/api/v1/users/signup").permitAll()
 
 				// QR
-				.requestMatchers(HttpMethod.POST, "/api/v1/qr/verify").hasRole("OWNER")
-				.requestMatchers(HttpMethod.GET,  "/api/v1/orders/*/qr").hasAnyRole("OWNER", "CUSTOMER")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/*/qr").hasRole("OWNER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/qr/verify").permitAll()
+				.requestMatchers(HttpMethod.GET,  "/api/v1/orders/*/qr").hasRole("CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/*/qr").hasRole("CUSTOMER")
+
+				// Checkin
+				.requestMatchers(HttpMethod.GET, "/api/v1/checkins").hasAnyRole("OWNER", "ADMIN")
+				.requestMatchers(HttpMethod.GET, "/api/v1/checkins/{checkinId}").permitAll()
 
 				// Swagger UI 관련 엔드포인트 허용
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
