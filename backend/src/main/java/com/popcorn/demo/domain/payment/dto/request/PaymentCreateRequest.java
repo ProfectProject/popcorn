@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.dto.request;
+package com.popcorn.demo.domain.payment.dto.request;
 
 import java.util.Map;
 

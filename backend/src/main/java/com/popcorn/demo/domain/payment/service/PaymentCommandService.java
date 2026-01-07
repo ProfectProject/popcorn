@@ -1,5 +1,6 @@
-package com.popcorn.demo.domain.order.service;
+package com.popcorn.demo.domain.payment.service;
 
+import com.popcorn.demo.domain.order.service.OrderCommandService;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.UUID;
@@ -9,15 +10,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.entity.Payment;
-import com.popcorn.demo.domain.order.entity.PaymentMethod;
-import com.popcorn.demo.domain.order.entity.PaymentStatus;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
-import com.popcorn.demo.domain.order.exception.PaymentException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
-import com.popcorn.demo.domain.order.repository.jpa.JpaPaymentRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
+import com.popcorn.demo.domain.payment.entity.Payment;
+import com.popcorn.demo.domain.payment.entity.PaymentMethod;
+import com.popcorn.demo.domain.payment.entity.PaymentStatus;
+import com.popcorn.demo.domain.payment.exception.PaymentException;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 
 import lombok.Builder;
 import lombok.Getter;
