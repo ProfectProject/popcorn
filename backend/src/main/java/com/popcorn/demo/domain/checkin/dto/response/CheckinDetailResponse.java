@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.qr.dto.response;
+package com.popcorn.demo.domain.checkin.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,11 +12,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class QrVerifyResponse {
+public class CheckinDetailResponse {
 
-	private boolean valid;
-	private java.util.UUID checkinId;
+	private UUID checkinId;
 	private UUID orderId;
+	private UUID orderQrCodeId;
 	private String qrCode;
-	private LocalDateTime expiresAt;
+	private LocalDateTime createdAt;
+	private Long createdBy;
 }
