@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
@@ -25,12 +26,14 @@ import com.popcorn.demo.domain.qr.repository.QrCodeRow;
 class QrCodeServiceTest {
 
 	private QrCodeRepository qrCodeRepository;
+	private CheckinRepository checkinRepository;
 	private QrCodeService qrCodeService;
 
 	@BeforeEach
 	void setUp() {
 		qrCodeRepository = Mockito.mock(QrCodeRepository.class);
-		qrCodeService = new QrCodeService(qrCodeRepository);
+		checkinRepository = Mockito.mock(CheckinRepository.class);
+		qrCodeService = new QrCodeService(qrCodeRepository, checkinRepository);
 	}
 
 	@Test
