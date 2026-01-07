@@ -20,4 +20,37 @@ public interface PopupListView {
 	LocalDateTime eventStartAt();
 
 	LocalDateTime eventEndAt();
+
+	// Java Bean 규약에 맞는 getter 메서드들 추가
+	default String getId() {
+		return id();
+	}
+
+	default String getStoreId() {
+		return storeId();
+	}
+
+	default String getTitle() {
+		return title();
+	}
+
+	default String getDescription() {
+		return description();
+	}
+
+	default String getCategory() {
+		return category();
+	}
+
+	default String getStatus() {
+		return status();
+	}
+
+	default LocalDateTime getEventStartAt() {
+		return eventStartAt();
+	}
+
+	default LocalDateTime getEventEndAt() {
+		return eventEndAt();
+	}
 }
