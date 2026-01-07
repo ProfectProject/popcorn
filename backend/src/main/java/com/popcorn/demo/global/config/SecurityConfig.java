@@ -50,6 +50,12 @@ public class SecurityConfig {
 				.authorizeHttpRequests()
 				.requestMatchers("/api/v1/auth/login").permitAll()
 				.requestMatchers("/api/v1/users/signup").permitAll()
+
+				// QR
+				.requestMatchers(HttpMethod.POST, "/api/v1/qr/verify").hasRole("OWNER")
+				.requestMatchers(HttpMethod.GET,  "/api/v1/orders/*/qr").hasAnyRole("OWNER", "CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/*/qr").hasRole("OWNER")
+
 				// Swagger UI 관련 엔드포인트 허용
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
 				// Actuator 엔드포인트 허용
