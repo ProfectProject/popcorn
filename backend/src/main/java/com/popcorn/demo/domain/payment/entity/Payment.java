@@ -7,7 +7,9 @@ import com.popcorn.demo.common.entity.BaseEntity;
 
 import jakarta.persistence.*;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,10 +35,12 @@ public class Payment extends BaseEntity {
 	private UUID orderId;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "method", nullable = false, columnDefinition = "payment_method")
 	private PaymentMethod method;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "status", nullable = false, columnDefinition = "payment_status")
 	private PaymentStatus status;
 
