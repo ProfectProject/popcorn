@@ -16,6 +16,7 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.service.PopupService;
 
 import lombok.RequiredArgsConstructor;
@@ -76,7 +77,7 @@ public class PopupController extends BaseController {
 			@org.springframework.web.bind.annotation.RequestParam(required = false) Long regionId,
 			@Parameter(description = "카테고리(FOOD/IDOL/EXHIBITION/WORKSHOP/FASHION/BEAUTY/LIFESTYLE/ART/GAME/TECH/SPORTS/BOOK/PET/ETC)",
 					example = "FOOD")
-			@org.springframework.web.bind.annotation.RequestParam(required = false) String category,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) PopupCategory category,
 			@Parameter(description = "검색어", example = "팝업")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
 			@Parameter(description = "가게 필터", example = "00000000-0000-0000-0000-000000000001")
