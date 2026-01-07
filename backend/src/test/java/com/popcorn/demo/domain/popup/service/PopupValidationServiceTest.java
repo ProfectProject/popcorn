@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 class PopupValidationServiceTest {
@@ -45,16 +46,15 @@ class PopupValidationServiceTest {
 	}
 
 	@Test
-	@DisplayName("목록 조회 - 카테고리 값 검증")
-	void normalizeListQuery_rejectsInvalidCategory() {
+	@DisplayName("목록 조회 - 카테고리 유지")
+	void normalizeListQuery_keepsCategory() {
 		PopupValidationService service = new PopupValidationService();
 
-		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeListQuery(PopupListQuery.builder()
-						.category("INVALID")
-						.build()));
+		PopupListQuery normalized = service.normalizeListQuery(PopupListQuery.builder()
+				.category(PopupCategory.FOOD)
+				.build());
 
-		assertEquals(PopupResponseCode.INVALID_REQUEST, exception.getResponseCode());
+		assertEquals(PopupCategory.FOOD, normalized.getCategory());
 	}
 
 	@Test
@@ -74,7 +74,7 @@ class PopupValidationServiceTest {
 		PopupValidationService service = new PopupValidationService();
 
 		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeSessionQuery(PopupSessionListQuery.builder().build()));
+				() -> service.normalizeSessionQuery(PopupScheduleListQuery.builder().build()));
 
 		assertEquals(PopupResponseCode.INVALID_REQUEST, exception.getResponseCode());
 	}
@@ -85,7 +85,7 @@ class PopupValidationServiceTest {
 		PopupValidationService service = new PopupValidationService();
 
 		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeSessionQuery(PopupSessionListQuery.builder()
+				() -> service.normalizeSessionQuery(PopupScheduleListQuery.builder()
 						.popupId(java.util.UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.from(java.time.LocalDateTime.of(2025, 1, 10, 0, 0))
 						.to(java.time.LocalDateTime.of(2025, 1, 1, 0, 0))
