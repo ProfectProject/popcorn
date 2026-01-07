@@ -65,8 +65,7 @@ class StoreControllerTest {
 
         String jsonRequest = """
                 {
-                    "name": "맛있는 팝콘 스토어",
-                    "ownerId": 123
+                    "name": "맛있는 팝콘 스토어"
                 }
                 """;
 
@@ -89,8 +88,7 @@ class StoreControllerTest {
 
         String jsonRequest = """
                 {
-                    "name": "맛있는 팝콘 스토어",
-                    "ownerId": 123
+                    "name": "맛있는 팝콘 스토어"
                 }
                 """;
 
@@ -120,8 +118,7 @@ class StoreControllerTest {
 
         String jsonRequest = """
                 {
-                    "name": "테스트 스토어",
-                    "ownerId": 123
+                    "name": "테스트 스토어"
                 }
                 """;
 
@@ -141,28 +138,7 @@ class StoreControllerTest {
 
         String jsonRequest = """
                 {
-                    "name": "",
-                    "ownerId": 123
-                }
-                """;
-
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
-                        .with(user(userId.toString()).roles("OWNER"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonRequest))
-                .andExpect(MockMvcResultMatchers.status().isBadRequest());
-
-        verify(storeService, never()).createStore(eq(userId), any());
-    }
-
-    @Test
-    @DisplayName("스토어 생성 실패 - 오너 ID 누락")
-    void 스토어_생성_실패_오너_ID_누락() throws Exception {
-        Long userId = 123L;
-
-        String jsonRequest = """
-                {
-                    "name": "테스트 스토어"
+                    "name": ""
                 }
                 """;
 
