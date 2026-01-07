@@ -176,6 +176,44 @@ class PopupQueryServiceTest {
 								 String status, LocalDateTime eventStartAt,
 								 LocalDateTime eventEndAt) implements PopupListView {
 
+		@Override
+		public String getId() {
+			return id;
+		}
 
+		@Override
+		public String getStoreId() {
+			return storeId;
+		}
+
+		@Override
+		public String getTitle() {
+			return title;
+		}
+
+		@Override
+		public String getDescription() {
+			return description;
+		}
+
+		@Override
+		public String getCategory() {
+			return category;
+		}
+
+		@Override
+		public String getStatus() {
+			return status;
+		}
+
+		@Override
+		public LocalDateTime getEventStartAt() {
+			return eventStartAt;
+		}
+
+		@Override
+		public LocalDateTime getEventEndAt() {
+			return eventEndAt;
+		}
 	}
 }

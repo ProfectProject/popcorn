@@ -105,37 +105,37 @@ class PopupScheduleQueryServiceTest {
 		}
 
 		@Override
-		public String id() {
+		public String getId() {
 			return id;
 		}
 
 		@Override
-		public LocalDateTime startAt() {
+		public LocalDateTime getStartAt() {
 			return startAt;
 		}
 
 		@Override
-		public LocalDateTime endAt() {
+		public LocalDateTime getEndAt() {
 			return endAt;
 		}
 
 		@Override
-		public Integer price() {
+		public Integer getPrice() {
 			return price;
 		}
 
 		@Override
-		public Integer capacity() {
+		public Integer getCapacity() {
 			return capacity;
 		}
 
 		@Override
-		public Integer remainingCapacity() {
+		public Integer getRemainingCapacity() {
 			return remainingCapacity;
 		}
 
 		@Override
-		public Boolean isActive() {
+		public Boolean getIsActive() {
 			return isActive;
 		}
     }
