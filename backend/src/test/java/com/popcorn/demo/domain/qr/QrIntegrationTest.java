@@ -174,7 +174,7 @@ class QrIntegrationTest {
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				orderId,
-				"ORD-" + orderId,
+				"O20240101-000002", // 테스트용 짧은 주문번호 사용 (16자)
 				userId,
 				storeId,
 				status,
