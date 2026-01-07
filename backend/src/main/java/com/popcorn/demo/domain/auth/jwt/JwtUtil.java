@@ -27,6 +27,15 @@ public class JwtUtil {
         secretKey = Keys.hmacShaKeyFor(byteSecretKey);
     }
 
+    public Long getUserId(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("id", Long.class);  // Long 타입으로 꺼내기
+    }
+
     public String getUsername(String token) {
 
         return Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody().get("email", String.class);
@@ -42,9 +51,10 @@ public class JwtUtil {
         return Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody().getExpiration().before(new Date());
     }
 
-    public String createJwt(String email, String role, Long expiredMs) {
+    public String createJwt(Long userId, String email, String role, Long expiredMs) {
 
 		Claims claims = Jwts.claims();
+        claims.put("id", userId);
         claims.put("email", email);
         claims.put("role", role);
 
