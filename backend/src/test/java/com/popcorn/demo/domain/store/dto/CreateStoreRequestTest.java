@@ -28,7 +28,6 @@ class CreateStoreRequestTest {
     void 유효한_스토어_생성_요청() {
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("유효한 스토어 이름")
-                .ownerId(123L)
                 .build();
 
         Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
@@ -41,7 +40,6 @@ class CreateStoreRequestTest {
     void 스토어_이름이_빈_문자열인_경우_검증_실패() {
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("")
-                .ownerId(123L)
                 .build();
 
         Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
@@ -54,33 +52,6 @@ class CreateStoreRequestTest {
     void 스토어_이름이_null인_경우_검증_실패() {
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name(null)
-                .ownerId(123L)
-                .build();
-
-        Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
-
-        assertThat(violations).isNotEmpty();
-    }
-
-    @Test
-    @DisplayName("오너 ID가 null인 경우 검증 실패")
-    void 오너_ID가_null인_경우_검증_실패() {
-        CreateStoreRequest request = CreateStoreRequest.builder()
-                .name("테스트 스토어")
-                .ownerId(null)
-                .build();
-
-        Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
-
-        assertThat(violations).isNotEmpty();
-    }
-
-    @Test
-    @DisplayName("오너 ID가 음수인 경우 검증 실패")
-    void 오너_ID가_음수인_경우_검증_실패() {
-        CreateStoreRequest request = CreateStoreRequest.builder()
-                .name("테스트 스토어")
-                .ownerId(-1L)
                 .build();
 
         Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
@@ -94,7 +65,6 @@ class CreateStoreRequestTest {
         String longName = "a".repeat(101);
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name(longName)
-                .ownerId(123L)
                 .build();
 
         Set<ConstraintViolation<CreateStoreRequest>> violations = validator.validate(request);
