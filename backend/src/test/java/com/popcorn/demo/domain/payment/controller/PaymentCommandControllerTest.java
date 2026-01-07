@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -55,15 +54,13 @@ class PaymentCommandControllerTest {
 	void createReservationPayment_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
 		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004003");
-		LocalDateTime approvedAt = LocalDateTime.now();
-
 		when(paymentCommandService.createReservationPayment(
 				eq(orderId), eq("CARD"), eq(4000), any()))
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
-						.paymentStatus(PaymentStatus.PAID)
-						.orderStatus(OrderStatus.PAID)
-						.approvedAt(approvedAt)
+						.paymentStatus(PaymentStatus.READY)
+						.orderStatus(OrderStatus.REQUESTED)
+						.approvedAt(null)
 						.build());
 
 		mockMvc.perform(post("/api/v1/orders/{orderId}/reservation-payments", orderId)
@@ -81,9 +78,8 @@ class PaymentCommandControllerTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
-				.andExpect(jsonPath("$.data.paymentStatus").value("PAID"))
-				.andExpect(jsonPath("$.data.orderStatus").value("PAID"))
-				.andExpect(jsonPath("$.data.approvedAt").exists());
+				.andExpect(jsonPath("$.data.paymentStatus").value("READY"))
+				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
 	}
 
 	@Test
@@ -96,8 +92,8 @@ class PaymentCommandControllerTest {
 				eq(orderId), eq("CARD"), eq(3000), any()))
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
-						.paymentStatus(PaymentStatus.PAID)
-						.orderStatus(OrderStatus.COMPLETED)
+						.paymentStatus(PaymentStatus.READY)
+						.orderStatus(OrderStatus.REQUESTED)
 						.build());
 
 		mockMvc.perform(post("/api/v1/orders/{orderId}/payments", orderId)
@@ -115,8 +111,37 @@ class PaymentCommandControllerTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
-				.andExpect(jsonPath("$.data.status").value("PAID"))
-				.andExpect(jsonPath("$.data.orderStatus").value("COMPLETED"));
+				.andExpect(jsonPath("$.data.status").value("READY"))
+				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
+	}
+
+	@Test
+	@DisplayName("성공: READY 결제 기록 생성")
+	void createReadyPayment_success() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001005");
+		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004005");
+
+		when(paymentCommandService.createReadyPayment(
+				eq(orderId), eq("CARD"), eq(3000), any()))
+				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
+						.paymentId(paymentId)
+						.paymentStatus(PaymentStatus.READY)
+						.orderStatus(OrderStatus.REQUESTED)
+						.build());
+
+		mockMvc.perform(post("/api/v1/orders/{orderId}/payments/ready", orderId)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "method": "CARD",
+					  "amount": 3000
+					}
+					"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.code").value(200))
+				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
+				.andExpect(jsonPath("$.data.status").value("READY"))
+				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
 	}
 
 	@Test
