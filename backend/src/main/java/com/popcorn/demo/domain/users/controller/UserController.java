@@ -59,6 +59,16 @@ public class UserController {
         return UserResponse.from(user);
     }
 
+    @PutMapping("/mypage")
+    public UserResponse UpdateMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails,@RequestBody UserUpdateRequest request ) {
+        // SecurityContext에서 userId 가져오기
+        Long userId = customUserDetails.getUserId();
+        System.out.println("SecurityContext에서 가져온 userId: " + userId);
+
+        User updatedUser = userService.updateUser(userId, request);
+        return UserResponse.from(updatedUser);
+    }
+
      /**
      * 사용자 정보 업데이트
      */
