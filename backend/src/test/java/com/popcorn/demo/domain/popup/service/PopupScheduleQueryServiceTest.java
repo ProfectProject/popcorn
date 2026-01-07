@@ -104,5 +104,39 @@ class PopupScheduleQueryServiceTest {
 			this.isActive = isActive;
 		}
 
+		@Override
+		public String id() {
+			return id;
+		}
+
+		@Override
+		public LocalDateTime startAt() {
+			return startAt;
+		}
+
+		@Override
+		public LocalDateTime endAt() {
+			return endAt;
+		}
+
+		@Override
+		public Integer price() {
+			return price;
+		}
+
+		@Override
+		public Integer capacity() {
+			return capacity;
+		}
+
+		@Override
+		public Integer remainingCapacity() {
+			return remainingCapacity;
+		}
+
+		@Override
+		public Boolean isActive() {
+			return isActive;
+		}
     }
 }
