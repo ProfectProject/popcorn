@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PopupSessionListResponse {
+public class PopupScheduleListResponse {
 
 	private List<ItemDto> items;
 

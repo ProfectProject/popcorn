@@ -12,20 +12,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
-import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
-import com.popcorn.demo.domain.popup.repository.PopupSessionQueryRepository;
-import com.popcorn.demo.domain.popup.repository.view.PopupSessionView;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.repository.PopupScheduleQueryRepository;
+import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 
-class PopupSessionQueryServiceTest {
+class PopupScheduleQueryServiceTest {
 
 	@Test
 	@DisplayName("회차 조회 - 필드 매핑")
 	void getProductSessions_mapsFields() {
-		PopupSessionQueryRepository repository = Mockito.mock(PopupSessionQueryRepository.class);
-		PopupSessionQueryService service = new PopupSessionQueryService(repository);
+		PopupScheduleQueryRepository repository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupScheduleQueryService service = new PopupScheduleQueryService(repository);
 
-		PopupSessionView view = new TestSessionView(
+		PopupScheduleView view = new TestScheduleView(
 				"00000000-0000-0000-0000-000000000201",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
 				LocalDateTime.of(2025, 1, 5, 18, 0),
@@ -41,7 +41,7 @@ class PopupSessionQueryServiceTest {
 				eq(LocalDateTime.of(2025, 1, 31, 23, 59))))
 				.thenReturn(List.of(view));
 
-		PopupSessionListResponse response = service.getProductSessions(PopupSessionListQuery.builder()
+		PopupScheduleListResponse response = service.getProductSessions(PopupScheduleListQuery.builder()
 				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.from(LocalDateTime.of(2025, 1, 1, 0, 0))
 				.to(LocalDateTime.of(2025, 1, 31, 23, 59))
@@ -57,10 +57,10 @@ class PopupSessionQueryServiceTest {
 	@Test
 	@DisplayName("회차 조회 - 비활성 정보 매핑")
 	void getProductSessions_mapsInactive() {
-		PopupSessionQueryRepository repository = Mockito.mock(PopupSessionQueryRepository.class);
-		PopupSessionQueryService service = new PopupSessionQueryService(repository);
+		PopupScheduleQueryRepository repository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupScheduleQueryService service = new PopupScheduleQueryService(repository);
 
-		PopupSessionView view = new TestSessionView(
+		PopupScheduleView view = new TestScheduleView(
 				"00000000-0000-0000-0000-000000000202",
 				LocalDateTime.of(2025, 1, 10, 10, 0),
 				LocalDateTime.of(2025, 1, 10, 18, 0),
@@ -76,7 +76,7 @@ class PopupSessionQueryServiceTest {
 				eq(null)))
 				.thenReturn(List.of(view));
 
-		PopupSessionListResponse response = service.getProductSessions(PopupSessionListQuery.builder()
+		PopupScheduleListResponse response = service.getProductSessions(PopupScheduleListQuery.builder()
 				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.build());
 
@@ -84,7 +84,7 @@ class PopupSessionQueryServiceTest {
 		assertEquals(false, response.getItems().get(0).getIsActive());
 	}
 
-	private static class TestSessionView implements PopupSessionView {
+	private static class TestScheduleView implements PopupScheduleView {
 		private final String id;
 		private final LocalDateTime startAt;
 		private final LocalDateTime endAt;
@@ -93,8 +93,8 @@ class PopupSessionQueryServiceTest {
 		private final Integer remainingCapacity;
 		private final Boolean isActive;
 
-		private TestSessionView(String id, LocalDateTime startAt, LocalDateTime endAt,
-				Integer price, Integer capacity, Integer remainingCapacity, Boolean isActive) {
+		private TestScheduleView(String id, LocalDateTime startAt, LocalDateTime endAt,
+								 Integer price, Integer capacity, Integer remainingCapacity, Boolean isActive) {
 			this.id = id;
 			this.startAt = startAt;
 			this.endAt = endAt;
