@@ -6,23 +6,31 @@ spring:
     driver-class-name: org.h2.Driver
   sql:
     init:
-      mode: always
-      schema-locations: classpath:test-schema.sql
+      mode: never
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
         type:
           preferred_enum_jdbc_type: STRING
         hbm2ddl:
-          auto: create-drop
+          auto: none
         dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
     defer-datasource-initialization: true
   flyway:
     enabled: false
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.jdbc.datasource.init: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 jwt:
   secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItdGVzdC1lbnZpcm9ubWVudC1vbmx5
