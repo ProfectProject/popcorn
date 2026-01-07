@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.store.dto.CreateStoreRequest;
@@ -25,10 +27,15 @@ import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
 import com.popcorn.demo.domain.store.service.StoreService;
+import com.popcorn.demo.domain.users.entity.User;
+import com.popcorn.demo.domain.users.entity.enums.UserRole;
+import com.popcorn.demo.domain.users.repository.UserRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Sql(scripts = "classpath:sql/test-schema.sql")
 class StoreIntegrationTest {
 
     @Autowired
@@ -36,6 +43,9 @@ class StoreIntegrationTest {
 
     @Autowired
     private StoreRepository storeRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -195,17 +205,14 @@ class StoreIntegrationTest {
 
     private Long createOwnerId() {
         String email = "owner_" + java.util.UUID.randomUUID() + "@test.com";
-        jdbcTemplate.update(
-                "insert into p_users (email, password, name, role, is_active, created_at, updated_at) " +
-                        "values (?, ?, ?, 'OWNER', true, current_timestamp, current_timestamp)",
-                email,
-                "password",
-                "테스트 오너"
-        );
-        return jdbcTemplate.queryForObject(
-                "select user_id from p_users where email = ?",
-                Long.class,
-                email
-        );
+        User user = new User();
+        user.setEmail(email);
+        user.setPassword("password");
+        user.setName("테스트 오너");
+        user.setRole(UserRole.OWNER);
+        user.setActive(true);
+
+        User savedUser = userRepository.save(user);
+        return savedUser.getUserId();
     }
 }

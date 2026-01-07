@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -241,9 +240,8 @@ public class OrderQueryController extends BaseController {
 	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
 			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)")
 			@RequestParam(required = false, defaultValue = "ALL") String orderType,
-			@Parameter(description = "주문 상태",
-					schema = @Schema(implementation = OrderStatus.class))
-			@RequestParam(required = false) OrderStatus status,
+			@Parameter(description = "주문 상태 (ALL 또는 OrderStatus 값)")
+			@RequestParam(required = false) String status,
 			@Parameter(description = "조회 시작 시각")
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -265,9 +263,11 @@ public class OrderQueryController extends BaseController {
 		String normalizedOrderType = "ALL".equalsIgnoreCase(orderType)
 				? null
 				: orderType;
-		String statusStr = status == null ? null : status.name();
+		String normalizedStatus = (status == null || "ALL".equalsIgnoreCase(status))
+				? null
+				: status;
 		MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
-				customerId, normalizedOrderType, statusStr, from, to, size, offset
+				customerId, normalizedOrderType, normalizedStatus, from, to, size, offset
 		);
 		return ok(response);
 	}

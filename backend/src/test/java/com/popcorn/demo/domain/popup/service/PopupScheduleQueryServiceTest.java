@@ -138,5 +138,5 @@ class PopupScheduleQueryServiceTest {
 		public Boolean getIsActive() {
 			return isActive;
 		}
-	}
+    }
 }
