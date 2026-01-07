@@ -27,7 +27,8 @@ public class JwtFilter extends OncePerRequestFilter {
 				
 		String path = request.getServletPath();
         // 로그인, 회원가입 요청은 필터 제외
-        if (path.startsWith("/api/v1/auth/signup") || 
+        if (path.startsWith("/api/v1/users/signup") ||
+            path.startsWith("/api/v1/auth/signup") ||
             path.startsWith("/api/v1/auth/login")  ||
             path.startsWith("/api/auth/login") )  {
             filterChain.doFilter(request, response);
@@ -50,21 +51,41 @@ public class JwtFilter extends OncePerRequestFilter {
         System.out.println("authorization now");
 		//Bearer 부분 제거 후 순수 토큰만 획득
         String token = authorization.split(" ")[1];
-			
-		//토큰 소멸 시간 검증
-        if (jwtUtil.isExpired(token)) {
 
-            System.out.println("token expired");
-            filterChain.doFilter(request, response);
+        // 디버깅을 위한 로그 추가
+        System.out.println("Full authorization header: " + authorization);
+        System.out.println("Extracted token: " + token);
+        System.out.println("Token length: " + token.length());
+
+		//토큰 소멸 시간 검증
+        try {
+            if (jwtUtil.isExpired(token)) {
+
+                System.out.println("token expired");
+                filterChain.doFilter(request, response);
 
 			//조건이 해당되면 메소드 종료 (필수)
+                return;
+            }
+        } catch (Exception e) {
+            System.out.println("JWT parsing error: " + e.getMessage());
+            filterChain.doFilter(request, response);
             return;
         }
 
         //토큰에서 username과 role 획득
-        Long userId = jwtUtil.getUserId(token);
-        String username = jwtUtil.getUsername(token);
-        String role = jwtUtil.getRole(token);
+        Long userId;
+        String username;
+        String role;
+        try {
+            userId = jwtUtil.getUserId(token);
+            username = jwtUtil.getUsername(token);
+            role = jwtUtil.getRole(token);
+        } catch (Exception e) {
+            System.out.println("JWT user info extraction error: " + e.getMessage());
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         log.info("[JWTFILTER] 토큰에서 userID 획득: {}", userId);
         log.info("[JWTFILTER] 토큰에서 이메일 획득: {}", username);

@@ -84,59 +84,10 @@ class PopupSessionQueryServiceTest {
 		assertEquals(false, response.getItems().get(0).getIsActive());
 	}
 
-	private static class TestSessionView implements PopupSessionView {
-		private final String id;
-		private final LocalDateTime startAt;
-		private final LocalDateTime endAt;
-		private final Integer price;
-		private final Integer capacity;
-		private final Integer remainingCapacity;
-		private final Boolean isActive;
+    private record TestSessionView(String id, LocalDateTime startAt, LocalDateTime endAt, Integer price,
+                                   Integer capacity, Integer remainingCapacity,
+                                   Boolean isActive) implements PopupSessionView {
 
-		private TestSessionView(String id, LocalDateTime startAt, LocalDateTime endAt,
-				Integer price, Integer capacity, Integer remainingCapacity, Boolean isActive) {
-			this.id = id;
-			this.startAt = startAt;
-			this.endAt = endAt;
-			this.price = price;
-			this.capacity = capacity;
-			this.remainingCapacity = remainingCapacity;
-			this.isActive = isActive;
-		}
 
-		@Override
-		public String getId() {
-			return id;
-		}
-
-		@Override
-		public LocalDateTime getStartAt() {
-			return startAt;
-		}
-
-		@Override
-		public LocalDateTime getEndAt() {
-			return endAt;
-		}
-
-		@Override
-		public Integer getPrice() {
-			return price;
-		}
-
-		@Override
-		public Integer getCapacity() {
-			return capacity;
-		}
-
-		@Override
-		public Integer getRemainingCapacity() {
-			return remainingCapacity;
-		}
-
-		@Override
-		public Boolean getIsActive() {
-			return isActive;
-		}
-	}
+    }
 }

@@ -33,7 +33,7 @@ public class Store extends BaseEntity {
     @Id
     @GeneratedValue
     @org.hibernate.annotations.UuidGenerator
-    @Column(name = "store_id")
+    @Column(name = "store_id", columnDefinition = "VARCHAR(36)")
     private UUID id;
 
     /** 오너 ID */
@@ -55,10 +55,6 @@ public class Store extends BaseEntity {
 
     // ========================= Soft Delete 필드 =========================
 
-    /** 삭제 시간 */
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-    
     /** 삭제자 ID */
     @Column(name = "deleted_by")
     private Long deletedBy;
@@ -100,7 +96,7 @@ public class Store extends BaseEntity {
      * @param deletedBy 삭제자 ID
      */
     public void delete(Long deletedBy) {
-        this.deletedAt = LocalDateTime.now();
+        super.delete(); // BaseEntity의 delete() 메서드 호출
         this.deletedBy = deletedBy;
     }
     
@@ -118,7 +114,7 @@ public class Store extends BaseEntity {
      * @return 삭제되었으면 true
      */
     public boolean isDeleted() {
-        return this.deletedAt != null;
+        return super.isDeleted(); // BaseEntity의 isDeleted() 메서드 사용
     }
 
     /**

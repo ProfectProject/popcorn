@@ -52,13 +52,13 @@ public class PopupQueryService {
 
 		List<PopupListResponse.ItemDto> items = views.stream()
 				.map(view -> PopupListResponse.ItemDto.builder()
-						.id(toUuid(view.getId()))
-						.storeId(toUuid(view.getStoreId()))
-						.title(view.getTitle())
-						.category(view.getCategory())
-						.status(view.getStatus())
-						.eventStartAt(view.getEventStartAt())
-						.eventEndAt(view.getEventEndAt())
+						.id(toUuid(view.id()))
+						.storeId(toUuid(view.storeId()))
+						.title(view.title())
+						.category(view.category())
+						.status(view.status())
+						.eventStartAt(view.eventStartAt())
+						.eventEndAt(view.eventEndAt())
 						.build())
 				.toList();
 
@@ -76,14 +76,14 @@ public class PopupQueryService {
 				.orElseThrow(com.popcorn.demo.domain.popup.exception.PopupException::popupNotFound);
 
 		return PopupDetailResponse.builder()
-				.id(toUuid(view.getId()))
-				.storeId(toUuid(view.getStoreId()))
-				.title(view.getTitle())
-				.description(view.getDescription())
-				.category(view.getCategory())
-				.status(view.getStatus())
-				.eventStartAt(view.getEventStartAt())
-				.eventEndAt(view.getEventEndAt())
+				.id(toUuid(view.id()))
+				.storeId(toUuid(view.storeId()))
+				.title(view.title())
+				.description(view.description())
+				.category(view.category())
+				.status(view.status())
+				.eventStartAt(view.eventStartAt())
+				.eventEndAt(view.eventEndAt())
 				.build();
 	}
 
