@@ -25,19 +25,13 @@ import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
-import com.popcorn.demo.domain.order.dto.request.PaymentCreateRequest;
 import com.popcorn.demo.domain.order.dto.response.OrderCreatedDto;
-import com.popcorn.demo.domain.order.dto.response.OrderPaymentCreateResponse;
-import com.popcorn.demo.domain.order.dto.response.ReservationPaymentCreateResponse;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.entity.PaymentStatus;
 import com.popcorn.demo.common.versioning.ApiVersion;
-import com.popcorn.demo.domain.order.exception.PaymentException;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +63,6 @@ public class OrderCommandController extends BaseController {
 
 private final OrderCommandService orderCommandService;
 private final ObjectMapper objectMapper;
-private final PaymentCommandService paymentCommandService;
 
 	/**
 	 * 새로운 주문을 생성합니다.
@@ -315,135 +308,6 @@ private final PaymentCommandService paymentCommandService;
 	}
 
 	@Operation(
-			summary = "예약 결제 기록 생성",
-			description = "예약 주문에 대한 결제 기록을 생성합니다."
-	)
-	@ApiResponse(
-			responseCode = "201",
-			description = "예약 결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = ReservationPaymentCreateResponse.class))
-	)
-	@PostMapping("/{orderId}/reservation-payments")
-	public ResponseEntity<BaseResponse<ReservationPaymentCreateResponse>> createReservationPayment(
-			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001003")
-			@PathVariable UUID orderId,
-			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "예약 결제 생성 요청",
-				required = true,
-				content = @Content(
-					schema = @Schema(implementation = PaymentCreateRequest.class),
-					examples = {
-						@ExampleObject(
-							name = "CARD 결제",
-							value = """
-								{
-								  "method": "CARD",
-								  "amount": 4000,
-								  "rawPayload": {
-								    "pg": "example",
-								    "transactionId": "T-20250101"
-								  }
-								}
-								"""
-						),
-						@ExampleObject(
-							name = "EASY_PAY 결제",
-							value = """
-								{
-								  "method": "EASY_PAY",
-								  "amount": 4000
-								}
-								"""
-						),
-						@ExampleObject(
-							name = "TRANSFER 결제",
-							value = """
-								{
-								  "method": "TRANSFER",
-								  "amount": 4000,
-								  "rawPayload": {
-								    "bank": "K-BANK",
-								    "account": "123-456-7890"
-								  }
-								}
-								"""
-						)
-					}
-				)
-			)
-			@Valid @RequestBody PaymentCreateRequest request) {
-
-		String rawPayload = toPayloadJson(request.getRawPayload());
-		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createReservationPayment(
-						orderId,
-						request.getMethod(),
-						request.getAmount(),
-						rawPayload);
-
-		ReservationPaymentCreateResponse response = ReservationPaymentCreateResponse.builder()
-				.paymentId(result.getPaymentId())
-				.paymentStatus(toApiPaymentStatus(result.getPaymentStatus()))
-				.orderStatus(result.getOrderStatus().name())
-				.approvedAt(result.getApprovedAt())
-				.build();
-
-		return created(response);
-	}
-
-	@Operation(
-			summary = "주문 결제 기록 생성",
-			description = "구매형 주문에 대한 결제 기록을 생성합니다."
-	)
-	@ApiResponse(
-			responseCode = "201",
-			description = "주문 결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = OrderPaymentCreateResponse.class))
-	)
-	@PostMapping("/{orderId}/payments")
-	public ResponseEntity<BaseResponse<OrderPaymentCreateResponse>> createOrderPayment(
-			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001004")
-			@PathVariable UUID orderId,
-			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "구매 결제 생성 요청",
-				required = true,
-				content = @Content(
-					schema = @Schema(implementation = PaymentCreateRequest.class),
-					examples = @ExampleObject(
-						name = "CARD 결제",
-						value = """
-							{
-							  "method": "CARD",
-							  "amount": 3000,
-							  "rawPayload": {
-							    "pg": "example",
-							    "transactionId": "T-20250102"
-							  }
-							}
-							"""
-					)
-				)
-			)
-			@Valid @RequestBody PaymentCreateRequest request) {
-
-		String rawPayload = toPayloadJson(request.getRawPayload());
-		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createOrderPayment(
-						orderId,
-						request.getMethod(),
-						request.getAmount(),
-						rawPayload);
-
-		OrderPaymentCreateResponse response = OrderPaymentCreateResponse.builder()
-				.paymentId(result.getPaymentId())
-				.status(toApiPaymentStatus(result.getPaymentStatus()))
-				.orderStatus(result.getOrderStatus().name())
-				.build();
-
-		return created(response);
-	}
-
-	@Operation(
 			summary = "주문 취소",
 			description = "CUSTOMER가 본인 주문을 취소합니다."
 	)
@@ -539,18 +403,5 @@ private final PaymentCommandService paymentCommandService;
 		}
 	}
 
-	private String toPayloadJson(Object payload) {
-		if (payload == null) {
-			return null;
-		}
-		try {
-			return objectMapper.writeValueAsString(payload);
-		} catch (JsonProcessingException ex) {
-			throw PaymentException.invalidRequest();
-		}
-	}
 
-	private String toApiPaymentStatus(PaymentStatus status) {
-		return status == PaymentStatus.PAID ? "PAID" : "FAILED";
-	}
 }
