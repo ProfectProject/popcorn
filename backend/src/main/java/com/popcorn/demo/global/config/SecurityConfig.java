@@ -48,8 +48,10 @@ public class SecurityConfig {
 
 		http.csrf().disable()
 				.authorizeHttpRequests()
-				.requestMatchers("/api/v1/auth/login").permitAll()
+				.requestMatchers("/api/auth/login").permitAll()
+				.requestMatchers("/api/v1/auth/login").permitAll() // swagger api 테스트
 				.requestMatchers("/api/v1/users/signup").permitAll()
+				.requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
 
 				// QR
 				.requestMatchers(HttpMethod.POST, "/api/v1/qr/verify").permitAll()
@@ -64,9 +66,6 @@ public class SecurityConfig {
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
 				// Actuator 엔드포인트 허용
 				.requestMatchers("/actuator/**").permitAll()
-
-				// User domain - Customer role required
-				.requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER")
 
 				// Order domain - Customer endpoints
 				.requestMatchers("/api/v1/orders/me").hasAnyRole("CUSTOMER")
