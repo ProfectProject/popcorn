@@ -170,6 +170,58 @@ public class PaymentCommandController extends BaseController {
 		return created(response);
 	}
 
+	@Operation(
+			summary = "결제 생성(READY)",
+			description = "결제 대기(READY) 상태의 결제 기록을 생성합니다."
+	)
+	@ApiResponse(
+			responseCode = "201",
+			description = "결제 기록 생성 성공",
+			content = @Content(schema = @Schema(implementation = OrderPaymentCreateResponse.class))
+	)
+	@PostMapping("/{orderId}/payments/ready")
+	public ResponseEntity<BaseResponse<OrderPaymentCreateResponse>> createReadyPayment(
+			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001004")
+			@PathVariable UUID orderId,
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+				description = "결제 생성 요청",
+				required = true,
+				content = @Content(
+					schema = @Schema(implementation = PaymentCreateRequest.class),
+					examples = @ExampleObject(
+						name = "READY 생성",
+						value = """
+							{
+							  "method": "CARD",
+							  "amount": 3000,
+							  "rawPayload": {
+							    "pg": "example",
+							    "transactionId": "T-20250102"
+							  }
+							}
+							"""
+					)
+				)
+			)
+			@Valid @RequestBody PaymentCreateRequest request) {
+
+		String rawPayload = toPayloadJson(request.getRawPayload());
+		PaymentCommandService.PaymentCreationResult result =
+				paymentCommandService.createReadyPayment(
+						orderId,
+						request.getMethod(),
+						request.getAmount(),
+						rawPayload);
+
+		OrderPaymentCreateResponse response = OrderPaymentCreateResponse.builder()
+				.paymentId(result.getPaymentId())
+				.status(toApiPaymentStatus(result.getPaymentStatus()))
+				.orderStatus(result.getOrderStatus().name())
+				.build();
+
+		return created(response);
+	}
+
 	private String toPayloadJson(Object payload) {
 		if (payload == null) {
 			return null;
