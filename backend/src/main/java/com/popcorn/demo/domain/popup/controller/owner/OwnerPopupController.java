@@ -8,6 +8,7 @@ import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupDeletedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
@@ -83,6 +84,15 @@ public class OwnerPopupController {
     ) {
         Long userId = getCurrentOwnerId(authentication);
         return ResponseEntity.ok(BaseResponse.success(popupService.updatePopupStatus(userId, popupId, request)));
+    }
+
+    @DeleteMapping("/popups/{popupId}")
+    public ResponseEntity<BaseResponse<PopupDeletedDto>> deletePopup(
+            Authentication authentication,
+            @Parameter(description = "팝업 ID", required = true) @PathVariable UUID popupId
+    ) {
+        Long userId = getCurrentOwnerId(authentication);
+        return ResponseEntity.ok(BaseResponse.success(popupService.deletePopup(userId, popupId)));
     }
 
 

@@ -1,5 +1,6 @@
 package com.popcorn.demo.domain.popup.service.owner;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,7 @@ import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupStatusRequest;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupDeletedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
@@ -130,6 +132,25 @@ public class OwnerPopupService {
         return mapToStatusUpdatedDto(updatedPopup);
     }
 
+    @Transactional
+    public PopupDeletedDto deletePopup(Long ownerId, UUID popupId) {
+        log.info("[POPUP_DELETE] ownerId={}, popupId={}", ownerId, popupId);
+
+        validateOwner(ownerId);
+        validatePopupId(popupId);
+
+        Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
+                .orElseThrow(PopupException::popupNotFound);
+
+        popup.setDeletedAt(LocalDateTime.now());
+        popup.setDeletedBy(ownerId);
+        popup.setUpdatedBy(ownerId);
+
+        Popup deletedPopup = ownerPopupRepository.save(popup);
+        log.info("[POPUP_DELETED] popupId={}, storeId={}", deletedPopup.getId(), deletedPopup.getStoreId());
+        return mapToDeletedDto(deletedPopup);
+    }
+
     private PopupCreatedDto mapToDto(Popup popup) {
         return PopupCreatedDto.builder()
                 .popupId(popup.getId())
@@ -185,6 +206,15 @@ public class OwnerPopupService {
                 .status(popup.getStatus())
                 .updatedBy(popup.getUpdatedBy())
                 .updatedAt(popup.getUpdatedAt())
+                .build();
+    }
+
+    private PopupDeletedDto mapToDeletedDto(Popup popup) {
+        return PopupDeletedDto.builder()
+                .popupId(popup.getId())
+                .title(popup.getTitle())
+                .deletedAt(popup.getDeletedAt())
+                .deletedBy(popup.getDeletedBy())
                 .build();
     }
 
