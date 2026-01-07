@@ -7,10 +7,10 @@ import org.springframework.stereotype.Service;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
-import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
 import com.popcorn.demo.domain.popup.event.PopupSearchEvent;
 import com.popcorn.demo.domain.popup.event.PopupViewedEvent;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class PopupService {
 
 	private final PopupQueryService popupQueryService;
-	private final PopupSessionQueryService popupSessionQueryService;
+	private final PopupScheduleQueryService popupScheduleQueryService;
 	private final PopupValidationService popupValidationService;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -56,8 +56,8 @@ public class PopupService {
 		return response;
 	}
 
-	public PopupSessionListResponse getProductSessions(PopupSessionListQuery query) {
-		PopupSessionListQuery normalizedQuery = popupValidationService.normalizeSessionQuery(query);
-		return popupSessionQueryService.getProductSessions(normalizedQuery);
+	public PopupScheduleListResponse getProductSessions(PopupScheduleListQuery query) {
+		PopupScheduleListQuery normalizedQuery = popupValidationService.normalizeSessionQuery(query);
+		return popupScheduleQueryService.getProductSessions(normalizedQuery);
 	}
 }

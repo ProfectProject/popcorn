@@ -15,8 +15,8 @@ import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.popup.service.PopupService;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
-import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,7 +33,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @ApiVersion("v1")
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
-public class PopupSessionController extends BaseController {
+public class PopupScheduleController extends BaseController {
 
 	private final PopupService popupService;
 
@@ -45,7 +45,7 @@ public class PopupSessionController extends BaseController {
 			responseCode = "200",
 			description = "회차 목록 조회 성공",
 			content = @Content(
-					schema = @Schema(implementation = PopupSessionListResponse.class),
+					schema = @Schema(implementation = PopupScheduleListResponse.class),
 					examples = @ExampleObject(value = """
 							{
 							  "code": 200,
@@ -68,7 +68,7 @@ public class PopupSessionController extends BaseController {
 			)
 	)
 	@GetMapping("/{popupId}/sessions")
-	public ResponseEntity<BaseResponse<PopupSessionListResponse>> getProductSessions(
+	public ResponseEntity<BaseResponse<PopupScheduleListResponse>> getProductSessions(
 			@Parameter(description = "상품 ID", required = true,
 					example = "00000000-0000-0000-0000-000000000101")
 			@PathVariable UUID popupId,
@@ -79,8 +79,8 @@ public class PopupSessionController extends BaseController {
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
-		PopupSessionListResponse response = popupService.getProductSessions(
-				PopupSessionListQuery.builder()
+		PopupScheduleListResponse response = popupService.getProductSessions(
+				PopupScheduleListQuery.builder()
 						.popupId(popupId)
 						.from(from)
 						.to(to)

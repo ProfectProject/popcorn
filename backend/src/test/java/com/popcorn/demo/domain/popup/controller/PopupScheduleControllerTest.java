@@ -11,16 +11,16 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
-import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
 
-class PopupSessionControllerTest extends PopupControllerTestBase {
+class PopupScheduleControllerTest extends PopupControllerTestBase {
 
 	@Test
 	@DisplayName("회차(슬롯) 조회")
 	void getProductSessions() throws Exception {
-		PopupSessionListResponse response = createSessionListResponse();
-		when(popupService.getProductSessions(any(PopupSessionListQuery.class)))
+		PopupScheduleListResponse response = createSessionListResponse();
+		when(popupService.getProductSessions(any(PopupScheduleListQuery.class)))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/products/{productId}/sessions",

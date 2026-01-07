@@ -7,27 +7,27 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
-import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
-import com.popcorn.demo.domain.popup.repository.PopupSessionQueryRepository;
-import com.popcorn.demo.domain.popup.repository.view.PopupSessionView;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.repository.PopupScheduleQueryRepository;
+import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
-public class PopupSessionQueryService {
+public class PopupScheduleQueryService {
 
-	private final PopupSessionQueryRepository popupSessionQueryRepository;
+	private final PopupScheduleQueryRepository popupScheduleQueryRepository;
 
 	@Cacheable(value = "popupSessions", key = "#query.popupId + '_' + #query.from + '_' + #query.to")
-	public PopupSessionListResponse getProductSessions(PopupSessionListQuery query) {
-		List<PopupSessionView> views = popupSessionQueryRepository.findProductSessions(
+	public PopupScheduleListResponse getProductSessions(PopupScheduleListQuery query) {
+		List<PopupScheduleView> views = popupScheduleQueryRepository.findProductSessions(
 				query.getPopupId(), query.getFrom(), query.getTo());
 
-		List<PopupSessionListResponse.ItemDto> items = views.stream()
-				.map(view -> PopupSessionListResponse.ItemDto.builder()
+		List<PopupScheduleListResponse.ItemDto> items = views.stream()
+				.map(view -> PopupScheduleListResponse.ItemDto.builder()
 						.id(toUuid(view.getId()))
 						.startAt(view.getStartAt())
 						.endAt(view.getEndAt())
@@ -38,7 +38,7 @@ public class PopupSessionQueryService {
 						.build())
 				.toList();
 
-		return PopupSessionListResponse.builder()
+		return PopupScheduleListResponse.builder()
 				.items(items)
 				.build();
 	}
