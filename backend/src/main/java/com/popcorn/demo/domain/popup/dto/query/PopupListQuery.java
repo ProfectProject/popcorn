@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.popup.dto.query;
 
 import java.util.UUID;
 
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,7 +15,7 @@ import lombok.NoArgsConstructor;
 public class PopupListQuery {
 
 	private Long regionId;
-	private String category;
+	private PopupCategory category;
 	private String keyword;
 	private UUID storeId;
 	private Integer page;

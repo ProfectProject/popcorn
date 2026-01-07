@@ -47,18 +47,25 @@ public class SecurityConfig {
         loginFilter.setFilterProcessesUrl("/api/auth/login");
 
 		http.csrf().disable()
-			    .authorizeHttpRequests()
-                .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/api/v1/auth/login").permitAll() // swagger api 테스트
-                .requestMatchers("/api/v1/users/signup").permitAll()
-                .requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER","OWNER")
+				.authorizeHttpRequests()
+				.requestMatchers("/api/auth/login").permitAll()
+				.requestMatchers("/api/v1/auth/login").permitAll() // swagger api 테스트
+				.requestMatchers("/api/v1/users/signup").permitAll()
+				.requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
+
+				// QR
+				.requestMatchers(HttpMethod.POST, "/api/v1/qr/verify").permitAll()
+				.requestMatchers(HttpMethod.GET,  "/api/v1/orders/*/qr").hasRole("CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/*/qr").permitAll()
+
+				// Checkin
+				.requestMatchers(HttpMethod.GET, "/api/v1/checkins").hasAnyRole("OWNER", "ADMIN")
+				.requestMatchers(HttpMethod.GET, "/api/v1/checkins/{checkinId}").permitAll()
+
 				// Swagger UI 관련 엔드포인트 허용
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
 				// Actuator 엔드포인트 허용
 				.requestMatchers("/actuator/**").permitAll()
-
-				// User domain - Customer role required
-				.requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER","OWNER")
 
 				// Order domain - Customer endpoints
 				.requestMatchers("/api/v1/orders/me").hasAnyRole("CUSTOMER")

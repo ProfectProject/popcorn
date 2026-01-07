@@ -2,7 +2,7 @@ package com.popcorn.demo.domain.popup.repository.view;
 
 import java.time.LocalDateTime;
 
-public interface PopupSessionView {
+public interface PopupScheduleView {
 
 	String id();
 

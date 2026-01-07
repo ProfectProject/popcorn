@@ -23,22 +23,18 @@ public class SimpleStoreService {
 
     @Transactional
     public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
-        // 기본 검증
         validateStoreCreation(ownerId, request.getName());
         
-        // 중복 검사
         Optional<Store> existingStore = storeRepository.findByName(request.getName());
         if (existingStore.isPresent() && !existingStore.get().isDeleted()) {
             throw StoreException.duplicateStoreName(request.getName());
         }
         
-        // 한도 검사
         long storeCount = storeRepository.countByOwnerId(ownerId);
         if (storeCount >= 10) {
             throw StoreException.storeCreationLimitExceeded(ownerId, 10);
         }
         
-        // 스토어 생성
         Store store = Store.builder()
                 .name(request.getName().trim())
                 .ownerId(ownerId)
