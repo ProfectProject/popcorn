@@ -36,9 +36,6 @@ public class Store extends BaseEntity {
     @Column(name = "reason", length = 500)
     private String reason;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-
     @Column(name = "deleted_by")
     private Long deletedBy;
 
