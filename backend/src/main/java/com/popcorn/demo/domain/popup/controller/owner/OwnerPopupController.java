@@ -14,7 +14,12 @@ import com.popcorn.demo.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
 import com.popcorn.demo.domain.popup.service.owner.OwnerPopupService;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -37,6 +42,14 @@ public class OwnerPopupController {
         this.popupService = popupService;
     }
 
+    @Operation(summary = "오너 팝업 생성", description = "팝업 생성과 동시에 스케줄을 등록합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "생성 성공",
+                    content = @Content(schema = @Schema(implementation = PopupCreatedDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "스토어 없음")
+    })
     @PostMapping("/popups")
     public ResponseEntity<BaseResponse<PopupCreatedDto>> createPopup(
             Authentication authentication,
@@ -48,6 +61,13 @@ public class OwnerPopupController {
                 .body(BaseResponse.success(popupService.createPopup(userId, request)));
     }
 
+    @Operation(summary = "오너 팝업 목록 조회", description = "스토어 기준으로 팝업 기본 정보를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "스토어 없음")
+    })
     @GetMapping("/popups")
     public ResponseEntity<BaseResponse<List<PopupListDto>>> getPopupList(
             Authentication authentication,
@@ -57,6 +77,14 @@ public class OwnerPopupController {
         return ResponseEntity.ok(BaseResponse.success(popupService.getPopupByStoreId(userId, storeId)));
     }
 
+    @Operation(summary = "오너 팝업 상세 조회", description = "팝업 기본 정보와 스케줄 정보를 함께 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = PopupDetailDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "팝업 없음")
+    })
     @GetMapping("/popups/{popupId}")
     public ResponseEntity<BaseResponse<PopupDetailDto>> getPopupDetail(
             Authentication authentication,
@@ -66,6 +94,14 @@ public class OwnerPopupController {
         return ResponseEntity.ok(BaseResponse.success(popupService.getPopupDetail(userId, popupId)));
     }
 
+    @Operation(summary = "오너 팝업 수정", description = "팝업 정보 및 스케줄 변경을 처리합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "수정 성공",
+                    content = @Content(schema = @Schema(implementation = PopupUpdatedDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "팝업 없음")
+    })
     @PutMapping("/popups/{popupId}")
     public ResponseEntity<BaseResponse<PopupUpdatedDto>> updatePopup(
             Authentication authentication,
@@ -76,6 +112,14 @@ public class OwnerPopupController {
         return ResponseEntity.ok(BaseResponse.success(popupService.updatePopup(userId, popupId, request)));
     }
 
+    @Operation(summary = "오너 팝업 상태 변경", description = "팝업 상태를 변경합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "변경 성공",
+                    content = @Content(schema = @Schema(implementation = PopupStatusUpdatedDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "팝업 없음")
+    })
     @PatchMapping("/popups/{popupId}/status")
     public ResponseEntity<BaseResponse<PopupStatusUpdatedDto>> updatePopupStatus(
             Authentication authentication,
@@ -86,6 +130,14 @@ public class OwnerPopupController {
         return ResponseEntity.ok(BaseResponse.success(popupService.updatePopupStatus(userId, popupId, request)));
     }
 
+    @Operation(summary = "오너 팝업 삭제", description = "팝업과 스케줄을 소프트 삭제합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "삭제 성공",
+                    content = @Content(schema = @Schema(implementation = PopupDeletedDto.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "팝업 없음")
+    })
     @DeleteMapping("/popups/{popupId}")
     public ResponseEntity<BaseResponse<PopupDeletedDto>> deletePopup(
             Authentication authentication,
