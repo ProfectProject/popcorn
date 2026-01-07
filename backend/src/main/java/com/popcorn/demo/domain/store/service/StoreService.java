@@ -37,6 +37,7 @@ public class StoreService {
     public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
         log.info("[STORE_CREATE] ownerId={}, name={}", ownerId, request.getName());
         
+        // 저장 전 입력 검증 및 불변식 확인.
         String trimmedName = validateAndTrimName(request.getName());
         validateOwnerId(ownerId);
         checkDuplicateName(trimmedName);
@@ -105,7 +106,6 @@ public class StoreService {
             throw StoreException.storeAlreadyDeleted(storeId);
         }
         
-        // 이름 중복 체크 (자기 자신 제외)
         storeRepository.findByName(trimmedName)
                 .filter(existingStore -> !existingStore.getId().equals(storeId))
                 .filter(existingStore -> !existingStore.isDeleted())
@@ -266,7 +266,7 @@ public class StoreService {
                 .id(store.getId())
                 .name(store.getName())
                 .ownerId(store.getOwnerId())
-                .ownerName(null) // TODO: User 도메인 연동 시 구현
+                .ownerName(null)
                 .publishStatus(store.getPublishStatus())
                 .createdAt(store.getCreatedAt() != null ? store.getCreatedAt() : java.time.LocalDateTime.now())
                 .updatedAt(store.getUpdatedAt())
