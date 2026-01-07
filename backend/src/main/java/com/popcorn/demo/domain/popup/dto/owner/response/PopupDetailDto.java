@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.popup.dto.owner.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
@@ -24,4 +25,5 @@ public class PopupDetailDto {
 	private PopupStatus status;
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
+	private List<PopupScheduleDetailDto> schedules;
 }

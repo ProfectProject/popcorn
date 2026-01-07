@@ -9,18 +9,23 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupScheduleRequest;
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupScheduleRequest;
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupStatusRequest;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupDeletedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupScheduleDetailDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
 import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupRepository;
+import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupScheduleRepository;
+import com.popcorn.demo.domain.popup.repository.owner.view.OwnerPopupScheduleView;
 import com.popcorn.demo.domain.store.exception.StoreException;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OwnerPopupService {
 
     private final OwnerPopupRepository ownerPopupRepository;
+    private final OwnerPopupScheduleRepository ownerPopupScheduleRepository;
     private final OwnerPopupValidationService validationService;
 
     @Transactional
@@ -48,6 +54,7 @@ public class OwnerPopupService {
         validateDuplicateTitle(request.getStoreId(), trimmedTitle);
 
         Popup savedPopup = ownerPopupRepository.save(createPopupEntity(userId, request, trimmedTitle));
+        createPopupSchedules(savedPopup.getId(), request.getSchedules(), userId);
 
         log.info("[POPUP_CREATED] popupId={}, storeId={}", savedPopup.getId(), savedPopup.getStoreId());
         return mapToDto(savedPopup);
@@ -79,7 +86,11 @@ public class OwnerPopupService {
         Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
                 .orElseThrow(PopupException::popupNotFound);
 
-        PopupDetailDto detail = mapToDetailDto(popup);
+        List<PopupScheduleDetailDto> schedules = ownerPopupScheduleRepository.findSchedulesByPopup(popup.getId())
+                .stream()
+                .map(this::mapToScheduleDetailDto)
+                .toList();
+        PopupDetailDto detail = mapToDetailDto(popup, schedules);
         log.info("[POPUP_DETAIL_FOUND] popupId={}, storeId={}", popup.getId(), popup.getStoreId());
         return detail;
     }
@@ -109,6 +120,7 @@ public class OwnerPopupService {
         popup.setUpdatedBy(ownerId);
 
         Popup updatedPopup = ownerPopupRepository.save(popup);
+        applyScheduleChanges(updatedPopup.getId(), request, ownerId);
         log.info("[POPUP_UPDATED] popupId={}, storeId={}", updatedPopup.getId(), updatedPopup.getStoreId());
         return mapToUpdatedDto(updatedPopup);
     }
@@ -124,10 +136,18 @@ public class OwnerPopupService {
         Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
                 .orElseThrow(PopupException::popupNotFound);
 
+        if (popup.getStatus() == PopupStatus.REQUEST) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+
         popup.setStatus(request.getStatus());
         popup.setUpdatedBy(ownerId);
 
         Popup updatedPopup = ownerPopupRepository.save(popup);
+        if (isInactiveStatus(request.getStatus())) {
+            ownerPopupScheduleRepository.deactivateActiveSchedulesByPopup(updatedPopup.getId(), LocalDateTime.now(),
+                    ownerId);
+        }
         log.info("[POPUP_STATUS_UPDATED] popupId={}, status={}", updatedPopup.getId(), updatedPopup.getStatus());
         return mapToStatusUpdatedDto(updatedPopup);
     }
@@ -147,6 +167,7 @@ public class OwnerPopupService {
         popup.setUpdatedBy(ownerId);
 
         Popup deletedPopup = ownerPopupRepository.save(popup);
+        ownerPopupScheduleRepository.softDeleteSchedulesByPopup(deletedPopup.getId(), LocalDateTime.now(), ownerId);
         log.info("[POPUP_DELETED] popupId={}, storeId={}", deletedPopup.getId(), deletedPopup.getStoreId());
         return mapToDeletedDto(deletedPopup);
     }
@@ -174,7 +195,7 @@ public class OwnerPopupService {
                 .build();
     }
 
-    private PopupDetailDto mapToDetailDto(Popup popup) {
+    private PopupDetailDto mapToDetailDto(Popup popup, List<PopupScheduleDetailDto> schedules) {
         return PopupDetailDto.builder()
                 .popupId(popup.getId())
                 .storeId(popup.getStoreId())
@@ -184,6 +205,19 @@ public class OwnerPopupService {
                 .status(popup.getStatus())
                 .createdAt(popup.getCreatedAt())
                 .updatedAt(popup.getUpdatedAt())
+                .schedules(schedules)
+                .build();
+    }
+
+    private PopupScheduleDetailDto mapToScheduleDetailDto(OwnerPopupScheduleView view) {
+        return PopupScheduleDetailDto.builder()
+                .scheduleId(view.getScheduleId())
+                .startAt(view.getStartAt())
+                .endAt(view.getEndAt())
+                .price(view.getPrice())
+                .capacity(view.getCapacity())
+                .remainingCapacity(view.getRemainingCapacity())
+                .active(view.isActive())
                 .build();
     }
 
@@ -224,7 +258,7 @@ public class OwnerPopupService {
                 .storeId(request.getStoreId())
                 .title(title)
                 .description(request.getDescription())
-                .status(PopupStatus.DRAFT)
+                .status(PopupStatus.REQUEST)
                 .category(request.getCategory())
                 .createdBy(userId)
                 .build();
@@ -272,6 +306,88 @@ public class OwnerPopupService {
     private void validateStatusRequest(UpdatePopupStatusRequest request) {
         if (request == null || request.getStatus() == null) {
             throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+        if (request.getStatus() == PopupStatus.REQUEST) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+    }
+
+    private boolean isInactiveStatus(PopupStatus status) {
+        return status == PopupStatus.DRAFT || status == PopupStatus.CLOSED || status == PopupStatus.CANCELLED;
+    }
+
+    private void createPopupSchedules(UUID popupId, List<CreatePopupScheduleRequest> schedules,
+            Long ownerId) {
+        LocalDateTime now = LocalDateTime.now();
+        for (com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupScheduleRequest schedule : schedules) {
+            UUID scheduleId = UUID.randomUUID();
+            ownerPopupScheduleRepository.insertSchedule(
+                    scheduleId,
+                    popupId,
+                    schedule.getStartAt(),
+                    schedule.getEndAt(),
+                    schedule.getPrice(),
+                    schedule.getCapacity(),
+                    schedule.getCapacity(),
+                    false,
+                    now,
+                    ownerId,
+                    ownerId
+            );
+        }
+    }
+
+    private void applyScheduleChanges(UUID popupId, UpdatePopupRequest request, Long ownerId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        List<CreatePopupScheduleRequest> createSchedules = request.getCreateSchedules();
+        if (createSchedules != null && !createSchedules.isEmpty()) {
+            for (com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupScheduleRequest schedule : createSchedules) {
+                UUID scheduleId = UUID.randomUUID();
+                ownerPopupScheduleRepository.insertSchedule(
+                        scheduleId,
+                        popupId,
+                        schedule.getStartAt(),
+                        schedule.getEndAt(),
+                        schedule.getPrice(),
+                        schedule.getCapacity(),
+                        schedule.getCapacity(),
+                        false,
+                        now,
+                        ownerId,
+                        ownerId
+                );
+            }
+        }
+
+        List<UpdatePopupScheduleRequest> updateSchedules = request.getUpdateSchedules();
+        if (updateSchedules != null && !updateSchedules.isEmpty()) {
+            for (com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupScheduleRequest schedule : updateSchedules) {
+                int updated = ownerPopupScheduleRepository.updateSchedule(
+                        schedule.getScheduleId(),
+                        popupId,
+                        schedule.getStartAt(),
+                        schedule.getEndAt(),
+                        schedule.getPrice(),
+                        schedule.getCapacity(),
+                        schedule.getActive(),
+                        now,
+                        ownerId
+                );
+                if (updated == 0) {
+                    throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+                }
+            }
+        }
+
+        List<UUID> deleteScheduleIds = request.getDeleteScheduleIds();
+        if (deleteScheduleIds != null && !deleteScheduleIds.isEmpty()) {
+            for (UUID scheduleId : deleteScheduleIds) {
+                int deleted = ownerPopupScheduleRepository.softDeleteSchedule(scheduleId, popupId, now, ownerId);
+                if (deleted == 0) {
+                    throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+                }
+            }
         }
     }
 
