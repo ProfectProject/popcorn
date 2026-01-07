@@ -1,5 +1,6 @@
-package com.popcorn.demo.domain.order.dto.response;
+package com.popcorn.demo.domain.payment.dto.response;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -11,9 +12,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderPaymentCreateResponse {
+public class ReservationPaymentCreateResponse {
 
 	private UUID paymentId;
-	private String status;
+	private String paymentStatus;
 	private String orderStatus;
+	private LocalDateTime approvedAt;
 }
