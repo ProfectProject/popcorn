@@ -21,5 +21,4 @@ public interface StoreRepository {
 
     long countByOwnerId(Long ownerId);
     long countByPublishStatus(StorePublishStatus status);
-
 }

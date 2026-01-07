@@ -10,25 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderConflictException;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
-import com.popcorn.demo.domain.order.service.OrderCommandService;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
-import com.popcorn.demo.global.config.CommonConfig;
 
 /**
  * 주문 취소 API 테스트 클래스 (TDD)
@@ -41,33 +32,9 @@ import com.popcorn.demo.global.config.CommonConfig;
  * 5. 실패 케이스: 서버 내부 오류
  */
 @DisplayName("주문 취소 API 테스트")
-class OrderCancelControllerTest {
+class OrderCancelControllerTest extends OrderControllerTestBase {
 
-	private MockMvc mockMvc;
-	private OrderCommandService orderCommandService;
-	private PaymentCommandService paymentCommandService;
-	private ObjectMapper objectMapper;
-
-	private UUID testOrderId;
-	private Order mockOrder;
-
-	@BeforeEach
-	void setUp() {
-		orderCommandService = Mockito.mock(OrderCommandService.class);
-		paymentCommandService = Mockito.mock(PaymentCommandService.class);
-		objectMapper = new CommonConfig().objectMapper();
-
-		// 주문 취소는 Command 작업이므로 OrderCommandController를 사용
-		OrderCommandController commandController = new OrderCommandController(
-				orderCommandService, objectMapper, paymentCommandService);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
-				.setControllerAdvice(new OrderExceptionHandler())
-				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
-				.build();
-
-		testOrderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
-		mockOrder = createMockOrder(testOrderId, OrderStatus.REQUESTED);
-	}
+	private UUID testOrderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 
 	@Test
 	@DisplayName("성공: 정상적인 주문 취소")
@@ -81,7 +48,8 @@ class OrderCancelControllerTest {
 		// When: 주문 취소 API 호출
 		// Then: 200 응답과 함께 취소된 주문 정보 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.message").value("요청이 성공했습니다."))
@@ -100,7 +68,8 @@ class OrderCancelControllerTest {
 
 		// When & Then: 404 응답 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", nonExistentOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").exists());
 	}
@@ -114,7 +83,8 @@ class OrderCancelControllerTest {
 
 		// When & Then: 409 응답 반환 (비즈니스 규칙 위반)
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").exists());
 	}
@@ -128,7 +98,8 @@ class OrderCancelControllerTest {
 
 		// When & Then: 400 응답 반환 (잘못된 요청)
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").exists());
 	}
@@ -142,7 +113,8 @@ class OrderCancelControllerTest {
 
 		// When & Then: 400 응답 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").exists());
 	}
@@ -155,7 +127,8 @@ class OrderCancelControllerTest {
 
 		// When & Then: 400 응답 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", invalidOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isBadRequest());
 	}
 
@@ -168,7 +141,8 @@ class OrderCancelControllerTest {
 
 		// When & Then: 500 응답 반환
 		mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", testOrderId)
-				.contentType(MediaType.APPLICATION_JSON))
+				.contentType(MediaType.APPLICATION_JSON)
+				.principal(createCustomerAuthentication()))
 				.andExpect(status().isInternalServerError());
 	}
 

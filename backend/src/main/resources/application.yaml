@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: demo
+
+---
+
+spring:
+  config:
+    import: classpath:security/application-local.yml
+    activate:
+      on-profile: local
+
+---
+
+spring:
+  config:
+    import: classpath:security/application-dev.yml
+    activate:
+      on-profile: dev
+
+---
+
+spring:
+  config:
+    import: classpath:security/application-prod.yml
+    activate:
+      on-profile: prod
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: test
+  flyway:
+    enabled: false
