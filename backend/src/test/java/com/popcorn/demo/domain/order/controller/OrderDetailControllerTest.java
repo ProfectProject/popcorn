@@ -1,50 +1,23 @@
 package com.popcorn.demo.domain.order.controller;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
-import com.popcorn.demo.domain.order.service.OrderQueryService;
-import com.popcorn.demo.global.config.CommonConfig;
 
-class OrderDetailControllerTest {
-
-	private MockMvc mockMvc;
-
-	private OrderQueryService orderQueryService;
-
-	private ObjectMapper objectMapper;
-
-	@BeforeEach
-	void setUp() {
-		orderQueryService = Mockito.mock(OrderQueryService.class);
-		objectMapper = new CommonConfig().objectMapper();
-
-		// Mock을 사용하여 컨트롤러 생성
-		mockMvc = MockMvcBuilders.standaloneSetup(
-				new OrderQueryController(orderQueryService)
-		)
-				.setControllerAdvice(new OrderExceptionHandler())
-				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
-				.build();
-	}
+class OrderDetailControllerTest extends OrderControllerTestBase {
 
 	@Test
 	@DisplayName("주문 상세 조회 성공")
@@ -97,10 +70,11 @@ class OrderDetailControllerTest {
 						.build())
 				.build();
 
-		when(orderQueryService.getOrderDetail(orderId, null, null)).thenReturn(detail);
+		when(orderQueryService.getOrderDetail(orderId, 1001L, "CUSTOMER")).thenReturn(detail);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
-						.contentType(MediaType.APPLICATION_JSON))
+						.contentType(MediaType.APPLICATION_JSON)
+						.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(orderId.toString()))
@@ -154,10 +128,11 @@ class OrderDetailControllerTest {
 				))
 				.build();
 
-		when(orderQueryService.getOrderDetail(orderId, null, null)).thenReturn(detail);
+		when(orderQueryService.getOrderDetail(orderId, 1001L, "CUSTOMER")).thenReturn(detail);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
-						.contentType(MediaType.APPLICATION_JSON))
+						.contentType(MediaType.APPLICATION_JSON)
+						.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].sessionId").value(sessionId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].optionId").doesNotExist())
@@ -208,10 +183,11 @@ class OrderDetailControllerTest {
 				))
 				.build();
 
-		when(orderQueryService.getOrderDetail(orderId, null, null)).thenReturn(detail);
+		when(orderQueryService.getOrderDetail(orderId, 1001L, "CUSTOMER")).thenReturn(detail);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
-						.contentType(MediaType.APPLICATION_JSON))
+						.contentType(MediaType.APPLICATION_JSON)
+						.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items[0].goodsVariantId")
 						.value(goodsVariantId.toString()))
@@ -225,10 +201,11 @@ class OrderDetailControllerTest {
 	@DisplayName("주문 상세 조회 실패 - 주문 없음")
 	void getOrderDetail_notFound() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009999");
-		when(orderQueryService.getOrderDetail(orderId, null, null))
+		when(orderQueryService.getOrderDetail(orderId, 1001L, "CUSTOMER"))
 				.thenThrow(OrderNotFoundException.orderNotFound());
 
-		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId))
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
+				.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isNotFound())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(1100))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("주문을 찾을 수 없습니다."));
@@ -238,10 +215,11 @@ class OrderDetailControllerTest {
 	@DisplayName("주문 상세 조회 실패 - 권한 없음")
 	void getOrderDetail_forbidden() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000009998");
-		when(orderQueryService.getOrderDetail(orderId, null, null))
+		when(orderQueryService.getOrderDetail(orderId, 1001L, "CUSTOMER"))
 				.thenThrow(OrderForbiddenException.forbidden());
 
-		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId))
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/" + orderId)
+				.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isForbidden())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(403))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.message").value("권한이 없습니다."));
