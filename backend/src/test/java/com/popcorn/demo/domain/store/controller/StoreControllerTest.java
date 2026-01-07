@@ -71,7 +71,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isCreated())
@@ -95,7 +95,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isConflict());
@@ -126,7 +126,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isCreated());
@@ -147,7 +147,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
@@ -167,7 +167,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
@@ -204,7 +204,7 @@ class StoreControllerTest {
         when(storeService.getStoresByOwnerId(userId)).thenReturn(storeList);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores")
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data").isArray())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.length()").value(3))
@@ -226,7 +226,7 @@ class StoreControllerTest {
         when(storeService.getStoresByOwnerId(userId)).thenReturn(Collections.emptyList());
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores")
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data").isArray())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.length()").value(0));
@@ -251,7 +251,7 @@ class StoreControllerTest {
         when(storeService.getStoreDetail(userId, storeId)).thenReturn(store);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(storeId.toString()))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.name").value("맛있는 팝콘 스토어"))
@@ -271,7 +271,7 @@ class StoreControllerTest {
                 .thenThrow(StoreException.storeNotFound(storeId));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isNotFound());
     }
 
@@ -286,7 +286,7 @@ class StoreControllerTest {
                 .thenThrow(StoreException.accessDenied(userId,storeId));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isForbidden());
     }
 
@@ -297,7 +297,7 @@ class StoreControllerTest {
         String storeId = "invalid-uuid-format";
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
 
     }
@@ -311,7 +311,7 @@ class StoreControllerTest {
         when(storeService.getStoresByOwnerId(userId)).thenReturn(Collections.emptyList());
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores")
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data").isArray())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.length()").value(0));
@@ -338,7 +338,7 @@ class StoreControllerTest {
         when(storeService.getStoreDetail(userId, storeId)).thenReturn(store);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(storeId.toString()))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.name").value("테스트 스토어"))
@@ -371,7 +371,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isOk())
@@ -395,7 +395,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
@@ -425,7 +425,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/owner/stores/{storeId}/status", storeId)
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isOk())
@@ -449,7 +449,7 @@ class StoreControllerTest {
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.patch("/api/v1/owner/stores/{storeId}/status", storeId)
-                        .with(user(userId.toString()))
+                        .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
@@ -473,7 +473,7 @@ class StoreControllerTest {
         when(storeService.deleteStore(eq(storeId), eq(userId))).thenReturn(response);
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/owner/stores/{storeId}", storeId)
-                        .with(user(userId.toString())))
+                        .with(user(userId.toString()).roles("OWNER")))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(storeId.toString()))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.data.deletedBy").value(userId));
