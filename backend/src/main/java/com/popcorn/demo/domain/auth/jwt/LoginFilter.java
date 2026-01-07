@@ -64,6 +64,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
 
+        Long userId = customUserDetails.getUserId();
         String username = customUserDetails.getUsername();
         
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
@@ -72,7 +73,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
        // String role = auth.getAuthority();
         String role = auth.getAuthority().replace("ROLE_", ""); // ROLE_USER -> enum type USER 로 바꿈
-        String token = jwtUtil.createJwt(username, role, 60*60*100L);
+        String token = jwtUtil.createJwt(userId,username, role, 60*60*100L);
 
         response.addHeader("Authorization", "Bearer " + token);
 
