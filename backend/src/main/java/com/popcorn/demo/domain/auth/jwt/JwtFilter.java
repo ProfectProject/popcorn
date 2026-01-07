@@ -28,7 +28,8 @@ public class JwtFilter extends OncePerRequestFilter {
 		String path = request.getServletPath();
         // 로그인, 회원가입 요청은 필터 제외
         if (path.startsWith("/api/v1/auth/signup") || 
-            path.startsWith("/api/v1/auth/login")) {
+            path.startsWith("/api/v1/auth/login")  ||
+            path.startsWith("/api/auth/login") )  {
             filterChain.doFilter(request, response);
             return;
         }
@@ -61,15 +62,18 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         //토큰에서 username과 role 획득
+        Long userId = jwtUtil.getUserId(token);
         String username = jwtUtil.getUsername(token);
         String role = jwtUtil.getRole(token);
 
+        log.info("[JWTFILTER] 토큰에서 userID 획득: {}", userId);
         log.info("[JWTFILTER] 토큰에서 이메일 획득: {}", username);
         log.info("[JWTFILTER] 토큰에서 권한 획득: {}", role);
 
         //SecurityContext에 저장할 Authentication 객체 만들기
         //userEntity를 생성하여 값 set
         User userEntity = new User();
+        userEntity.setUserId(userId); 
         userEntity.setEmail(username);
         userEntity.setPassword("temppassword"); // 
         userEntity.setRole(UserRole.valueOf(role)); // String -> UserRole 변환
