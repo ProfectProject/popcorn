@@ -31,15 +31,17 @@ public class Store extends BaseEntity {
 
     /** 스토어 ID (Primary Key) */
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue
+    @org.hibernate.annotations.UuidGenerator
+    @Column(name = "store_id")
     private UUID id;
 
     /** 오너 ID */
-    @Column(name = "owner_id", nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long ownerId;
 
     /** 스토어 이름 */
-    @Column(name = "name", nullable = false, length = 100)
+    @Column(name = "store_name", nullable = false, length = 100)
     private String name;
 
     /** 발행 상태 */
