@@ -15,3 +15,7 @@ ALTER TABLE p_order_status_histories
 ALTER TABLE p_payments
     ALTER COLUMN method TYPE varchar(255) USING method::text,
     ALTER COLUMN status TYPE varchar(255) USING status::text;
+
+ALTER TABLE p_popups
+    ALTER COLUMN category TYPE varchar(255) USING category::text,
+    ALTER COLUMN status TYPE varchar(255) USING status::text;

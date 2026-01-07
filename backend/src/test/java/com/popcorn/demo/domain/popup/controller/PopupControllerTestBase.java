@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -41,8 +43,8 @@ public abstract class PopupControllerTestBase {
 						.id(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 						.title("테스트 팝업")
-						.category("FOOD")
-						.status("OPEN")
+						.category(PopupCategory.FOOD)
+						.status(PopupStatus.OPEN)
 						.build()))
 				.page(1)
 				.size(20)
@@ -56,8 +58,8 @@ public abstract class PopupControllerTestBase {
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 				.title("테스트 팝업")
 				.description("테스트 설명")
-				.category("FOOD")
-				.status("OPEN")
+				.category(PopupCategory.FOOD)
+				.status(PopupStatus.OPEN)
 				.build();
 	}
 

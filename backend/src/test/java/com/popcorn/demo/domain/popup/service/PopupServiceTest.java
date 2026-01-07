@@ -18,6 +18,7 @@ import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.event.PopupSearchEvent;
 import com.popcorn.demo.domain.popup.event.PopupViewedEvent;
 
@@ -34,12 +35,12 @@ class PopupServiceTest {
 				queryService, sessionQueryService, validationService, publisher);
 
 		PopupListQuery request = PopupListQuery.builder()
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.page(1)
 				.size(20)
 				.build();
 		PopupListQuery normalized = PopupListQuery.builder()
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.page(1)
 				.size(20)
 				.build();
@@ -76,7 +77,7 @@ class PopupServiceTest {
 		PopupDetailResponse response = PopupDetailResponse.builder()
 				.id(productId)
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.build();
 
 		when(queryService.getPopupDetail(query)).thenReturn(response);

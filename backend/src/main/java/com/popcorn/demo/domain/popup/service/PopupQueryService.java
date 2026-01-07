@@ -11,6 +11,8 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.repository.PopupQueryRepository;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 
@@ -33,7 +35,7 @@ public class PopupQueryService {
 	)
 	public PopupListResponse getPopups(PopupListQuery query) {
 		Long regionId = query.getRegionId();
-		String category = query.getCategory();
+		PopupCategory category = query.getCategory();
 		String keyword = query.getKeyword();
 		UUID storeId = query.getStoreId();
 		Integer page = query.getPage();
@@ -44,19 +46,21 @@ public class PopupQueryService {
 		int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
 		long offset = (long) (normalizedPage - 1) * normalizedSize;
 
+		String categoryValue = category == null ? null : category.name();
+
 		long total = withTotal
-				? popupQueryRepository.countPopups(regionId, category, keyword, storeId)
+				? popupQueryRepository.countPopups(regionId, categoryValue, keyword, storeId)
 				: -1L;
 		List<PopupListView> views = popupQueryRepository.findPopups(
-				regionId, category, keyword, storeId, normalizedSize, offset);
+				regionId, categoryValue, keyword, storeId, normalizedSize, offset);
 
 		List<PopupListResponse.ItemDto> items = views.stream()
 				.map(view -> PopupListResponse.ItemDto.builder()
 						.id(toUuid(view.getId()))
 						.storeId(toUuid(view.getStoreId()))
 						.title(view.getTitle())
-						.category(view.getCategory())
-						.status(view.getStatus())
+						.category(toCategory(view.getCategory()))
+						.status(toStatus(view.getStatus()))
 						.eventStartAt(view.getEventStartAt())
 						.eventEndAt(view.getEventEndAt())
 						.build())
@@ -80,8 +84,8 @@ public class PopupQueryService {
 				.storeId(toUuid(view.getStoreId()))
 				.title(view.getTitle())
 				.description(view.getDescription())
-				.category(view.getCategory())
-				.status(view.getStatus())
+				.category(toCategory(view.getCategory()))
+				.status(toStatus(view.getStatus()))
 				.eventStartAt(view.getEventStartAt())
 				.eventEndAt(view.getEventEndAt())
 				.build();
@@ -89,5 +93,13 @@ public class PopupQueryService {
 
 	private UUID toUuid(String value) {
 		return value == null ? null : UUID.fromString(value);
+	}
+
+	private PopupCategory toCategory(String value) {
+		return value == null ? null : PopupCategory.valueOf(value);
+	}
+
+	private PopupStatus toStatus(String value) {
+		return value == null ? null : PopupStatus.valueOf(value);
 	}
 }
