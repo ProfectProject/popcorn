@@ -4,6 +4,8 @@ import com.popcorn.demo.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import org.hibernate.annotations.UuidGenerator;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 // p_stores에 매핑되는 스토어 애그리게이트 루트.
@@ -16,13 +18,15 @@ import java.util.UUID;
 @Builder
 public class Store extends BaseEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue
+    @UuidGenerator
+    @Column(name = "store_id")
     private UUID id;
 
-    @Column(name = "owner_id", nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long ownerId;
 
-    @Column(name = "name", nullable = false, length = 100)
+    @Column(name = "store_name", nullable = false, length = 100)
     private String name;
 
     @Enumerated(EnumType.STRING)
