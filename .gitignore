@@ -53,3 +53,11 @@ backend/env
 
 # Local notes
 There
+
+# Seed files
+**/seed/
+**/seeds/
+**/*seed*.sql
+**/*seed*.json
+**/*seed*.csv
+**/*seed*.java

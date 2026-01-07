@@ -21,7 +21,7 @@ spring:
     baseline-on-migrate: true
     locations:
       - classpath:db/migration/schema
-      - classpath:db/migration/seed
+#      - classpath:db/migration/seed
     schemas: public
     create-schemas: true
     clean-disabled: false  # 개발 환경에서만 허용
@@ -39,7 +39,7 @@ spring:
     baseline-on-migrate: true
     locations:
       - classpath:db/migration/schema
-      - classpath:db/migration/seed
+#      - classpath:db/migration/seed
     schemas: public
     create-schemas: true
     clean-disabled: true  # 개발/운영 환경에서는 비활성화
@@ -58,7 +58,7 @@ spring:
     baseline-on-migrate: false  # 운영 환경에서는 false
     locations:
       - classpath:db/migration/schema
-      - classpath:db/migration/seed
+#      - classpath:db/migration/seed
     schemas: public
     create-schemas: false  # 운영 환경에서는 false
     clean-disabled: true  # 운영 환경에서는 반드시 true

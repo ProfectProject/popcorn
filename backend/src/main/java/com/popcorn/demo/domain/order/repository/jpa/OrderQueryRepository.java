@@ -33,7 +33,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       u.phone AS customerPhone,
 			       o.store_id AS storeId,
 			       s.user_id AS storeOwnerId,
-			       COALESCE(MAX(ps.popup_id), MAX(gv.popup_id)) AS popupId,
+			       COALESCE(MIN(ps.popup_id::text), MIN(gv.popup_id::text))::uuid AS popupId,
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
@@ -166,7 +166,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			           AND og.deleted_at IS NULL
 			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
 			   ))
-			   AND (:status IS NULL OR o.status = :status)
+			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
 			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
 			""", nativeQuery = true)
@@ -195,7 +195,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			           AND og.deleted_at IS NULL
 			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
 			   ))
-			   AND (:status IS NULL OR o.status = :status)
+			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
 			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
 			 ORDER BY o.created_at DESC
@@ -231,7 +231,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			                AND og.goods_variant_id IS NOT NULL
 			        ))
 			   )
-			   AND (:status IS NULL OR o.status = :status)
+			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
 			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
 			""", nativeQuery = true)
@@ -253,7 +253,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
-			       COALESCE(MAX(ps.popup_id), MAX(gv.popup_id)) AS popupId,
+			       COALESCE(MIN(ps.popup_id::text), MIN(gv.popup_id::text))::uuid AS popupId,
 			       o.store_id AS storeId,
 			       MAX(p.title) AS productTitle,
 			       MIN(ps.start_at) AS sessionStartAt,
@@ -284,7 +284,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			                AND og2.goods_variant_id IS NOT NULL
 			        ))
 			   )
-			   AND (:status IS NULL OR o.status = :status)
+			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
 			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
 			 GROUP BY o.order_id, o.order_no, o.status, o.total_price,
