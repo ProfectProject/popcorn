@@ -42,7 +42,6 @@ class StoreIntegrationTest {
         Long ownerId = 1001L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("통합테스트 팝콘 스토어")
-                .ownerId(ownerId)
                 .build();
 
         StoreCreatedDto result = storeService.createStore(ownerId, request);
@@ -69,13 +68,11 @@ class StoreIntegrationTest {
 
         CreateStoreRequest firstRequest = CreateStoreRequest.builder()
                 .name(storeName)
-                .ownerId(firstOwnerId)
                 .build();
         storeService.createStore(firstOwnerId, firstRequest);
 
         CreateStoreRequest secondRequest = CreateStoreRequest.builder()
                 .name(storeName)
-                .ownerId(secondOwnerId)
                 .build();
 
         assertThatThrownBy(() -> storeService.createStore(secondOwnerId, secondRequest))
@@ -88,7 +85,6 @@ class StoreIntegrationTest {
         Long ownerId = 2001L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("수정 전 스토어")
-                .ownerId(ownerId)
                 .build();
 
         StoreCreatedDto created = storeService.createStore(ownerId, request);
@@ -114,7 +110,6 @@ class StoreIntegrationTest {
         Long ownerId = 3001L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("상태 수정 스토어")
-                .ownerId(ownerId)
                 .build();
 
         StoreCreatedDto created = storeService.createStore(ownerId, request);
@@ -140,7 +135,6 @@ class StoreIntegrationTest {
         Long ownerId = 4001L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("삭제 테스트 스토어")
-                .ownerId(ownerId)
                 .build();
 
         StoreCreatedDto created = storeService.createStore(ownerId, request);
@@ -162,11 +156,9 @@ class StoreIntegrationTest {
         Long ownerId = 5001L;
         CreateStoreRequest firstRequest = CreateStoreRequest.builder()
                 .name("목록 스토어 1")
-                .ownerId(ownerId)
                 .build();
         CreateStoreRequest secondRequest = CreateStoreRequest.builder()
                 .name("목록 스토어 2")
-                .ownerId(ownerId)
                 .build();
 
         StoreCreatedDto first = storeService.createStore(ownerId, firstRequest);
@@ -186,7 +178,6 @@ class StoreIntegrationTest {
         Long ownerId = 6001L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("상세 조회 스토어")
-                .ownerId(ownerId)
                 .build();
 
         StoreCreatedDto created = storeService.createStore(ownerId, request);

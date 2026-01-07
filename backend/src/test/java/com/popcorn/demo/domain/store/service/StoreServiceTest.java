@@ -83,7 +83,6 @@ class StoreServiceTest {
         Long ownerId = 123L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("테스트 스토어")
-                .ownerId(ownerId)
                 .build();
 
         Store savedStore = Store.builder()
@@ -113,7 +112,6 @@ class StoreServiceTest {
         Long ownerId = 123L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("")
-                .ownerId(ownerId)
                 .build();
 
         assertThatThrownBy(() -> storeService.createStore(ownerId, request))
@@ -126,7 +124,6 @@ class StoreServiceTest {
     void 스토어_생성_실패_null_오너_ID() {
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("테스트 스토어")
-                .ownerId(null)
                 .build();
 
         assertThatThrownBy(() -> storeService.createStore(null, request))
@@ -140,7 +137,6 @@ class StoreServiceTest {
         Long ownerId = 123L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("중복 스토어")
-                .ownerId(ownerId)
                 .build();
 
         when(storeRepository.findByName("중복 스토어")).thenReturn(Optional.of(activeStore));
@@ -156,7 +152,6 @@ class StoreServiceTest {
         Long ownerId = 123L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("한도 초과 스토어")
-                .ownerId(ownerId)
                 .build();
 
         when(storeRepository.findByName(anyString())).thenReturn(Optional.empty());
@@ -173,7 +168,6 @@ class StoreServiceTest {
         Long ownerId = 123L;
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("잘못된&스토어")
-                .ownerId(ownerId)
                 .build();
 
         assertThatThrownBy(() -> storeService.createStore(ownerId, request))
