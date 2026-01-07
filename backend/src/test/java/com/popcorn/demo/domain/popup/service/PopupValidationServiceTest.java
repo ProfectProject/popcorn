@@ -10,6 +10,7 @@ import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 class PopupValidationServiceTest {
@@ -45,16 +46,15 @@ class PopupValidationServiceTest {
 	}
 
 	@Test
-	@DisplayName("목록 조회 - 카테고리 값 검증")
-	void normalizeListQuery_rejectsInvalidCategory() {
+	@DisplayName("목록 조회 - 카테고리 유지")
+	void normalizeListQuery_keepsCategory() {
 		PopupValidationService service = new PopupValidationService();
 
-		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeListQuery(PopupListQuery.builder()
-						.category("INVALID")
-						.build()));
+		PopupListQuery normalized = service.normalizeListQuery(PopupListQuery.builder()
+				.category(PopupCategory.FOOD)
+				.build());
 
-		assertEquals(PopupResponseCode.INVALID_REQUEST, exception.getResponseCode());
+		assertEquals(PopupCategory.FOOD, normalized.getCategory());
 	}
 
 	@Test

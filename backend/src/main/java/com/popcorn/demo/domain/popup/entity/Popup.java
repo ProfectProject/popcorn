@@ -3,9 +3,13 @@ package com.popcorn.demo.domain.popup.entity;
 import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -32,11 +36,13 @@ public class Popup extends BaseEntity {
 	@Column(name = "description")
 	private String description;
 
-	@Column(name = "category")
-	private String category;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "category", columnDefinition = "popup_category")
+	private PopupCategory category;
 
-	@Column(name = "status")
-	private String status;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status", columnDefinition = "popup_status")
+	private PopupStatus status;
 
 	@Column(name = "deleted_at")
 	private java.time.LocalDateTime deletedAt;
