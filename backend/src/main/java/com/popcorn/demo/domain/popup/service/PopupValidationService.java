@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 @Service
@@ -62,7 +62,7 @@ public class PopupValidationService {
 		}
 	}
 
-	public PopupSessionListQuery normalizeSessionQuery(PopupSessionListQuery query) {
+	public PopupScheduleListQuery normalizeSessionQuery(PopupScheduleListQuery query) {
 		if (query == null || query.getPopupId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}

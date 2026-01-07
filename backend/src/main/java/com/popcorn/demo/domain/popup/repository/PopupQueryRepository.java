@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-import com.popcorn.demo.domain.popup.entity.PopupProduct;
+import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 
-public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
+public interface PopupQueryRepository extends Repository<Popup, UUID> {
 
 	@Query(value = """
 			SELECT CAST(p.popup_id AS VARCHAR) AS id,
