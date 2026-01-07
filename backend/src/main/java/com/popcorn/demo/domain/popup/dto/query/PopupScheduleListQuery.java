@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PopupSessionListQuery {
+public class PopupScheduleListQuery {
 
 	private UUID popupId;
 	private LocalDateTime from;

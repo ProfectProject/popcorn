@@ -43,8 +43,8 @@ public class SecurityConfig {
 		AuthenticationManager authManager = authenticationManager(authenticationConfiguration);
 
 		// ★ LoginFilter는 여기서 직접 생성 (Bean 등록 X)
-		LoginFilter loginFilter = new LoginFilter(authManager, jwtUtil);
-		loginFilter.setFilterProcessesUrl("/api/v1/auth/login");
+        LoginFilter loginFilter = new LoginFilter(authManager, jwtUtil);
+        loginFilter.setFilterProcessesUrl("/api/auth/login");
 
 		http.csrf().disable()
 				.authorizeHttpRequests()
