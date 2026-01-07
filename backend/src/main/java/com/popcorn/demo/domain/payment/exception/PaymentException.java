@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.exception;
+package com.popcorn.demo.domain.payment.exception;
 
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;

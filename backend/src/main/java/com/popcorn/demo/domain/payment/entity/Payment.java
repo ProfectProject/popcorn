@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.entity;
+package com.popcorn.demo.domain.payment.entity;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

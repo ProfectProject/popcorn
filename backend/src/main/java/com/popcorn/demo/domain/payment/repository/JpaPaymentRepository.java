@@ -1,11 +1,11 @@
-package com.popcorn.demo.domain.order.repository.jpa;
+package com.popcorn.demo.domain.payment.repository;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.popcorn.demo.domain.order.entity.Payment;
+import com.popcorn.demo.domain.payment.entity.Payment;
 
 public interface JpaPaymentRepository extends JpaRepository<Payment, UUID> {
 
