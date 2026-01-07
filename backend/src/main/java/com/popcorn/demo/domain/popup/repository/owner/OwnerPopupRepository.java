@@ -12,10 +12,12 @@ public interface OwnerPopupRepository {
 
     Popup save(Popup popup);
     Optional<Popup> findById(UUID popupId);
-    Optional<Popup> findByStoreId(UUID storeId);
     void deleteById(UUID popupId);
 
     List<Popup> findAllByStoreIdAndDeletedAtIsNull(UUID storeId);
+    Optional<Popup> findOwnedPopup(UUID popupId, Long ownerId);
+    List<Popup> findOwnedPopupsByStore(UUID storeId, Long ownerId);
+    boolean existsOwnedStore(UUID storeId, Long ownerId);
     List<Popup> findByPublishStatusAndStoreId(PopupStatus status, UUID storeId);
     List<Popup> findByPopupCategoryAndStoreId(PopupCategory category, UUID storeId);
 

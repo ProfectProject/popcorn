@@ -8,16 +8,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupStatusRequest;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
 import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupRepository;
-import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.exception.StoreException;
-import com.popcorn.demo.domain.store.repository.StoreRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 public class OwnerPopupService {
 
     private final OwnerPopupRepository ownerPopupRepository;
-    private final StoreRepository storeRepository;
     private final OwnerPopupValidationService validationService;
 
     @Transactional
@@ -38,17 +39,11 @@ public class OwnerPopupService {
         validateOwner(userId);
         String trimmedTitle = validationService.validateCreateRequest(request);
 
-        Store store = storeRepository.findById(request.getStoreId())
-                .orElseThrow(() -> StoreException.storeNotFound(request.getStoreId()));
-
-        if (!store.isOwner(userId)) {
-            throw StoreException.accessDenied(userId, store.getId());
-        }
-        if (store.isDeleted()) {
-            throw StoreException.storeAlreadyDeleted(store.getId());
+        if (!ownerPopupRepository.existsOwnedStore(request.getStoreId(), userId)) {
+            throw StoreException.storeNotFound(request.getStoreId());
         }
 
-        validateDuplicateTitle(store.getId(), trimmedTitle);
+        validateDuplicateTitle(request.getStoreId(), trimmedTitle);
 
         Popup savedPopup = ownerPopupRepository.save(createPopupEntity(userId, request, trimmedTitle));
 
@@ -64,17 +59,7 @@ public class OwnerPopupService {
         validateOwner(ownerId);
         validateStoreId(storeId);
 
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> StoreException.storeNotFound(storeId));
-
-        if (!store.isOwner(ownerId)) {
-            throw StoreException.accessDenied(ownerId, storeId);
-        }
-        if (store.isDeleted()) {
-            throw StoreException.storeAlreadyDeleted(storeId);
-        }
-
-        List<PopupListDto> result = ownerPopupRepository.findAllByStoreIdAndDeletedAtIsNull(storeId).stream()
+        List<PopupListDto> result = ownerPopupRepository.findOwnedPopupsByStore(storeId, ownerId).stream()
                 .map(this::mapToListDto)
                 .toList();
 
@@ -89,26 +74,60 @@ public class OwnerPopupService {
         validateOwner(ownerId);
         validatePopupId(popupId);
 
-        Popup popup = ownerPopupRepository.findById(popupId)
+        Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
                 .orElseThrow(PopupException::popupNotFound);
-
-        if (popup.getDeletedAt() != null) {
-            throw PopupException.popupNotFound();
-        }
-
-        Store store = storeRepository.findById(popup.getStoreId())
-                .orElseThrow(() -> StoreException.storeNotFound(popup.getStoreId()));
-
-        if (!store.isOwner(ownerId)) {
-            throw StoreException.accessDenied(ownerId, store.getId());
-        }
-        if (store.isDeleted()) {
-            throw StoreException.storeAlreadyDeleted(store.getId());
-        }
 
         PopupDetailDto detail = mapToDetailDto(popup);
         log.info("[POPUP_DETAIL_FOUND] popupId={}, storeId={}", popup.getId(), popup.getStoreId());
         return detail;
+    }
+
+    @Transactional
+    public PopupUpdatedDto updatePopup(Long ownerId, UUID popupId, UpdatePopupRequest request) {
+        log.info("[POPUP_UPDATE] ownerId={}, popupId={}", ownerId, popupId);
+
+        validateOwner(ownerId);
+        validatePopupId(popupId);
+
+        String trimmedTitle = validationService.validateUpdateRequest(request);
+
+        Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
+                .orElseThrow(PopupException::popupNotFound);
+
+        if (trimmedTitle != null) {
+            validateDuplicateTitle(popup.getStoreId(), popup.getId(), trimmedTitle);
+            popup.setTitle(trimmedTitle);
+        }
+        if (request.getDescription() != null) {
+            popup.setDescription(request.getDescription());
+        }
+        if (request.getPopupCategory() != null) {
+            popup.setCategory(request.getPopupCategory());
+        }
+        popup.setUpdatedBy(ownerId);
+
+        Popup updatedPopup = ownerPopupRepository.save(popup);
+        log.info("[POPUP_UPDATED] popupId={}, storeId={}", updatedPopup.getId(), updatedPopup.getStoreId());
+        return mapToUpdatedDto(updatedPopup);
+    }
+
+    @Transactional
+    public PopupStatusUpdatedDto updatePopupStatus(Long ownerId, UUID popupId, UpdatePopupStatusRequest request) {
+        log.info("[POPUP_STATUS_UPDATE] ownerId={}, popupId={}, status={}", ownerId, popupId, request.getStatus());
+
+        validateOwner(ownerId);
+        validatePopupId(popupId);
+        validateStatusRequest(request);
+
+        Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
+                .orElseThrow(PopupException::popupNotFound);
+
+        popup.setStatus(request.getStatus());
+        popup.setUpdatedBy(ownerId);
+
+        Popup updatedPopup = ownerPopupRepository.save(popup);
+        log.info("[POPUP_STATUS_UPDATED] popupId={}, status={}", updatedPopup.getId(), updatedPopup.getStatus());
+        return mapToStatusUpdatedDto(updatedPopup);
     }
 
     private PopupCreatedDto mapToDto(Popup popup) {
@@ -143,6 +162,28 @@ public class OwnerPopupService {
                 .popupCategory(popup.getCategory())
                 .status(popup.getStatus())
                 .createdAt(popup.getCreatedAt())
+                .updatedAt(popup.getUpdatedAt())
+                .build();
+    }
+
+    private PopupUpdatedDto mapToUpdatedDto(Popup popup) {
+        return PopupUpdatedDto.builder()
+                .popupId(popup.getId())
+                .title(popup.getTitle())
+                .description(popup.getDescription())
+                .status(popup.getStatus())
+                .popupCategory(popup.getCategory())
+                .updatedBy(popup.getUpdatedBy())
+                .updatedAt(popup.getUpdatedAt())
+                .build();
+    }
+
+    private PopupStatusUpdatedDto mapToStatusUpdatedDto(Popup popup) {
+        return PopupStatusUpdatedDto.builder()
+                .popupId(popup.getId())
+                .title(popup.getTitle())
+                .status(popup.getStatus())
+                .updatedBy(popup.getUpdatedBy())
                 .updatedAt(popup.getUpdatedAt())
                 .build();
     }
@@ -183,6 +224,23 @@ public class OwnerPopupService {
                 .filter(popup -> popup.getTitle() != null)
                 .anyMatch(popup -> popup.getTitle().equals(title));
         if (exists) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+    }
+
+    private void validateDuplicateTitle(UUID storeId, UUID popupId, String title) {
+        List<Popup> popups = ownerPopupRepository.findAllByStoreIdAndDeletedAtIsNull(storeId);
+        boolean exists = popups.stream()
+                .filter(popup -> popup.getTitle() != null)
+                .filter(popup -> !popup.getId().equals(popupId))
+                .anyMatch(popup -> popup.getTitle().equals(title));
+        if (exists) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+    }
+
+    private void validateStatusRequest(UpdatePopupStatusRequest request) {
+        if (request == null || request.getStatus() == null) {
             throw new PopupException(PopupResponseCode.INVALID_REQUEST);
         }
     }

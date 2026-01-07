@@ -2,11 +2,15 @@ package com.popcorn.demo.domain.popup.controller.owner;
 
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupStatusRequest;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupCreatedDto;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupDetailDto;
 import com.popcorn.demo.domain.popup.dto.owner.response.PopupListDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
+import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
 import com.popcorn.demo.domain.popup.service.owner.OwnerPopupService;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -59,6 +63,26 @@ public class OwnerPopupController {
     ) {
         Long userId = getCurrentOwnerId(authentication);
         return ResponseEntity.ok(BaseResponse.success(popupService.getPopupDetail(userId, popupId)));
+    }
+
+    @PutMapping("/popups/{popupId}")
+    public ResponseEntity<BaseResponse<PopupUpdatedDto>> updatePopup(
+            Authentication authentication,
+            @Parameter(description = "팝업 ID", required = true) @PathVariable UUID popupId,
+            @Parameter(description = "팝업 수정 요청", required = true) @Valid @RequestBody UpdatePopupRequest request
+    ) {
+        Long userId = getCurrentOwnerId(authentication);
+        return ResponseEntity.ok(BaseResponse.success(popupService.updatePopup(userId, popupId, request)));
+    }
+
+    @PatchMapping("/popups/{popupId}/status")
+    public ResponseEntity<BaseResponse<PopupStatusUpdatedDto>> updatePopupStatus(
+            Authentication authentication,
+            @Parameter(description = "팝업 ID", required = true) @PathVariable UUID popupId,
+            @Parameter(description = "팝업 상태 변경 요청", required = true) @Valid @RequestBody UpdatePopupStatusRequest request
+    ) {
+        Long userId = getCurrentOwnerId(authentication);
+        return ResponseEntity.ok(BaseResponse.success(popupService.updatePopupStatus(userId, popupId, request)));
     }
 
 

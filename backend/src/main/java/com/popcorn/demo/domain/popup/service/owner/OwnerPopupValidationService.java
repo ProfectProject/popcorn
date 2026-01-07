@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
+import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 @Service
@@ -38,5 +39,24 @@ public class OwnerPopupValidationService {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
 		return validateAndTrimTitle(request.getTitle());
+	}
+
+	public String validateUpdateRequest(UpdatePopupRequest request) {
+		if (request == null) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		}
+		boolean hasUpdate = false;
+		String trimmedTitle = null;
+		if (request.getTitle() != null) {
+			trimmedTitle = validateAndTrimTitle(request.getTitle());
+			hasUpdate = true;
+		}
+		if (request.getDescription() != null || request.getPopupCategory() != null) {
+			hasUpdate = true;
+		}
+		if (!hasUpdate) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		}
+		return trimmedTitle;
 	}
 }
