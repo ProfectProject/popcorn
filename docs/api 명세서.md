@@ -94,27 +94,28 @@
 
 ### 1-3) 스토어/팝업(OWNER)
 
-| API 명칭                     | Method | Endpoint URL                           | Query | Request Type       | Response Type             | Authentication | Authorization | Status | Status Detail |
-|----------------------------|--------|----------------------------------------|-------|--------------------|---------------------------|----------------|---------------|--------|---------------|
-| 내 가게 정보 조회                 | GET    | `/api/v1/owner/{ownerid}/stores`       | -     | 없음                 | StoreResponse or Map      | Bearer         | 본인(가게)        | 완료     | -             |
-| 가게 등록                      | POST   | `/api/v1/owner/stores`                 | -     | StoreCreateRequest | StoreResponse             | Bearer         | 본인(가게)        | 완료     | -             |
-| 가게 기본 정보 수정                | PUT    | `/api/v1/owner/store/{storeId}`        | -     | StoreUpdateRequest | StoreResponse             | Bearer         | 본인(가게)        | 완료     | -             |
-| 가게 삭제                      | DELETE | `/api/v1/owner/stores/{storeId}`       | -     | 없음                 | 없음                        | Bearer         | 본인(가게)        | 완료     | -             |
-| 제품 상태 수정                   | PATCH  | `/api/v1/owner/store/{storeId}/status` | -     | StoreStatusRequest | StoreStatusModifyResponse | Bearer         | 본인(가게)        | 완료     | -             |
-| 내 제품 정보 조회                 | GET    | `/api/v1/owner/popups`                 | -     | 없음                 | String                    | Bearer         | 본인(가게)        | 완료     | -             |
-| 제품 등록                      | POST   | `/api/v1/owner/popups`                 | -     | StoreCreateRequest | 없음                        | -              | -             | 시작 전   | -             |
-| 제품 기본 정보 수정 (장소, 이름, 카테고리) | PUT    | `/api/v1/owner/popups/{popupId}`       | -     | StoreUpdateRequest | 없음                        | -              | -             | 시작 전   | -             |
-| 제품 삭제                      | DELETE | `/api/v1/owner/popups/{popupId}`       | -     | 없음                 | 없음                        | -              | -             | 시작 전   | -             |
+| API 명칭                     | Method | Endpoint URL                                  | Query | Request Type       | Response Type             | Authentication | Authorization | Status | Status Detail |
+|----------------------------|--------|-----------------------------------------------|-------|--------------------|---------------------------|----------------|---------------|--------|---------------|
+| 내 가게 정보 조회                 | GET    | `/api/v1/owner/stores`                        | -     | 없음                 | StoreResponse or Map      | Bearer         | 본인(가게)        | 완료     | -             |
+| 가게 등록                      | POST   | `/api/v1/owner/stores`                        | -     | StoreCreateRequest | StoreResponse             | Bearer         | 본인(가게)        | 완료     | -             |
+| 가게 기본 정보 수정                | PUT    | `/api/v1/owner/store/{storeId}`               | -     | StoreUpdateRequest | StoreResponse             | Bearer         | 본인(가게)        | 완료     | -             |
+| 가게 삭제                      | DELETE | `/api/v1/owner/stores/{storeId}`              | -     | 없음                 | 없음                        | Bearer         | 본인(가게)        | 완료     | -             |
+| 가게 상태 수정                   | PATCH  | `/api/v1/owner/store/{storeId}/status`        | -     | StoreStatusRequest | StoreStatusModifyResponse | Bearer         | 본인(가게)        | 완료     | -             |
+| 내 제품 정보 조회                 | GET    | `/api/v1/owner/store/popups`                  | -     | 없음                 | String                    | Bearer         | 본인(가게)        | 완료     | -             |
+| 제품 등록                      | POST   | `/api/v1/owner/store/popups`                  | -     | StoreCreateRequest | 없음                        | -              | -             | 시작 전   | -             |
+| 제품 기본 정보 수정 (장소, 이름, 카테고리) | PUT    | `/api/v1/owner/store/popups/{popupId}`        | -     | StoreUpdateRequest | 없음                        | -              | -             | 시작 전   | -             |
+| 제품 삭제                      | DELETE | `/api/v1/owner/store/popups/{popupId}`        | -     | 없음                 | 없음                        | -              | -             | 시작 전   | -             |
+| 내 제품 상태 변경                 | PATCH  | `/api/v1/owner/store/popups/{popupId}/status` | -     | PopupStatusRequest | PopupStatusModifyResponse | Bearer         | 본인(가게)        | 완료     | -             |
 
 ### 1-4) 팝업 회차(OWNER)
 
-| API 명칭           | Method | Endpoint URL                                                   | Query | Request Type           | Response Type           | Authentication | Authorization | Status | Status Detail |
-|------------------|--------|----------------------------------------------------------------|-------|------------------------|-------------------------|----------------|---------------|--------|---------------|
-| ⏰ 제품 회차 조회       | GET    | `/api/v1/owner/popups/{popupId}/schedules`                     | -     | 없음                     | List<StoreHourResponse> | Bearer         | 본인(가게)        | 완료     | -             |
-| ⏰ 제품 회차 등록       | POST   | `/api/v1/owner/popups/{popupId}/schedules`                     | -     | StoreLocationRequest   | StoreResponse           | Bearer         | 본인(가게)        | 완료     | -             |
-| ⏰ 제품 회차 정보 수정    | PUT    | `/api/v1/owner/popups/{popupId}/schedules/{scheduleId}`        | -     | List<StoreHourRequest> | List<StoreHourResponse> | Bearer         | 본인(가게)        | 완료     | -             |
-| ⏰ 제품 회차 활성 상태 수정 | PATCH  | `/api/v1/owner/popups/{popupId}/schedules/{scheduleId}/active` | -     | StoreContactRequest    | StoreResponse           | Bearer         | 본인(가게)        | 완료     | -             |
-| ⏰ 제품 회차 삭제       | DELETE | `/api/v1/owner/popups/{popupId}/schedules/{scheduleId}`        | -     | MultipartFile          | String                  | Bearer         | 본인(가게)        | 완료     | -             |
+| API 명칭           | Method | Endpoint URL                                                         | Query | Request Type           | Response Type           | Authentication | Authorization | Status | Status Detail |
+|------------------|--------|----------------------------------------------------------------------|-------|------------------------|-------------------------|----------------|---------------|--------|---------------|
+| ⏰ 제품 회차 조회       | GET    | `/api/v1/owner/store/popups/{popupId}/schedules`                     | -     | 없음                     | List<StoreHourResponse> | Bearer         | 본인(가게)        | 완료     | -             |
+| ⏰ 제품 회차 등록       | POST   | `/api/v1/owner/store/popups/{popupId}/schedules`                     | -     | StoreLocationRequest   | StoreResponse           | Bearer         | 본인(가게)        | 완료     | -             |
+| ⏰ 제품 회차 정보 수정    | PUT    | `/api/v1/owner/store/popups/{popupId}/schedules/{scheduleId}`        | -     | List<StoreHourRequest> | List<StoreHourResponse> | Bearer         | 본인(가게)        | 완료     | -             |
+| ⏰ 제품 회차 활성 상태 수정 | PATCH  | `/api/v1/owner/store/popups/{popupId}/schedules/{scheduleId}/active` | -     | StoreContactRequest    | StoreResponse           | Bearer         | 본인(가게)        | 완료     | -             |
+| ⏰ 제품 회차 삭제       | DELETE | `/api/v1/owner/store/popups/{popupId}/schedules/{scheduleId}`        | -     | MultipartFile          | String                  | Bearer         | 본인(가게)        | 완료     | -             |
 
 ### 1-5) 팝업 굿즈(OWNER)
 

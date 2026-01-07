@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.popup.repository.owner;
 import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;

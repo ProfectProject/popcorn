@@ -1,29 +1,27 @@
 package com.popcorn.demo.domain.popup.entity;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "p_popups")
+@Setter
 public class Popup extends BaseEntity {
 
 	@Id
+	@GeneratedValue
+	@UuidGenerator
 	@Column(name = "popup_id")
 	private UUID id;
 
@@ -46,4 +44,33 @@ public class Popup extends BaseEntity {
 
 	@Column(name = "deleted_at")
 	private java.time.LocalDateTime deletedAt;
+
+	@Column(name = "created_by")
+	private Long createdBy;
+
+	@Column(name = "updated_by")
+	private Long updatedBy;
+
+	@Column(name = "deleted_by")
+	private Long deletedBy;
+
+
+
+	@Builder
+	public Popup(
+			UUID storeId,
+			String title,
+			String description,
+			PopupCategory category,
+			PopupStatus status,
+			Long createdBy
+	) {
+		this.storeId = storeId;
+		this.title = title;
+		this.description = description;
+		this.category = category;
+		this.status = status;
+		this.createdBy = createdBy;
+	}
+
 }
