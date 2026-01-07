@@ -62,9 +62,7 @@ public class StoreRepositoryImpl implements StoreRepository {
 
     @Override
     public Optional<Store> findByName(String name) {
-        return jpaStoreRepository.findAll().stream()
-                .filter(store -> store.getName().equals(name))
-                .findFirst();
+        return jpaStoreRepository.findByName(name);
     }
 
     @Override

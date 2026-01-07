@@ -34,7 +34,7 @@ import com.popcorn.demo.domain.order.exception.OrderValidationException;
 @DisplayName("주문 취소 API 테스트")
 class OrderCancelControllerTest extends OrderControllerTestBase {
 
-	private UUID testOrderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
+	private final UUID testOrderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 
 	@Test
 	@DisplayName("성공: 정상적인 주문 취소")

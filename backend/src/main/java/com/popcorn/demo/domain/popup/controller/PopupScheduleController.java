@@ -31,7 +31,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Popup", description = "팝업 관련 API")
 @RestController
 @ApiVersion("v1")
-@RequestMapping("/api/v1/products")
+@RequestMapping("/api/v1/popups")
 @RequiredArgsConstructor
 public class PopupScheduleController extends BaseController {
 

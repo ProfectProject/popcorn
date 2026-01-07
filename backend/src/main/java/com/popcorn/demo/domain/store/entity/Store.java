@@ -36,9 +36,6 @@ public class Store extends BaseEntity {
     @Column(name = "reason", length = 500)
     private String reason;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-
     @Column(name = "deleted_by")
     private Long deletedBy;
 
@@ -56,7 +53,7 @@ public class Store extends BaseEntity {
     }
 
     public void delete(Long deletedBy) {
-        this.deletedAt = LocalDateTime.now();
+        super.delete(); // BaseEntity의 delete() 메서드 호출
         this.deletedBy = deletedBy;
     }
 
@@ -66,7 +63,7 @@ public class Store extends BaseEntity {
     }
 
     public boolean isDeleted() {
-        return this.deletedAt != null;
+        return super.isDeleted(); // BaseEntity의 isDeleted() 메서드 사용
     }
 
     public boolean isActive() {
