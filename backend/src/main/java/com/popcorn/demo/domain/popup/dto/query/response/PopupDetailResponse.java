@@ -3,6 +3,8 @@ package com.popcorn.demo.domain.popup.dto.query.response;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,8 +20,8 @@ public class PopupDetailResponse {
 	private UUID storeId;
 	private String title;
 	private String description;
-	private String category;
-	private String status;
+	private PopupCategory category;
+	private PopupStatus status;
 	private LocalDateTime eventStartAt;
 	private LocalDateTime eventEndAt;
 }
