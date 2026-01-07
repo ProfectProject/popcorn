@@ -27,10 +27,10 @@ import org.hibernate.type.SqlTypes;
 public class Popup extends BaseEntity {
 
 	@Id
-	@Column(name = "popup_id")
+	@Column(name = "popup_id", columnDefinition = "VARCHAR(36)")
 	private UUID id;
 
-	@Column(name = "store_id")
+	@Column(name = "store_id", columnDefinition = "VARCHAR(36)")
 	private UUID storeId;
 
 	@Column(name = "title")

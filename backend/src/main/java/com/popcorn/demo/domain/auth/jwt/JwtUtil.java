@@ -20,7 +20,7 @@ public class JwtUtil {
 
     //private Key key;
 
-    private SecretKey secretKey;
+    private final SecretKey secretKey;
     public JwtUtil(@Value("${jwt.secret}")String secret) {
 
 		byte[] byteSecretKey = Decoders.BASE64.decode(secret);

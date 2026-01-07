@@ -74,7 +74,7 @@ public class Order extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
-	@Column(name = "order_id")
+	@Column(name = "order_id", columnDefinition = "VARCHAR(36)")
 	private UUID id;
 
 
@@ -97,7 +97,7 @@ public class Order extends BaseEntity {
 
 	/** 스토어 ID */
 
-	@Column(name = "store_id")
+	@Column(name = "store_id", columnDefinition = "VARCHAR(36)")
 
 	private UUID storeId;
 

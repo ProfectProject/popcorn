@@ -9,12 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import com.popcorn.demo.domain.users.entity.User;
 
-import lombok.RequiredArgsConstructor;
-
-@RequiredArgsConstructor
-public class CustomUserDetails implements UserDetails {
-    private final User userEntity;
-    
+public record CustomUserDetails(User userEntity) implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
 
@@ -66,11 +61,6 @@ public class CustomUserDetails implements UserDetails {
     public boolean isEnabled() {
 
         return true;
-    }
-
-    // JWT 인증 후 사용자 정보 접근을 위한 getter 메서드
-    public User getUserEntity() {
-        return userEntity;
     }
 
     public Long getUserId() {

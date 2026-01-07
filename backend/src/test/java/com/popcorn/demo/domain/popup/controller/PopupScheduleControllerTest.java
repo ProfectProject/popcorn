@@ -23,7 +23,7 @@ class PopupScheduleControllerTest extends PopupControllerTestBase {
 		when(popupService.getProductSessions(any(PopupScheduleListQuery.class)))
 				.thenReturn(response);
 
-		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/products/{productId}/sessions",
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/popups/{popupId}/sessions",
 						UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.param("from", "2025-01-01T00:00:00")
 						.param("to", "2025-01-31T23:59:59")
