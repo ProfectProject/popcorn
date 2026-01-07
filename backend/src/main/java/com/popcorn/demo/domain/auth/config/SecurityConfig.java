@@ -51,7 +51,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/v1/auth/login").permitAll() // swagger api 테스트
                 .requestMatchers("/api/v1/users/signup").permitAll()
-                .requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER")
+                .requestMatchers("/api/v1/users/**").hasAnyRole("CUSTOMER","OWNER")
                 .anyRequest().authenticated()
             .and()
                 .formLogin().disable()

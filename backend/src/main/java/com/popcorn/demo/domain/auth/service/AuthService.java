@@ -31,12 +31,13 @@ public class AuthService {
 
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
 
+        Long userId = customUserDetails.getUserId();
         String role = customUserDetails.getAuthorities()
                 .iterator().next()
                 .getAuthority()
                 .replace("ROLE_", "");
 
-        String jwt = jwtUtil.createJwt(customUserDetails.getUsername(), role, 60 * 60 * 1000L);
+        String jwt = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, 60 * 60 * 1000L);
 
         return new LoginResponse(jwt);
     }
