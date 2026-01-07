@@ -7,6 +7,7 @@ import com.popcorn.demo.common.entity.BaseEntity;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 
 import jakarta.persistence.*;
+
 import lombok.*;
 
 @Entity
