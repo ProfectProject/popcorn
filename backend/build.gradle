@@ -71,6 +71,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Suite 클래스는 개별 테스트 필터링 시 NoTestsDiscoveredException을 유발할 수 있어 제외
+	exclude '**/*ApplicationTests.class'
 	finalizedBy tasks.named('jacocoTestReport')
 }
 
