@@ -79,8 +79,15 @@ public class SecurityConfig {
 
 				// Order domain - Create orders and payments (all authenticated users can create)
 				.requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/reservation-payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/reservation-payments").hasAnyRole("CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments").hasAnyRole("CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments/ready").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}/payments").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/payments/{paymentId}").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/payments/{paymentId}/approve").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/payments/{paymentId}/fail").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/payments/{paymentId}/cancel").permitAll()
+				.requestMatchers(HttpMethod.DELETE, "/api/v1/payments/{paymentId}").permitAll()
 
 				// Order domain - Status updates (Owner/Manager/Admin can change status)
 				.requestMatchers(HttpMethod.PATCH, "/api/v1/orders/{orderId}/status").hasAnyRole("OWNER", "MANAGER", "ADMIN")
