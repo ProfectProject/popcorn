@@ -54,7 +54,7 @@ public class SecurityConfig {
 				// QR
 				.requestMatchers(HttpMethod.POST, "/api/v1/qr/verify").permitAll()
 				.requestMatchers(HttpMethod.GET,  "/api/v1/orders/*/qr").hasRole("CUSTOMER")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/*/qr").hasRole("CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/*/qr").permitAll()
 
 				// Checkin
 				.requestMatchers(HttpMethod.GET, "/api/v1/checkins").hasAnyRole("OWNER", "ADMIN")
