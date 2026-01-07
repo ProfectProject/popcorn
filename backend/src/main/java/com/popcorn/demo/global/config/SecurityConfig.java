@@ -78,9 +78,9 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/v1/orders/store").hasAnyRole("OWNER", "MANAGER", "ADMIN")
 
 				// Order domain - Create orders and payments (all authenticated users can create)
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/reservation-payments").hasAnyRole("CUSTOMER")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments").hasAnyRole("CUSTOMER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/reservation-payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
 				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments/ready").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}/payments").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/v1/payments/{paymentId}").permitAll()
