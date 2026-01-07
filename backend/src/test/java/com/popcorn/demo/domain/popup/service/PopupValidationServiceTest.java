@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 class PopupValidationServiceTest {
@@ -74,7 +74,7 @@ class PopupValidationServiceTest {
 		PopupValidationService service = new PopupValidationService();
 
 		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeSessionQuery(PopupSessionListQuery.builder().build()));
+				() -> service.normalizeSessionQuery(PopupScheduleListQuery.builder().build()));
 
 		assertEquals(PopupResponseCode.INVALID_REQUEST, exception.getResponseCode());
 	}
@@ -85,7 +85,7 @@ class PopupValidationServiceTest {
 		PopupValidationService service = new PopupValidationService();
 
 		PopupException exception = assertThrows(PopupException.class,
-				() -> service.normalizeSessionQuery(PopupSessionListQuery.builder()
+				() -> service.normalizeSessionQuery(PopupScheduleListQuery.builder()
 						.popupId(java.util.UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.from(java.time.LocalDateTime.of(2025, 1, 10, 0, 0))
 						.to(java.time.LocalDateTime.of(2025, 1, 1, 0, 0))

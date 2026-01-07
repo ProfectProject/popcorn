@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "p_popup_schedules")
-public class PopupSession extends BaseEntity {
+public class PopupSchedule extends BaseEntity {
 
 	@Id
 	@Column(name = "schedule_id")
