@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.store.dto.CreateStoreRequest;
@@ -28,6 +29,7 @@ import com.popcorn.demo.domain.store.service.StoreService;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Sql(scripts = "classpath:sql/test-schema.sql")
 @Transactional
 class StoreIntegrationTest {
 
