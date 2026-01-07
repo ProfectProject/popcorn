@@ -24,6 +24,9 @@ import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
 import com.popcorn.demo.domain.store.service.StoreService;
+import com.popcorn.demo.domain.users.entity.User;
+import com.popcorn.demo.domain.users.entity.enums.UserRole;
+import com.popcorn.demo.domain.users.repository.UserRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -36,10 +39,13 @@ class StoreIntegrationTest {
     @Autowired
     private StoreRepository storeRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Test
     @DisplayName("스토어 생성 전체 플로우 성공")
     void 스토어_생성_전체_플로우_성공() {
-        Long ownerId = 1001L;
+        Long ownerId = createOwnerId();
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("통합테스트 팝콘 스토어")
                 .build();
@@ -62,8 +68,8 @@ class StoreIntegrationTest {
     @Test
     @DisplayName("중복된 스토어 이름으로 생성 실패")
     void 중복된_스토어_이름으로_생성_실패() {
-        Long firstOwnerId = 1001L;
-        Long secondOwnerId = 1002L;
+        Long firstOwnerId = createOwnerId();
+        Long secondOwnerId = createOwnerId();
         String storeName = "중복테스트 스토어";
 
         CreateStoreRequest firstRequest = CreateStoreRequest.builder()
@@ -82,7 +88,7 @@ class StoreIntegrationTest {
     @Test
     @DisplayName("스토어 기본 정보 수정 전체 플로우 성공")
     void 스토어_기본_정보_수정_전체_플로우_성공() {
-        Long ownerId = 2001L;
+        Long ownerId = createOwnerId();
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("수정 전 스토어")
                 .build();
@@ -107,7 +113,7 @@ class StoreIntegrationTest {
     @Test
     @DisplayName("스토어 상태 수정 전체 플로우 성공")
     void 스토어_상태_수정_전체_플로우_성공() {
-        Long ownerId = 3001L;
+        Long ownerId = createOwnerId();
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("상태 수정 스토어")
                 .build();
@@ -132,7 +138,7 @@ class StoreIntegrationTest {
     @Test
     @DisplayName("스토어 삭제 전체 플로우 성공")
     void 스토어_삭제_전체_플로우_성공() {
-        Long ownerId = 4001L;
+        Long ownerId = createOwnerId();
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("삭제 테스트 스토어")
                 .build();
@@ -153,7 +159,7 @@ class StoreIntegrationTest {
     @Test
     @DisplayName("내 스토어 목록 조회 시 삭제된 스토어 제외")
     void 내_스토어_목록_조회_삭제된_스토어_제외() {
-        Long ownerId = 5001L;
+        Long ownerId = createOwnerId();
         CreateStoreRequest firstRequest = CreateStoreRequest.builder()
                 .name("목록 스토어 1")
                 .build();
@@ -175,7 +181,7 @@ class StoreIntegrationTest {
     @Test
     @DisplayName("스토어 상세 조회 전체 플로우 성공")
     void 스토어_상세_조회_전체_플로우_성공() {
-        Long ownerId = 6001L;
+        Long ownerId = createOwnerId();
         CreateStoreRequest request = CreateStoreRequest.builder()
                 .name("상세 조회 스토어")
                 .build();
@@ -187,5 +193,14 @@ class StoreIntegrationTest {
         assertThat(detail.getId()).isEqualTo(created.getId());
         assertThat(detail.getName()).isEqualTo("상세 조회 스토어");
         assertThat(detail.getOwnerId()).isEqualTo(ownerId);
+    }
+
+    private Long createOwnerId() {
+        User user = new User();
+        user.setEmail("owner_" + java.util.UUID.randomUUID() + "@test.com");
+        user.setPassword("password");
+        user.setName("테스트 오너");
+        user.setRole(UserRole.OWNER);
+        return userRepository.save(user).getUserId();
     }
 }
