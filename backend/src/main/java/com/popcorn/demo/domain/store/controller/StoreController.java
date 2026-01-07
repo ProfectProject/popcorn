@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.store.controller;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -134,19 +135,41 @@ public class StoreController extends BaseController {
             throw StoreException.unauthenticated();
         }
 
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof CustomUserDetails userDetails)) {
-            throw StoreException.invalidPrincipal();
+        Long userId = null;
+        String name = authentication.getName();
+        if (name != null) {
+            try {
+                userId = Long.parseLong(name);
+            } catch (NumberFormatException ignored) {
+                // Non-numeric name treated as CustomUserDetails.
+            }
         }
 
-        Long userId = userDetails.getUserId();
+        Object principal = authentication.getPrincipal();
+        String roleValue = null;
+        if (principal instanceof CustomUserDetails userDetails) {
+            if (userId == null) {
+                userId = userDetails.getUserId();
+            }
+            roleValue = userDetails.getRole();
+        }
+
         if (userId == null) {
             throw StoreException.userIdRequired();
         }
 
+        if (roleValue == null) {
+            roleValue = authentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .filter(auth -> auth != null && !auth.isBlank())
+                    .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
+                    .findFirst()
+                    .orElseThrow(StoreException::invalidRole);
+        }
+
         UserRole role;
         try {
-            role = UserRole.valueOf(userDetails.getRole());
+            role = UserRole.valueOf(roleValue);
         } catch (Exception e) {
             throw StoreException.invalidRole();
         }
