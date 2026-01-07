@@ -1,41 +1,15 @@
 -- H2 Test Database Schema Setup
--- This file creates custom enum types for testing to match production PostgreSQL schema
-
--- Create user_role enum type as a domain (H2 way to handle enums)
-CREATE DOMAIN IF NOT EXISTS user_role AS VARCHAR(20)
-CHECK (VALUE IN ('CUSTOMER', 'MANAGER', 'ADMIN'));
-
--- Create other enum types that might be used
-CREATE DOMAIN IF NOT EXISTS order_status AS VARCHAR(20)
-CHECK (VALUE IN ('PENDING', 'REQUESTED', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELED', 'REFUNDED', 'ACCEPTED', 'CANCELLED', 'PAID', 'PAYMENT_PENDING', 'RESERVED'));
-
-CREATE DOMAIN IF NOT EXISTS order_type AS VARCHAR(20)
-CHECK (VALUE IN ('RESERVATION', 'PURCHASE'));
-
-CREATE DOMAIN IF NOT EXISTS order_item_type AS VARCHAR(20)
-CHECK (VALUE IN ('RESERVATION', 'GOODS'));
-
-CREATE DOMAIN IF NOT EXISTS payment_status AS VARCHAR(20)
-CHECK (VALUE IN ('PENDING', 'SUCCESS', 'FAILED', 'CANCELED'));
-
-CREATE DOMAIN IF NOT EXISTS payment_method AS VARCHAR(20)
-CHECK (VALUE IN ('CREDIT_CARD', 'DEBIT_CARD', 'BANK_TRANSFER', 'MOBILE_PAY'));
-
-CREATE DOMAIN IF NOT EXISTS store_publish_status AS VARCHAR(20)
-CHECK (VALUE IN ('DRAFT', 'PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED', 'HIDDEN'));
-
--- Popup related enums if needed
-CREATE DOMAIN IF NOT EXISTS popup_category AS VARCHAR(50)
-CHECK (VALUE IN ('FOOD', 'FASHION', 'BEAUTY', 'LIFESTYLE', 'ART', 'TECH', 'OTHER'));
+-- This file creates tables for testing to match production PostgreSQL schema
+-- H2 doesn't fully support PostgreSQL domains, so we use VARCHAR with constraints
 
 -- Users table
 CREATE TABLE IF NOT EXISTS p_users (
-    user_id BIGINT PRIMARY KEY,
+    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     name VARCHAR(100),
     phone VARCHAR(20),
-    role user_role NOT NULL DEFAULT 'CUSTOMER',
+    role VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
@@ -49,7 +23,7 @@ CREATE TABLE IF NOT EXISTS p_stores (
     store_id VARCHAR(36) PRIMARY KEY,
     user_id BIGINT NOT NULL,
     store_name VARCHAR(100) NOT NULL,
-    status store_publish_status NOT NULL DEFAULT 'DRAFT',
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     reason VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
@@ -66,7 +40,7 @@ CREATE TABLE IF NOT EXISTS p_popups (
     store_id VARCHAR(36) NOT NULL,
     title VARCHAR(200) NOT NULL,
     description VARCHAR(1000),
-    category popup_category,
+    category VARCHAR(50),
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
@@ -96,7 +70,7 @@ CREATE TABLE IF NOT EXISTS p_orders (
     order_no VARCHAR(50) NOT NULL UNIQUE,
     user_id BIGINT NOT NULL,
     store_id VARCHAR(36) NOT NULL,
-    status order_status NOT NULL DEFAULT 'PENDING',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     total_price INTEGER NOT NULL,
     cancelable_until TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -138,8 +112,8 @@ CREATE TABLE IF NOT EXISTS p_goods_variants (
 CREATE TABLE IF NOT EXISTS p_payments (
     payment_id VARCHAR(36) PRIMARY KEY,
     order_id VARCHAR(36) NOT NULL,
-    method payment_method NOT NULL,
-    status payment_status NOT NULL DEFAULT 'PENDING',
+    method VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     amount INTEGER NOT NULL,
     approved_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -166,8 +140,8 @@ CREATE TABLE IF NOT EXISTS p_customer_addresses (
 CREATE TABLE IF NOT EXISTS p_order_status_histories (
     history_id VARCHAR(36) PRIMARY KEY,
     order_id VARCHAR(36) NOT NULL,
-    from_status order_status,
-    to_status order_status NOT NULL,
+    from_status VARCHAR(20),
+    to_status VARCHAR(20) NOT NULL,
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     changed_by BIGINT,
     reason VARCHAR(500),

@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -214,9 +213,9 @@ class StoreServiceTest {
                 .publishStatus(StorePublishStatus.DRAFT)
                 .createdBy(userId1)
                 .updatedBy(userId1)
-                .deletedAt(LocalDateTime.now())
                 .deletedBy(userId1)
                 .build();
+        deletedStore.delete(userId1); // 소프트 삭제 수행
 
         when(storeRepository.findAllByOwnerId(userId1)).thenReturn(Arrays.asList(activeStore, deletedStore));
 

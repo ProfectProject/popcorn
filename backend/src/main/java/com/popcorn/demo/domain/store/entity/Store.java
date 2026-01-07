@@ -20,7 +20,7 @@ public class Store extends BaseEntity {
     @Id
     @GeneratedValue
     @UuidGenerator
-    @Column(name = "store_id")
+    @Column(name = "store_id", columnDefinition = "VARCHAR(36)")
     private UUID id;
 
     @Column(name = "user_id", nullable = false)
@@ -30,18 +30,17 @@ public class Store extends BaseEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "store_status")
+    @Column(name = "status", nullable = false)
     private StorePublishStatus publishStatus;
 
     @Column(name = "reason", length = 500)
     private String reason;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
-
+    // Soft delete 필드 (BaseEntity에서 상속받은 deletedAt 사용)
     @Column(name = "deleted_by")
     private Long deletedBy;
 
+    // Audit 필드 (BaseEntity에 추가 필요)
     @Column(name = "created_by")
     private Long createdBy;
 
