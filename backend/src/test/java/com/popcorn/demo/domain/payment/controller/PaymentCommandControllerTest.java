@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.controller;
+package com.popcorn.demo.domain.payment.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,39 +20,31 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.demo.domain.order.controller.OrderExceptionHandler;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.entity.PaymentStatus;
-import com.popcorn.demo.domain.order.exception.PaymentException;
-import com.popcorn.demo.domain.order.service.OrderCommandService;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.entity.PaymentStatus;
+import com.popcorn.demo.domain.payment.exception.PaymentException;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.global.config.CommonConfig;
 
 /**
- * 결제 기록 생성 API 테스트 (TDD)
- *
- * 테스트 시나리오:
- * 1. 성공 케이스: 예약 결제 기록 생성
- * 2. 성공 케이스: 구매 결제 기록 생성
- * 3. 실패 케이스: 잘못된 결제 수단
- * 4. 실패 케이스: 결제 기록 중복
+ * 결제 기록 생성 API 테스트
  */
 @DisplayName("결제 기록 생성 API 테스트")
-class OrderPaymentControllerTest {
+class PaymentCommandControllerTest {
 
 	private MockMvc mockMvc;
 	private ObjectMapper objectMapper;
-	private OrderCommandService orderCommandService;
 	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
-		orderCommandService = Mockito.mock(OrderCommandService.class);
 		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
 
-		OrderCommandController commandController = new OrderCommandController(
-				orderCommandService, objectMapper, paymentCommandService);
-		mockMvc = MockMvcBuilders.standaloneSetup(commandController)
+		PaymentCommandController controller = new PaymentCommandController(
+				paymentCommandService, objectMapper);
+		mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
