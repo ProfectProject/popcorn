@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.service;
+package com.popcorn.demo.domain.payment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,14 +23,15 @@ import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.domain.order.entity.Payment;
-import com.popcorn.demo.domain.order.entity.PaymentStatus;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
-import com.popcorn.demo.domain.order.exception.PaymentException;
+import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
-import com.popcorn.demo.domain.order.repository.jpa.JpaPaymentRepository;
+import com.popcorn.demo.domain.payment.entity.Payment;
+import com.popcorn.demo.domain.payment.entity.PaymentStatus;
+import com.popcorn.demo.domain.payment.exception.PaymentException;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.global.exception.BaseException;
 
 @ExtendWith(MockitoExtension.class)
