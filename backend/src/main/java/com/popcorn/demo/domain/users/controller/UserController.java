@@ -3,6 +3,7 @@ package com.popcorn.demo.domain.users.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +43,19 @@ public class UserController {
     public UserResponse getUser(@PathVariable Long userId) {
         User user = userService.getUserById(userId);
         System.out.println("user: " + user);
+        return UserResponse.from(user);
+    }
+
+    //  인증된 사용자 조회
+    @GetMapping("/mypage")
+    public UserResponse getMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        // SecurityContext에서 userId 가져오기
+        Long userId = customUserDetails.getUserId();
+        System.out.println("SecurityContext에서 가져온 userId: " + userId);
+
+        // DB에서 실제 유저 정보 조회
+        User user = userService.getUserById(userId);
+
         return UserResponse.from(user);
     }
 
