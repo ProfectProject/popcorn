@@ -29,9 +29,7 @@ spring:
     validate-on-migrate: true
     clean-disabled: false
 
-logging:
-  level:
-    com.popcorn.demo: DEBUG
-    org.springframework.security: DEBUG
-    org.flywaydb: DEBUG
-    org.springframework.orm.jpa: DEBUG
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  expiration: 3600000
+

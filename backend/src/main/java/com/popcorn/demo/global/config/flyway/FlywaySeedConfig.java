@@ -26,9 +26,9 @@ public class FlywaySeedConfig {
 
 				.dataSource(dataSource)
 
-				.locations("classpath:db/migration/seed")
+				.locations("classpath:db/migration/seed", "classpath:db/migration/seed/qr")
 
-				.table("flyway_seed_history")
+				.table("flyway_seed_qr_history")
 
 				.baselineOnMigrate(true)
 
