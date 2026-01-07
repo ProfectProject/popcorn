@@ -175,8 +175,6 @@ class StoreControllerTest {
         verify(storeService, never()).createStore(eq(userId), any());
     }
 
-    // === 내 스토어 목록 조회 테스트 ===
-
     @Test
     @DisplayName("내 스토어 목록 조회 성공")
     void 내_스토어_목록_조회_성공() throws Exception {
@@ -235,12 +233,9 @@ class StoreControllerTest {
 
     }
 
-    // === 스토어 상세 조회 테스트 ===
-
     @Test
     @DisplayName("스토어 상세 조회 성공")
     void 스토어_상세_조회_성공() throws Exception {
-        // TODO: Given
         Long userId = 123L;
         UUID storeId = UUID.randomUUID();
 
@@ -298,7 +293,6 @@ class StoreControllerTest {
     @Test
     @DisplayName("스토어 상세 조회 실패 - 잘못된 UUID 형식")
     void 스토어_상세_조회_실패_잘못된_UUID() throws Exception {
-        // TODO: Path Variable에 "invalid-uuid-format" 전달
         Long userId = 123L;
         String storeId = "invalid-uuid-format";
 
@@ -307,8 +301,6 @@ class StoreControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
 
     }
-
-    // === 서비스 호출 검증 테스트 ===
 
     @Test
     @DisplayName("내 스토어 목록 조회 시 서비스 호출 검증")
@@ -355,8 +347,6 @@ class StoreControllerTest {
 
         verify(storeService).getStoreDetail(eq(userId), eq(storeId));
     }
-
-    // === 스토어 수정 테스트 ===
 
     @Test
     @DisplayName("스토어 기본 정보 수정 성공")
@@ -413,8 +403,6 @@ class StoreControllerTest {
         verify(storeService, never()).updateStore(eq(storeId), any(), eq(userId));
     }
 
-    // === 스토어 상태 수정 테스트 ===
-
     @Test
     @DisplayName("스토어 상태 수정 성공")
     void 스토어_상태_수정_성공() throws Exception {
@@ -468,8 +456,6 @@ class StoreControllerTest {
 
         verify(storeService, never()).updateStoreStatus(eq(storeId), any(), eq(userId));
     }
-
-    // === 스토어 삭제 테스트 ===
 
     @Test
     @DisplayName("스토어 삭제 성공")
