@@ -20,7 +20,7 @@ import com.popcorn.demo.domain.order.repository.view.StoreOrderReservationView;
 public interface OrderQueryRepository extends Repository<Order, UUID> {
 
 	@Query(value = """
-			SELECT o.order_id AS orderId,
+			SELECT CAST(o.order_id AS TEXT) AS orderId,
 			       o.order_no AS orderNo,
 			       CASE
 			         WHEN SUM(CASE WHEN og.schedule_id IS NOT NULL THEN 1 ELSE 0 END) > 0 THEN 'RESERVATION'
@@ -31,9 +31,9 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       o.user_id AS customerId,
 			       u.role AS customerRole,
 			       u.phone AS customerPhone,
-			       o.store_id AS storeId,
+			       CAST(o.store_id AS TEXT) AS storeId,
 			       s.user_id AS storeOwnerId,
-			       COALESCE(MIN(ps.popup_id::text), MIN(gv.popup_id::text))::uuid AS popupId,
+			       CAST(COALESCE(MIN(ps.popup_id), MIN(gv.popup_id)) AS TEXT) AS popupId,
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
@@ -52,23 +52,23 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 	OrderDetailView findOrderDetail(@Param("orderId") UUID orderId);
 
 	@Query(value = """
-			SELECT og.order_goods_id AS orderItemId,
+			SELECT CAST(og.order_goods_id AS TEXT) AS orderItemId,
 			       CASE
 			         WHEN og.schedule_id IS NOT NULL THEN 'RESERVATION'
 			         WHEN og.goods_variant_id IS NOT NULL THEN 'GOODS'
 			         ELSE NULL
 			       END AS orderItemType,
-			       og.schedule_id AS sessionOptionId,
-			       og.goods_variant_id AS goodsVariantId,
+			       CAST(og.schedule_id AS TEXT) AS sessionOptionId,
+			       CAST(og.goods_variant_id AS TEXT) AS goodsVariantId,
 			       og.qty AS qty,
 			       og.unit_price AS unitPrice,
 			       og.price AS lineAmount,
-			       og.schedule_id AS sessionId,
+			       CAST(og.schedule_id AS TEXT) AS sessionId,
 			       ps.start_at AS sessionStartAt,
 			       ps.end_at AS sessionEndAt,
 			       gv.goods_name AS merchVariantName,
 			       gv.stock_unit AS merchSku,
-			       p.popup_id AS popupId,
+			       CAST(p.popup_id AS TEXT) AS popupId,
 			       p.title AS productTitle,
 			       p.category AS productCategory,
 			       p.status AS productStatus
@@ -98,7 +98,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 	OrderAddressView findDefaultAddress(@Param("userId") Long userId);
 
 	@Query(value = """
-			SELECT p.payment_id AS paymentId,
+			SELECT CAST(p.payment_id AS TEXT) AS paymentId,
 			       p.method AS method,
 			       p.status AS status,
 			       p.amount AS amount,
@@ -111,7 +111,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 	OrderPaymentView findPayment(@Param("orderId") UUID orderId);
 
 	@Query(value = """
-			SELECT o.order_id AS orderId,
+			SELECT CAST(o.order_id AS TEXT) AS orderId,
 			       o.order_no AS orderNo,
 			       COALESCE(h.to_status, o.status) AS status,
 			       p.status AS paymentStatus,
@@ -133,7 +133,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			@Param("customerId") Long customerId);
 
 	@Query(value = """
-			SELECT o.order_id AS orderId,
+			SELECT CAST(o.order_id AS TEXT) AS orderId,
 			       o.order_no AS orderNo,
 			       COALESCE(h.to_status, o.status) AS status,
 			       p.status AS paymentStatus,
@@ -167,8 +167,8 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
 			   ))
 			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
-			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
-			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
+			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
+			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			""", nativeQuery = true)
 	long countStoreOrders(@Param("storeId") UUID storeId,
 			@Param("popupId") UUID popupId,
@@ -177,7 +177,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			@Param("toDate") LocalDateTime toDate);
 
 	@Query(value = """
-			SELECT o.order_id AS id,
+			SELECT CAST(o.order_id AS TEXT) AS id,
 			       o.order_no AS orderNo,
 			       o.status AS status,
 			       o.total_price AS totalAmount,
@@ -196,8 +196,8 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
 			   ))
 			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
-			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
-			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
+			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
+			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			 ORDER BY o.created_at DESC
 			 LIMIT :limit OFFSET :offset
 			""", nativeQuery = true)
@@ -232,8 +232,8 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			        ))
 			   )
 			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
-			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
-			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
+			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
+			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			""", nativeQuery = true)
 	long countCustomerOrders(@Param("customerId") Long customerId,
 			@Param("orderType") String orderType,
@@ -242,7 +242,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			@Param("toDate") LocalDateTime toDate);
 
 	@Query(value = """
-			SELECT o.order_id AS id,
+			SELECT CAST(o.order_id AS TEXT) AS id,
 			       o.order_no AS orderNo,
 			       CASE
 			         WHEN SUM(CASE WHEN og.schedule_id IS NOT NULL THEN 1 ELSE 0 END) > 0 THEN 'RESERVATION'
@@ -253,8 +253,8 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
-			       COALESCE(MIN(ps.popup_id::text), MIN(gv.popup_id::text))::uuid AS popupId,
-			       o.store_id AS storeId,
+			       CAST(COALESCE(MIN(ps.popup_id), MIN(gv.popup_id)) AS TEXT) AS popupId,
+			       CAST(o.store_id AS TEXT) AS storeId,
 			       MAX(p.title) AS productTitle,
 			       MIN(ps.start_at) AS sessionStartAt,
 			       NULL AS locationName,
@@ -285,8 +285,8 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			        ))
 			   )
 			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
-			   AND (COALESCE(:fromDate, '1970-01-01'::TIMESTAMP) = '1970-01-01'::TIMESTAMP OR o.created_at >= :fromDate)
-			   AND (COALESCE(:toDate, '9999-12-31'::TIMESTAMP) = '9999-12-31'::TIMESTAMP OR o.created_at <= :toDate)
+			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
+			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			 GROUP BY o.order_id, o.order_no, o.status, o.total_price,
 			          o.cancelable_until, o.created_at, o.store_id
 			 ORDER BY o.created_at DESC

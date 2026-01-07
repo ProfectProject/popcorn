@@ -4,17 +4,17 @@ import java.time.LocalDateTime;
 
 public interface PopupSessionView {
 
-	String getId();
+	String id();
 
-	LocalDateTime getStartAt();
+	LocalDateTime startAt();
 
-	LocalDateTime getEndAt();
+	LocalDateTime endAt();
 
-	Integer getPrice();
+	Integer price();
 
-	Integer getCapacity();
+	Integer capacity();
 
-	Integer getRemainingCapacity();
+	Integer remainingCapacity();
 
-	Boolean getIsActive();
+	Boolean isActive();
 }

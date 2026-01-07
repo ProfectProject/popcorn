@@ -51,9 +51,6 @@ public class User extends BaseEntity {
     private Long updatedBy;
 
     @Column
-    private LocalDateTime deletedAt; //baseEntity에 없음
-
-    @Column
     private Long deletedBy;
 
 

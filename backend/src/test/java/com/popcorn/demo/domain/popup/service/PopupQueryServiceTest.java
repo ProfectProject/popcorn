@@ -170,66 +170,10 @@ class PopupQueryServiceTest {
 		assertEquals("예약형 팝업", response.getDescription());
 	}
 
-	private static class TestPopupView implements PopupListView {
-		private final String id;
-		private final String storeId;
-		private final String title;
-		private final String description;
-		private final String category;
-		private final String status;
-		private final LocalDateTime eventStartAt;
-		private final LocalDateTime eventEndAt;
+	private record TestPopupView(String id, String storeId, String title, String description, String category,
+								 String status, LocalDateTime eventStartAt,
+								 LocalDateTime eventEndAt) implements PopupListView {
 
-		private TestPopupView(String id, String storeId, String title, String description, String category,
-				String status, LocalDateTime eventStartAt, LocalDateTime eventEndAt) {
-			this.id = id;
-			this.storeId = storeId;
-			this.title = title;
-			this.description = description;
-			this.category = category;
-			this.status = status;
-			this.eventStartAt = eventStartAt;
-			this.eventEndAt = eventEndAt;
-		}
 
-		@Override
-		public String getId() {
-			return id;
-		}
-
-		@Override
-		public String getStoreId() {
-			return storeId;
-		}
-
-		@Override
-		public String getTitle() {
-			return title;
-		}
-
-		@Override
-		public String getDescription() {
-			return description;
-		}
-
-		@Override
-		public String getCategory() {
-			return category;
-		}
-
-		@Override
-		public String getStatus() {
-			return status;
-		}
-
-		@Override
-		public LocalDateTime getEventStartAt() {
-			return eventStartAt;
-		}
-
-		@Override
-		public LocalDateTime getEventEndAt() {
-			return eventEndAt;
-		}
 	}
 }

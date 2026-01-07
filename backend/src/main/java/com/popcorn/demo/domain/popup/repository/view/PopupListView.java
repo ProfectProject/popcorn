@@ -5,19 +5,19 @@ import java.util.UUID;
 
 public interface PopupListView {
 
-	String getId();
+	String id();
 
-	String getStoreId();
+	String storeId();
 
-	String getTitle();
+	String title();
 
-	String getDescription();
+	String description();
 
-	String getCategory();
+	String category();
 
-	String getStatus();
+	String status();
 
-	LocalDateTime getEventStartAt();
+	LocalDateTime eventStartAt();
 
-	LocalDateTime getEventEndAt();
+	LocalDateTime eventEndAt();
 }

@@ -102,9 +102,9 @@
 | 가게 삭제                      | DELETE | `/api/v1/owner/stores/{storeId}`       | -     | 없음                 | 없음                        | Bearer         | 본인(가게)        | 완료     | -             |
 | 제품 상태 수정                   | PATCH  | `/api/v1/owner/store/{storeId}/status` | -     | StoreStatusRequest | StoreStatusModifyResponse | Bearer         | 본인(가게)        | 완료     | -             |
 | 내 제품 정보 조회                 | GET    | `/api/v1/owner/popups`                 | -     | 없음                 | String                    | Bearer         | 본인(가게)        | 완료     | -             |
-| 제품 등록                      | POST   | `/api/v1/owner/popups`                 | -     | StoreCreateRequest | 없음                        | -              | -             | 시작 전   | -             |
-| 제품 기본 정보 수정 (장소, 이름, 카테고리) | PUT    | `/api/v1/owner/popups/{popupId}`       | -     | StoreUpdateRequest | 없음                        | -              | -             | 시작 전   | -             |
-| 제품 삭제                      | DELETE | `/api/v1/owner/popups/{popupId}`       | -     | 없음                 | 없음                        | -              | -             | 시작 전   | -             |
+| 제품 등록                      | POST   | `/api/v1/owner/popups`                 | -     | PopupCreateRequest | PopupResponse                        | Bearer              | OWNER             | 완료   | -             |
+| 제품 기본 정보 수정 (장소, 이름, 카테고리) | PUT    | `/api/v1/owner/popups/{popupId}`       | -     | PopupUpdateRequest | PopupResponse                        | Bearer              | OWNER             | 완료   | -             |
+| 제품 삭제                      | DELETE | `/api/v1/owner/popups/{popupId}`       | -     | 없음                 | 없음                        | Bearer              | OWNER             | 완료   | -             |
 
 ### 1-4) 팝업 회차(OWNER)
 
@@ -147,8 +147,10 @@
 | 주문/예약 상태 변경 (OWNER / MANAGER 운영)              | PATCH  | `/api/v1/orders/{orderId}/status`                | -     | 없음           | 없음             | Bearer         | OWNER                                 | 완료     | -             |
 | 주문/예약 취소 요청 (CUSTOMER)                        | DELETE | `/api/v1/orders/{orderId}/cancel`                | -     | 없음           | 없음             | Bearer         | CUSTOMER                              | 완료     | -             |
 | 내 가게 주문/예약 목록 (OWNER / MANAGER)               | GET    | `/api/v1/orders/store/{storeId}`                 | -     | 없음           | 없음             | Bearer         | OWNER / MANAGER                       | 완료     | -             |
-| 제품 주문 내역 조회                                   | GET    | `/api/v1/owner/popups/{popupId}/order`           | -     | 없음           | 없음             | -              | -                                     | 시작 전   | -             |
-| 제품 주문 내역 상세 조회                                | GET    | `/api/v1/owner/popups/{popupId}/order/{orderId}` | -     | 없음           | 없음             | -              | -                                     | 시작 전   | -             |
+| 주문 상태 목록 조회 (OWNER / MANAGER)                | GET    | `/api/v1/orders/status/ops`                     | Y     | 없음           | 없음             | Bearer         | OWNER / MANAGER                       | 완료     | storeId 또는 popupId 필수 |
+| 개별 주문 상태 조회 (OWNER / MANAGER)                | GET    | `/api/v1/orders/{orderId}/status/ops`            | -     | 없음           | 없음             | Bearer         | OWNER / MANAGER                       | 완료     | -             |
+| 제품 주문 내역 조회                                   | GET    | `/api/v1/owner/popups/{popupId}/order`           | -     | 없음           | PopupOrderListResponse             | Bearer              | OWNER                                     | 완료   | -             |
+| 제품 주문 내역 상세 조회                                | GET    | `/api/v1/owner/popups/{popupId}/order/{orderId}` | -     | 없음           | PopupOrderDetailResponse             | Bearer              | OWNER                                     | 완료   | -             |
 
 ### 1-8) 결제
 
