@@ -19,7 +19,7 @@ public class QrCodeRepository {
 
 	public Optional<String> findOrderStatus(UUID orderId) {
 		List<String> statuses = jdbcTemplate.query(
-				"SELECT status FROM p_orders WHERE id = ?",
+				"SELECT status FROM p_orders WHERE order_id = ?",
 				(rs, rowNum) -> rs.getString("status"),
 				orderId
 		);
@@ -30,14 +30,14 @@ public class QrCodeRepository {
 	public Optional<QrCodeRow> findLatestByOrderId(UUID orderId) {
 		List<QrCodeRow> rows = jdbcTemplate.query(
 				"""
-				SELECT id, order_id, qr_code, expires_at, created_at
+				SELECT qr_id, order_id, qr_code, expires_at, created_at
 				FROM p_order_qr_codes
 				WHERE order_id = ?
 				ORDER BY created_at DESC
 				LIMIT 1
 				""",
 				(rs, rowNum) -> new QrCodeRow(
-						UUID.fromString(rs.getString("id")),
+						UUID.fromString(rs.getString("qr_id")),
 						UUID.fromString(rs.getString("order_id")),
 						rs.getString("qr_code"),
 						toLocalDateTime(rs.getTimestamp("expires_at")),
@@ -52,14 +52,14 @@ public class QrCodeRepository {
 	public Optional<QrCodeRow> findLatestByQrCode(String qrCode) {
 		List<QrCodeRow> rows = jdbcTemplate.query(
 				"""
-				SELECT id, order_id, qr_code, expires_at, created_at
+				SELECT qr_id, order_id, qr_code, expires_at, created_at
 				FROM p_order_qr_codes
 				WHERE qr_code = ?
 				ORDER BY created_at DESC
 				LIMIT 1
 				""",
 				(rs, rowNum) -> new QrCodeRow(
-						UUID.fromString(rs.getString("id")),
+						UUID.fromString(rs.getString("qr_id")),
 						UUID.fromString(rs.getString("order_id")),
 						rs.getString("qr_code"),
 						toLocalDateTime(rs.getTimestamp("expires_at")),
@@ -75,7 +75,7 @@ public class QrCodeRepository {
 		jdbcTemplate.update(
 				"""
 				INSERT INTO p_order_qr_codes
-					(id, order_id, qr_code, expires_at, created_at, created_by)
+					(qr_id, order_id, qr_code, expires_at, created_at, created_by)
 				VALUES (?, ?, ?, ?, ?, ?)
 				""",
 				row.qrId(),

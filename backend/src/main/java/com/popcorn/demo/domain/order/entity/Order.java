@@ -17,7 +17,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -72,7 +74,7 @@ public class Order extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
-	@Column(name = "order_id")
+	@Column(name = "order_id", columnDefinition = "VARCHAR(36)")
 	private UUID id;
 
 
@@ -95,7 +97,7 @@ public class Order extends BaseEntity {
 
 	/** 스토어 ID */
 
-	@Column(name = "store_id")
+	@Column(name = "store_id", columnDefinition = "VARCHAR(36)")
 
 	private UUID storeId;
 
@@ -115,7 +117,8 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status")
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@Column(name = "status", columnDefinition = "order_status")
 	private OrderStatus status;
 
 

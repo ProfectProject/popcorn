@@ -14,7 +14,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -41,11 +43,13 @@ public class OrderStatusHistory extends BaseEntity {
 	private UUID orderId;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "from_status")
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@Column(name = "from_status", columnDefinition = "order_status")
 	private OrderStatus fromStatus;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "to_status")
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@Column(name = "to_status", columnDefinition = "order_status")
 	private OrderStatus toStatus;
 
 	@Transient

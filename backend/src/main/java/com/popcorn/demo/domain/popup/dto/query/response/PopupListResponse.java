@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -28,8 +30,8 @@ public class PopupListResponse {
 		private UUID id;
 		private UUID storeId;
 		private String title;
-		private String category;
-		private String status;
+		private PopupCategory category;
+		private PopupStatus status;
 		private LocalDateTime eventStartAt;
 		private LocalDateTime eventEndAt;
 	}

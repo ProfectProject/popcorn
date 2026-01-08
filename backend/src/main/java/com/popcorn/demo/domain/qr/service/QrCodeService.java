@@ -13,6 +13,7 @@ import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;
 import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
 import com.popcorn.demo.domain.qr.repository.QrCodeRow;
+import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +24,7 @@ public class QrCodeService {
 	private static final Duration DEFAULT_TTL = Duration.ofMinutes(10);
 
 	private final QrCodeRepository qrCodeRepository;
+	private final CheckinRepository checkinRepository;
 
 	@Transactional
 	public QrCodeResponse issue(UUID orderId) {
@@ -73,7 +75,7 @@ public class QrCodeService {
 		return toResponse(row);
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public QrVerifyResponse verify(String qrCode) {
 		LocalDateTime now = LocalDateTime.now();
 		QrCodeRow row = qrCodeRepository.findLatestByQrCode(qrCode)
@@ -90,8 +92,28 @@ public class QrCodeService {
 			throw QrException.orderNotReserved();
 		}
 
+		java.util.Optional<com.popcorn.demo.domain.checkin.repository.CheckinRow> existing =
+				checkinRepository.findLatestByOrderQrCodeId(row.qrId());
+		if (existing.isPresent()) {
+			return QrVerifyResponse.builder()
+					.valid(true)
+					.checkinId(existing.get().checkinId())
+					.orderId(row.orderId())
+					.qrCode(row.qrCode())
+					.expiresAt(row.expiresAt())
+					.build();
+		}
+
+		java.util.UUID checkinId = checkinRepository.insert(
+				row.orderId(),
+				row.qrId(),
+				null,
+				now
+		);
+
 		return QrVerifyResponse.builder()
 				.valid(true)
+				.checkinId(checkinId)
 				.orderId(row.orderId())
 				.qrCode(row.qrCode())
 				.expiresAt(row.expiresAt())

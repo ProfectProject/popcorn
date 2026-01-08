@@ -12,7 +12,6 @@ class StoreTest {
 	@Test
 	@DisplayName("스토어 생성 시 기본값 설정")
 	void 스토어_생성_시_기본값_설정() {
-		// Given & When
 		Store store = Store.builder()
 				.name("테스트 스토어")
 				.ownerId(123L)
@@ -21,7 +20,6 @@ class StoreTest {
 				.updatedBy(123L)
 				.build();
 
-		// Then
 		assertThat(store.getName()).isEqualTo("테스트 스토어");
 		assertThat(store.getOwnerId()).isEqualTo(123L);
 		assertThat(store.getPublishStatus()).isEqualTo(StorePublishStatus.DRAFT);
@@ -35,34 +33,28 @@ class StoreTest {
 	@Test
 	@DisplayName("스토어 이름 변경")
 	void 스토어_이름_변경() {
-		// Given
 		Store store = Store.builder()
 				.name("원래 이름")
 				.ownerId(123L)
 				.publishStatus(StorePublishStatus.DRAFT)
 				.build();
 
-		// When
 		store.updateName("변경된 이름");
 
-		// Then
 		assertThat(store.getName()).isEqualTo("변경된 이름");
 	}
 
 	@Test
 	@DisplayName("스토어 발행 상태 변경")
 	void 스토어_발행_상태_변경() {
-		// Given
 		Store store = Store.builder()
 				.name("테스트 스토어")
 				.ownerId(123L)
 				.publishStatus(StorePublishStatus.DRAFT)
 				.build();
 
-		// When
 		store.updatePublishStatus(StorePublishStatus.ACTIVE);
 
-		// Then
 		assertThat(store.getPublishStatus()).isEqualTo(StorePublishStatus.ACTIVE);
 		assertThat(store.isActive()).isTrue();
 		assertThat(store.isDraft()).isFalse();
@@ -71,7 +63,6 @@ class StoreTest {
 	@Test
 	@DisplayName("스토어 소프트 삭제")
 	void 스토어_소프트_삭제() {
-		// Given
 		Store store = Store.builder()
 				.name("삭제될 스토어")
 				.ownerId(123L)
@@ -80,10 +71,8 @@ class StoreTest {
 
 		Long deleterId = 456L;
 
-		// When
 		store.delete(deleterId);
 
-		// Then
 		assertThat(store.isDeleted()).isTrue();
 		assertThat(store.getDeletedAt()).isNotNull();
 		assertThat(store.getDeletedBy()).isEqualTo(deleterId);
@@ -93,7 +82,6 @@ class StoreTest {
 	@Test
 	@DisplayName("스토어 오너 확인")
 	void 스토어_오너_확인() {
-		// Given
 		Long ownerId = 123L;
 		Store store = Store.builder()
 				.name("오너 테스트 스토어")
@@ -101,7 +89,6 @@ class StoreTest {
 				.publishStatus(StorePublishStatus.DRAFT)
 				.build();
 
-		// When & Then
 		assertThat(store.isOwner(ownerId)).isTrue();
 		assertThat(store.isOwner(456L)).isFalse();
 		assertThat(store.isOwner(null)).isFalse();
@@ -110,14 +97,12 @@ class StoreTest {
 	@Test
 	@DisplayName("스토어 ACTIVE 상태 확인")
 	void 스토어_ACTIVE_상태_확인() {
-		// Given
 		Store store = Store.builder()
 				.name("테스트 스토어")
 				.ownerId(123L)
 				.publishStatus(StorePublishStatus.ACTIVE)
 				.build();
 
-		// When & Then
 		assertThat(store.isActive()).isTrue();
 		assertThat(store.isDraft()).isFalse();
 	}

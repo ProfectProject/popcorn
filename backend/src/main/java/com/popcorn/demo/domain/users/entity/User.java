@@ -9,7 +9,11 @@ import com.popcorn.demo.common.entity.BaseEntity;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 
 import jakarta.persistence.*;
+
 import lombok.*;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(
@@ -39,7 +43,7 @@ public class User extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "user_role")
     private UserRole role;
 
     @Column(nullable = false)
@@ -52,9 +56,6 @@ public class User extends BaseEntity {
 
     @Column
     private Long updatedBy;
-
-    @Column
-    private LocalDateTime deletedAt; //baseEntity에 없음
 
     @Column
     private Long deletedBy;

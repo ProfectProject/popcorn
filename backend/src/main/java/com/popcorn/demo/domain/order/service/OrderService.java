@@ -327,7 +327,6 @@ public class OrderService {
 
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
 		boolean allowed = switch (normalizedRole) {
-			case "ADMIN" -> true;
 			case "OWNER" -> orderRow.getStoreOwnerId() != null && orderRow.getStoreOwnerId().equals(userId);
 			case "MANAGER" -> isStoreManager(userId, orderRow.getStoreId());
 			case "CUSTOMER", "USER" -> orderRow.getCustomerId() != null && orderRow.getCustomerId().equals(userId);
