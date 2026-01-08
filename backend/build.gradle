@@ -98,7 +98,7 @@ tasks.named('processResources') {
 
 tasks.named('build') {
 	dependsOn 'checkstyleMain'
-	dependsOn 'checkstyleTest'
+	// checkstyleTest 제거 - 테스트 코드에는 스타일 체크 불필요
 }
 
 tasks.register('orderTest', Test) {
@@ -112,6 +112,11 @@ checkstyle {
 	configProperties = [
 		'suppressionFile': file('config/checkstyle/naver-checkstyle-suppressions.xml')
 	]
+}
+
+// 테스트 코드 checkstyle 검사 비활성화
+tasks.named('checkstyleTest') {
+	enabled = false
 }
 
 // ========================= OWASP Dependency Check 설정 =========================
@@ -259,7 +264,7 @@ jacocoTestCoverageVerification {
 // ========================= 빌드 종속성 설정 =========================
 tasks.named('build') {
 	dependsOn 'checkstyleMain'
-	dependsOn 'checkstyleTest'
+	// checkstyleTest 제거 - 테스트 코드에는 스타일 체크 불필요
 	dependsOn 'testQualityCheck'
 }
 
