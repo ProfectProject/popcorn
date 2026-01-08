@@ -6,6 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseError;
@@ -63,6 +64,12 @@ public class OwnerPopupExceptionHandler extends BaseController {
 				ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "요청",
 				ex.getValue());
 		return error(CommonResponseCode.INVALID_REQUEST, message);
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+		log.warn("⚠️ 오너 팝업 요청 본문 파싱 오류: {}", ex.getMessage());
+		return error(CommonResponseCode.INVALID_REQUEST, "요청 본문 형식이 올바르지 않습니다.");
 	}
 
 	@ExceptionHandler(Exception.class)
