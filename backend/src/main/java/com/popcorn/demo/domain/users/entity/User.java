@@ -2,6 +2,8 @@ package com.popcorn.demo.domain.users.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.popcorn.demo.common.entity.BaseEntity;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
