@@ -10,6 +10,9 @@ import jakarta.persistence.*;
 
 import lombok.*;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 @Entity
 @Table(
     name = "p_users",
@@ -37,6 +40,7 @@ public class User extends BaseEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "user_role")
     private UserRole role;
 
@@ -50,9 +54,6 @@ public class User extends BaseEntity {
 
     @Column
     private Long updatedBy;
-
-    @Column
-    private LocalDateTime deletedAt; //baseEntity에 없음
 
     @Column
     private Long deletedBy;

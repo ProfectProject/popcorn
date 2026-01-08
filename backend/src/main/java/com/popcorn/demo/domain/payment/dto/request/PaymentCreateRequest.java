@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.dto.request;
+package com.popcorn.demo.domain.payment.dto.request;
 
 import java.util.Map;
 
@@ -17,13 +17,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class PaymentCreateRequest {
 
 	@NotBlank(message = "결제 수단은 필수입니다.")
-	@Schema(example = "CARD")
+	@Schema(example = "CARD", defaultValue = "CARD")
 	private String method;
 
 	@NotNull(message = "결제 금액은 필수입니다.")
-	@Schema(example = "4000")
+	@Schema(example = "4000", defaultValue = "4000")
 	private Integer amount;
 
-	@Schema(example = "{\"pg\":\"example\",\"transactionId\":\"T-20250101\"}")
+	@Schema(example = "{\"pg\":\"example\",\"transactionId\":\"T-20250101\"}", defaultValue = "{\"pg\":\"example\",\"transactionId\":\"T-20250101\"}")
 	private Map<String, Object> rawPayload;
 }

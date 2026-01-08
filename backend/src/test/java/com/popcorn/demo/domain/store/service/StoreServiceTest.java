@@ -214,9 +214,9 @@ class StoreServiceTest {
                 .publishStatus(StorePublishStatus.DRAFT)
                 .createdBy(userId1)
                 .updatedBy(userId1)
-                .deletedAt(LocalDateTime.now())
                 .deletedBy(userId1)
                 .build();
+        deletedStore.delete(userId1); // 소프트 삭제 수행
 
         when(storeRepository.findAllByOwnerId(userId1)).thenReturn(Arrays.asList(activeStore, deletedStore));
 

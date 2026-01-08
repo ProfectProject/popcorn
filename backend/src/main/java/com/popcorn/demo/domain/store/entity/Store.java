@@ -4,7 +4,9 @@ import com.popcorn.demo.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -30,14 +32,12 @@ public class Store extends BaseEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false, columnDefinition = "store_status")
     private StorePublishStatus publishStatus;
 
     @Column(name = "reason", length = 500)
     private String reason;
-
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
 
     @Column(name = "deleted_by")
     private Long deletedBy;
@@ -56,7 +56,7 @@ public class Store extends BaseEntity {
     }
 
     public void delete(Long deletedBy) {
-        this.deletedAt = LocalDateTime.now();
+        super.delete(); // BaseEntity의 delete() 메서드 호출
         this.deletedBy = deletedBy;
     }
 
@@ -66,7 +66,7 @@ public class Store extends BaseEntity {
     }
 
     public boolean isDeleted() {
-        return this.deletedAt != null;
+        return super.isDeleted(); // BaseEntity의 isDeleted() 메서드 사용
     }
 
     public boolean isActive() {

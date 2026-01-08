@@ -43,7 +43,6 @@ public class OrderAuthorizationService {
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
 
 		switch (normalizedRole) {
-			case "ADMIN" -> validateAdminAccess(orderId);
 			case "OWNER" -> validateOwnerAccess(orderId, userId);
 			case "MANAGER" -> validateManagerAccess(orderId, userId);
 			case "CUSTOMER", "USER" -> validateCustomerAccess(orderId, userId);
@@ -63,7 +62,6 @@ public class OrderAuthorizationService {
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
 
 		boolean allowed = switch (normalizedRole) {
-			case "ADMIN" -> true; // 관리자는 모든 상태 변경 가능
 			case "OWNER", "MANAGER" -> isOwnerAllowedStatusChange(fromStatus, toStatus);
 			case "CUSTOMER", "USER" -> isCustomerAllowedStatusChange(fromStatus, toStatus);
 			default -> false;
@@ -101,11 +99,6 @@ public class OrderAuthorizationService {
 	}
 
 	// ================ 내부 검증 메서드들 ================
-
-	private void validateAdminAccess(UUID orderId) {
-		log.debug("🔓 관리자 접근 허용 - 주문: {}", orderId);
-		// 관리자는 모든 주문에 접근 가능
-	}
 
 	private void validateOwnerAccess(UUID orderId, Long userId) {
 		// TODO: 실제 점주 권한 검증 로직 구현

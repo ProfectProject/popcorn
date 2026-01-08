@@ -72,30 +72,37 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.DELETE, "/api/v1/orders/{orderId}/cancel").hasAnyRole("CUSTOMER")
 				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}/status").hasAnyRole("CUSTOMER")
 
-				// Order domain - Owner/Manager/Admin endpoints for store operations
-				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}/status/ops").hasAnyRole("OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/v1/orders/status/ops").hasAnyRole("OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/v1/orders/store").hasAnyRole("OWNER", "MANAGER", "ADMIN")
+				// Order domain - Owner/Manager endpoints for store operations
+				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}/status/ops").hasAnyRole("OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.GET, "/api/v1/orders/status/ops").hasAnyRole("OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.GET, "/api/v1/orders/store").hasAnyRole("OWNER", "MANAGER")
 
 				// Order domain - Create orders and payments (all authenticated users can create)
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/reservation-payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/reservation-payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.POST, "/api/v1/orders/{orderId}/payments/ready").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}/payments").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/payments/{paymentId}").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/payments/{paymentId}/approve").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/payments/{paymentId}/fail").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/payments/{paymentId}/cancel").permitAll()
+				.requestMatchers(HttpMethod.DELETE, "/api/v1/payments/{paymentId}").permitAll()
 
-				// Order domain - Status updates (Owner/Manager/Admin can change status)
-				.requestMatchers(HttpMethod.PATCH, "/api/v1/orders/{orderId}/status").hasAnyRole("OWNER", "MANAGER", "ADMIN")
+				// Order domain - Status updates (Owner/Manager can change status)
+				.requestMatchers(HttpMethod.PATCH, "/api/v1/orders/{orderId}/status").hasAnyRole("OWNER", "MANAGER")
 
 				// Order domain - Get order details (all authenticated users, but service layer will filter by ownership)
-				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}").hasAnyRole("CUSTOMER", "OWNER", "MANAGER", "ADMIN")
+				.requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderId}").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
 
 				// Order domain - Development/Testing endpoints
-				.requestMatchers(HttpMethod.DELETE, "/api/v1/orders/all").hasAnyRole("ADMIN")
+				.requestMatchers(HttpMethod.DELETE, "/api/v1/orders/all").hasAnyRole("OWNER")
 
-				// Order domain - Hidden APIs (Event system) - Admin only
-				.requestMatchers("/api/v1/orders/events/**").hasAnyRole("ADMIN")
+				// Order domain - Hidden APIs (Event system) - Owner only
+				.requestMatchers("/api/v1/orders/events/**").hasAnyRole("OWNER")
 
-				// Order domain - Hidden APIs (Idempotency) - Admin only
-				.requestMatchers("/api/v1/orders/idempotency/**").hasAnyRole("ADMIN")
+				// Order domain - Hidden APIs (Idempotency) - Owner only
+				.requestMatchers("/api/v1/orders/idempotency/**").hasAnyRole("OWNER")
 
 				.anyRequest().authenticated()
 				.and()

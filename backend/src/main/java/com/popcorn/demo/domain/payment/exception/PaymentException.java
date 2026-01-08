@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.exception;
+package com.popcorn.demo.domain.payment.exception;
 
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
@@ -20,5 +20,9 @@ public class PaymentException extends BaseException {
 
 	public static PaymentException paymentAlreadyExists() {
 		return new PaymentException(OrderResponseCode.PAYMENT_ALREADY_EXISTS);
+	}
+
+	public static PaymentException paymentNotFound() {
+		return new PaymentException(CommonResponseCode.NOT_FOUND);
 	}
 }

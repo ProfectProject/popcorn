@@ -25,8 +25,8 @@ public class AsyncConfig {
 
 	private final OrderProperties orderProperties;
 
-	@Bean(name = "applicationTaskExecutor")
-	public Executor applicationTaskExecutor() {
+	@Bean(name = "customTaskExecutor")
+	public Executor customTaskExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 		executor.setCorePoolSize(4);
 		executor.setMaxPoolSize(8);

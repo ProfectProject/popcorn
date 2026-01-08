@@ -1,6 +1,5 @@
 package com.popcorn.demo.domain.popup.entity;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.popcorn.demo.common.entity.BaseEntity;
@@ -12,6 +11,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
@@ -22,10 +24,10 @@ public class Popup extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
-	@Column(name = "popup_id")
+	@Column(name = "popup_id", columnDefinition = "VARCHAR(36)")
 	private UUID id;
 
-	@Column(name = "store_id")
+	@Column(name = "store_id", columnDefinition = "VARCHAR(36)")
 	private UUID storeId;
 
 	@Column(name = "title")
@@ -35,10 +37,12 @@ public class Popup extends BaseEntity {
 	private String description;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "category", columnDefinition = "popup_category")
 	private PopupCategory category;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "status", columnDefinition = "popup_status")
 	private PopupStatus status;
 
