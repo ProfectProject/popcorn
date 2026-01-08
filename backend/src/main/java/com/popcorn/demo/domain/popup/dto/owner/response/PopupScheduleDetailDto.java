@@ -12,10 +12,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PopupDeletedDto {
+public class PopupScheduleDetailDto {
 
-	private UUID popupId;
-	private String title;
-	private LocalDateTime deletedAt;
-	private Long deletedBy;
+	private UUID scheduleId;
+	private LocalDateTime startAt;
+	private LocalDateTime endAt;
+	private Integer price;
+	private Integer capacity;
+	private Integer remainingCapacity;
+	private boolean active;
 }

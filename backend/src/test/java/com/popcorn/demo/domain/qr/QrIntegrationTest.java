@@ -44,6 +44,9 @@ class QrIntegrationTest {
 		jdbcTemplate.update("DELETE FROM p_payments");
 		jdbcTemplate.update("DELETE FROM p_order_status_histories");
 		jdbcTemplate.update("DELETE FROM p_orders");
+		jdbcTemplate.update("DELETE FROM p_popup_schedules");
+		jdbcTemplate.update("DELETE FROM p_goods_variants");
+		jdbcTemplate.update("DELETE FROM p_popups");
 		jdbcTemplate.update("DELETE FROM p_stores");
 		jdbcTemplate.update("DELETE FROM p_users");
 

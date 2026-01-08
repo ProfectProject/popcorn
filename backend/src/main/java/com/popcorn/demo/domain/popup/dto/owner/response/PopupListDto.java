@@ -12,14 +12,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PopupUpdatedDto {
+public class PopupListDto {
 
     private UUID popupId;
     private String title;
-    private String description;
-    private PopupStatus status;
     private PopupCategory popupCategory;
-    private Long updatedBy;
-    private LocalDateTime updatedAt;
+    private PopupStatus status;
+    private LocalDateTime createdAt;
 
 }
