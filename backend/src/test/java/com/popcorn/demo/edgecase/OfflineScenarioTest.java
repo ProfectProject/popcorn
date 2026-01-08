@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebM
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -23,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -42,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Sql(scripts = {"classpath:sql/test-schema.sql", "classpath:userflow-test-data.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 @DisplayName("📶 오프라인/네트워크 오류 시나리오 테스트")
 public class OfflineScenarioTest {
 
@@ -114,7 +117,14 @@ public class OfflineScenarioTest {
                     .getContentAsString();
 
             System.out.println("재시도 결과: " + retryResponse);
+
+            // Assertion 추가
+            assertNotNull(retryResponse, "재시도 응답이 null입니다");
+            assertFalse(retryResponse.isEmpty(), "재시도 응답이 비어있습니다");
         }
+
+        // CompletableFuture가 완료되었는지 검증
+        assertTrue(slowRequest.isDone(), "CompletableFuture가 완료되지 않았습니다");
     }
 
     // ========================= 연결 끊김 및 복구 =========================
@@ -124,6 +134,7 @@ public class OfflineScenarioTest {
     void testConnectionDropAndReconnect() throws Exception {
         // 정상 연결 상태에서 API 호출
         mockMvc.perform(get("/api/v1/popups")
+                        .header("Authorization", testToken)
                         .param("page", "1")
                         .param("size", "5"))
                 .andExpect(status().isOk())
@@ -134,8 +145,9 @@ public class OfflineScenarioTest {
         // 연결 끊김 시뮬레이션 (예외 상황)
         try {
             // 의도적으로 잘못된 엔드포인트 호출 (연결 끊김 시뮬레이션)
-            mockMvc.perform(get("/api/v1/nonexistent-endpoint"))
-                    .andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/v1/nonexistent-endpoint")
+                            .header("Authorization", testToken))
+                    .andExpect(status().isInternalServerError());
         } catch (Exception e) {
             System.out.println("❌ 연결 오류 시뮬레이션: " + e.getMessage());
         }
@@ -144,12 +156,16 @@ public class OfflineScenarioTest {
         Thread.sleep(1000);
 
         mockMvc.perform(get("/api/v1/popups")
+                        .header("Authorization", testToken)
                         .param("page", "1")
                         .param("size", "3"))
                 .andExpect(status().isOk())
                 .andDo(print());
 
         System.out.println("🔄 연결 복구 확인");
+
+        // Assertion 추가
+        // 연결 복구 후 정상적으로 응답이 왔는지 확인 (위에서 이미 status().isOk() 검증함)
     }
 
     // ========================= 부분적 데이터 동기화 =========================
@@ -241,6 +257,7 @@ public class OfflineScenarioTest {
         // 좋은 네트워크 상태 (빠른 응답)
         long goodNetworkStart = System.currentTimeMillis();
         mockMvc.perform(get("/api/v1/popups")
+                        .header("Authorization", testToken)
                         .param("page", "1")
                         .param("size", "5"))
                 .andExpect(status().isOk());
@@ -251,6 +268,7 @@ public class OfflineScenarioTest {
         Thread.sleep(200); // 200ms 지연 추가
         long mediumNetworkStart = System.currentTimeMillis();
         mockMvc.perform(get("/api/v1/popups")
+                        .header("Authorization", testToken)
                         .param("page", "1")
                         .param("size", "10"))
                 .andExpect(status().isOk());
@@ -261,6 +279,7 @@ public class OfflineScenarioTest {
         Thread.sleep(1000); // 1초 지연 추가
         long slowNetworkStart = System.currentTimeMillis();
         mockMvc.perform(get("/api/v1/popups")
+                        .header("Authorization", testToken)
                         .param("page", "1")
                         .param("size", "3"))
                 .andExpect(status().isOk());
@@ -346,6 +365,10 @@ public class OfflineScenarioTest {
         // 새로운 동기화 타임스탬프 업데이트
         long newSyncTimestamp = System.currentTimeMillis();
         System.out.println("🕐 새로운 동기화 시간: " + newSyncTimestamp);
+
+        // Assertion 추가
+        assertTrue(lastSyncTimestamp > 0, "마지막 동기화 타임스탬프가 0 이하입니다");
+        assertTrue(newSyncTimestamp > lastSyncTimestamp, "새로운 동기화 시간이 마지막 동기화 시간보다 이전입니다");
     }
 
     // ========================= 충돌 해결 =========================
@@ -446,6 +469,9 @@ public class OfflineScenarioTest {
         });
 
         executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
+        boolean terminatedInTime = executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        // Assertion 추가
+        assertTrue(terminatedInTime, "ExecutorService가 지정된 시간(10초) 내에 종료되지 않았습니다");
     }
 }

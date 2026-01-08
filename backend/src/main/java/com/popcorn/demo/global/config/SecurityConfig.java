@@ -48,6 +48,7 @@ public class SecurityConfig {
 
 		http.csrf().disable()
 				.authorizeHttpRequests()
+				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight 요청 허용
 				.requestMatchers("/api/auth/login").permitAll()
 				.requestMatchers("/api/v1/auth/login").permitAll() // swagger api 테스트
 				.requestMatchers("/api/v1/users/signup").permitAll()

@@ -62,18 +62,24 @@ public class OwnerPopupService {
     }
 
     @Transactional(readOnly = true)
-    public List<PopupListDto> getPopupByStoreId(Long ownerId, UUID storeId) {
-        log.info("[POPUP_LIST] ownerId={}, storeId={}", ownerId, storeId);
+    public List<PopupListDto> getPopupByStoreId(Long ownerId, UUID storeId, int page, int size, String category) {
+        log.info("[POPUP_LIST] ownerId={}, storeId={}, page={}, size={}, category={}", ownerId, storeId, page, size, category);
 
         validateOwner(ownerId);
         validateStoreId(storeId);
+        validatePaginationParams(page, size);
 
-        List<PopupListDto> result = ownerPopupRepository.findOwnedPopupsByStore(storeId, ownerId).stream()
+        List<PopupListDto> result = ownerPopupRepository.findOwnedPopupsByStoreWithPagination(storeId, ownerId, page, size, category).stream()
                 .map(this::mapToListDto)
                 .toList();
 
-        log.info("[POPUP_LIST_FOUND] storeId={}, count={}", storeId, result.size());
+        log.info("[POPUP_LIST_FOUND] storeId={}, page={}, size={}, category={}, count={}", storeId, page, size, category, result.size());
         return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PopupListDto> getPopupByStoreId(Long ownerId, UUID storeId) {
+        return getPopupByStoreId(ownerId, storeId, 1, 10, null);
     }
 
     @Transactional(readOnly = true)
@@ -278,6 +284,15 @@ public class OwnerPopupService {
 
     private void validatePopupId(UUID popupId) {
         if (popupId == null) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+    }
+
+    private void validatePaginationParams(int page, int size) {
+        if (page <= 0) {
+            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+        }
+        if (size <= 0 || size > 100) {
             throw new PopupException(PopupResponseCode.INVALID_REQUEST);
         }
     }

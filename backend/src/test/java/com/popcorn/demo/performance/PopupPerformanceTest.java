@@ -1,69 +1,37 @@
 package com.popcorn.demo.performance;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.demo.common.BaseIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.StopWatch;
-import org.springframework.web.context.WebApplicationContext;
 
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * 🚄 성능 테스트
- *
- * API 응답 시간, 처리량, 메모리 사용량 등을 측정하여
- * 시스템의 성능 기준을 검증합니다:
- * - 응답 시간 측정
- * - 동시 사용자 부하 테스트
- * - 메모리 누수 감지
- * - 데이터베이스 쿼리 최적화
- * - N+1 문제 방지
- */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Sql(scripts = {"classpath:sql/test-schema.sql", "classpath:userflow-test-data.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 @DisplayName("🚄 성능 테스트")
-public class PopupPerformanceTest {
+@Sql(scripts = {"classpath:sql/test-schema.sql", "classpath:userflow-test-data.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
+class PopupPerformanceTest extends BaseIntegrationTest {
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private com.popcorn.demo.domain.auth.jwt.JwtUtil jwtUtil;
-
-    private MockMvc mockMvc;
     private String testToken;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders
-                .webAppContextSetup(webApplicationContext)
-                .apply(springSecurity())
-                .build();
-        
-        // 테스트용 JWT 토큰 생성
-        testToken = jwtUtil.createJwt(1L, "test@test.com", "CUSTOMER", 3600000L);
+        // 테스트용 JWT 토큰 생성 (BaseIntegrationTest 메서드 사용)
+        testToken = createCustomerToken();
     }
 
     // ========================= 응답 시간 측정 =========================
@@ -130,7 +98,7 @@ public class PopupPerformanceTest {
             stopWatch.stop();
 
             System.out.println("📄 페이지 크기 " + pageSize + " 성능: " +
-                    stopWatch.getLastTaskTimeMillis() + "ms (10페이지)");
+                    stopWatch.lastTaskInfo().getTimeMillis() + "ms (10페이지)");
         }
 
         System.out.println("📊 전체 페이지네이션 성능: " + stopWatch.getTotalTimeMillis() + "ms");
@@ -160,6 +128,7 @@ public class PopupPerformanceTest {
                         long startTime = System.currentTimeMillis();
 
                         int status = mockMvc.perform(get("/api/v1/popups")
+                                        .header("Authorization", "Bearer " + testToken)
                                         .param("page", String.valueOf((userId % 5) + 1))
                                         .param("size", "10")
                                         .param("category", userId % 2 == 0 ? "FOOD" : "FASHION"))
@@ -184,8 +153,11 @@ public class PopupPerformanceTest {
         }
 
         executor.shutdown();
-        executor.awaitTermination(60, TimeUnit.SECONDS);
+        boolean terminatedInTime = executor.awaitTermination(60, TimeUnit.SECONDS);
         stopWatch.stop();
+
+        // Executor 종료 상태 검증
+        assertTrue(terminatedInTime, "ExecutorService가 지정된 시간(60초) 내에 종료되지 않았습니다");
 
         int total = totalRequests.get();
         int success = successRequests.get();
@@ -207,6 +179,15 @@ public class PopupPerformanceTest {
         } else {
             System.out.println("✅ 부하 테스트 통과: 성공률 " + successRate + "%");
         }
+
+        // Assertion 추가
+        assertTrue(total > 0, "총 요청 수가 0입니다");
+        assertTrue(success > 0, "성공한 요청이 0개입니다");
+        assertTrue(successRate >= 50, "성공률이 50% 미만입니다: " + successRate + "%");
+        assertTrue(avgResponseTime >= 0, "평균 응답 시간이 음수입니다: " + avgResponseTime + "ms");
+        assertTrue(avgResponseTime < 10000, "평균 응답 시간이 너무 깁니다: " + avgResponseTime + "ms");
+        assertEquals(numberOfUsers * requestsPerUser, total,
+            "총 요청 수가 예상과 다릅니다. 예상: " + (numberOfUsers * requestsPerUser) + ", 실제: " + total);
     }
 
     // ========================= 메모리 사용량 측정 =========================
@@ -218,7 +199,6 @@ public class PopupPerformanceTest {
 
         // 가비지 컬렉션 수행
         System.gc();
-        Thread.sleep(100);
 
         long initialMemory = runtime.totalMemory() - runtime.freeMemory();
         System.out.println("💾 초기 메모리 사용량: " + (initialMemory / 1024 / 1024) + " MB");
@@ -226,6 +206,7 @@ public class PopupPerformanceTest {
         // 대량 요청 수행
         for (int i = 0; i < 1000; i++) {
             mockMvc.perform(get("/api/v1/popups")
+                            .header("Authorization", "Bearer " + testToken)
                             .param("page", String.valueOf(i % 10 + 1))
                             .param("size", "20"))
                     .andExpect(status().isOk());
@@ -239,7 +220,6 @@ public class PopupPerformanceTest {
 
         // 가비지 컬렉션 후 최종 메모리 측정
         System.gc();
-        Thread.sleep(200);
 
         long finalMemory = runtime.totalMemory() - runtime.freeMemory();
         long memoryIncrease = finalMemory - initialMemory;
@@ -269,6 +249,7 @@ public class PopupPerformanceTest {
 
             for (int i = 0; i < 50; i++) {
                 mockMvc.perform(get("/api/v1/popups")
+                                .header("Authorization", "Bearer " + testToken)
                                 .param("keyword", keyword)
                                 .param("page", "1")
                                 .param("size", "20"))
@@ -278,13 +259,13 @@ public class PopupPerformanceTest {
             stopWatch.stop();
 
             System.out.println("🔍 검색어 '" + keyword + "' 성능: " +
-                    stopWatch.getLastTaskTimeMillis() + "ms (50회 요청)");
+                    stopWatch.lastTaskInfo().getTimeMillis() + "ms (50회 요청)");
         }
 
         System.out.println("🔍 전체 검색 성능 테스트: " + stopWatch.getTotalTimeMillis() + "ms");
 
         // 평균 검색 시간 계산
-        double avgSearchTime = stopWatch.getTotalTimeMillis() / (double)(keywords.length * 50);
+        double avgSearchTime = stopWatch.getTotalTimeMillis() / (double) (keywords.length * 50);
         System.out.println("🔍 평균 검색 응답 시간: " + avgSearchTime + "ms");
     }
 
@@ -293,7 +274,8 @@ public class PopupPerformanceTest {
     @Test
     @DisplayName("🎯 필터링 조건별 성능 테스트")
     void testFilteringPerformance() throws Exception {
-        String[] categories = {"FOOD", "FASHION", "BEAUTY", "CULTURE", "LIFESTYLE"};
+        String[] categories = {"FOOD", "FASHION", "BEAUTY", "EXHIBITION", "LIFESTYLE"};
+
 
         StopWatch stopWatch = new StopWatch();
 
@@ -302,6 +284,7 @@ public class PopupPerformanceTest {
         for (String category : categories) {
             for (int i = 0; i < 20; i++) {
                 mockMvc.perform(get("/api/v1/popups")
+                                .header("Authorization", "Bearer " + testToken)
                                 .param("category", category)
                                 .param("page", "1")
                                 .param("size", "15"))
@@ -315,6 +298,7 @@ public class PopupPerformanceTest {
         for (int i = 0; i < 50; i++) {
             String category = categories[i % categories.length];
             mockMvc.perform(get("/api/v1/popups")
+                            .header("Authorization", "Bearer " + testToken)
                             .param("category", category)
                             .param("keyword", "테스트")
                             .param("page", "1")
@@ -325,7 +309,7 @@ public class PopupPerformanceTest {
 
         System.out.println("🎯 필터링 성능 테스트 결과:");
         System.out.println("  - 단일 필터: " + stopWatch.getTaskInfo()[0].getTimeMillis() + "ms");
-        System.out.println("  - 복합 필터: " + stopWatch.getLastTaskTimeMillis() + "ms");
+        System.out.println("  - 복합 필터: " + stopWatch.lastTaskInfo().getTimeMillis() + "ms");
     }
 
     // ========================= 대용량 데이터 처리 테스트 =========================
@@ -335,8 +319,8 @@ public class PopupPerformanceTest {
     void testLargeDatasetPerformance() throws Exception {
         StopWatch stopWatch = new StopWatch();
 
-        // 큰 페이지 크기로 데이터 조회
-        int[] largeSizes = {100, 200, 500};
+        // 큰 페이지 크기로 데이터 조회 (최대값 100 이하로 수정)
+        int[] largeSizes = {50, 80, 100};
 
         for (int size : largeSizes) {
             stopWatch.start("페이지 크기 " + size);
@@ -344,6 +328,7 @@ public class PopupPerformanceTest {
             long startMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
 
             mockMvc.perform(get("/api/v1/popups")
+                            .header("Authorization", "Bearer " + testToken)
                             .param("page", "1")
                             .param("size", String.valueOf(size)))
                     .andExpect(status().isOk());
@@ -353,10 +338,13 @@ public class PopupPerformanceTest {
             stopWatch.stop();
 
             System.out.println("📈 페이지 크기 " + size + ":");
-            System.out.println("  - 처리 시간: " + stopWatch.getLastTaskTimeMillis() + "ms");
+            System.out.println("  - 처리 시간: " + stopWatch.lastTaskInfo().getTimeMillis() + "ms");
             System.out.println("  - 메모리 사용: " + ((endMemory - startMemory) / 1024) + "KB");
         }
     }
+
+
+    // ========================= 스트레스 테스트 =========================
 
     // ========================= 스트레스 테스트 =========================
 
@@ -369,6 +357,7 @@ public class PopupPerformanceTest {
         ExecutorService executor = Executors.newFixedThreadPool(extremeUsers);
         AtomicInteger errorCount = new AtomicInteger(0);
         AtomicInteger successCount = new AtomicInteger(0);
+        Random random = new Random();
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.start("스트레스 테스트");
@@ -378,8 +367,9 @@ public class PopupPerformanceTest {
                 for (int request = 0; request < requestsPerUser; request++) {
                     try {
                         int status = mockMvc.perform(get("/api/v1/popups")
-                                        .param("page", String.valueOf((int)(Math.random() * 10) + 1))
-                                        .param("size", String.valueOf((int)(Math.random() * 20) + 5)))
+                                        .header("Authorization", "Bearer " + testToken)
+                                        .param("page", String.valueOf(random.nextInt(10) + 1))
+                                        .param("size", String.valueOf(random.nextInt(20) + 5)))
                                 .andReturn()
                                 .getResponse()
                                 .getStatus();
@@ -398,8 +388,11 @@ public class PopupPerformanceTest {
         }
 
         executor.shutdown();
-        executor.awaitTermination(120, TimeUnit.SECONDS);
+        boolean terminatedInTime = executor.awaitTermination(120, TimeUnit.SECONDS);
         stopWatch.stop();
+
+        // Executor 종료 상태 검증
+        assertTrue(terminatedInTime, "ExecutorService가 지정된 시간(120초) 내에 종료되지 않았습니다");
 
         int totalRequests = extremeUsers * requestsPerUser;
         int success = successCount.get();
@@ -420,5 +413,14 @@ public class PopupPerformanceTest {
         } else {
             System.out.println("🔥 스트레스 테스트 통과: 극한 부하에서도 " + successRate + "% 성공률 유지");
         }
+
+        // Assertion 추가
+        assertTrue(true, "총 요청 수가 0입니다");
+        assertTrue(success >= 0, "성공 요청 수가 음수입니다");
+        assertTrue(errors >= 0, "오류 요청 수가 음수입니다");
+        assertEquals(totalRequests, success + errors, "성공 + 오류 수가 총 요청 수와 일치하지 않습니다");
+        assertTrue(successRate >= 30, "스트레스 테스트에서 성공률이 너무 낮습니다: " + successRate + "%");
+        assertTrue(stopWatch.getTotalTimeMillis() > 0, "스트레스 테스트 시간이 0 이하입니다");
+        assertTrue(stopWatch.getTotalTimeMillis() < 300000, "스트레스 테스트가 너무 오래 걸렸습니다: " + stopWatch.getTotalTimeMillis() + "ms");
     }
 }

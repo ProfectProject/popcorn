@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -78,7 +79,15 @@ public class RetryMechanismTest extends BaseIntegrationTest {
 
             // 재시도 시에는 이미 존재하는 사용자 오류가 발생해야 함
             // 하지만 시스템이 일관성을 유지해야 함
+
+            // Assertion 추가 - 재시도 응답이 유효한지 확인
+            assertNotNull(retryResponse, "재시도 응답이 null입니다");
+            assertFalse(retryResponse.isEmpty(), "재시도 응답이 비어있습니다");
         }
+
+        // 첫 번째 응답이 유효한지 확인
+        assertNotNull(firstResponse, "첫 번째 응답이 null입니다");
+        assertFalse(firstResponse.isEmpty(), "첫 번째 응답이 비어있습니다");
     }
 
     @Test
@@ -162,7 +171,10 @@ public class RetryMechanismTest extends BaseIntegrationTest {
         }
 
         executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
+        boolean terminatedInTime = executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        // Executor 종료 상태 검증
+        assertTrue(terminatedInTime, "ExecutorService가 지정된 시간(10초) 내에 종료되지 않았습니다");
 
         // 정확히 하나만 성공하고 나머지는 conflict여야 함
         System.out.println("성공 요청: " + successCount.get());

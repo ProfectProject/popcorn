@@ -1,5 +1,6 @@
 package com.popcorn.demo.global.exception;
 
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -14,6 +15,7 @@ import java.util.Map;
  * 전역 예외 처리 핸들러
  */
 @RestControllerAdvice
+@Order(100) // 도메인별 ExceptionHandler보다 낮은 우선순위
 public class GlobalExceptionHandler {
 
     /**

@@ -30,8 +30,26 @@ public class PopupValidationService {
 		PopupCategory category = query.getCategory();
 		Boolean withTotal = query.getWithTotal();
 
-		int normalizedPage = page == null || page < 1 ? DEFAULT_PAGE : page;
-		int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+		// 페이지 검증: null은 기본값, 1 미만은 오류
+		int normalizedPage;
+		if (page == null) {
+			normalizedPage = DEFAULT_PAGE;
+		} else if (page < 1) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		} else {
+			normalizedPage = page;
+		}
+
+		// 사이즈 검증: null은 기본값, 1 미만이나 100 초과는 오류
+		int normalizedSize;
+		if (size == null) {
+			normalizedSize = DEFAULT_SIZE;
+		} else if (size < 1 || size > MAX_SIZE) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		} else {
+			normalizedSize = size;
+		}
+
 		boolean normalizedWithTotal = withTotal == null || withTotal;
 
 		if (regionId != null && regionId <= 0) {
