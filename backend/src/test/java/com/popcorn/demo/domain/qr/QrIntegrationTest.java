@@ -9,26 +9,17 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.popcorn.demo.common.BaseIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
 @Sql(scripts = "classpath:sql/test-schema.sql")
-class QrIntegrationTest {
-
-	@Autowired
-	private MockMvc mockMvc;
+class QrIntegrationTest extends BaseIntegrationTest {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -38,12 +29,17 @@ class QrIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		// Delete in correct order to handle foreign key constraints
 		jdbcTemplate.update("DELETE FROM p_checkins");
 		jdbcTemplate.update("DELETE FROM p_order_qr_codes");
 		jdbcTemplate.update("DELETE FROM p_order_goods");
 		jdbcTemplate.update("DELETE FROM p_payments");
 		jdbcTemplate.update("DELETE FROM p_order_status_histories");
 		jdbcTemplate.update("DELETE FROM p_orders");
+		jdbcTemplate.update("DELETE FROM p_goods_variants");
+		jdbcTemplate.update("DELETE FROM p_popup_schedules");
+		jdbcTemplate.update("DELETE FROM p_popups"); // This was missing - popups reference stores
+		jdbcTemplate.update("DELETE FROM p_customer_addresses");
 		jdbcTemplate.update("DELETE FROM p_stores");
 		jdbcTemplate.update("DELETE FROM p_users");
 

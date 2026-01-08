@@ -37,13 +37,18 @@ class CheckinIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		// 외래 키 제약 조건을 고려하여 자식 테이블부터 삭제
 		jdbcTemplate.update("DELETE FROM p_checkins");
 		jdbcTemplate.update("DELETE FROM p_order_qr_codes");
 		jdbcTemplate.update("DELETE FROM p_order_goods");
 		jdbcTemplate.update("DELETE FROM p_payments");
 		jdbcTemplate.update("DELETE FROM p_order_status_histories");
 		jdbcTemplate.update("DELETE FROM p_orders");
+		jdbcTemplate.update("DELETE FROM p_popup_schedules");
+		jdbcTemplate.update("DELETE FROM p_goods_variants");
+		jdbcTemplate.update("DELETE FROM p_popups");
 		jdbcTemplate.update("DELETE FROM p_stores");
+		jdbcTemplate.update("DELETE FROM p_customer_addresses");
 		jdbcTemplate.update("DELETE FROM p_users");
 
 		insertUser(USER_ID);

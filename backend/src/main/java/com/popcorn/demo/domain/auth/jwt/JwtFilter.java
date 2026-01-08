@@ -50,7 +50,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
         System.out.println("authorization now");
 		//Bearer 부분 제거 후 순수 토큰만 획득
-        String token = authorization.split(" ")[1];
+        String[] parts = authorization.split(" ");
+        if (parts.length != 2 || parts[1].trim().isEmpty()) {
+            System.out.println("Invalid token format");
+            filterChain.doFilter(request, response);
+            return;
+        }
+        String token = parts[1];
 
         // 디버깅을 위한 로그 추가
         System.out.println("Full authorization header: " + authorization);
