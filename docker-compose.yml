@@ -8,6 +8,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
     ports:
       - "5432:5432"
+    volumes:
+      - ./backend/src/main/resources/db/migration/schema/V0__init.sql:/docker-entrypoint-initdb.d/V0__init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-popcorn_db}"]
       interval: 10s
