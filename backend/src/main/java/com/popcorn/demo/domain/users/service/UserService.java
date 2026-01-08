@@ -9,6 +9,7 @@ import com.popcorn.demo.domain.users.dto.SignupResponse;
 import com.popcorn.demo.domain.users.dto.UserUpdateRequest;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.repository.UserRepository;
+import com.popcorn.demo.global.exception.ValidationException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +25,7 @@ public class UserService {
         }
 
         if (!request.getPassword().equals(request.getPasswordCheck())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+            throw new ValidationException("비밀번호가 일치하지 않습니다.");
         }
 
         String encodigPassword = passwordEncoder.encode(request.getPassword());

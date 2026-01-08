@@ -123,7 +123,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(20000)
-				.idempotencyKey("jpa-seed-reservation-001")
 				.build();
 
 		// 주문 아이템 생성 (연관관계 활용)
@@ -153,7 +152,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.RESERVED)
 				.totalAmount(35000)
-				.idempotencyKey("jpa-seed-purchase-001")
 				.build();
 
 		// 굿즈 아이템 생성
@@ -182,7 +180,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.CANCELLED) // 취소 상태
 				.totalAmount(15000)
-				.idempotencyKey("jpa-seed-cancelled-001")
 				.build();
 
 		OrderItem cancelledItem = OrderItem.builder()
@@ -215,7 +212,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(10000)
-				.idempotencyKey("cancel-test-001")
 				.build();
 		OrderItem item1401 = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -237,7 +233,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(25000)
-				.idempotencyKey("cancel-test-002")
 				.build();
 		OrderItem item1402 = OrderItem.builder()
 				.orderItemType(OrderItemType.GOODS)
@@ -259,7 +254,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(15000)
-				.idempotencyKey("cancel-test-003")
 				.build();
 		OrderItem item1403 = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -281,7 +275,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(18000)
-				.idempotencyKey("cancel-test-004")
 				.build();
 		OrderItem item1404 = OrderItem.builder()
 				.orderItemType(OrderItemType.GOODS)
@@ -303,7 +296,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(22000)
-				.idempotencyKey("cancel-test-005")
 				.build();
 		OrderItem item1405 = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -335,7 +327,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.CANCELLED)
 				.totalAmount(15000)
-				.idempotencyKey("cancel-test-already-cancelled")
 				.build();
 		OrderItem cancelledItem = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)
@@ -357,7 +348,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.PURCHASE)
 				.status(OrderStatus.COMPLETED)
 				.totalAmount(20000)
-				.idempotencyKey("cancel-test-completed")
 				.build();
 		OrderItem completedItem = OrderItem.builder()
 				.orderItemType(OrderItemType.GOODS)
@@ -379,7 +369,6 @@ public class OrderJpaDataSeeder implements ApplicationRunner {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.PAYMENT_PENDING)
 				.totalAmount(12000)
-				.idempotencyKey("cancel-test-preparing")
 				.build();
 		OrderItem preparingItem = OrderItem.builder()
 				.orderItemType(OrderItemType.RESERVATION)

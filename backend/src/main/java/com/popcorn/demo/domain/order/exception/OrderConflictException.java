@@ -13,6 +13,10 @@ public class OrderConflictException extends BaseException {
 		return new OrderConflictException(OrderResponseCode.DUPLICATE_IDEMPOTENCY_KEY);
 	}
 
+	public static OrderConflictException duplicateOrder() {
+		return new OrderConflictException(OrderResponseCode.DUPLICATE_IDEMPOTENCY_KEY); // 기존 코드와 호환성을 위해 같은 코드 사용
+	}
+
 	public static OrderConflictException alreadyCanceled() {
 		return new OrderConflictException(OrderResponseCode.ALREADY_CANCELED);
 	}

@@ -22,12 +22,11 @@ import org.hibernate.type.SqlTypes;
 public class Popup extends BaseEntity {
 
 	@Id
-	@GeneratedValue
 	@UuidGenerator
-	@Column(name = "popup_id", columnDefinition = "VARCHAR(36)")
+	@Column(name = "popup_id")
 	private UUID id;
 
-	@Column(name = "store_id", columnDefinition = "VARCHAR(36)")
+	@Column(name = "store_id")
 	private UUID storeId;
 
 	@Column(name = "title")
@@ -37,13 +36,11 @@ public class Popup extends BaseEntity {
 	private String description;
 
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
-	@Column(name = "category", columnDefinition = "popup_category")
+	@Column(name = "category")
 	private PopupCategory category;
 
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
-	@Column(name = "status", columnDefinition = "popup_status")
+	@Column(name = "status")
 	private PopupStatus status;
 
 	@Column(name = "deleted_at")

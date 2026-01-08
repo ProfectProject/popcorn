@@ -30,8 +30,6 @@ public class CreateOrderCommand {
 
 	private final String orderType;
 
-	private final String idempotencyKey;
-
 	private final List<OrderItemCommand> items;
 
 
