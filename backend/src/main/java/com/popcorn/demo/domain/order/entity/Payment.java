@@ -33,17 +33,17 @@ public class Payment extends BaseEntity {
 	private UUID orderId;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "method", nullable = false, columnDefinition = "payment_method")
+	@Column(name = "method", nullable = false)
 	private PaymentMethod method;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false, columnDefinition = "payment_status")
+	@Column(name = "status", nullable = false)
 	private PaymentStatus status;
 
 	@Column(name = "amount", nullable = false)
 	private Integer amount;
 
-	@Column(name = "raw_payload", columnDefinition = "TEXT")
+	@Column(name = "raw_payload")
 	private String rawPayload;
 
 	@Column(name = "approved_at")
