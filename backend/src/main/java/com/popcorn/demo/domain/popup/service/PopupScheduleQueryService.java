@@ -28,13 +28,13 @@ public class PopupScheduleQueryService {
 
 		List<PopupScheduleListResponse.ItemDto> items = views.stream()
 				.map(view -> PopupScheduleListResponse.ItemDto.builder()
-						.id(toUuid(view.getId()))
-						.startAt(view.getStartAt())
-						.endAt(view.getEndAt())
-						.price(view.getPrice())
-						.capacity(view.getCapacity())
-						.remainingCapacity(view.getRemainingCapacity())
-						.isActive(view.getIsActive())
+						.id(toUuid(view.id()))
+						.startAt(view.startAt())
+						.endAt(view.endAt())
+						.price(view.price())
+						.capacity(view.capacity())
+						.remainingCapacity(view.remainingCapacity())
+						.isActive(view.isActive())
 						.build())
 				.toList();
 

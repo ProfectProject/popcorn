@@ -69,7 +69,6 @@ private final ObjectMapper objectMapper;
 	 *
 	 * @param userId 주문 생성 사용자 ID
 	 * @param request 주문 생성 요청 데이터
-	 * @param idempotencyKey 멱등성을 위한 키 (선택)
 	 * @return 생성된 주문 정보
 	 */
 	@Operation(
@@ -149,10 +148,6 @@ private final ObjectMapper objectMapper;
 				)
 			)
 			@Valid @RequestBody CreateOrderRequest request,
-
-			@Parameter(hidden = true)
-			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-
 			Authentication authentication) {
 
 		logRequestDebug("주문 생성 요청", request);
@@ -167,7 +162,6 @@ private final ObjectMapper objectMapper;
 				.storeId(request.getStoreId())
 				.popupId(request.getPopupId())
 				.orderType(request.getOrderType())
-				.idempotencyKey(idempotencyKey)
 				.items(request.getItems().stream()
 						.map(item -> CreateOrderCommand.OrderItemCommand.builder()
 								.orderItemType(OrderItemType.valueOf(item.getOrderItemType()))

@@ -24,7 +24,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.popcorn.demo.common.cache.IdempotencyCache;
 import com.popcorn.demo.domain.order.config.OrderProperties;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.common.dto.CommonResponseCode;
@@ -57,9 +56,6 @@ class OrderServiceTest {
 	private OrderItemPriceService orderItemPriceService;
 
 	@Mock
-	private IdempotencyCache idempotencyCache;
-
-	@Mock
 	private ApplicationEventPublisher eventPublisher;
 
 	@Mock
@@ -76,7 +72,6 @@ class OrderServiceTest {
 				orderDomainService,
 				orderRepository,
 				orderItemPriceService,
-				idempotencyCache,
 				eventPublisher,
 				orderQueryRepository,
 				orderProperties
@@ -94,9 +89,8 @@ class OrderServiceTest {
 			Order createdOrder = createOrderEntity(command);
 			Order savedOrder = withId(createdOrder);
 
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
-			when(orderDomainService.createOrder(any(), any(), any(), any(), any(), anyString()))
+			when(orderDomainService.createOrder(any(), any(), any(), any(), any()))
 					.thenReturn(createdOrder);
 			when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
 
@@ -111,7 +105,6 @@ class OrderServiceTest {
 		void createOrder_optionPriceMissing() {
 			CreateOrderCommand command = createReservationCommand();
 
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.empty());
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
@@ -128,7 +121,6 @@ class OrderServiceTest {
 					.storeId(UUID.randomUUID())
 					.popupId(UUID.randomUUID())
 					.orderType("RESERVATION")
-					.idempotencyKey("test-key-001")
 					.items(List.of(
 							CreateOrderCommand.OrderItemCommand.builder()
 									.orderItemType(OrderItemType.RESERVATION)
@@ -139,7 +131,6 @@ class OrderServiceTest {
 					))
 					.build();
 
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
 					.isInstanceOf(BaseException.class)
@@ -155,7 +146,6 @@ class OrderServiceTest {
 					.storeId(UUID.randomUUID())
 					.popupId(UUID.randomUUID())
 					.orderType("PURCHASE")
-					.idempotencyKey("test-key-001")
 					.items(List.of(
 							CreateOrderCommand.OrderItemCommand.builder()
 									.orderItemType(OrderItemType.GOODS)
@@ -166,7 +156,6 @@ class OrderServiceTest {
 					))
 					.build();
 
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
 					.isInstanceOf(BaseException.class)
@@ -270,9 +259,8 @@ class OrderServiceTest {
 			Order createdOrder = createOrderEntity(command);
 			Order savedOrder = withId(createdOrder);
 
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
-			when(orderDomainService.createOrder(any(), any(), any(), any(), any(), anyString()))
+			when(orderDomainService.createOrder(any(), any(), any(), any(), any()))
 					.thenReturn(createdOrder);
 			when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
 
@@ -282,20 +270,6 @@ class OrderServiceTest {
 			verify(eventPublisher).publishEvent(any(Object.class));
 		}
 
-		@Test
-		@DisplayName("주문 생성 - 멱등성 키 중복 시 저장 안 함")
-		void createOrder_duplicateIdempotency_interaction() {
-			CreateOrderCommand command = createReservationCommand();
-
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(true);
-
-			assertThatThrownBy(() -> orderService.createOrder(command))
-					.isInstanceOf(BaseException.class)
-					.satisfies(ex -> assertThat(((BaseException) ex).getResponseCode())
-							.isEqualTo(OrderResponseCode.DUPLICATE_IDEMPOTENCY_KEY));
-
-			verify(orderRepository, never()).save(any());
-		}
 
 		@Test
 		@DisplayName("주문 생성 - 검증 실패 시 저장 안 함")
@@ -305,7 +279,6 @@ class OrderServiceTest {
 					.storeId(UUID.randomUUID())
 					.popupId(UUID.randomUUID())
 					.orderType("RESERVATION")
-					.idempotencyKey("test-key-001")
 					.items(List.of(
 							CreateOrderCommand.OrderItemCommand.builder()
 									.orderItemType(OrderItemType.RESERVATION)
@@ -317,7 +290,6 @@ class OrderServiceTest {
 					))
 					.build();
 
-			when(idempotencyCache.isDuplicate(anyString())).thenReturn(false);
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
 
 			assertThatThrownBy(() -> orderService.createOrder(command))
@@ -460,7 +432,6 @@ class OrderServiceTest {
 				.storeId(UUID.randomUUID())
 				.popupId(UUID.randomUUID())
 				.orderType("RESERVATION")
-				.idempotencyKey("test-key-001")
 				.items(List.of(
 						CreateOrderCommand.OrderItemCommand.builder()
 								.orderItemType(OrderItemType.RESERVATION)
@@ -482,7 +453,6 @@ class OrderServiceTest {
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)
 				.totalAmount(2000)
-				.idempotencyKey(command.getIdempotencyKey())
 				.cancelableUntil(LocalDateTime.now().plusDays(1))
 				.orderItems(List.of(
 						OrderItem.builder()
@@ -506,7 +476,6 @@ class OrderServiceTest {
 				.orderType(order.getOrderType())
 				.status(order.getStatus())
 				.totalAmount(order.getTotalAmount())
-				.idempotencyKey(order.getIdempotencyKey())
 				.cancelableUntil(order.getCancelableUntil())
 				.orderItems(order.getOrderItems())
 				.build();
