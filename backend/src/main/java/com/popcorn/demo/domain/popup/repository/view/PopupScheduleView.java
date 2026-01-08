@@ -4,17 +4,17 @@ import java.time.LocalDateTime;
 
 public interface PopupScheduleView {
 
-	String id();
+	String getScheduleId();
 
-	LocalDateTime startAt();
+	LocalDateTime getStartAt();
 
-	LocalDateTime endAt();
+	LocalDateTime getEndAt();
 
-	Integer price();
+	Integer getPrice();
 
-	Integer capacity();
+	Integer getCapacity();
 
-	Integer remainingCapacity();
+	Integer getRemainingCapacity();
 
-	Boolean isActive();
+	Boolean getIsActive();
 }

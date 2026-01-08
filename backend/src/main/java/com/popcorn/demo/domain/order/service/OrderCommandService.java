@@ -259,10 +259,15 @@ public class OrderCommandService {
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
 			UUID scheduleId = itemCommand.getSessionId();
 			if (scheduleId == null) {
+				log.error("❌ 주문 아이템의 sessionId가 null입니다 - orderItemType: {}", orderItemType);
 				throw OrderNotFoundException.sessionNotFound();
 			}
+			log.debug("🔍 세션 가격 조회 시작 - scheduleId: {}", scheduleId);
 			return orderItemPriceService.findSessionOptionPrice(scheduleId)
-					.orElseThrow(OrderNotFoundException::sessionNotFound);
+					.orElseThrow(() -> {
+						log.error("❌ 세션 가격 조회 실패 - scheduleId: {}", scheduleId);
+						return OrderNotFoundException.sessionNotFound();
+					});
 		}
 		if (OrderItemType.GOODS.equals(orderItemType)) {
 			UUID goodsVariantId = itemCommand.getGoodsVariantId();

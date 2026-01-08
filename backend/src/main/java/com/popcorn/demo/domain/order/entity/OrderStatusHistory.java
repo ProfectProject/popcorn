@@ -43,10 +43,12 @@ public class OrderStatusHistory extends BaseEntity {
 	private UUID orderId;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "from_status")
 	private OrderStatus fromStatus;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "to_status")
 	private OrderStatus toStatus;
 

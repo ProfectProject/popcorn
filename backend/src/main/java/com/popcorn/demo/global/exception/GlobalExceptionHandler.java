@@ -11,11 +11,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 전역 예외 처리 핸들러
  */
 @RestControllerAdvice
 @Order(100) // 도메인별 ExceptionHandler보다 낮은 우선순위
+@Slf4j
 public class GlobalExceptionHandler {
 
     /**
@@ -58,6 +61,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
         Map<String, Object> response = new HashMap<>();
+
+        // 자세한 로그 출력
+        log.error("🚨 RuntimeException 발생 - 타입: {}, 메시지: {}",
+            ex.getClass().getSimpleName(), ex.getMessage(), ex);
 
         // 사용자 관련 검증 오류는 400으로 처리
         if (ex.getMessage() != null &&

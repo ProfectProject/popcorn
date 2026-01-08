@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +15,9 @@ import org.mockito.Mockito;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.repository.PopupQueryRepository;
 import com.popcorn.demo.domain.popup.repository.PopupScheduleQueryRepository;
+import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 
 class PopupScheduleQueryServiceTest {
@@ -22,8 +25,9 @@ class PopupScheduleQueryServiceTest {
 	@Test
 	@DisplayName("회차 조회 - 필드 매핑")
 	void getProductSessions_mapsFields() {
-		PopupScheduleQueryRepository repository = Mockito.mock(PopupScheduleQueryRepository.class);
-		PopupScheduleQueryService service = new PopupScheduleQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryRepository popupRepository = Mockito.mock(PopupQueryRepository.class);
+		PopupScheduleQueryService service = new PopupScheduleQueryService(scheduleRepository, popupRepository);
 
 		PopupScheduleView view = new TestScheduleView(
 				"00000000-0000-0000-0000-000000000201",
@@ -35,7 +39,11 @@ class PopupScheduleQueryServiceTest {
 				true
 		);
 
-		when(repository.findProductSessions(
+		// Mock popup 존재
+		when(popupRepository.findPopupDetail(eq(UUID.fromString("00000000-0000-0000-0000-000000000101"))))
+				.thenReturn(Optional.of(Mockito.mock(PopupListView.class)));
+
+		when(scheduleRepository.findProductSessions(
 				eq(UUID.fromString("00000000-0000-0000-0000-000000000101")),
 				eq(LocalDateTime.of(2025, 1, 1, 0, 0)),
 				eq(LocalDateTime.of(2025, 1, 31, 23, 59))))
@@ -57,8 +65,9 @@ class PopupScheduleQueryServiceTest {
 	@Test
 	@DisplayName("회차 조회 - 비활성 정보 매핑")
 	void getProductSessions_mapsInactive() {
-		PopupScheduleQueryRepository repository = Mockito.mock(PopupScheduleQueryRepository.class);
-		PopupScheduleQueryService service = new PopupScheduleQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryRepository popupRepository = Mockito.mock(PopupQueryRepository.class);
+		PopupScheduleQueryService service = new PopupScheduleQueryService(scheduleRepository, popupRepository);
 
 		PopupScheduleView view = new TestScheduleView(
 				"00000000-0000-0000-0000-000000000202",
@@ -70,7 +79,11 @@ class PopupScheduleQueryServiceTest {
 				false
 		);
 
-		when(repository.findProductSessions(
+		// Mock popup 존재
+		when(popupRepository.findPopupDetail(eq(UUID.fromString("00000000-0000-0000-0000-000000000101"))))
+				.thenReturn(Optional.of(Mockito.mock(PopupListView.class)));
+
+		when(scheduleRepository.findProductSessions(
 				eq(UUID.fromString("00000000-0000-0000-0000-000000000101")),
 				eq(null),
 				eq(null)))
@@ -84,10 +97,29 @@ class PopupScheduleQueryServiceTest {
 		assertEquals(false, response.getItems().get(0).getIsActive());
 	}
 
-    private record TestScheduleView(String id, LocalDateTime startAt, LocalDateTime endAt, Integer price,
+    private record TestScheduleView(String scheduleId, LocalDateTime startAt, LocalDateTime endAt, Integer price,
                                     Integer capacity, Integer remainingCapacity,
                                     Boolean isActive) implements PopupScheduleView {
 
+		@Override
+		public String getScheduleId() { return scheduleId; }
 
+		@Override
+		public LocalDateTime getStartAt() { return startAt; }
+
+		@Override
+		public LocalDateTime getEndAt() { return endAt; }
+
+		@Override
+		public Integer getPrice() { return price; }
+
+		@Override
+		public Integer getCapacity() { return capacity; }
+
+		@Override
+		public Integer getRemainingCapacity() { return remainingCapacity; }
+
+		@Override
+		public Boolean getIsActive() { return isActive; }
     }
 }
