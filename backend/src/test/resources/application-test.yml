@@ -1,5 +1,6 @@
 spring:
   datasource:
+<<<<<<< HEAD
     driver-class-name: org.h2.Driver
     url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
@@ -14,8 +15,39 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+=======
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=UUID
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: STRING
+        hbm2ddl:
+          auto: none
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    defer-datasource-initialization: true
+>>>>>>> develop
   flyway:
     enabled: false
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.jdbc.datasource.init: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 jwt:
   secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItdGVzdC1lbnZpcm9ubWVudC1vbmx5

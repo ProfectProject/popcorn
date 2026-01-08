@@ -3,6 +3,9 @@ package com.popcorn.demo.domain.popup.controller;
 import java.util.List;
 import java.util.UUID;
 
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -27,7 +30,7 @@ public abstract class PopupControllerTestBase {
 		objectMapper = new CommonConfig().objectMapper();
 		mockMvc = MockMvcBuilders.standaloneSetup(
 						new PopupController(popupService),
-						new PopupSessionController(popupService))
+						new PopupScheduleController(popupService))
 				.setControllerAdvice(new PopupExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -40,8 +43,8 @@ public abstract class PopupControllerTestBase {
 						.id(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 						.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 						.title("테스트 팝업")
-						.category("FOOD")
-						.status("OPEN")
+						.category(PopupCategory.FOOD)
+						.status(PopupStatus.OPEN)
 						.build()))
 				.page(1)
 				.size(20)
@@ -55,14 +58,14 @@ public abstract class PopupControllerTestBase {
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 				.title("테스트 팝업")
 				.description("테스트 설명")
-				.category("FOOD")
-				.status("OPEN")
+				.category(PopupCategory.FOOD)
+				.status(PopupStatus.OPEN)
 				.build();
 	}
 
-	protected com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse createSessionListResponse() {
-		return com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse.builder()
-				.items(List.of(com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse.ItemDto.builder()
+	protected PopupScheduleListResponse createSessionListResponse() {
+		return PopupScheduleListResponse.builder()
+				.items(List.of(PopupScheduleListResponse.ItemDto.builder()
 						.id(UUID.fromString("00000000-0000-0000-0000-000000000201"))
 						.startAt(java.time.LocalDateTime.of(2025, 1, 1, 10, 0))
 						.endAt(java.time.LocalDateTime.of(2025, 1, 5, 18, 0))
