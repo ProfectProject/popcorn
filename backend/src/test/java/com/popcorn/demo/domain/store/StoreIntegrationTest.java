@@ -33,6 +33,7 @@ import com.popcorn.demo.domain.users.repository.UserRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Sql(scripts = "classpath:sql/test-schema.sql")
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Sql(scripts = "classpath:sql/test-schema.sql")

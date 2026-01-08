@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,20 +31,9 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/signup")
-    public SignupResponse postMethodName(@RequestBody SignupRequest request) {
-        
-        return userService.register(request);
-    }
+    public SignupResponse postMethodName(@Valid @RequestBody SignupRequest request) {
 
-    /**
-     * 사용자 정보 조회
-     */
-    // TODO: filter 이용해서 현재 사용자 정보 조회하도록 수정
-    @GetMapping("/{userId}")
-    public UserResponse getUser(@PathVariable Long userId) {
-        User user = userService.getUserById(userId);
-        System.out.println("user: " + user);
-        return UserResponse.from(user);
+        return userService.register(request);
     }
 
     //  인증된 사용자 조회
@@ -59,11 +49,12 @@ public class UserController {
         return UserResponse.from(user);
     }
 
-     /**
-     * 사용자 정보 업데이트
-     */
-    @PutMapping("/{userId}")
-    public UserResponse updateUser(@PathVariable Long userId, @RequestBody UserUpdateRequest request) {
+    @PutMapping("/mypage")
+    public UserResponse UpdateMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails,@RequestBody UserUpdateRequest request ) {
+        // SecurityContext에서 userId 가져오기
+        Long userId = customUserDetails.getUserId();
+        System.out.println("SecurityContext에서 가져온 userId: " + userId);
+
         User updatedUser = userService.updateUser(userId, request);
         return UserResponse.from(updatedUser);
     }

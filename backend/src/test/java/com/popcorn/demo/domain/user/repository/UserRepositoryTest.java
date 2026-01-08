@@ -25,7 +25,6 @@ class UserRepositoryTest {
     @Test
     void 이메일로_사용자조회() {
         // given
-        // given
         SignupRequest request = new SignupRequest();
         request.setEmail("test@example.com");
         request.setPassword("1234");

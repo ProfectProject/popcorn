@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.entity;
+package com.popcorn.demo.domain.payment.entity;
 
 public enum PaymentStatus {
 	READY,

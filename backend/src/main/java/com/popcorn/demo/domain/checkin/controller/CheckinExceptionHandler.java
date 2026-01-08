@@ -15,7 +15,7 @@ import com.popcorn.demo.global.exception.BaseException;
 
 import lombok.extern.slf4j.Slf4j;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.popcorn.demo.domain.checkin.controller")
 @Slf4j
 public class CheckinExceptionHandler extends BaseController {
 

@@ -1,4 +1,4 @@
-package com.popcorn.demo.domain.order.entity;
+package com.popcorn.demo.domain.payment.entity;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -7,7 +7,9 @@ import com.popcorn.demo.common.entity.BaseEntity;
 
 import jakarta.persistence.*;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -48,4 +50,10 @@ public class Payment extends BaseEntity {
 
 	@Column(name = "approved_at")
 	private LocalDateTime approvedAt;
+
+	@Column(name = "deleted_at")
+	private LocalDateTime deletedAt;
+
+	@Column(name = "deleted_by")
+	private Long deletedBy;
 }

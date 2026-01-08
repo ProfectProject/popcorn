@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 @SpringBootTest
 @AutoConfigureWebMvc
 @ActiveProfiles("test")
+@Sql(scripts = "classpath:sql/test-schema.sql")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Sql(scripts = "classpath:sql/test-schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 public class SimpleUserFlowTest {
