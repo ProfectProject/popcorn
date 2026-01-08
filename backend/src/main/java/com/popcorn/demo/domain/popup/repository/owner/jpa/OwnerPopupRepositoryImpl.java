@@ -53,6 +53,31 @@ public class OwnerPopupRepositoryImpl implements OwnerPopupRepository {
 	}
 
 	@Override
+	public List<Popup> findOwnedPopupsByStoreWithPagination(UUID storeId, Long ownerId, int page, int size, String category) {
+		List<Popup> allPopups = jpaOwnerPopupRepository.findOwnedPopupsByStore(storeId, ownerId);
+
+		// Apply category filter if provided
+		if (category != null && !category.trim().isEmpty()) {
+			try {
+				PopupCategory popupCategory = PopupCategory.valueOf(category.toUpperCase());
+				allPopups = allPopups.stream()
+						.filter(popup -> popup.getCategory().equals(popupCategory))
+						.toList();
+			} catch (IllegalArgumentException e) {
+				// Invalid category, return empty list
+				return List.of();
+			}
+		}
+
+		// Apply pagination
+		int offset = (page - 1) * size;
+		return allPopups.stream()
+				.skip(offset)
+				.limit(size)
+				.toList();
+	}
+
+	@Override
 	public boolean existsOwnedStore(UUID storeId, Long ownerId) {
 		return jpaOwnerPopupRepository.existsOwnedStore(storeId, ownerId);
 	}

@@ -15,7 +15,7 @@ import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupScheduleReques
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupScheduleRequest;
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
-import com.popcorn.demo.domain.popup.exception.PopupException;
+import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.demo.domain.popup.service.owner.OwnerPopupValidationService;
 
 class OwnerPopupValidationServiceTest {
@@ -54,7 +54,7 @@ class OwnerPopupValidationServiceTest {
 				.build();
 
 		assertThatThrownBy(() -> validationService.validateCreateRequest(request))
-				.isInstanceOf(PopupException.class);
+				.isInstanceOf(OwnerPopupException.class);
 	}
 
 	@Test
@@ -63,7 +63,7 @@ class OwnerPopupValidationServiceTest {
 		UpdatePopupRequest request = UpdatePopupRequest.builder().build();
 
 		assertThatThrownBy(() -> validationService.validateUpdateRequest(request))
-				.isInstanceOf(PopupException.class);
+				.isInstanceOf(OwnerPopupException.class);
 	}
 
 	@Test

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
@@ -42,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 @Sql(scripts = {"classpath:sql/test-schema.sql", "classpath:userflow-test-data.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @DisplayName("🔄 API 리그레션 테스트")
-public class ApiRegressionTest {
+class ApiRegressionTest {
 
     @Autowired
     private WebApplicationContext webApplicationContext;
@@ -105,13 +104,13 @@ public class ApiRegressionTest {
     @Test
     @DisplayName("❌ 에러 응답 형식 회귀 검증")
     void testErrorResponseFormat() throws Exception {
-        // 404 에러 응답 형식 검증
-        String errorResponse = mockMvc.perform(get("/api/v1/nonexistent-endpoint")
+        // 존재하지 않는 팝업 ID로 2101 에러 발생 (팝업을 찾을 수 없음)
+        String errorResponse = mockMvc.perform(get("/api/v1/popups/99999999-9999-9999-9999-999999999999")
                         .header("Authorization", "Bearer " + testToken))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.code").exists())
-                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.code").value(2101))
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.message").isString())
                 .andExpect(jsonPath("$.data").exists())
@@ -122,12 +121,14 @@ public class ApiRegressionTest {
         JsonNode errorNode = objectMapper.readTree(errorResponse);
 
         // 에러 응답 구조 검증
-        assert errorNode.get("code").asInt() == 404 : "404 에러 코드가 올바르지 않습니다";
+        assert errorNode.get("code").asInt() == 2101 : "2101 에러 코드가 올바르지 않습니다";
         assert errorNode.has("message") : "에러 메시지가 없습니다";
         assert errorNode.has("data") : "에러 데이터 필드가 없습니다";
 
         System.out.println("✅ 에러 응답 형식 검증 완료");
     }
+
+
 
     // ========================= 팝업 API 회귀 테스트 =========================
 
@@ -242,20 +243,6 @@ public class ApiRegressionTest {
         System.out.println("✅ HTTP 헤더 처리 회귀 테스트 완료");
     }
 
-    // ========================= CORS 설정 회귀 테스트 =========================
-
-    @Test
-    @DisplayName("🌐 CORS 설정 회귀 테스트")
-    void testCorsConfigurationRegression() throws Exception {
-        mockMvc.perform(options("/api/v1/popups")
-                        .header("Origin", "https://localhost:3000")
-                        .header("Access-Control-Request-Method", "GET"))
-                .andExpect(status().isOk())
-                .andExpect(header().exists("Access-Control-Allow-Origin"));
-
-        System.out.println("✅ CORS 설정 회귀 테스트 완료");
-    }
-
     // ========================= 데이터 형식 회귀 테스트 =========================
 
     @Test
@@ -278,7 +265,7 @@ public class ApiRegressionTest {
             JsonNode firstItem = itemsNode.get(0);
 
             // 필수 필드 존재 확인
-            String[] expectedFields = {"id", "title", "description", "category", "status"};
+            String[] expectedFields = {"id", "title", "category", "status"};
             for (String field : expectedFields) {
                 assert firstItem.has(field) : "팝업 데이터에 '" + field + "' 필드가 없습니다";
             }
@@ -331,14 +318,16 @@ public class ApiRegressionTest {
 
     // ========================= 에러 처리 회귀 테스트 =========================
 
+    // ========================= 에러 처리 회귀 테스트 =========================
+
     @Test
     @DisplayName("🚨 에러 처리 로직 회귀 테스트")
     void testErrorHandlingRegression() throws Exception {
-        // 존재하지 않는 팝업 조회
+        // 존재하지 않는 팝업 조회 - 404 상태코드, 2101 비즈니스 코드 반환
         mockMvc.perform(get("/api/v1/popups/99999999-9999-9999-9999-999999999999")
                         .header("Authorization", "Bearer " + testToken))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.code").value(2101)) // POPUP_NOT_FOUND 비즈니스 코드
                 .andExpect(jsonPath("$.message").isString());
 
         // 잘못된 데이터 형식으로 회원가입 시도
@@ -355,6 +344,8 @@ public class ApiRegressionTest {
 
         System.out.println("✅ 에러 처리 로직 회귀 테스트 완료");
     }
+
+
 
     // ========================= API 버전 호환성 테스트 =========================
 

@@ -22,6 +22,7 @@ import org.hibernate.type.SqlTypes;
 public class Popup extends BaseEntity {
 
 	@Id
+	@UuidGenerator
 	@Column(name = "popup_id")
 	private UUID id;
 

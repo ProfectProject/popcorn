@@ -1,5 +1,6 @@
 package com.popcorn.demo.domain.popup.controller;
 
+import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -16,6 +17,7 @@ import com.popcorn.demo.domain.popup.exception.PopupException;
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
+@Order(1) // GlobalExceptionHandler보다 높은 우선순위
 @Slf4j
 public class PopupExceptionHandler extends BaseController {
 
@@ -52,11 +54,6 @@ public class PopupExceptionHandler extends BaseController {
 		return error(CommonResponseCode.INVALID_REQUEST, message);
 	}
 
-	@ExceptionHandler(Exception.class)
-	public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex) {
-		log.error("🚨 팝업 처리 중 오류 발생 - 타입: {}, 메시지: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
-		return error(CommonResponseCode.INTERNAL_ERROR, "일시적인 오류가 발생했습니다.");
-	}
 
 	private void logBusinessException(PopupException ex) {
 		if (ex.getResponseCode().getHttpStatus() >= 500) {

@@ -1,5 +1,6 @@
 package com.popcorn.demo.domain.store.controller;
 
+import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestControllerAdvice(basePackages = "com.popcorn.demo.domain.store")
+@Order(1) // GlobalExceptionHandler보다 높은 우선순위
 public class StoreExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
@@ -36,11 +38,6 @@ public class StoreExceptionHandler {
         return createErrorResponse(CommonResponseCode.INVALID_REQUEST, "요청 데이터 바인딩에 실패했습니다.");
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex) {
-        log.error("Unhandled store error: {}", ex.getMessage(), ex);
-        return createErrorResponse(CommonResponseCode.INTERNAL_ERROR, "서버 내부 오류가 발생했습니다.");
-    }
 
     private ResponseEntity<BaseResponse<BaseError>> createErrorResponse(CommonResponseCode code, String message) {
         BaseError error = BaseError.of(code, message);
