@@ -35,17 +35,6 @@ public class UserController {
         return userService.register(request);
     }
 
-    /**
-     * 사용자 정보 조회
-     */
-    // TODO: filter 이용해서 현재 사용자 정보 조회하도록 수정
-    @GetMapping("/{userId}")
-    public UserResponse getUser(@PathVariable Long userId) {
-        User user = userService.getUserById(userId);
-        System.out.println("user: " + user);
-        return UserResponse.from(user);
-    }
-
     //  인증된 사용자 조회
     @GetMapping("/mypage")
     public UserResponse getMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
@@ -65,15 +54,6 @@ public class UserController {
         Long userId = customUserDetails.getUserId();
         System.out.println("SecurityContext에서 가져온 userId: " + userId);
 
-        User updatedUser = userService.updateUser(userId, request);
-        return UserResponse.from(updatedUser);
-    }
-
-     /**
-     * 사용자 정보 업데이트
-     */
-    @PutMapping("/{userId}")
-    public UserResponse updateUser(@PathVariable Long userId, @RequestBody UserUpdateRequest request) {
         User updatedUser = userService.updateUser(userId, request);
         return UserResponse.from(updatedUser);
     }
