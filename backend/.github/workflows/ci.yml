@@ -1,0 +1,335 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'zulu'
+
+jobs:
+  # ============================ 코드 품질 검사 ============================
+  code-quality:
+    name: 📊 Code Quality & Security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Sonar 분석을 위한 전체 히스토리
+
+      - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: 🔧 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: 🔍 Gradle Checkstyle
+        run: ./gradlew checkstyleMain checkstyleTest
+
+      - name: 📋 Upload Checkstyle Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkstyle-results
+          path: build/reports/checkstyle/
+
+  # ============================ 빌드 & 단위 테스트 ============================
+  build-and-test:
+    name: 🏗️ Build & Unit Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: 🔧 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: 🏗️ Build Application
+        run: ./gradlew clean build -x test
+
+      - name: 🧪 Run Unit Tests
+        run: ./gradlew test --continue --parallel
+
+      - name: 📊 Generate Test Report
+        run: ./gradlew jacocoTestReport
+
+      - name: 📋 Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            build/reports/tests/test/
+            build/reports/jacoco/test/
+            build/test-results/test/
+
+      - name: 📈 Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: 🧪 Test Results
+          path: 'build/test-results/test/*.xml'
+          reporter: java-junit
+
+  # ============================ 통합 테스트 ============================
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    strategy:
+      matrix:
+        test-suite:
+          - name: "UserFlow Tests"
+            pattern: "*UserFlow*"
+          - name: "API Integration Tests"
+            pattern: "*Integration*"
+          - name: "Controller Tests"
+            pattern: "*Controller*"
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: 🔧 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: 🔗 Run ${{ matrix.test-suite.name }}
+        run: ./gradlew test --tests "${{ matrix.test-suite.pattern }}" --continue
+
+      - name: 📋 Upload ${{ matrix.test-suite.name }} Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.test-suite.name }}-results
+          path: build/reports/tests/test/
+
+  # ============================ 보안 스캔 ============================
+  security-scan:
+    name: 🛡️ Security Scan
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: 🔧 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: 🔍 Run OWASP Dependency Check
+        run: ./gradlew dependencyCheckAnalyze
+
+      - name: 📋 Upload Security Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report
+          path: build/reports/
+
+  # ============================ 엣지 케이스 테스트 ============================
+  edge-case-tests:
+    name: ⚡ Edge Case Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    strategy:
+      matrix:
+        scenario:
+          - name: "권한 테스트"
+            class: "AuthorizationEdgeCaseTest"
+          - name: "재시도 메커니즘 테스트"
+            class: "RetryMechanismTest"
+          - name: "중복 요청 테스트"
+            class: "IdempotencyTest"
+          - name: "오프라인 시나리오 테스트"
+            class: "OfflineScenarioTest"
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: 🔧 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: ⚡ Run ${{ matrix.scenario.name }}
+        run: ./gradlew test --tests "*${{ matrix.scenario.class }}" --continue
+
+      - name: 📋 Upload ${{ matrix.scenario.name }} Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-case-${{ matrix.scenario.name }}-results
+          path: build/reports/tests/test/
+
+  # ============================ 성능 & 부하 테스트 ============================
+  performance-tests:
+    name: 🚄 Performance Tests
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: 🔧 Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+
+      - name: 🚄 Run Performance Tests
+        run: ./gradlew test --tests "*Performance*" --continue
+
+      - name: 📋 Upload Performance Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: build/reports/tests/test/
+
+  # ============================ 품질 게이트 ============================
+  quality-gate:
+    name: 🚪 Quality Gate
+    runs-on: ubuntu-latest
+    needs: [build-and-test, integration-tests, security-scan, edge-case-tests]
+    if: always()
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📊 Check Test Results
+        run: |
+          echo "🔍 품질 게이트 검사 시작..."
+
+          # 테스트 성공률 계산 (예시)
+          if [ "${{ needs.build-and-test.result }}" = "success" ] && \
+             [ "${{ needs.integration-tests.result }}" = "success" ] && \
+             [ "${{ needs.security-scan.result }}" = "success" ] && \
+             [ "${{ needs.edge-case-tests.result }}" = "success" ]; then
+            echo "✅ 모든 품질 검사 통과!"
+            echo "quality_gate=passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ 품질 게이트 실패!"
+            echo "quality_gate=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: 💬 PR Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const qualityGate = '${{ steps.check-results.outputs.quality_gate }}';
+            const emoji = qualityGate === 'passed' ? '✅' : '❌';
+            const status = qualityGate === 'passed' ? 'PASSED' : 'FAILED';
+
+            const comment = `
+            ## ${emoji} 품질 게이트 ${status}
+
+            ### 📊 테스트 결과 요약
+            - **단위 테스트**: ${{ needs.build-and-test.result === 'success' ? '✅' : '❌' }}
+            - **통합 테스트**: ${{ needs.integration-tests.result === 'success' ? '✅' : '❌' }}
+            - **보안 스캔**: ${{ needs.security-scan.result === 'success' ? '✅' : '❌' }}
+            - **엣지 케이스**: ${{ needs.edge-case-tests.result === 'success' ? '✅' : '❌' }}
+
+            ### 🎯 리그레션 포인트 검증
+            ${qualityGate === 'passed' ?
+              '- ✅ 모든 회귀 테스트 통과\n- ✅ 품질 기준 충족\n- ✅ 머지 준비 완료' :
+              '- ❌ 일부 테스트 실패\n- ⚠️ 머지 전 수정 필요'}
+
+            **자세한 결과**: [Actions 탭에서 확인](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # ============================ 배포 (선택적) ============================
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: 🚀 Deploy to Production
+        run: |
+          echo "🚀 프로덕션 배포 준비..."
+          echo "✅ 모든 품질 검사가 통과했습니다!"
+          # 실제 배포 로직은 여기에 추가

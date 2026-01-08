@@ -16,7 +16,7 @@ VALUES
 INSERT INTO p_popups (popup_id, store_id, title, description, category, status, created_at, updated_at)
 VALUES
     ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001',
-     'UserFlow 테스트 팝업', 'UserFlowIntegrationTest용 팝업입니다', 'FOOD', 'ACTIVE', NOW(), NOW());
+     'UserFlow 테스트 팝업', 'UserFlowIntegrationTest용 팝업입니다', 'FOOD', 'OPEN', NOW(), NOW());
 
 -- 4. 팝업 세션(스케줄) 테스트 데이터
 INSERT INTO p_popup_schedules (schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, created_at, updated_at)
