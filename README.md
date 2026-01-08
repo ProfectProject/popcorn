@@ -1,88 +1,94 @@
-# 🍿 Popcorn Backend
+<p align="center">
+  <img src="logo.png" alt="PopCorn Logo" width="500"/>
+</p>
 
-## 📋 프로젝트 개요
+# 🍿 PopCorn Backend
 
-Popcorn Backend는 **Spring Boot 3.5.9**, **Spring WebMVC**, **JPA** 기반의 주문/예약 시스템입니다.
-도메인 중심 패키지 구조와 공통 모듈 분리를 통해 유지보수성과 확장성을 높였습니다.
 
-## 📂 패키지 구조 (Domain Layer 방식)
 
-```
-src/main/java/com/popcorn/demo/
-├── DemoApplication.java
-├── domain/                          # 도메인별 기능
-│   ├── user/
-│   │   ├── controller/
-│   │   ├── service/
-│   │   ├── repository/
-│   │   ├── entity/
-│   │   └── dto/
-│   └── order/
-│       ├── controller/
-│       ├── service/
-│       ├── repository/
-│       ├── entity/
-│       ├── dto/
-│       ├── event/
-│       └── exception/
-│   └── popup/
-│       ├── application/
-│       ├── controller/
-│       ├── service/
-│       ├── repository/
-│       ├── entity/
-│       ├── dto/
-│       ├── event/
-│       └── exception/
-├── global/                          # 전역 공통 모듈
-│   ├── config/
-│   ├── exception/
-│   ├── filter/
-│   └── util/
-└── common/                          # 도메인 공통 모듈
-    ├── dto/
-    ├── entity/
-    ├── controller/
-    └── cache/
-```
+<p align="center">
+  팝업 예약·주문·결제·QR·체크인까지 연결하는 오프라인 이벤트 이커머스 플랫폼입니다.
+</p>
 
-## 🛠️ 기술 스택
+<p align="center">
+  <strong>Java 17</strong> · <strong>Spring Boot 3.5.9</strong> · <strong>PostgreSQL</strong> · <strong>JPA</strong>
+</p>
 
-- **Language**: Java 17
-- **Framework**: Spring Boot 3.5.9 (WebMVC)
-- **ORM**: Spring Data JPA
-- **Database**: PostgreSQL 18.1
-- **Migration**: Flyway
-- **Cache**: Caffeine
-- **API Docs**: SpringDoc OpenAPI
-- **Build**: Gradle
-
-## ⚙️ 환경 변수
-
-로컬 실행을 위해 `.env` 파일을 사용합니다.
-
-```
-backend/.env
-backend/.env.example
-```
-
-필수 변수:
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-
-GitHub Actions에서는 동일한 이름의 **Repository Secrets**를 사용합니다.
-
-## ▶️ 실행 방법
-
+## Getting Started
 ```bash
 cd backend
 ./gradlew bootRun
 ```
 
-## 📡 API 문서
+## Overview
+- 프로젝트 기간: 2025-12-22 ~ 2026-01-09
+- 목표: 정보 탐색 → 방문 예약 → 체크인 → 굿즈 주문 흐름을 하나로 연결
 
+## Quick Links
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
+
+## Team
+| 김리연(팀장) | 김세헌 | 서원지 | 오채영 | 이준범 | 홍준표 |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| Manager 구현 | Owner(스토어/팝업/스케줄) | Order & Reservation | 회원가입/로그인, 인증·인가 | 굿즈(Merch) | Product & QR, 결제(Pay) |
+
+## Key Features
+- 회원가입/로그인(JWT), 인증·인가
+- Owner: 스토어 CRUD, 팝업 CRUD, 스케줄 관리
+- 주문/예약 생성 및 상태 변경
+- 결제 생성/승인/실패/취소, 결제 조회
+- QR 발급/조회/검증, 체크인 조회
+
+## Roles
+- CUSTOMER: 예약/주문 생성, 내 예약/주문 조회, 취소 요청
+- OWNER: 내 행사 예약/내 가게 주문 조회, 운영 상태 변경
+- MANAGER: 할당된 store/popup 범위 내 조회/운영 변경/체크인
+- ADMIN (MASTER): 전체 조회, 예외/강제 상태 변경, 감사 로그 조회
+
+
+## Tech Stack
+- Language: Java 17
+- Framework: Spring Boot 3.5.9 (WebMVC)
+- ORM: Spring Data JPA
+- Database: PostgreSQL 18.1
+- Migration: Flyway
+- Cache: Caffeine
+- API Docs: SpringDoc OpenAPI (Swagger)
+- Build: Gradle
+
+## Project Structure
+```plaintext
+backend/
+├── src/main/java/com/popcorn/demo
+│   ├── domain
+│   │   ├── auth
+│   │   ├── users
+│   │   ├── store
+│   │   ├── popup
+│   │   ├── goods
+│   │   ├── order
+│   │   ├── payment
+│   │   ├── qr
+│   │   └── checkin
+│   ├── global
+│   └── common
+└── src/test/java/...
+```
+
+## ERD
+<p align="center">
+  <img src="ERD.png" alt="PopCorn ERD" width="90%"/>
+</p>
+
+## Environment
+```plaintext
+backend/.env
+backend/.env.example
+```
+필수 변수:
+- DB_HOST
+- DB_PORT
+- DB_NAME
+- DB_USERNAME
+- DB_PASSWORD
