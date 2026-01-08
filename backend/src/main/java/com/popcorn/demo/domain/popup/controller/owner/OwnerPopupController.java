@@ -61,20 +61,24 @@ public class OwnerPopupController {
                 .body(BaseResponse.success(popupService.createPopup(userId, request)));
     }
 
-    @Operation(summary = "오너 팝업 목록 조회", description = "스토어 기준으로 팝업 기본 정보를 조회합니다.")
+    @Operation(summary = "오너 팝업 목록 조회", description = "스토어 기준으로 팝업 기본 정보를 페이징과 카테고리 필터로 조회합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청"),
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "스토어 없음")
     })
+
     @GetMapping("/popups")
     public ResponseEntity<BaseResponse<List<PopupListDto>>> getPopupList(
             Authentication authentication,
-            @Parameter(description = "스토어 ID", required = true) @RequestParam UUID storeId
+            @Parameter(description = "스토어 ID", required = true) @RequestParam UUID storeId,
+            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "카테고리 필터") @RequestParam(required = false) String category
     ) {
         Long userId = getCurrentOwnerId(authentication);
-        return ResponseEntity.ok(BaseResponse.success(popupService.getPopupByStoreId(userId, storeId)));
+        return ResponseEntity.ok(BaseResponse.success(popupService.getPopupByStoreId(userId, storeId, page, size, category)));
     }
 
     @Operation(summary = "오너 팝업 상세 조회", description = "팝업 기본 정보와 스케줄 정보를 함께 조회합니다.")

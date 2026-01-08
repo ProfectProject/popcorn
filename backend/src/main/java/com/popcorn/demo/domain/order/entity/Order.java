@@ -74,7 +74,7 @@ public class Order extends BaseEntity {
 	@Id
 	@GeneratedValue
 	@UuidGenerator
-	@Column(name = "order_id", columnDefinition = "VARCHAR(36)")
+	@Column(name = "order_id")
 	private UUID id;
 
 
@@ -97,7 +97,7 @@ public class Order extends BaseEntity {
 
 	/** 스토어 ID */
 
-	@Column(name = "store_id", columnDefinition = "VARCHAR(36)")
+	@Column(name = "store_id")
 
 	private UUID storeId;
 
@@ -117,8 +117,7 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
-	@Column(name = "status", columnDefinition = "order_status")
+	@Column(name = "status")
 	private OrderStatus status;
 
 
@@ -139,11 +138,6 @@ public class Order extends BaseEntity {
 
 
 
-	/** 멱등성 키 (요청값 보관용, 저장되지 않음) */
-
-	@Transient
-
-	private String idempotencyKey;
 
 
 

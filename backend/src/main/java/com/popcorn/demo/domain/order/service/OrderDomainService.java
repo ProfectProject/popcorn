@@ -76,27 +76,27 @@ public class OrderDomainService {
 
 	/**
 
-		* 멱등성 키를 기반으로 중복 주문 여부를 판단합니다.
+		* 주문 중복 체크는 DB의 PK 제약을 활용합니다.
 
 		*
 
-		* @param existingOrder 기존 주문 (Optional)
+		* 동일한 UUID로 주문 생성 시도 시 DB에서 자동으로 제약 위반 오류가 발생하고,
 
-		* @param idempotencyKey 멱등성 키
+		* 이를 Service Layer에서 잡아서 "이미 처리된 주문입니다" 메시지로 변환합니다.
 
-		* @return 중복 주문 여부
+		*
+
+		* 이 메서드는 더 이상 필요하지 않으며, DB 제약을 활용하는 것이 더 안전합니다.
 
 		*/
 
-	public boolean isDuplicateOrder(Optional<Order> existingOrder, String idempotencyKey) {
+	@Deprecated
 
-		if (idempotencyKey == null || idempotencyKey.trim().isEmpty()) {
+	public boolean isDuplicateOrder() {
 
-			return false;
+		// DB PK 제약을 활용하므로 이 메서드는 더 이상 사용하지 않음
 
-		}
-
-		return existingOrder.isPresent();
+		return false;
 
 	}
 
@@ -262,17 +262,13 @@ public class OrderDomainService {
 
 		* @param orderItems 주문 항목들
 
-		* @param idempotencyKey 멱등성 키
-
 		* @return 생성된 주문 엔티티
 
 		*/
 
 	public Order createOrder(Long customerId, UUID storeId, UUID popupId,
 
-			OrderType orderType, List<OrderItem> orderItems,
-
-			String idempotencyKey) {
+			OrderType orderType, List<OrderItem> orderItems) {
 
 
 
@@ -309,8 +305,6 @@ public class OrderDomainService {
 				.totalAmount(totalAmount)
 
 				.cancelableUntil(cancelableUntil)
-
-				.idempotencyKey(idempotencyKey)
 
 				.build();
 

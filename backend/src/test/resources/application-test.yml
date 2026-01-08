@@ -15,11 +15,9 @@ spring:
       hibernate:
         type:
           preferred_enum_jdbc_type: STRING
-        hbm2ddl:
-          auto: none
         dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
-    defer-datasource-initialization: true
+    defer-datasource-initialization: false
   flyway:
     enabled: false
   h2:

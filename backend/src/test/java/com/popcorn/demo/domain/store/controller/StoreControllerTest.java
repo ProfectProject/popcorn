@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,7 +43,7 @@ class StoreControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private StoreService storeService;
 
     @Test
@@ -82,22 +82,26 @@ class StoreControllerTest {
     @DisplayName("스토어 생성 실패 - 중복된 스토어 이름")
     void 스토어_생성_실패_중복된_이름() throws Exception {
         Long userId = 123L;
-        
+
         when(storeService.createStore(eq(userId), any()))
                 .thenThrow(StoreException.duplicateStoreName("맛있는 팝콘 스토어"));
 
         String jsonRequest = """
-                {
-                    "name": "맛있는 팝콘 스토어"
-                }
-                """;
+        {
+            "name": "맛있는 팝콘 스토어"
+        }
+        """;
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/owner/stores")
                         .with(user(userId.toString()).roles("OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
-                .andExpect(MockMvcResultMatchers.status().isConflict());
+                .andExpect(MockMvcResultMatchers.status().isConflict()) // 409 Conflict가 올바른 상태
+                .andExpect(MockMvcResultMatchers.jsonPath("$.code").value(2300))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("중복된 스토어 이름입니다."));
     }
+
+
 
     @Test
     @DisplayName("스토어 생성 요청 시 서비스 호출 검증")

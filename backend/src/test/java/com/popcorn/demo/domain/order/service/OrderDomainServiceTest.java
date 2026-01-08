@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -38,33 +37,6 @@ class OrderDomainServiceTest {
 		orderDomainService = new OrderDomainService();
 	}
 
-	@Test
-	@DisplayName("중복 주문 검증 - 멱등성 키가 없으면 중복이 아님")
-	void isDuplicateOrder_NoIdempotencyKey_ReturnsFalse() {
-		// given
-		Optional<Order> existingOrder = Optional.empty();
-		String idempotencyKey = null;
-
-		// when
-		boolean isDuplicate = orderDomainService.isDuplicateOrder(existingOrder, idempotencyKey);
-
-		// then
-		assertThat(isDuplicate).isFalse();
-	}
-
-	@Test
-	@DisplayName("중복 주문 검증 - 기존 주문이 있으면 중복임")
-	void isDuplicateOrder_ExistingOrder_ReturnsTrue() {
-		// given
-		Order existingOrder = createSampleOrder();
-		String idempotencyKey = "test-key";
-
-		// when
-		boolean isDuplicate = orderDomainService.isDuplicateOrder(Optional.of(existingOrder), idempotencyKey);
-
-		// then
-		assertThat(isDuplicate).isTrue();
-	}
 
 	@Test
 	@DisplayName("주문 생성 검증 - 정상적인 주문은 통과")
@@ -191,7 +163,6 @@ class OrderDomainServiceTest {
 		UUID popupId = UUID.randomUUID();
 		OrderType orderType = OrderType.RESERVATION;
 		List<OrderItem> orderItems = createSampleOrderItems();
-		String idempotencyKey = "test-key-001";
 
 		// when
 		Order order = orderDomainService.createOrder(
@@ -199,8 +170,7 @@ class OrderDomainServiceTest {
 				storeId,
 				popupId,
 				orderType,
-				orderItems,
-				idempotencyKey
+				orderItems
 		);
 
 		// then
@@ -210,7 +180,6 @@ class OrderDomainServiceTest {
 		assertThat(order.getPopupId()).isEqualTo(popupId);
 		assertThat(order.getOrderType()).isEqualTo(orderType);
 		assertThat(order.getStatus()).isEqualTo(OrderStatus.REQUESTED);
-		assertThat(order.getIdempotencyKey()).isEqualTo(idempotencyKey);
 		assertThat(order.getOrderNo()).isNotEmpty();
 		assertThat(order.getTotalAmount()).isPositive();
 		assertThat(order.getCancelableUntil()).isAfter(LocalDateTime.now());
@@ -288,21 +257,6 @@ class OrderDomainServiceTest {
 	}
 
 	// Helper methods
-	private Order createSampleOrder() {
-		return Order.builder()
-				.id(UUID.randomUUID())
-				.orderNo("O20231230-000001")
-				.customerId(1001L)
-				.storeId(UUID.randomUUID())
-				.popupId(UUID.randomUUID())
-				.orderType(OrderType.RESERVATION)
-				.status(OrderStatus.REQUESTED)
-				.totalAmount(29000)
-				.idempotencyKey("test-key")
-				.orderItems(new ArrayList<>())
-				.build();
-	}
-
 	private List<OrderItem> createSampleOrderItems() {
 		return List.of(
 				createOrderItem(14500, 2)

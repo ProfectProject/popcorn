@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,8 +31,8 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/signup")
-    public SignupResponse postMethodName(@RequestBody SignupRequest request) {
-        
+    public SignupResponse postMethodName(@Valid @RequestBody SignupRequest request) {
+
         return userService.register(request);
     }
 

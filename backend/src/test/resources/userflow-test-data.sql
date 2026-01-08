@@ -1,6 +1,12 @@
 -- UserFlowIntegrationTest용 최소한의 테스트 데이터
 -- 이 파일은 UserFlowIntegrationTest에서만 사용됩니다.
 
+-- 0. 기존 테스트 데이터 정리 (중복 방지)
+DELETE FROM p_popup_schedules WHERE schedule_id = '00000000-0000-0000-0000-000000000201';
+DELETE FROM p_popups WHERE popup_id = '00000000-0000-0000-0000-000000000101';
+DELETE FROM p_stores WHERE store_id = '00000000-0000-0000-0000-000000000001';
+DELETE FROM p_users WHERE user_id IN (1, 1000);
+
 -- 1. 기본 사용자 데이터
 INSERT INTO p_users (user_id, email, password, name, phone, role, is_active, created_at, updated_at, created_by, updated_by)
 VALUES
@@ -16,7 +22,7 @@ VALUES
 INSERT INTO p_popups (popup_id, store_id, title, description, category, status, created_at, updated_at)
 VALUES
     ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001',
-     'UserFlow 테스트 팝업', 'UserFlowIntegrationTest용 팝업입니다', 'FOOD', 'ACTIVE', NOW(), NOW());
+     'UserFlow 테스트 팝업', 'UserFlowIntegrationTest용 팝업입니다', 'FOOD', 'OPEN', NOW(), NOW());
 
 -- 4. 팝업 세션(스케줄) 테스트 데이터
 INSERT INTO p_popup_schedules (schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, created_at, updated_at)
