@@ -62,6 +62,11 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/v1/checkins").hasAnyRole("OWNER", "ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/v1/checkins/{checkinId}").permitAll()
 
+				// Popup domain - Authenticated endpoints (all user roles can browse popups)
+				.requestMatchers(HttpMethod.GET, "/api/v1/popups").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.GET, "/api/v1/popups/{popupId}").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+				.requestMatchers(HttpMethod.GET, "/api/v1/popups/{popupId}/sessions").hasAnyRole("CUSTOMER", "OWNER", "MANAGER")
+
 				// Swagger UI 관련 엔드포인트 허용
 				.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
 				// Actuator 엔드포인트 허용
