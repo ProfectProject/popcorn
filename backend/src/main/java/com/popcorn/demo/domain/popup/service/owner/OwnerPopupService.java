@@ -142,9 +142,11 @@ public class OwnerPopupService {
         Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
                 .orElseThrow(PopupException::popupNotFound);
 
-        if (popup.getStatus() == PopupStatus.REQUEST) {
-            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
-        }
+
+        // TODO: - 차후에 수정
+//        if (popup.getStatus() == PopupStatus.REQUEST) {
+//            throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+//        }
 
         popup.setStatus(request.getStatus());
         popup.setUpdatedBy(ownerId);
