@@ -117,7 +117,8 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status")
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@Column(name = "status", nullable = false)
 	private OrderStatus status;
 
 

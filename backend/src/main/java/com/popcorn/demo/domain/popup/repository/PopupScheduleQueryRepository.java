@@ -14,7 +14,7 @@ import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 public interface PopupScheduleQueryRepository extends Repository<PopupSchedule, UUID> {
 
 	@Query(value = """
-			SELECT CAST(ps.schedule_id AS VARCHAR) AS id,
+			SELECT CAST(ps.schedule_id AS VARCHAR) AS scheduleId,
 			       ps.start_at AS startAt,
 			       ps.end_at AS endAt,
 			       ps.price AS price,

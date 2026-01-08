@@ -35,9 +35,11 @@ jwt:
   secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
 
-  logging:
-    level:
-      com.popcorn.demo: DEBUG
-      org.springframework.web: DEBUG
+logging:
+  level:
+    com.popcorn.demo: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.boot.web: DEBUG
+    org.hibernate.SQL: DEBUG
 
 
