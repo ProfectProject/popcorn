@@ -28,4 +28,8 @@ public class OwnerPopupException extends BaseException {
 	public static OwnerPopupException notOwner() {
 		return new OwnerPopupException(OwnerPopupResponseCode.USER_NOT_OWNER);
 	}
+
+	public static OwnerPopupException of(OwnerPopupResponseCode responseCode) {
+		return new OwnerPopupException(responseCode);
+	}
 }
