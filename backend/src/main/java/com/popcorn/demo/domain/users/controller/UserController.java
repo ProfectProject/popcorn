@@ -48,14 +48,21 @@ public class UserController {
             **주요 기능:**
             - 이메일 중복 검증
             - 비밀번호 암호화 저장
-            - 기본 권한 CUSTOMER 부여
+            - 사용자 역할 선택 (CUSTOMER, OWNER, MANAGER)
             - 계정 활성화 상태로 생성
 
             **입력 검증:**
             - 이메일: 유효한 형식 & 중복 불가
             - 비밀번호: 최소 8자 이상
-            - 이름: 2-50자 한글/영문
+            - 비밀번호 확인: 비밀번호와 일치해야 함
+            - 이름: 필수 입력
             - 전화번호: 11자리 숫자 (선택)
+            - 역할: CUSTOMER, OWNER, MANAGER 중 선택
+
+            **역할별 권한:**
+            - CUSTOMER: 일반 고객 (주문, 예약)
+            - OWNER: 사업자 (팝업 관리, 주문 관리)
+            - MANAGER: 관리자 (매장 운영 지원)
 
             **사용 후 절차:**
             1. 회원가입 완료
@@ -68,18 +75,34 @@ public class UserController {
         description = "회원가입 성공",
         content = @Content(
             schema = @Schema(implementation = SignupResponse.class),
-            examples = @ExampleObject(
-                name = "회원가입 성공",
-                value = """
-                    {
-                      "userId": 12345,
-                      "email": "newuser@example.com",
-                      "name": "홍길동",
-                      "role": "CUSTOMER",
-                      "message": "회원가입이 완료되었습니다."
-                    }
-                    """
-            )
+            examples = {
+                @ExampleObject(
+                    name = "고객 회원가입 성공",
+                    summary = "CUSTOMER 역할 회원가입 성공",
+                    value = """
+                        {
+                          "userId": 12345,
+                          "email": "customer@example.com",
+                          "name": "김고객",
+                          "role": "CUSTOMER",
+                          "message": "회원가입이 완료되었습니다."
+                        }
+                        """
+                ),
+                @ExampleObject(
+                    name = "사업자 회원가입 성공",
+                    summary = "OWNER 역할 회원가입 성공",
+                    value = """
+                        {
+                          "userId": 67890,
+                          "email": "popcorn5@popcorn.com",
+                          "name": "홍길동",
+                          "role": "OWNER",
+                          "message": "회원가입이 완료되었습니다."
+                        }
+                        """
+                )
+            }
         )
     )
     @ApiResponse(
@@ -108,17 +131,50 @@ public class UserController {
             required = true,
             content = @Content(
                 schema = @Schema(implementation = SignupRequest.class),
-                examples = @ExampleObject(
-                    name = "회원가입 요청",
-                    value = """
-                        {
-                          "email": "newuser@example.com",
-                          "password": "securePassword123",
-                          "name": "홍길동",
-                          "phone": "01012345678"
-                        }
-                        """
-                )
+                examples = {
+                    @ExampleObject(
+                        name = "고객 회원가입",
+                        summary = "고객(CUSTOMER) 역할 회원가입",
+                        value = """
+                            {
+                              "email": "customer@example.com",
+                              "password": "securePassword123",
+                              "passwordCheck": "securePassword123",
+                              "name": "김고객",
+                              "phone": "01012345678",
+                              "role": "CUSTOMER"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "사업자 회원가입",
+                        summary = "사업자(OWNER) 역할 회원가입",
+                        value = """
+                            {
+                              "email": "popcorn5@popcorn.com",
+                              "password": "testPassword123",
+                              "passwordCheck": "testPassword123",
+                              "name": "홍길동",
+                              "phone": "01012345678",
+                              "role": "OWNER"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "관리자 회원가입",
+                        summary = "관리자(MANAGER) 역할 회원가입",
+                        value = """
+                            {
+                              "email": "manager@example.com",
+                              "password": "managerPassword123",
+                              "passwordCheck": "managerPassword123",
+                              "name": "이관리",
+                              "phone": "01087654321",
+                              "role": "MANAGER"
+                            }
+                            """
+                    )
+                }
             )
         )
         @Valid @RequestBody SignupRequest request) {
@@ -183,7 +239,7 @@ public class UserController {
             )
         )
     )
-    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/mypage")
     public UserResponse getMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
         // SecurityContext에서 userId 가져오기
@@ -260,7 +316,7 @@ public class UserController {
             )
         )
     )
-    @SecurityRequirement(name = "bearerAuth")
+    @SecurityRequirement(name = "Bearer Authentication")
     @PutMapping("/mypage")
     public UserResponse updateMyInfo(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,

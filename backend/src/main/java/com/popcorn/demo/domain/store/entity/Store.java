@@ -32,6 +32,7 @@ public class Store extends BaseEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false)
     private StorePublishStatus publishStatus;
 

@@ -36,10 +36,12 @@ public class Popup extends BaseEntity {
 	private String description;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "category")
 	private PopupCategory category;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "status")
 	private PopupStatus status;
 
