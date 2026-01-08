@@ -218,6 +218,13 @@ class OwnerPopupServiceIntegrationTest {
 
 	private void ensureOwner(Long ownerId) {
 		LocalDateTime now = LocalDateTime.now();
+		Integer existing = jdbcTemplate.queryForObject(
+				"select count(*) from p_users where user_id = ?",
+				Integer.class,
+				ownerId);
+		if (existing != null && existing > 0) {
+			return;
+		}
 		jdbcTemplate.update(
 				"insert into p_users (user_id, email, password, name, role, is_active, created_at, updated_at) "
 						+ "values (?, ?, ?, ?, cast(? as user_role), true, ?, ?)",
