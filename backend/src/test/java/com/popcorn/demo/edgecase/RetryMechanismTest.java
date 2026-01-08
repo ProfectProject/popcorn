@@ -307,7 +307,7 @@ public class RetryMechanismTest extends BaseIntegrationTest {
                     System.out.println("최대 재시도 횟수 도달");
                     break;
                 }
-                Thread.sleep(100 * retryCount); // 재시도 간격 증가
+                Thread.sleep(100L * retryCount); // 재시도 간격 증가
             }
         }
     }

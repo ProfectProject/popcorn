@@ -138,11 +138,6 @@ public class Order extends BaseEntity {
 
 
 
-	/** 멱등성 키 (요청값 보관용, 저장되지 않음) */
-
-	@Transient
-
-	private String idempotencyKey;
 
 
 
