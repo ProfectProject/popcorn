@@ -148,11 +148,10 @@ public abstract class OrderControllerTestBase {
     /**
      * 테스트용 주문 생성 JSON 헬퍼 (재사용 가능)
      */
-    protected String createOrderRequestJson(UUID storeId, UUID popupId, int qty) {
+    protected String createOrderRequestJson(UUID popupId, int qty) {
         return """
                 {
                     "orderType": "RESERVATION",
-                    "storeId": "%s",
                     "popupId": "%s",
                     "items": [
                         {
@@ -163,7 +162,7 @@ public abstract class OrderControllerTestBase {
                         }
                     ]
                 }
-                """.formatted(storeId, popupId, qty);
+                """.formatted(popupId, qty);
     }
 
     /**

@@ -122,7 +122,6 @@ private final ObjectMapper objectMapper;
 							value = """
 								{
 								  "orderType": "RESERVATION",
-								  "storeId": "f0000000-0000-0000-0000-000000000001",
 								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "items": [
 								    {
@@ -140,7 +139,6 @@ private final ObjectMapper objectMapper;
 							value = """
 								{
 								  "orderType": "PURCHASE",
-								  "storeId": "f0000000-0000-0000-0000-000000000001",
 								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "items": [
 								    {
@@ -164,7 +162,6 @@ private final ObjectMapper objectMapper;
 							value = """
 								{
 								  "orderType": "RESERVATION",
-								  "storeId": "f0000000-0000-0000-0000-000000000001",
 								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "items": [
 								    {
@@ -196,7 +193,6 @@ private final ObjectMapper objectMapper;
 		// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
-				.storeId(request.getStoreId())
 				.popupId(request.getPopupId())
 				.orderType(request.getOrderType())
 				.items(request.getItems().stream()

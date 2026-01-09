@@ -62,7 +62,6 @@ class OrderAtddTest extends OrderControllerTestBase {
 		String createJsonRequest = """
 				{
 					"orderType": "RESERVATION",
-					"storeId": "%s",
 					"popupId": "%s",
 					"items": [
 						{
@@ -73,7 +72,7 @@ class OrderAtddTest extends OrderControllerTestBase {
 						}
 					]
 				}
-				""".formatted(storeId, popupId);
+				""".formatted(popupId);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)

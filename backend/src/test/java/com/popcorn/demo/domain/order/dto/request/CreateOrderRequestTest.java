@@ -15,7 +15,6 @@ class CreateOrderRequestTest {
 	void reservationTypeChecksAndTotalQuantity() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
-				.storeId(UUID.randomUUID())
 				.popupId(UUID.randomUUID())
 				.items(List.of(
 						OrderItemRequest.builder()
@@ -46,7 +45,6 @@ class CreateOrderRequestTest {
 	void purchaseTypeChecksWithAddress() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("PURCHASE")
-				.storeId(UUID.randomUUID())
 				.popupId(UUID.randomUUID())
 				.address(AddressRequest.builder()
 						.address1("123 Main St")
@@ -72,7 +70,6 @@ class CreateOrderRequestTest {
 	void mixedItemTypesAreNotConsistent() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
-				.storeId(UUID.randomUUID())
 				.popupId(UUID.randomUUID())
 				.items(List.of(
 						OrderItemRequest.builder()
@@ -99,7 +96,6 @@ class CreateOrderRequestTest {
 	void purchaseRequestWithoutAddressIsInvalid() {
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("PURCHASE")
-				.storeId(UUID.randomUUID())
 				.popupId(UUID.randomUUID())
 				.items(List.of(
 						OrderItemRequest.builder()
