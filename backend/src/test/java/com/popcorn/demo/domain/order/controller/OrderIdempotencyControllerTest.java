@@ -64,4 +64,16 @@ class OrderIdempotencyControllerTest {
 		assertThatThrownBy(() -> controller.invalidateKey("   "))
 				.isInstanceOf(IllegalArgumentException.class);
 	}
+
+	@Test
+	@DisplayName("Idempotency endpoints propagate service failures")
+	void idempotencyEndpointsThrowOnFailure() {
+		IdempotencyService idempotencyService = Mockito.mock(IdempotencyService.class);
+		OrderIdempotencyController controller = new OrderIdempotencyController(idempotencyService);
+
+		Mockito.when(idempotencyService.getCacheStats()).thenThrow(new RuntimeException("fail"));
+
+		assertThatThrownBy(controller::getCacheStats)
+				.isInstanceOf(RuntimeException.class);
+	}
 }
