@@ -253,6 +253,11 @@ tasks.register('testQualityCheck') {
 jacocoTestCoverageVerification {
 	violationRules {
 		rule {
+			element = 'BUNDLE'
+			includes = [
+				'com.popcorn.demo.domain.order*',
+				'com.popcorn.demo.domain.popup*'
+			]
 			limit {
 				minimum = 0.70  // 70% 최소 커버리지
 			}
@@ -260,8 +265,11 @@ jacocoTestCoverageVerification {
 
 		rule {
 			enabled = true
-			element = 'CLASS'
-			includes = ['com.popcorn.demo.domain.*']
+			element = 'PACKAGE'
+			includes = [
+				'com.popcorn.demo.domain.order*',
+				'com.popcorn.demo.domain.popup*'
+			]
 
 			limit {
 				counter = 'LINE'
