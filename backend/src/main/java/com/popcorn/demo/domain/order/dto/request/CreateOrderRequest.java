@@ -21,9 +21,6 @@ public class CreateOrderRequest {
 	@NotBlank(message = "주문 타입은 필수입니다.")
 	private String orderType;
 
-	@NotNull(message = "스토어 ID는 필수입니다.")
-	private UUID storeId;
-
 	@NotNull(message = "상품 ID는 필수입니다.")
 	private UUID popupId;
 

@@ -90,9 +90,10 @@ public class OrderCommandService {
 		}
 
 		// 도메인 검증
+		UUID storeId = orderValidationService.resolveStoreId(command.getPopupId());
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderItems
 		);
@@ -100,7 +101,7 @@ public class OrderCommandService {
 		// 주문 생성
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderType,
 				orderItems

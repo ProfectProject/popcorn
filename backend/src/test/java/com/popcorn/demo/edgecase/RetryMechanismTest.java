@@ -96,7 +96,6 @@ public class RetryMechanismTest extends BaseIntegrationTest {
         // 긴 처리 시간이 필요한 요청 시뮬레이션
         Map<String, Object> orderRequest = new HashMap<>();
         orderRequest.put("orderType", "RESERVATION");
-        orderRequest.put("storeId", UUID.randomUUID().toString());
         orderRequest.put("popupId", UUID.randomUUID().toString());
         orderRequest.put("items", java.util.List.of(
                 Map.of(

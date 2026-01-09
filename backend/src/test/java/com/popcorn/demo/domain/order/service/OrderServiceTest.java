@@ -64,6 +64,9 @@ class OrderServiceTest {
 	@Mock
 	private OrderProperties orderProperties;
 
+	@Mock
+	private OrderValidationService orderValidationService;
+
 	private OrderService orderService;
 
 	@BeforeEach
@@ -74,7 +77,8 @@ class OrderServiceTest {
 				orderItemPriceService,
 				eventPublisher,
 				orderQueryRepository,
-				orderProperties
+				orderProperties,
+				orderValidationService
 		);
 	}
 
@@ -86,10 +90,12 @@ class OrderServiceTest {
 		@DisplayName("주문 생성 - 응답 상태 확인")
 		void createOrder_success_state() {
 			CreateOrderCommand command = createReservationCommand();
-			Order createdOrder = createOrderEntity(command);
+			UUID storeId = UUID.randomUUID();
+			Order createdOrder = createOrderEntity(command, storeId);
 			Order savedOrder = withId(createdOrder);
 
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
+			when(orderValidationService.resolveStoreId(command.getPopupId())).thenReturn(storeId);
 			when(orderDomainService.createOrder(any(), any(), any(), any(), any()))
 					.thenReturn(createdOrder);
 			when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
@@ -118,7 +124,6 @@ class OrderServiceTest {
 		void createOrder_optionIdMissing() {
 			CreateOrderCommand command = CreateOrderCommand.builder()
 					.userId(1001L)
-					.storeId(UUID.randomUUID())
 					.popupId(UUID.randomUUID())
 					.orderType("RESERVATION")
 					.items(List.of(
@@ -143,7 +148,6 @@ class OrderServiceTest {
 		void createOrder_merchVariantIdMissing() {
 			CreateOrderCommand command = CreateOrderCommand.builder()
 					.userId(1001L)
-					.storeId(UUID.randomUUID())
 					.popupId(UUID.randomUUID())
 					.orderType("PURCHASE")
 					.items(List.of(
@@ -256,10 +260,12 @@ class OrderServiceTest {
 		@DisplayName("주문 생성 - 저장 및 이벤트 발행")
 		void createOrder_success_interaction() {
 			CreateOrderCommand command = createReservationCommand();
-			Order createdOrder = createOrderEntity(command);
+			UUID storeId = UUID.randomUUID();
+			Order createdOrder = createOrderEntity(command, storeId);
 			Order savedOrder = withId(createdOrder);
 
 			when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
+			when(orderValidationService.resolveStoreId(command.getPopupId())).thenReturn(storeId);
 			when(orderDomainService.createOrder(any(), any(), any(), any(), any()))
 					.thenReturn(createdOrder);
 			when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
@@ -276,7 +282,6 @@ class OrderServiceTest {
 		void createOrder_invalidRequest_interaction() {
 			CreateOrderCommand command = CreateOrderCommand.builder()
 					.userId(1001L)
-					.storeId(UUID.randomUUID())
 					.popupId(UUID.randomUUID())
 					.orderType("RESERVATION")
 					.items(List.of(
@@ -429,7 +434,6 @@ class OrderServiceTest {
 	private CreateOrderCommand createReservationCommand() {
 		return CreateOrderCommand.builder()
 				.userId(1001L)
-				.storeId(UUID.randomUUID())
 				.popupId(UUID.randomUUID())
 				.orderType("RESERVATION")
 				.items(List.of(
@@ -444,11 +448,11 @@ class OrderServiceTest {
 				.build();
 	}
 
-	private Order createOrderEntity(CreateOrderCommand command) {
+	private Order createOrderEntity(CreateOrderCommand command, UUID storeId) {
 		return Order.builder()
 				.orderNo("O-1001")
 				.customerId(command.getUserId())
-				.storeId(command.getStoreId())
+				.storeId(storeId)
 				.popupId(command.getPopupId())
 				.orderType(OrderType.RESERVATION)
 				.status(OrderStatus.REQUESTED)

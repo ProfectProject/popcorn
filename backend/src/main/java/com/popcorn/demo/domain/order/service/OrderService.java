@@ -58,6 +58,7 @@ public class OrderService {
 	private final ApplicationEventPublisher eventPublisher;
 	private final OrderQueryRepository orderQueryRepository;
 	private final OrderProperties orderProperties;
+	private final OrderValidationService orderValidationService;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public CreateOrderResponse createOrder(CreateOrderCommand command) {
@@ -72,16 +73,17 @@ public class OrderService {
 			throw OrderValidationException.invalidRequest();
 		}
 
+		UUID storeId = orderValidationService.resolveStoreId(command.getPopupId());
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderItems
 		);
 
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderType,
 				orderItems

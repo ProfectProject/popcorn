@@ -176,13 +176,11 @@ public class OfflineScenarioTest {
         // 오프라인 상태에서 수집된 데이터 시뮬레이션
         Map<String, Object> offlineOrder1 = new HashMap<>();
         offlineOrder1.put("orderType", "RESERVATION");
-        offlineOrder1.put("storeId", UUID.randomUUID().toString());
         offlineOrder1.put("popupId", UUID.randomUUID().toString());
         offlineOrder1.put("timestamp", System.currentTimeMillis() - 10000); // 10초 전
 
         Map<String, Object> offlineOrder2 = new HashMap<>();
         offlineOrder2.put("orderType", "RESERVATION");
-        offlineOrder2.put("storeId", UUID.randomUUID().toString());
         offlineOrder2.put("popupId", UUID.randomUUID().toString());
         offlineOrder2.put("timestamp", System.currentTimeMillis() - 5000); // 5초 전
 
@@ -226,13 +224,11 @@ public class OfflineScenarioTest {
         batchSyncData.put("orders", java.util.List.of(
                 Map.of(
                         "orderType", "RESERVATION",
-                        "storeId", UUID.randomUUID().toString(),
                         "popupId", UUID.randomUUID().toString(),
                         "timestamp", System.currentTimeMillis() - 30000
                 ),
                 Map.of(
                         "orderType", "RESERVATION",
-                        "storeId", UUID.randomUUID().toString(),
                         "popupId", UUID.randomUUID().toString(),
                         "timestamp", System.currentTimeMillis() - 20000
                 )
