@@ -79,7 +79,6 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 			String 고객의_예약요청 = """
 					{
 						"orderType": "RESERVATION",
-						"storeId": "%s",
 						"popupId": "%s",
 						"items": [
 							{
@@ -90,7 +89,7 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 							}
 						]
 					}
-					""".formatted(storeId, popupId);
+					""".formatted(popupId);
 
 			// Then: 예약이 성공적으로 접수된다
 			mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
@@ -124,7 +123,6 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 			String 매진된_시간대_예약요청 = """
 					{
 						"orderType": "RESERVATION",
-						"storeId": "00000000-0000-0000-0000-000000000001",
 						"popupId": "00000000-0000-0000-0000-000000000101",
 						"items": [
 							{
@@ -163,7 +161,6 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 			String 잘못된_수량_예약요청 = """
 					{
 						"orderType": "RESERVATION",
-						"storeId": "00000000-0000-0000-0000-000000000001",
 						"popupId": "00000000-0000-0000-0000-000000000101",
 						"items": [
 							{

@@ -66,7 +66,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 
 		when(orderCommandService.createOrder(any())).thenReturn(response);
 
-		String jsonRequest = buildReservationOrderRequest(storeId.toString(), productId.toString(), 2);
+		String jsonRequest = buildReservationOrderRequest(productId.toString(), 2);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +83,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	void createOrder_fail_emptyItems() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderValidationException.emptyItems());
 
-		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
+		String jsonRequest = buildReservationOrderRequest(DEFAULT_PRODUCT_ID, 1);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -216,7 +216,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	void createOrder_fail_invalidQty() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderValidationException.invalidQty());
 
-		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
+		String jsonRequest = buildReservationOrderRequest(DEFAULT_PRODUCT_ID, 1);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -233,7 +233,6 @@ class OrderControllerTest extends OrderControllerTestBase {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderNotFoundException.productNotFound());
 
 		String jsonRequest = buildReservationOrderRequest(
-				DEFAULT_STORE_ID,
 				"00000000-0000-0000-0000-000000000999",
 				1
 		);
@@ -252,7 +251,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	void createOrder_fail_duplicateIdempotency() throws Exception {
 		when(orderCommandService.createOrder(any())).thenThrow(OrderConflictException.duplicateIdempotencyKey());
 
-		String jsonRequest = buildReservationOrderRequest(DEFAULT_STORE_ID, DEFAULT_PRODUCT_ID, 1);
+		String jsonRequest = buildReservationOrderRequest(DEFAULT_PRODUCT_ID, 1);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -421,7 +420,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 
 		when(orderCommandService.createOrder(any())).thenReturn(response);
 
-		String jsonRequest = buildReservationOrderRequest(storeId.toString(), productId.toString(), 2);
+		String jsonRequest = buildReservationOrderRequest(productId.toString(), 2);
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -635,11 +634,10 @@ class OrderControllerTest extends OrderControllerTestBase {
 		verify(orderCommandService).deleteAllOrders();
 	}
 
-	private String buildReservationOrderRequest(String storeId, String popupId, int qty) {
+	private String buildReservationOrderRequest(String popupId, int qty) {
 		return """
 				{
 					"orderType": "RESERVATION",
-					"storeId": "%s",
 					"popupId": "%s",
 					"items": [
 						{
@@ -650,7 +648,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 						}
 					]
 				}
-				""".formatted(storeId, popupId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
+				""".formatted(popupId, DEFAULT_SESSION_ID, DEFAULT_OPTION_ID, qty);
 	}
 
 	private String buildUpdateStatusRequest(String status, String reason) {

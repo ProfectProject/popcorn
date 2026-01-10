@@ -1,14 +1,12 @@
 package com.popcorn.demo.domain.popup.service;
 
-import java.util.Locale;
-import java.util.Set;
-
 import org.springframework.stereotype.Service;
 
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 
 @Service
@@ -17,11 +15,6 @@ public class PopupValidationService {
 	private static final int DEFAULT_PAGE = 1;
 	private static final int DEFAULT_SIZE = 20;
 	private static final int MAX_SIZE = 100;
-	private static final Set<String> ALLOWED_CATEGORIES = Set.of(
-			"FOOD", "IDOL", "EXHIBITION", "WORKSHOP", "FASHION", "BEAUTY",
-			"LIFESTYLE", "ART", "GAME", "TECH", "SPORTS", "BOOK", "PET", "ETC"
-	);
-
 	public PopupListQuery normalizeListQuery(PopupListQuery query) {
 		if (query == null) {
 			return PopupListQuery.builder()
@@ -34,16 +27,35 @@ public class PopupValidationService {
 		Integer page = query.getPage();
 		Integer size = query.getSize();
 		Long regionId = query.getRegionId();
-		String category = normalizeCategory(query.getCategory());
+		PopupCategory category = query.getCategory();
 		Boolean withTotal = query.getWithTotal();
 
-		int normalizedPage = page == null || page < 1 ? DEFAULT_PAGE : page;
-		int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+		// 페이지 검증: null은 기본값, 1 미만은 오류
+		int normalizedPage;
+		if (page == null) {
+			normalizedPage = DEFAULT_PAGE;
+		} else if (page < 1) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		} else {
+			normalizedPage = page;
+		}
+
+		// 사이즈 검증: null은 기본값, 1 미만이나 100 초과는 오류
+		int normalizedSize;
+		if (size == null) {
+			normalizedSize = DEFAULT_SIZE;
+		} else if (size < 1 || size > MAX_SIZE) {
+			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+		} else {
+			normalizedSize = size;
+		}
+
 		boolean normalizedWithTotal = withTotal == null || withTotal;
 
 		if (regionId != null && regionId <= 0) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
+		validateCategory(category);
 
 		return PopupListQuery.builder()
 				.regionId(regionId)
@@ -62,7 +74,7 @@ public class PopupValidationService {
 		}
 	}
 
-	public PopupSessionListQuery normalizeSessionQuery(PopupSessionListQuery query) {
+	public PopupScheduleListQuery normalizeSessionQuery(PopupScheduleListQuery query) {
 		if (query == null || query.getPopupId() == null) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
@@ -73,14 +85,14 @@ public class PopupValidationService {
 		return query;
 	}
 
-	private String normalizeCategory(String category) {
-		if (category == null || category.isBlank()) {
-			return null;
+	private void validateCategory(PopupCategory category) {
+		if (category == null) {
+			return;
 		}
-		String normalized = category.trim().toUpperCase(Locale.ROOT);
-		if (!ALLOWED_CATEGORIES.contains(normalized)) {
+		try {
+			PopupCategory.valueOf(category.name());
+		} catch (IllegalArgumentException ex) {
 			throw new PopupException(PopupResponseCode.INVALID_REQUEST);
 		}
-		return normalized;
 	}
 }

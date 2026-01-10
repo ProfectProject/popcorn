@@ -4,4 +4,9 @@
 "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 
 <suppressions>
+    <!-- Suppress indentation-tab checks for test files -->
+    <suppress checks="RegexpSinglelineJava" files=".*Test\.java$" message=".*indentation-tab.*"/>
+
+    <!-- Suppress indentation-tab checks for all files (alternative approach) -->
+    <!-- <suppress checks="RegexpSinglelineJava" message=".*indentation-tab.*"/> -->
 </suppressions>

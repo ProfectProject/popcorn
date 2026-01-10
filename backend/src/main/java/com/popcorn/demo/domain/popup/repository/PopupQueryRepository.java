@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-import com.popcorn.demo.domain.popup.entity.PopupProduct;
+import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 
-public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
+public interface PopupQueryRepository extends Repository<Popup, UUID> {
 
 	@Query(value = """
 			SELECT CAST(p.popup_id AS VARCHAR) AS id,
@@ -26,7 +26,7 @@ public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
 			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
 			   AND (:category IS NULL OR p.category = CAST(:category AS popup_category))
-			   AND (:keyword IS NULL OR p.title ILIKE CONCAT('%', :keyword, '%') OR p.description ILIKE CONCAT('%', :keyword, '%'))
+			   AND (:keyword IS NULL OR UPPER(p.title) LIKE UPPER(CONCAT('%', :keyword, '%')) OR UPPER(p.description) LIKE UPPER(CONCAT('%', :keyword, '%')))
 			   AND (:storeId IS NULL OR p.store_id = :storeId)
 			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
 			 ORDER BY p.created_at DESC
@@ -44,7 +44,7 @@ public interface PopupQueryRepository extends Repository<PopupProduct, UUID> {
 			  FROM p_popups p
 			 WHERE p.deleted_at IS NULL
 			   AND (:category IS NULL OR p.category = CAST(:category AS popup_category))
-			   AND (:keyword IS NULL OR p.title ILIKE CONCAT('%', :keyword, '%') OR p.description ILIKE CONCAT('%', :keyword, '%'))
+			   AND (:keyword IS NULL OR UPPER(p.title) LIKE UPPER(CONCAT('%', :keyword, '%')) OR UPPER(p.description) LIKE UPPER(CONCAT('%', :keyword, '%')))
 			   AND (:storeId IS NULL OR p.store_id = :storeId)
 			""", nativeQuery = true)
 	long countPopups(@Param("regionId") Long regionId,

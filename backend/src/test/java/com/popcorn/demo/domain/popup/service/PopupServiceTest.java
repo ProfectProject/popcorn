@@ -14,10 +14,11 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
-import com.popcorn.demo.domain.popup.dto.query.PopupSessionListQuery;
+import com.popcorn.demo.domain.popup.dto.query.PopupScheduleListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
-import com.popcorn.demo.domain.popup.dto.query.response.PopupSessionListResponse;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.event.PopupSearchEvent;
 import com.popcorn.demo.domain.popup.event.PopupViewedEvent;
 
@@ -27,19 +28,19 @@ class PopupServiceTest {
 	@DisplayName("팝업 목록 조회 - 검증/정규화 후 이벤트 발행")
 	void getPopups_publishesSearchEvent() {
 		PopupQueryService queryService = Mockito.mock(PopupQueryService.class);
-		PopupSessionQueryService sessionQueryService = Mockito.mock(PopupSessionQueryService.class);
+		PopupScheduleQueryService sessionQueryService = Mockito.mock(PopupScheduleQueryService.class);
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
 		ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
 		PopupService service = new PopupService(
 				queryService, sessionQueryService, validationService, publisher);
 
 		PopupListQuery request = PopupListQuery.builder()
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.page(1)
 				.size(20)
 				.build();
 		PopupListQuery normalized = PopupListQuery.builder()
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.page(1)
 				.size(20)
 				.build();
@@ -65,7 +66,7 @@ class PopupServiceTest {
 	@DisplayName("팝업 상세 조회 - 이벤트 발행")
 	void getPopupDetail_publishesViewedEvent() {
 		PopupQueryService queryService = Mockito.mock(PopupQueryService.class);
-		PopupSessionQueryService sessionQueryService = Mockito.mock(PopupSessionQueryService.class);
+		PopupScheduleQueryService sessionQueryService = Mockito.mock(PopupScheduleQueryService.class);
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
 		ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
 		PopupService service = new PopupService(
@@ -76,7 +77,7 @@ class PopupServiceTest {
 		PopupDetailResponse response = PopupDetailResponse.builder()
 				.id(productId)
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.build();
 
 		when(queryService.getPopupDetail(query)).thenReturn(response);
@@ -93,23 +94,23 @@ class PopupServiceTest {
 	@DisplayName("회차 조회 - 검증 후 조회 서비스 호출")
 	void getProductSessions_validatesQuery() {
 		PopupQueryService queryService = Mockito.mock(PopupQueryService.class);
-		PopupSessionQueryService sessionQueryService = Mockito.mock(PopupSessionQueryService.class);
+		PopupScheduleQueryService sessionQueryService = Mockito.mock(PopupScheduleQueryService.class);
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
 		ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
 		PopupService service = new PopupService(
 				queryService, sessionQueryService, validationService, publisher);
 
-		PopupSessionListQuery query = PopupSessionListQuery.builder()
+		PopupScheduleListQuery query = PopupScheduleListQuery.builder()
 				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))
 				.build();
-		PopupSessionListResponse response = PopupSessionListResponse.builder()
+		PopupScheduleListResponse response = PopupScheduleListResponse.builder()
 				.items(java.util.List.of())
 				.build();
 
 		when(validationService.normalizeSessionQuery(query)).thenReturn(query);
 		when(sessionQueryService.getProductSessions(query)).thenReturn(response);
 
-		PopupSessionListResponse result = service.getProductSessions(query);
+		PopupScheduleListResponse result = service.getProductSessions(query);
 
 		assertEquals(0, result.getItems().size());
 		verify(validationService).normalizeSessionQuery(query);
