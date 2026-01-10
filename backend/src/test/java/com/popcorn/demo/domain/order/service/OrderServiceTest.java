@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -359,10 +360,10 @@ class OrderServiceTest {
 			when(view.getCreatedAt()).thenReturn(items.get(0).getCreatedAt());
 
 			when(orderQueryRepository.countStoreOrders(
-					any(UUID.class), any(UUID.class), any(String.class), any(), any()
+					any(UUID.class), any(UUID.class), isNull(), isNull(), any(String.class), any(), any()
 			)).thenReturn(1L);
 			when(orderQueryRepository.findStoreOrders(
-					any(UUID.class), any(UUID.class), any(String.class), any(), any(), any(Integer.class), any(Long.class)
+					any(UUID.class), any(UUID.class), isNull(), isNull(), any(String.class), any(), any(), any(Integer.class), any(Long.class)
 			)).thenReturn(List.of(view));
 
 			StoreOrderReservationListResponse response = orderService.getStoreOrderReservations(
