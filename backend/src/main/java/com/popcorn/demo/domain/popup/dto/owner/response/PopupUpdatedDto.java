@@ -19,6 +19,9 @@ public class PopupUpdatedDto {
     private String description;
     private PopupStatus status;
     private PopupCategory popupCategory;
+    private LocalDateTime reservationOpenAt;
+    private String addressRoad;
+    private String addressDetail;
     private Long updatedBy;
     private LocalDateTime updatedAt;
 

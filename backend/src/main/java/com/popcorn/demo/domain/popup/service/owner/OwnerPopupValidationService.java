@@ -63,6 +63,10 @@ public class OwnerPopupValidationService {
 		if (request.getDescription() != null || request.getPopupCategory() != null) {
 			hasUpdate = true;
 		}
+		if (request.getReservationOpenAt() != null || request.getAddressRoad() != null
+				|| request.getAddressDetail() != null) {
+			hasUpdate = true;
+		}
 		if (request.getCreateSchedules() != null || request.getUpdateSchedules() != null
 				|| request.getDeleteScheduleIds() != null) {
 			hasUpdate = true;

@@ -32,6 +32,12 @@ public class CreatePopupRequest {
     @NotNull(message = "팝업 카테고리는 필수입니다.")
     private PopupCategory category;
 
+    private java.time.LocalDateTime reservationOpenAt;
+
+    private String addressRoad;
+
+    private String addressDetail;
+
     @NotEmpty(message = "팝업 스케줄은 최소 1개 이상 필요합니다.")
     @Valid
     private List<CreatePopupScheduleRequest> schedules;

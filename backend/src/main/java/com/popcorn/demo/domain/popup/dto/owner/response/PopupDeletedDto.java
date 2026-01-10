@@ -14,8 +14,11 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PopupDeletedDto {
 
-	private UUID popupId;
-	private String title;
-	private LocalDateTime deletedAt;
-	private Long deletedBy;
+    private UUID popupId;
+    private String title;
+    private LocalDateTime reservationOpenAt;
+    private String addressRoad;
+    private String addressDetail;
+    private LocalDateTime deletedAt;
+    private Long deletedBy;
 }
