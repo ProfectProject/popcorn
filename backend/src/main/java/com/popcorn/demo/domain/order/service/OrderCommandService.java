@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
@@ -47,37 +46,33 @@ public class OrderCommandService {
 	private final OrderDomainService orderDomainService;
 	private final OrderRepository orderRepository;
 	private final OrderItemPriceService orderItemPriceService;
-	private final IdempotencyService idempotencyService;
 	private final AsyncEventPublisher asyncEventPublisher;
 	private final OrderValidationService orderValidationService;
 
 	/**
-	 * 주문 생성 (향상된 멱등성 처리)
+	 * 주문 생성 (DB 제약 기반 중복 처리)
 	 */
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public CreateOrderResponse createOrder(CreateOrderCommand command) {
-		log.info("🎯 주문 생성 시작 - 사용자: {}, 멱등성키: {}", command.getUserId(), command.getIdempotencyKey());
+		log.info("🎯 주문 생성 시작 - 사용자: {}", command.getUserId());
 
-		// 향상된 멱등성 처리로 주문 생성
-		IdempotencyService.IdempotencyResult<CreateOrderResponse> result =
-			idempotencyService.processRequest(
-				command.getIdempotencyKey(),
-				() -> executeOrderCreation(command),
-				CreateOrderResponse.class
-			);
-
-		if (result.isCached()) {
-			log.info("✨ 멱등성 캐시에서 응답 반환 - 사용자: {}, 실행시간: {}",
-					command.getUserId(), result.getExecutedAt());
-		} else {
-			log.info("🎉 새로운 주문 생성 완료 - 사용자: {}", command.getUserId());
+		try {
+			return executeOrderCreation(command);
+		} catch (org.springframework.dao.DataIntegrityViolationException e) {
+			// DB PK 제약 위반 시 (동일한 UUID로 주문 생성 시도)
+			log.warn("⚠️ 중복 주문 시도 감지 - 사용자: {}", command.getUserId());
+			throw OrderConflictException.duplicateOrder();
+		} catch (Exception e) {
+			log.error("❌ 주문 생성 실패 - 사용자: {}", command.getUserId(), e);
+			if (e instanceof RuntimeException) {
+				throw (RuntimeException) e;
+			}
+			throw new RuntimeException("주문 생성 중 예상치 못한 오류가 발생했습니다", e);
 		}
-
-		return result.getResult();
 	}
 
 	/**
-	 * 실제 주문 생성 로직 (멱등성 서비스가 호출)
+	 * 실제 주문 생성 로직
 	 */
 	private CreateOrderResponse executeOrderCreation(CreateOrderCommand command) throws Exception {
 		// 주문 항목 변환 및 검증
@@ -95,9 +90,10 @@ public class OrderCommandService {
 		}
 
 		// 도메인 검증
+		UUID storeId = orderValidationService.resolveStoreId(command.getPopupId());
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderItems
 		);
@@ -105,11 +101,10 @@ public class OrderCommandService {
 		// 주문 생성
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderType,
-				orderItems,
-				command.getIdempotencyKey()
+				orderItems
 		);
 
 		// 동기 저장 (트랜잭션 내)
@@ -124,7 +119,7 @@ public class OrderCommandService {
 		orderRepository.saveStatusHistory(createdHistory);
 
 		// 🚀 비동기 후처리 (향상된 이벤트 발행)
-		asyncEventPublisher.publishEventAsync(new OrderCreatedEvent(savedOrder, command.getIdempotencyKey()))
+		asyncEventPublisher.publishEventAsync(new OrderCreatedEvent(savedOrder, null))
 				.whenComplete((result, throwable) -> {
 					if (throwable == null) {
 						log.debug("✅ 주문 생성 이벤트 발행 완료 - 주문ID: {}", savedOrder.getId());
@@ -265,10 +260,15 @@ public class OrderCommandService {
 		if (OrderItemType.RESERVATION.equals(orderItemType)) {
 			UUID scheduleId = itemCommand.getSessionId();
 			if (scheduleId == null) {
+				log.error("❌ 주문 아이템의 sessionId가 null입니다 - orderItemType: {}", orderItemType);
 				throw OrderNotFoundException.sessionNotFound();
 			}
+			log.debug("🔍 세션 가격 조회 시작 - scheduleId: {}", scheduleId);
 			return orderItemPriceService.findSessionOptionPrice(scheduleId)
-					.orElseThrow(OrderNotFoundException::sessionNotFound);
+					.orElseThrow(() -> {
+						log.error("❌ 세션 가격 조회 실패 - scheduleId: {}", scheduleId);
+						return OrderNotFoundException.sessionNotFound();
+					});
 		}
 		if (OrderItemType.GOODS.equals(orderItemType)) {
 			UUID goodsVariantId = itemCommand.getGoodsVariantId();

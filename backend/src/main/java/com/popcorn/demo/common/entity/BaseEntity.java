@@ -10,8 +10,10 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
@@ -23,4 +25,21 @@ public abstract class BaseEntity {
 	@LastModifiedDate
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
+
+	@Column(name = "deleted_at")
+	private LocalDateTime deletedAt;
+
+	/**
+	 * 소프트 삭제 수행
+	 */
+	public void delete() {
+		this.deletedAt = LocalDateTime.now();
+	}
+
+	/**
+	 * 삭제된 엔티티인지 확인
+	 */
+	public boolean isDeleted() {
+		return deletedAt != null;
+	}
 }

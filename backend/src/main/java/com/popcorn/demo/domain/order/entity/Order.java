@@ -17,7 +17,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -115,7 +117,8 @@ public class Order extends BaseEntity {
 
 	/** 주문 상태 */
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status")
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@Column(name = "status", nullable = false)
 	private OrderStatus status;
 
 
@@ -136,11 +139,6 @@ public class Order extends BaseEntity {
 
 
 
-	/** 멱등성 키 (요청값 보관용, 저장되지 않음) */
-
-	@Transient
-
-	private String idempotencyKey;
 
 
 

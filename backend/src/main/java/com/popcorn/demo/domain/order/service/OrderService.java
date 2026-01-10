@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.common.cache.IdempotencyCache;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
@@ -56,17 +55,14 @@ public class OrderService {
 	private final OrderDomainService orderDomainService;
 	private final OrderRepository orderRepository;
 	private final OrderItemPriceService orderItemPriceService;
-	private final IdempotencyCache idempotencyCache;
 	private final ApplicationEventPublisher eventPublisher;
 	private final OrderQueryRepository orderQueryRepository;
 	private final OrderProperties orderProperties;
+	private final OrderValidationService orderValidationService;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public CreateOrderResponse createOrder(CreateOrderCommand command) {
-		log.info("🎯 주문 생성 시작 - 사용자: {}, 멱등성키: {}", command.getUserId(), command.getIdempotencyKey());
-
-		String idempotencyKey = normalizeIdempotencyKey(command.getIdempotencyKey());
-		checkIdempotency(command.getIdempotencyKey(), idempotencyKey);
+		log.info("🎯 주문 생성 시작 - 사용자: {}", command.getUserId());
 
 		List<OrderItem> orderItems = convertToOrderItems(command.getItems());
 		OrderType orderType = OrderType.valueOf(command.getOrderType());
@@ -77,26 +73,23 @@ public class OrderService {
 			throw OrderValidationException.invalidRequest();
 		}
 
+		UUID storeId = orderValidationService.resolveStoreId(command.getPopupId());
 		orderDomainService.validateOrderCreation(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderItems
 		);
 
 		Order order = orderDomainService.createOrder(
 				command.getUserId(),
-				command.getStoreId(),
+				storeId,
 				command.getPopupId(),
 				orderType,
-				orderItems,
-				command.getIdempotencyKey()
+				orderItems
 		);
 
 		Order savedOrder = orderRepository.save(order);
-		if (idempotencyKey != null) {
-			idempotencyCache.mark(idempotencyKey);
-		}
 
 		OrderStatusHistory createdHistory = OrderStatusHistory.builder()
 				.orderId(savedOrder.getId())
@@ -327,7 +320,6 @@ public class OrderService {
 
 		String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
 		boolean allowed = switch (normalizedRole) {
-			case "ADMIN" -> true;
 			case "OWNER" -> orderRow.getStoreOwnerId() != null && orderRow.getStoreOwnerId().equals(userId);
 			case "MANAGER" -> isStoreManager(userId, orderRow.getStoreId());
 			case "CUSTOMER", "USER" -> orderRow.getCustomerId() != null && orderRow.getCustomerId().equals(userId);
@@ -482,15 +474,6 @@ public class OrderService {
 		return popupId != null;
 	}
 
-	private void checkIdempotency(String rawKey, String normalizedKey) {
-		if (normalizedKey == null) {
-			return;
-		}
-		if (idempotencyCache.isDuplicate(normalizedKey)) {
-			log.warn("⚠️ 캐시 중복 주문 감지 - 멱등성키: {}", normalizedKey);
-			throw OrderConflictException.duplicateIdempotencyKey();
-		}
-	}
 
 	private List<OrderItem> convertToOrderItems(List<CreateOrderCommand.OrderItemCommand> itemCommands) {
 		return itemCommands.stream()
@@ -532,13 +515,6 @@ public class OrderService {
 		throw OrderValidationException.invalidRequest();
 	}
 
-	private String normalizeIdempotencyKey(String idempotencyKey) {
-		if (idempotencyKey == null) {
-			return null;
-		}
-		String trimmed = idempotencyKey.trim();
-		return trimmed.isEmpty() ? null : trimmed;
-	}
 
 	private int calculateTotalQuantity(List<OrderItem> orderItems) {
 		return orderItems.stream()

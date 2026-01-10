@@ -20,6 +20,8 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 import com.popcorn.demo.domain.popup.repository.PopupQueryRepository;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
@@ -50,7 +52,7 @@ class PopupQueryServiceTest {
 
 		PopupListQuery query = PopupListQuery.builder()
 				.regionId(101L)
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.keyword("팝업")
 				.page(1)
 				.size(100)
@@ -63,7 +65,7 @@ class PopupQueryServiceTest {
 		assertEquals(100, response.getSize());
 		assertEquals(1L, response.getTotal());
 		assertEquals("Seed Popup 1", response.getItems().get(0).getTitle());
-		assertEquals("OPEN", response.getItems().get(0).getStatus());
+		assertEquals(PopupStatus.OPEN, response.getItems().get(0).getStatus());
 		verify(repository).countPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null));
 		verify(repository).findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(100), eq(0L));
 	}
@@ -90,7 +92,7 @@ class PopupQueryServiceTest {
 
 		PopupListQuery query = PopupListQuery.builder()
 				.regionId(101L)
-				.category("FOOD")
+				.category(PopupCategory.FOOD)
 				.keyword("팝업")
 				.page(1)
 				.size(20)
@@ -170,27 +172,9 @@ class PopupQueryServiceTest {
 		assertEquals("예약형 팝업", response.getDescription());
 	}
 
-	private static class TestPopupView implements PopupListView {
-		private final String id;
-		private final String storeId;
-		private final String title;
-		private final String description;
-		private final String category;
-		private final String status;
-		private final LocalDateTime eventStartAt;
-		private final LocalDateTime eventEndAt;
-
-		private TestPopupView(String id, String storeId, String title, String description, String category,
-				String status, LocalDateTime eventStartAt, LocalDateTime eventEndAt) {
-			this.id = id;
-			this.storeId = storeId;
-			this.title = title;
-			this.description = description;
-			this.category = category;
-			this.status = status;
-			this.eventStartAt = eventStartAt;
-			this.eventEndAt = eventEndAt;
-		}
+	private record TestPopupView(String id, String storeId, String title, String description, String category,
+								 String status, LocalDateTime eventStartAt,
+								 LocalDateTime eventEndAt) implements PopupListView {
 
 		@Override
 		public String getId() {

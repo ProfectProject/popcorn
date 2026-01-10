@@ -5,8 +5,11 @@ import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -57,6 +60,26 @@ public class OrderValidationService {
 		} catch (Exception e) {
 			log.error("❌ 주문 검증 중 오류 발생 - 사용자: {}, 상품: {}", userId, popupId, e);
 			return false;
+		}
+	}
+
+	public UUID resolveStoreId(UUID popupId) {
+		if (popupId == null) {
+			throw OrderNotFoundException.productNotFound();
+		}
+
+		try {
+			String sql = "SELECT store_id FROM p_popups WHERE popup_id = ? AND deleted_at IS NULL";
+			UUID storeId = jdbcTemplate.queryForObject(sql, UUID.class, popupId);
+			if (storeId == null) {
+				throw OrderNotFoundException.storeNotFound();
+			}
+			return storeId;
+		} catch (EmptyResultDataAccessException ex) {
+			throw OrderNotFoundException.productNotFound();
+		} catch (Exception ex) {
+			log.error("❌ 스토어 조회 실패 - 상품ID: {}", popupId, ex);
+			throw OrderNotFoundException.productNotFound();
 		}
 	}
 

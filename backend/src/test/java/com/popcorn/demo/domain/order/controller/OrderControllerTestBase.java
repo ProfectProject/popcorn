@@ -26,7 +26,6 @@ import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import com.popcorn.demo.global.config.CommonConfig;
@@ -51,19 +50,17 @@ public abstract class OrderControllerTestBase {
     protected ObjectMapper objectMapper;
     protected OrderCommandService orderCommandService;
     protected OrderQueryService orderQueryService;
-    protected PaymentCommandService paymentCommandService;
 
     @BeforeEach
     void setUpBase() {
         // 공통 설정을 한 번만 수행하여 성능 최적화
         orderCommandService = Mockito.mock(OrderCommandService.class);
         orderQueryService = Mockito.mock(OrderQueryService.class);
-        paymentCommandService = Mockito.mock(PaymentCommandService.class);
         objectMapper = createOptimizedObjectMapper();
         mockMvc = createOptimizedMockMvc();
 
         // 각 테스트 간 격리를 위한 Mock 초기화
-        Mockito.reset(orderCommandService, orderQueryService, paymentCommandService);
+        Mockito.reset(orderCommandService, orderQueryService);
     }
 
     /**
@@ -79,7 +76,7 @@ public abstract class OrderControllerTestBase {
      */
     private MockMvc createOptimizedMockMvc() {
         OrderCommandController commandController = new OrderCommandController(
-                orderCommandService, objectMapper, paymentCommandService);
+                orderCommandService, objectMapper);
         OrderQueryController queryController = new OrderQueryController(orderQueryService);
 
         return MockMvcBuilders.standaloneSetup(commandController, queryController)
@@ -151,11 +148,10 @@ public abstract class OrderControllerTestBase {
     /**
      * 테스트용 주문 생성 JSON 헬퍼 (재사용 가능)
      */
-    protected String createOrderRequestJson(UUID storeId, UUID popupId, int qty) {
+    protected String createOrderRequestJson(UUID popupId, int qty) {
         return """
                 {
                     "orderType": "RESERVATION",
-                    "storeId": "%s",
                     "popupId": "%s",
                     "items": [
                         {
@@ -166,7 +162,7 @@ public abstract class OrderControllerTestBase {
                         }
                     ]
                 }
-                """.formatted(storeId, popupId, qty);
+                """.formatted(popupId, qty);
     }
 
     /**

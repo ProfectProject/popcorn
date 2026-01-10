@@ -24,13 +24,9 @@ public class CreateOrderCommand {
 
 	private final Long userId;
 
-	private final UUID storeId;
-
 	private final UUID popupId;
 
 	private final String orderType;
-
-	private final String idempotencyKey;
 
 	private final List<OrderItemCommand> items;
 
