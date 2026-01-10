@@ -454,7 +454,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 				.total(1)
 				.build();
 
-		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
+		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any(), any(), any()))
 				.thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")
@@ -490,7 +490,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 				.build();
 
 		when(orderQueryService.getStoreOrderReservations(
-				storeId, productId, "REQUESTED", null, null, 20, 0L
+				storeId, productId, null, null, "REQUESTED", null, null, 20, 0L
 		)).thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
@@ -512,7 +512,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 		UUID productId = UUID.fromString(DEFAULT_PRODUCT_ID);
 
 		when(orderQueryService.getStoreOrderReservations(
-				storeId, productId, null, null, null, 20, 0L
+				storeId, productId, null, null, null, null, null, 20, 0L
 		)).thenThrow(OrderForbiddenException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/status/ops")
@@ -555,7 +555,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	@Test
 	@DisplayName("가게 주문/예약 목록 조회 실패 - 권한 없음")
 	void getStoreOrders_forbidden() throws Exception {
-		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any()))
+		when(orderQueryService.getStoreOrderReservations(any(), any(), any(), any(), any(), any(), any(), any(), any()))
 				.thenThrow(OrderForbiddenException.forbidden());
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/store")

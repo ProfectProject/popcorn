@@ -91,7 +91,7 @@ class OrderQueryControllerTest {
 		OrderQueryService service = Mockito.mock(OrderQueryService.class);
 		OrderQueryController controller = new OrderQueryController(service);
 
-		assertThatThrownBy(() -> controller.getStoreOrderStatusesForStaff(null, null, null, 1, 10))
+		assertThatThrownBy(() -> controller.getStoreOrderStatusesForStaff(null, null, null, null, null, 1, 10))
 				.isInstanceOf(OrderValidationException.class);
 	}
 
@@ -107,12 +107,12 @@ class OrderQueryControllerTest {
 				.size(10)
 				.total(0L)
 				.build();
-		when(service.getStoreOrderReservations(Mockito.any(), Mockito.any(), Mockito.eq("REQUESTED"),
-				Mockito.isNull(), Mockito.isNull(), Mockito.eq(10), Mockito.eq(0L)))
+		when(service.getStoreOrderReservations(Mockito.any(), Mockito.any(), Mockito.isNull(), Mockito.isNull(),
+				Mockito.eq("REQUESTED"), Mockito.isNull(), Mockito.isNull(), Mockito.eq(10), Mockito.eq(0L)))
 				.thenReturn(list);
 
 		ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> response =
-				controller.getStoreOrderStatusesForStaff(UUID.randomUUID(), null,
+				controller.getStoreOrderStatusesForStaff(UUID.randomUUID(), null, null, null,
 						OrderStatus.REQUESTED, 1, 10);
 
 		assertThat(response.getBody().getData().getItems()).isEmpty();
@@ -130,12 +130,12 @@ class OrderQueryControllerTest {
 				.size(10)
 				.total(0L)
 				.build();
-		when(service.getStoreOrderReservations(Mockito.any(), Mockito.any(), Mockito.eq("REQUESTED"),
-				Mockito.any(), Mockito.any(), Mockito.eq(10), Mockito.eq(0L)))
+		when(service.getStoreOrderReservations(Mockito.any(), Mockito.any(), Mockito.isNull(), Mockito.isNull(),
+				Mockito.eq("REQUESTED"), Mockito.any(), Mockito.any(), Mockito.eq(10), Mockito.eq(0L)))
 				.thenReturn(list);
 
 		ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> response =
-				controller.getStoreOrders(UUID.randomUUID(), UUID.randomUUID(), OrderStatus.REQUESTED,
+				controller.getStoreOrders(UUID.randomUUID(), UUID.randomUUID(), null, null, OrderStatus.REQUESTED,
 						LocalDateTime.now().minusDays(1), LocalDateTime.now(), 1, 10);
 
 		assertThat(response.getBody().getData().getItems()).isEmpty();
