@@ -157,38 +157,23 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND (:storeId IS NULL OR o.store_id = :storeId)
-			   AND (:popupId IS NULL OR EXISTS (
-			        SELECT 1
-			          FROM p_order_goods og
-			          LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			          LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
-			         WHERE og.order_id = o.order_id
-			           AND og.deleted_at IS NULL
-			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
-			   ))
-			   AND (:scheduleId IS NULL OR EXISTS (
-			        SELECT 1
-			          FROM p_order_goods og
-			         WHERE og.order_id = o.order_id
-			           AND og.deleted_at IS NULL
-			           AND og.schedule_id = :scheduleId
-			   ))
 			   AND (
-			        :orderType IS NULL
-			        OR (:orderType = 'RESERVATION' AND EXISTS (
+			        (:popupId IS NULL AND :scheduleId IS NULL AND :orderType IS NULL)
+			        OR EXISTS (
 			             SELECT 1
 			               FROM p_order_goods og
+			               LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			               LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			              WHERE og.order_id = o.order_id
 			                AND og.deleted_at IS NULL
-			                AND og.schedule_id IS NOT NULL
-			        ))
-			        OR (:orderType = 'PURCHASE' AND EXISTS (
-			             SELECT 1
-			               FROM p_order_goods og
-			              WHERE og.order_id = o.order_id
-			                AND og.deleted_at IS NULL
-			                AND og.goods_variant_id IS NOT NULL
-			        ))
+			                AND (:popupId IS NULL OR COALESCE(ps.popup_id, gv.popup_id) = :popupId)
+			                AND (:scheduleId IS NULL OR og.schedule_id = :scheduleId)
+			                AND (
+			                     :orderType IS NULL
+			                     OR (:orderType = 'RESERVATION' AND og.schedule_id IS NOT NULL)
+			                     OR (:orderType = 'PURCHASE' AND og.goods_variant_id IS NOT NULL)
+			                )
+			        )
 			   )
 			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
 			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
@@ -212,38 +197,23 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND (:storeId IS NULL OR o.store_id = :storeId)
-			   AND (:popupId IS NULL OR EXISTS (
-			        SELECT 1
-			          FROM p_order_goods og
-			          LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			          LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
-			         WHERE og.order_id = o.order_id
-			           AND og.deleted_at IS NULL
-			           AND COALESCE(ps.popup_id, gv.popup_id) = :popupId
-			   ))
-			   AND (:scheduleId IS NULL OR EXISTS (
-			        SELECT 1
-			          FROM p_order_goods og
-			         WHERE og.order_id = o.order_id
-			           AND og.deleted_at IS NULL
-			           AND og.schedule_id = :scheduleId
-			   ))
 			   AND (
-			        :orderType IS NULL
-			        OR (:orderType = 'RESERVATION' AND EXISTS (
+			        (:popupId IS NULL AND :scheduleId IS NULL AND :orderType IS NULL)
+			        OR EXISTS (
 			             SELECT 1
 			               FROM p_order_goods og
+			               LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			               LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			              WHERE og.order_id = o.order_id
 			                AND og.deleted_at IS NULL
-			                AND og.schedule_id IS NOT NULL
-			        ))
-			        OR (:orderType = 'PURCHASE' AND EXISTS (
-			             SELECT 1
-			               FROM p_order_goods og
-			              WHERE og.order_id = o.order_id
-			                AND og.deleted_at IS NULL
-			                AND og.goods_variant_id IS NOT NULL
-			        ))
+			                AND (:popupId IS NULL OR COALESCE(ps.popup_id, gv.popup_id) = :popupId)
+			                AND (:scheduleId IS NULL OR og.schedule_id = :scheduleId)
+			                AND (
+			                     :orderType IS NULL
+			                     OR (:orderType = 'RESERVATION' AND og.schedule_id IS NOT NULL)
+			                     OR (:orderType = 'PURCHASE' AND og.goods_variant_id IS NOT NULL)
+			                )
+			        )
 			   )
 			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
 			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
