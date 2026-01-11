@@ -47,6 +47,22 @@ public class OwnerCheckinController extends BaseController {
 		return ok(response);
 	}
 
+	@Operation(
+			summary = "오너 체크인 목록 조회(스케줄)",
+			description = "팝업 스케줄별 체크인 기록을 조회합니다."
+	)
+	@GetMapping("/{popupId}/schedules/{scheduleId}/checkins")
+	public ResponseEntity<BaseResponse<OwnerCheckinListResponse>> getCheckinsBySchedule(
+			Authentication authentication,
+			@Parameter(description = "팝업 ID", example = "90000000-0000-0000-0000-000000000001")
+			@PathVariable UUID popupId,
+			@Parameter(description = "스케줄 ID", example = "90000000-0000-0000-0000-000000000011")
+			@PathVariable UUID scheduleId) {
+		Long ownerId = getCurrentOwnerId(authentication);
+		OwnerCheckinListResponse response = ownerCheckinService.getCheckinsBySchedule(ownerId, popupId, scheduleId);
+		return ok(response);
+	}
+
 	// 인증 정보에서 오너 ID를 추출하고 OWNER 권한을 확인합니다.
 	private Long getCurrentOwnerId(Authentication authentication) {
 		if (authentication == null || !authentication.isAuthenticated()) {
