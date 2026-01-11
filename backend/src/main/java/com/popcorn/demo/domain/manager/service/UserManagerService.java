@@ -24,13 +24,10 @@ public class UserManagerService {
     @Transactional
     public OwnerApproveResponse approveOwner(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         if (user.getRole() != UserRole.OWNER) {
-            throw new ApprovalNotAllowedException("승인대상이 아닙니다.");
-        }
-        if(user.getRole() == com.popcorn.demo.domain.users.entity.enums.UserRole.OWNER){
-
+            throw new IllegalArgumentException("승인대상이 아닙니다.");
         }
 
         user.setRole(UserRole.OWNER);
@@ -47,14 +44,14 @@ public class UserManagerService {
     @Transactional
     public OwnerForceStopResponse forceStopOwner(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         if (user.getRole() != UserRole.OWNER) {
-            throw new ApprovalNotAllowedException("승인대상이 아닙니다.");
+            throw new IllegalArgumentException("승인된 회원이 아닙니다.");
         }
 
         if (!user.isActive()) {
-            throw new IllegalArgumentException("유효된 회원이 아닙니다.");
+            throw new IllegalArgumentException("승인된 회원이 아닙니다.");
         }
 
         user.setActive(false);
@@ -70,10 +67,10 @@ public class UserManagerService {
     @Transactional
     public UserForceStopResponse forceStopUser(Long userId, UserForceStopRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         if (user.getRole() == UserRole.OWNER) {
-            throw new ApprovalNotAllowedException("승인대상이 아닙니다.");
+            throw new IllegalArgumentException("해당 회원이 아닙니다.");
         }
 
         user.setActive(false);
