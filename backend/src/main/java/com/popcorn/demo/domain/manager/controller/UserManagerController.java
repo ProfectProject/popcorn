@@ -11,6 +11,8 @@ import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.manager.service.UserManagerService;
 import com.popcorn.demo.domain.users.dto.manager.OwnerApproveResponse;
+import com.popcorn.demo.domain.users.dto.manager.OwnerForceStopRequest;
+import com.popcorn.demo.domain.users.dto.manager.OwnerForceStopResponse;
 import com.popcorn.demo.domain.users.dto.manager.UserForceStopRequest;
 import com.popcorn.demo.domain.users.dto.manager.UserForceStopResponse;
 
@@ -26,6 +28,13 @@ public class UserManagerController extends BaseController {
     @PostMapping("/owner/{userId}/approve")
     public ResponseEntity<BaseResponse<OwnerApproveResponse>> approveOwner(@PathVariable Long userId) {
         return ok(userManagerService.approveOwner(userId));
+    }
+
+    @PostMapping("/owner/{userId}/force_stop")
+    public ResponseEntity<BaseResponse<OwnerForceStopResponse>> forceStopOwner(
+            @PathVariable Long userId,
+            @RequestBody(required = false) OwnerForceStopRequest request) {
+        return ok(userManagerService.forceStopOwner(userId));
     }
 
     @PostMapping("/users/{userId}/force_stop")
