@@ -32,4 +32,12 @@ public class OwnerCheckinException extends BaseException {
 	public static OwnerCheckinException popupIdRequired() {
 		return new OwnerCheckinException(OwnerCheckinResponseCode.POPUP_ID_REQUIRED);
 	}
+
+	public static OwnerCheckinException scheduleIdRequired() {
+		return new OwnerCheckinException(OwnerCheckinResponseCode.SCHEDULE_ID_REQUIRED);
+	}
+
+	public static OwnerCheckinException scheduleNotFound() {
+		return new OwnerCheckinException(OwnerCheckinResponseCode.SCHEDULE_NOT_FOUND);
+	}
 }

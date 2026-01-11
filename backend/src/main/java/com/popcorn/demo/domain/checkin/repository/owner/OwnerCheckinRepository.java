@@ -47,6 +47,36 @@ public class OwnerCheckinRepository {
 		);
 	}
 
+	public List<CheckinRow> findByScheduleId(UUID popupId, UUID scheduleId, Long ownerId) {
+		return jdbcTemplate.query(
+				"""
+				SELECT DISTINCT c.checkin_id, c.order_id, c.order_qr_code_id, c.created_at, c.created_by, q.qr_code
+				FROM p_checkins c
+				JOIN p_order_qr_codes q ON q.qr_id = c.order_qr_code_id
+				JOIN p_orders o ON o.order_id = c.order_id AND o.deleted_at IS NULL
+				JOIN p_order_goods og ON og.order_id = o.order_id AND og.deleted_at IS NULL
+				JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+				JOIN p_popups p ON p.popup_id = ps.popup_id AND p.deleted_at IS NULL
+				JOIN p_stores s ON s.store_id = p.store_id AND s.deleted_at IS NULL
+				WHERE ps.schedule_id = ?
+				  AND p.popup_id = ?
+				  AND s.user_id = ?
+				ORDER BY c.created_at DESC
+				""",
+				(rs, rowNum) -> new CheckinRow(
+						UUID.fromString(rs.getString("checkin_id")),
+						UUID.fromString(rs.getString("order_id")),
+						UUID.fromString(rs.getString("order_qr_code_id")),
+						rs.getString("qr_code"),
+						toLocalDateTime(rs.getTimestamp("created_at")),
+						(Long) rs.getObject("created_by")
+				),
+				scheduleId,
+				popupId,
+				ownerId
+		);
+	}
+
 	private static LocalDateTime toLocalDateTime(Timestamp timestamp) {
 		if (timestamp == null) {
 			return null;
