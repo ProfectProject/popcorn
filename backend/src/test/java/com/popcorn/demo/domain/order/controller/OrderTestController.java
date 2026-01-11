@@ -36,7 +36,6 @@ public class OrderTestController extends BaseController {
 	public ResponseEntity<BaseResponse<OrderCreatedDto>> createTestOrder(
 			@PathVariable Long userId,
 			@RequestParam(defaultValue = "RESERVATION") String orderType,
-			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000001") UUID storeId,
 			@RequestParam(defaultValue = "00000000-0000-0000-0000-000000000101") UUID popupId,
 			@RequestParam(required = false) UUID sessionId,
 			@RequestParam(required = false) UUID optionId,
@@ -55,7 +54,6 @@ public class OrderTestController extends BaseController {
 
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
-				.storeId(storeId)
 				.popupId(popupId)
 				.orderType(orderType.toUpperCase())
 				.items(List.of(itemCommand))

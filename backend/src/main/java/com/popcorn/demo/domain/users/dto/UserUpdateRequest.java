@@ -14,4 +14,5 @@ import java.time.LocalDate;
 public class UserUpdateRequest {
     private String name;
     private String phone;
+    private String password;
 }

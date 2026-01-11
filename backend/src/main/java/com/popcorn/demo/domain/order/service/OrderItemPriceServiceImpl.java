@@ -25,11 +25,26 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
     @Override
     public Optional<Integer> findSessionOptionPrice(UUID sessionOptionId) {
         if (sessionOptionId == null) {
-        log.debug("스케줄 ID가 null입니다.");
+            log.error("❌ 스케줄 ID가 null입니다.");
             return Optional.empty();
         }
 
-        log.debug("스케줄 가격 조회 - ID: {}", sessionOptionId);
+        log.info("🔍 스케줄 가격 조회 시작 - ID: {}", sessionOptionId);
+
+        // 먼저 해당 스케줄이 존재하는지 확인
+        String existsQuery = "SELECT COUNT(*) FROM p_popup_schedules WHERE schedule_id = ?";
+        try {
+            Integer count = jdbcTemplate.queryForObject(existsQuery, Integer.class, sessionOptionId);
+            log.info("📊 스케줄 존재 여부 확인 - ID: {}, 존재 개수: {}", sessionOptionId, count);
+
+            if (count == null || count == 0) {
+                log.error("❌ 해당 스케줄 ID가 데이터베이스에 존재하지 않습니다 - ID: {}", sessionOptionId);
+                return Optional.empty();
+            }
+        } catch (Exception e) {
+            log.error("❌ 스케줄 존재 여부 확인 중 오류 발생 - ID: {}", sessionOptionId, e);
+        }
+
         return findPrice(
                 "SELECT price FROM p_popup_schedules WHERE schedule_id = ? AND deleted_at IS NULL",
                 sessionOptionId,

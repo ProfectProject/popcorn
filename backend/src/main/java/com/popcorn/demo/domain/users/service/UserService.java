@@ -9,6 +9,7 @@ import com.popcorn.demo.domain.users.dto.SignupResponse;
 import com.popcorn.demo.domain.users.dto.UserUpdateRequest;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.repository.UserRepository;
+import com.popcorn.demo.global.exception.ValidationException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +25,7 @@ public class UserService {
         }
 
         if (!request.getPassword().equals(request.getPasswordCheck())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+            throw new ValidationException("비밀번호가 일치하지 않습니다.");
         }
 
         String encodigPassword = passwordEncoder.encode(request.getPassword());
@@ -66,18 +67,26 @@ public class UserService {
         String cleanedPhone = null;
         if (request.getPhone() != null) {
             cleanedPhone = request.getPhone().replaceAll("[^0-9]", "");
-            // 전화번호 중복 체크 (전처리된 값 기준)
-            if (userRepository.findByPhone(cleanedPhone).isPresent()) {
-                throw new RuntimeException("Phone number already exists");
-            }
+            // 전화번호 중복 체크 (현재 사용자 제외)
+            userRepository.findByPhone(cleanedPhone).ifPresent(existingUser -> {
+                if (!existingUser.getUserId().equals(userId)) {
+                    throw new RuntimeException("Phone number already exists");
+                }
+            });
         }
 
         // 업데이트할 필드만 변경
-        if (request.getName() != null) {
+        if (request.getName() != null && !request.getName().trim().isEmpty()) {
             user.setName(request.getName());
         }
-        if (cleanedPhone!= null) {
+        if (cleanedPhone != null) {
             user.setPhone(cleanedPhone);
+        }
+
+        // 비밀번호 변경
+        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+            String encodedPassword = passwordEncoder.encode(request.getPassword());
+            user.setPassword(encodedPassword);
         }
 
         return userRepository.save(user);

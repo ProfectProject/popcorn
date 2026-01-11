@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 public class QrVerifyResponse {
 
 	private boolean valid;
+	private java.util.UUID checkinId;
 	private UUID orderId;
 	private String qrCode;
 	private LocalDateTime expiresAt;

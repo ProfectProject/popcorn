@@ -16,6 +16,7 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.service.PopupService;
 
 import lombok.RequiredArgsConstructor;
@@ -39,14 +40,30 @@ public class PopupController extends BaseController {
 
 	@Operation(
 			summary = "팝업 목록 조회",
-			description = "조건에 따라 팝업/상품 목록을 조회합니다."
+			description = """
+				다양한 조건을 통해 팝업 목록을 조회할 수 있습니다.
+
+				**주요 기능:**
+				- 카테고리별 필터링 (FOOD, IDOL, EXHIBITION 등 14개 카테고리)
+				- 키워드 검색 (제목, 설명 기준)
+				- 지역별 필터링
+				- 특정 스토어 팝업만 조회
+				- 페이징 처리 (기본 20개, 최대 100개)
+
+				**사용 예시:**
+				- 전체 조회: /api/v1/popups
+				- 카테고리 필터: /api/v1/popups?category=FOOD
+				- 검색: /api/v1/popups?keyword=팝업&category=FOOD&page=1&size=10
+				"""
 	)
 	@ApiResponse(
 			responseCode = "200",
 			description = "팝업 목록 조회 성공",
 			content = @Content(
 					schema = @Schema(implementation = PopupListResponse.class),
-					examples = @ExampleObject(value = """
+					examples = @ExampleObject(
+							name = "성공 응답 예시",
+							value = """
 							{
 							  "code": 200,
 							  "message": "요청이 성공했습니다.",
@@ -54,12 +71,13 @@ public class PopupController extends BaseController {
 							    "items": [
 							      {
 							        "id": "00000000-0000-0000-0000-000000000101",
-							        "storeId": "00000000-0000-0000-0000-000000000001",
-							        "title": "Seed Popup 1",
+							        "storeId": "f0000000-0000-0000-0000-000000000001",
+							        "title": "팝업 테스트 이벤트",
+							        "description": "팝업 세션 API 테스트를 위한 데모 이벤트입니다.",
 							        "category": "FOOD",
 							        "status": "OPEN",
-							        "eventStartAt": "2025-01-01T10:00:00",
-							        "eventEndAt": "2025-01-05T18:00:00"
+							        "eventStartAt": "2025-01-15T10:00:00",
+							        "eventEndAt": "2025-01-16T12:00:00"
 							      }
 							    ],
 							    "page": 1,
@@ -70,13 +88,28 @@ public class PopupController extends BaseController {
 							""")
 			)
 	)
+	@ApiResponse(
+			responseCode = "400",
+			description = "잘못된 요청 파라미터",
+			content = @Content(
+					schema = @Schema(implementation = BaseResponse.class),
+					examples = @ExampleObject(
+							name = "파라미터 오류",
+							value = """
+							{
+							  "code": 2100,
+							  "message": "잘못된 요청입니다."
+							}
+							""")
+			)
+	)
 	@GetMapping
 	public ResponseEntity<BaseResponse<PopupListResponse>> getPopups(
 			@Parameter(description = "지역 필터", example = "101")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) Long regionId,
 			@Parameter(description = "카테고리(FOOD/IDOL/EXHIBITION/WORKSHOP/FASHION/BEAUTY/LIFESTYLE/ART/GAME/TECH/SPORTS/BOOK/PET/ETC)",
 					example = "FOOD")
-			@org.springframework.web.bind.annotation.RequestParam(required = false) String category,
+			@org.springframework.web.bind.annotation.RequestParam(required = false) PopupCategory category,
 			@Parameter(description = "검색어", example = "팝업")
 			@org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
 			@Parameter(description = "가게 필터", example = "00000000-0000-0000-0000-000000000001")

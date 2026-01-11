@@ -25,19 +25,13 @@ import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
-import com.popcorn.demo.domain.order.dto.request.PaymentCreateRequest;
 import com.popcorn.demo.domain.order.dto.response.OrderCreatedDto;
-import com.popcorn.demo.domain.order.dto.response.OrderPaymentCreateResponse;
-import com.popcorn.demo.domain.order.dto.response.ReservationPaymentCreateResponse;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.order.entity.PaymentStatus;
 import com.popcorn.demo.common.versioning.ApiVersion;
-import com.popcorn.demo.domain.order.exception.PaymentException;
-import com.popcorn.demo.domain.order.service.PaymentCommandService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,19 +63,33 @@ public class OrderCommandController extends BaseController {
 
 private final OrderCommandService orderCommandService;
 private final ObjectMapper objectMapper;
-private final PaymentCommandService paymentCommandService;
 
 	/**
 	 * 새로운 주문을 생성합니다.
 	 *
 	 * @param userId 주문 생성 사용자 ID
 	 * @param request 주문 생성 요청 데이터
-	 * @param idempotencyKey 멱등성을 위한 키 (선택)
 	 * @return 생성된 주문 정보
 	 */
 	@Operation(
 			summary = "주문 생성",
-			description = "새로운 주문을 생성합니다. 예약형(RESERVATION) 또는 구매형(PURCHASE) 주문을 지원합니다."
+			description = """
+				새로운 주문을 생성합니다. 예약형(RESERVATION) 또는 구매형(PURCHASE) 주문을 지원합니다.
+
+				**주요 기능:**
+				- 예약형 주문: 팝업 세션 예약 (시간 지정 방문)
+				- 구매형 주문: 굿즈 구매 (배송 또는 현장 픽업)
+				- 실시간 재고 및 정원 체크
+				- 자동 가격 계산 (세션/굿즈별 단가 기준)
+				- 중복 주문 방지
+
+				**주문 플로우:**
+				1. REQUESTED → 2. ACCEPTED/REJECTED → 3. RESERVED/PAYMENT_PENDING → 4. PAID → 5. COMPLETED
+
+				**사용 예시:**
+				- 예약형: POST /api/v1/orders (세션 기반 예약)
+				- 구매형: POST /api/v1/orders (굿즈 구매 + 배송지)
+				"""
 	)
 	@ApiResponse(
 		responseCode = "201",
@@ -110,17 +118,15 @@ private final PaymentCommandService paymentCommandService;
 					examples = {
 						@ExampleObject(
 							name = "예약형 주문",
-							summary = "예약 세션 + 옵션 기반 주문",
+							summary = "팝업 세션 예약 (2025-01-15 10:00-12:00)",
 							value = """
 								{
 								  "orderType": "RESERVATION",
-								  "storeId": "00000000-0000-0000-0000-000000000001",
 								  "popupId": "00000000-0000-0000-0000-000000000101",
 								  "items": [
 								    {
 								      "orderItemType": "RESERVATION",
 								      "sessionId": "00000000-0000-0000-0000-000000000201",
-								      "optionId": "00000000-0000-0000-0000-000000000301",
 								      "qty": 2
 								    }
 								  ]
@@ -128,19 +134,17 @@ private final PaymentCommandService paymentCommandService;
 								"""
 						),
 						@ExampleObject(
-							name = "구매형 주문",
-							summary = "굿즈 구매 + 배송지 포함",
+							name = "굿즈 구매형 주문",
+							summary = "팝업 기념품 구매 (25,000원)",
 							value = """
 								{
 								  "orderType": "PURCHASE",
-								  "storeId": "00000000-0000-0000-0000-000000000001",
 								  "popupId": "00000000-0000-0000-0000-000000000101",
-								  "reservationId": "00000000-0000-0000-0000-000000000601",
 								  "items": [
 								    {
 								      "orderItemType": "GOODS",
-								      "goodsVariantId": "00000000-0000-0000-0000-000000000401",
-								      "qty": 2
+								      "goodsVariantId": "00000000-0000-0000-0000-000000000301",
+								      "qty": 1
 								    }
 								  ],
 								  "address": {
@@ -151,15 +155,33 @@ private final PaymentCommandService paymentCommandService;
 								  }
 								}
 								"""
+						),
+						@ExampleObject(
+							name = "복합 주문 (예약+굿즈)",
+							summary = "세션 예약과 굿즈 구매를 함께",
+							value = """
+								{
+								  "orderType": "RESERVATION",
+								  "popupId": "00000000-0000-0000-0000-000000000101",
+								  "items": [
+								    {
+								      "orderItemType": "RESERVATION",
+								      "sessionId": "00000000-0000-0000-0000-000000000201",
+								      "qty": 1
+								    },
+								    {
+								      "orderItemType": "GOODS",
+								      "goodsVariantId": "00000000-0000-0000-0000-000000000301",
+								      "qty": 1
+								    }
+								  ]
+								}
+								"""
 						)
 					}
 				)
 			)
 			@Valid @RequestBody CreateOrderRequest request,
-
-			@Parameter(hidden = true)
-			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-
 			Authentication authentication) {
 
 		logRequestDebug("주문 생성 요청", request);
@@ -171,10 +193,8 @@ private final PaymentCommandService paymentCommandService;
 		// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
-				.storeId(request.getStoreId())
 				.popupId(request.getPopupId())
 				.orderType(request.getOrderType())
-				.idempotencyKey(idempotencyKey)
 				.items(request.getItems().stream()
 						.map(item -> CreateOrderCommand.OrderItemCommand.builder()
 								.orderItemType(OrderItemType.valueOf(item.getOrderItemType()))
@@ -195,7 +215,28 @@ private final PaymentCommandService paymentCommandService;
 
 	@Operation(
 			summary = "주문 상태 변경",
-			description = "운영(OWNER/MANAGER)에서 주문 상태를 변경합니다."
+			description = """
+				운영자(OWNER/MANAGER)가 주문 상태를 변경합니다.
+
+				**상태 전이 규칙:**
+				- REQUESTED → ACCEPTED, REJECTED
+				- ACCEPTED → RESERVED, PAYMENT_PENDING
+				- RESERVED → PAID, CANCELLED
+				- PAYMENT_PENDING → PAID, CANCELLED
+				- PAID → COMPLETED, CANCELLED
+				- COMPLETED → (최종 상태)
+				- CANCELLED → (최종 상태)
+
+				**주요 기능:**
+				- 상태 전이 유효성 검증
+				- 상태 변경 이력 자동 저장
+				- 이벤트 기반 알림 발송
+				- 취소 시 환불 로직 연동
+
+				**권한:**
+				- OWNER: 본인 스토어 주문만 관리
+				- MANAGER: 권한 범위 내 주문 관리
+				"""
 	)
 	@ApiResponse(
 		responseCode = "200",
@@ -315,137 +356,26 @@ private final PaymentCommandService paymentCommandService;
 	}
 
 	@Operation(
-			summary = "예약 결제 기록 생성",
-			description = "예약 주문에 대한 결제 기록을 생성합니다."
-	)
-	@ApiResponse(
-			responseCode = "201",
-			description = "예약 결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = ReservationPaymentCreateResponse.class))
-	)
-	@PostMapping("/{orderId}/reservation-payments")
-	public ResponseEntity<BaseResponse<ReservationPaymentCreateResponse>> createReservationPayment(
-			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001003")
-			@PathVariable UUID orderId,
-			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "예약 결제 생성 요청",
-				required = true,
-				content = @Content(
-					schema = @Schema(implementation = PaymentCreateRequest.class),
-					examples = {
-						@ExampleObject(
-							name = "CARD 결제",
-							value = """
-								{
-								  "method": "CARD",
-								  "amount": 4000,
-								  "rawPayload": {
-								    "pg": "example",
-								    "transactionId": "T-20250101"
-								  }
-								}
-								"""
-						),
-						@ExampleObject(
-							name = "EASY_PAY 결제",
-							value = """
-								{
-								  "method": "EASY_PAY",
-								  "amount": 4000
-								}
-								"""
-						),
-						@ExampleObject(
-							name = "TRANSFER 결제",
-							value = """
-								{
-								  "method": "TRANSFER",
-								  "amount": 4000,
-								  "rawPayload": {
-								    "bank": "K-BANK",
-								    "account": "123-456-7890"
-								  }
-								}
-								"""
-						)
-					}
-				)
-			)
-			@Valid @RequestBody PaymentCreateRequest request) {
-
-		String rawPayload = toPayloadJson(request.getRawPayload());
-		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createReservationPayment(
-						orderId,
-						request.getMethod(),
-						request.getAmount(),
-						rawPayload);
-
-		ReservationPaymentCreateResponse response = ReservationPaymentCreateResponse.builder()
-				.paymentId(result.getPaymentId())
-				.paymentStatus(toApiPaymentStatus(result.getPaymentStatus()))
-				.orderStatus(result.getOrderStatus().name())
-				.approvedAt(result.getApprovedAt())
-				.build();
-
-		return created(response);
-	}
-
-	@Operation(
-			summary = "주문 결제 기록 생성",
-			description = "구매형 주문에 대한 결제 기록을 생성합니다."
-	)
-	@ApiResponse(
-			responseCode = "201",
-			description = "주문 결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = OrderPaymentCreateResponse.class))
-	)
-	@PostMapping("/{orderId}/payments")
-	public ResponseEntity<BaseResponse<OrderPaymentCreateResponse>> createOrderPayment(
-			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001004")
-			@PathVariable UUID orderId,
-			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "구매 결제 생성 요청",
-				required = true,
-				content = @Content(
-					schema = @Schema(implementation = PaymentCreateRequest.class),
-					examples = @ExampleObject(
-						name = "CARD 결제",
-						value = """
-							{
-							  "method": "CARD",
-							  "amount": 3000,
-							  "rawPayload": {
-							    "pg": "example",
-							    "transactionId": "T-20250102"
-							  }
-							}
-							"""
-					)
-				)
-			)
-			@Valid @RequestBody PaymentCreateRequest request) {
-
-		String rawPayload = toPayloadJson(request.getRawPayload());
-		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createOrderPayment(
-						orderId,
-						request.getMethod(),
-						request.getAmount(),
-						rawPayload);
-
-		OrderPaymentCreateResponse response = OrderPaymentCreateResponse.builder()
-				.paymentId(result.getPaymentId())
-				.status(toApiPaymentStatus(result.getPaymentStatus()))
-				.orderStatus(result.getOrderStatus().name())
-				.build();
-
-		return created(response);
-	}
-
-	@Operation(
 			summary = "주문 취소",
-			description = "CUSTOMER가 본인 주문을 취소합니다."
+			description = """
+				고객(CUSTOMER)이 본인 주문을 취소합니다.
+
+				**취소 가능 조건:**
+				- 주문 상태가 CANCELLED가 아님
+				- cancelableUntil 시간이 지나지 않음
+				- 본인의 주문만 취소 가능
+
+				**취소 처리:**
+				- 주문 상태를 CANCELLED로 변경
+				- 결제 금액 환불 처리 (별도 프로세스)
+				- 예약 세션 정원 복구
+				- 굿즈 재고 복구
+
+				**주의사항:**
+				- 취소 후에는 되돌릴 수 없음
+				- 환불 처리는 3-5영업일 소요
+				- 부분 취소는 지원하지 않음
+				"""
 	)
 	@ApiResponse(
 			responseCode = "200",
@@ -539,18 +469,5 @@ private final PaymentCommandService paymentCommandService;
 		}
 	}
 
-	private String toPayloadJson(Object payload) {
-		if (payload == null) {
-			return null;
-		}
-		try {
-			return objectMapper.writeValueAsString(payload);
-		} catch (JsonProcessingException ex) {
-			throw PaymentException.invalidRequest();
-		}
-	}
 
-	private String toApiPaymentStatus(PaymentStatus status) {
-		return status == PaymentStatus.PAID ? "PAID" : "FAILED";
-	}
 }

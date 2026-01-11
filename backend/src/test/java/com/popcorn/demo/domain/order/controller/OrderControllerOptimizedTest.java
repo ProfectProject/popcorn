@@ -52,7 +52,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             when(orderCommandService.createOrder(any())).thenReturn(response);
 
             // When: 공통 JSON 헬퍼 메서드 활용
-            String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 2);
+            String requestJson = createOrderRequestJson(TestUUIDs.PRODUCT_ID, 2);
 
             // Then: 검증 로직 최적화
             mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
@@ -84,7 +84,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                     .thenThrow(OrderValidationException.emptyItems());
 
             // When & Then: 한 번의 호출로 예외 검증
-            String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 1);
+            String requestJson = createOrderRequestJson(TestUUIDs.PRODUCT_ID, 1);
 
             mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -185,7 +185,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                 );
                 when(orderCommandService.createOrder(any())).thenReturn(response);
 
-                String requestJson = createOrderRequestJson(TestUUIDs.STORE_ID, TestUUIDs.PRODUCT_ID, 1);
+                String requestJson = createOrderRequestJson(TestUUIDs.PRODUCT_ID, 1);
 
                 mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders")
                                 .contentType(MediaType.APPLICATION_JSON)

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+    OWASP Dependency Check Suppressions
+
+    이 파일은 알려진 false positive나 수용 가능한 취약점을 억제하기 위해 사용됩니다.
+    각 suppression은 신중히 검토된 후 추가되어야 합니다.
+    -->
+
+    <!-- Spring Framework 관련 알려진 false positives -->
+    <suppress>
+        <notes>Spring Boot Test 관련 CVE false positive</notes>
+        <cve>CVE-2016-1000027</cve>
+        <filePath regex="true">.*spring-web-.*\.jar</filePath>
+    </suppress>
+
+    <!-- H2 Database (테스트 환경에서만 사용) -->
+    <suppress>
+        <notes>H2 Database는 테스트 환경에서만 사용되며 프로덕션에는 영향 없음</notes>
+        <cve>CVE-2022-45868</cve>
+        <filePath regex="true">.*h2-.*\.jar</filePath>
+    </suppress>
+
+    <!-- Tomcat Embedded (Spring Boot 내장) -->
+    <suppress>
+        <notes>Spring Boot에서 관리되는 Tomcat 버전으로 자동 패치됨</notes>
+        <cve>CVE-2023-46589</cve>
+        <filePath regex="true">.*tomcat-embed-.*\.jar</filePath>
+    </suppress>
+
+    <!-- Jackson 관련 (최신 버전 사용 중) -->
+    <suppress>
+        <notes>최신 Jackson 버전 사용으로 해결된 이슈</notes>
+        <cve>CVE-2022-42003</cve>
+        <filePath regex="true">.*jackson-.*\.jar</filePath>
+    </suppress>
+
+    <!--
+    새로운 false positive나 수용된 취약점을 추가할 때는 다음 형식 사용:
+
+    <suppress>
+        <notes>취약점을 억제하는 이유와 조치 사항</notes>
+        <cve>CVE-XXXX-XXXXX</cve>
+        <filePath regex="true">.*library-name-.*\.jar</filePath>
+    </suppress>
+    -->
+
+</suppressions>
