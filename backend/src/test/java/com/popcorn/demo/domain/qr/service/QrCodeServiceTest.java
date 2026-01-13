@@ -26,6 +26,7 @@ import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;
 import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
 import com.popcorn.demo.domain.qr.repository.QrCodeRow;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("QR 서비스 테스트")
 class QrCodeServiceTest {
@@ -33,6 +34,7 @@ class QrCodeServiceTest {
 	private QrCodeRepository qrCodeRepository;
 	private CheckinRepository checkinRepository;
 	private JpaOrderItemRepository orderItemRepository;
+	private ApplicationEventPublisher eventPublisher;
 	private QrCodeService qrCodeService;
 
 	@BeforeEach
@@ -40,7 +42,8 @@ class QrCodeServiceTest {
 		qrCodeRepository = Mockito.mock(QrCodeRepository.class);
 		checkinRepository = Mockito.mock(CheckinRepository.class);
 		orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-		qrCodeService = new QrCodeService(qrCodeRepository, checkinRepository, orderItemRepository);
+		eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		qrCodeService = new QrCodeService(qrCodeRepository, checkinRepository, orderItemRepository, eventPublisher);
 	}
 
 	@Test
