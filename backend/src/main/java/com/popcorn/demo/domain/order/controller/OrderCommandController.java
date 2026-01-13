@@ -58,7 +58,7 @@ import jakarta.validation.Valid;
  * - 주문 상태 변경
  * - 주문 취소
  */
-@Tag(name = "Order", description = "주문 관련 API")
+@Tag(name = "Order", description = "주문 관리 API")
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/orders")

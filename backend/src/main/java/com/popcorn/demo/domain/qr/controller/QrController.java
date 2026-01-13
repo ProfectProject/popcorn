@@ -28,7 +28,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@Tag(name = "QR", description = "주문 QR 발급/조회/검증 API")
+@Tag(name = "QR", description = "QR 코드 관리 API")
 @ApiVersion("v1")
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor

@@ -28,7 +28,8 @@ import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsClient;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
-import com.popcorn.demo.domain.qr.service.QrCodeService;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("토스 결제 승인 서비스 테스트")
@@ -47,7 +48,10 @@ class TossPaymentServiceTest {
 	private JpaOrderItemRepository orderItemRepository;
 
 	@Mock
-	private QrCodeService qrCodeService;
+	private PaymentCommandService paymentCommandService;
+
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	@Mock
 	private TossPaymentsClient tossPaymentsClient;

@@ -14,6 +14,8 @@ import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/payments/webhooks")
@@ -21,6 +23,7 @@ public class TossWebhookController extends BaseController {
 
 	private static final Logger log = LoggerFactory.getLogger(TossWebhookController.class);
 
+	@Operation(hidden = true)
 	@PostMapping("/toss")
 	public ResponseEntity<BaseResponse<String>> handleTossWebhook(@RequestBody Map<String, Object> payload) {
 		log.info("🔔 토스 웹훅 수신 - payload: {}", payload);

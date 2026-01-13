@@ -46,8 +46,22 @@ public class PaymentCommandController extends BaseController {
 	private final PaymentTokenService paymentTokenService;
 
 	@Operation(
-			summary = "예약 결제 기록 생성",
-			description = "예약 주문에 대한 결제 기록을 생성합니다."
+			summary = "결제 기록 생성",
+			description = """
+				주문에 대한 결제 기록을 생성합니다.
+
+				**주문 유형 판별:**
+				- 주문 아이템에 세션 옵션이 포함되면 예약 주문(RESERVATION)
+				- 주문 아이템에 굿즈가 포함되면 구매 주문(PURCHASE)
+
+				**결제 수단 제한:**
+				- 예약 주문: CARD, TRANSFER, EASY_PAY
+				- 구매 주문: CARD
+
+				**결제 상태:**
+				- 생성 시 상태는 READY로 고정됩니다.
+				""",
+			hidden = true
 	)
 	@ApiResponse(
 			responseCode = "201",

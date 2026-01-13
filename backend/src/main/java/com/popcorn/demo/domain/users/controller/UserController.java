@@ -41,7 +41,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestParam;
 
 
-@Tag(name = "User", description = "사용자 관련 API")
+@Tag(name = "User", description = "사용자 관리 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users")

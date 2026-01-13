@@ -44,6 +44,7 @@ public class TossPaymentService {
 	private final OrderRepository orderRepository;
 	private final JpaPaymentRepository paymentRepository;
 	private final OrderCommandService orderCommandService;
+	private final PaymentCommandService paymentCommandService;
 	private final JpaOrderItemRepository orderItemRepository;
 	private final TossPaymentsClient tossPaymentsClient;
 	private final ObjectMapper objectMapper;
@@ -73,10 +74,13 @@ public class TossPaymentService {
 			}
 			validateTotalAmount(response.getTotalAmount(), amount);
 
+			// 결제 상태 직접 업데이트 (rawPayload와 approvedAt 포함)
 			LocalDateTime approvedAt = parseApprovedAt(response.getApprovedAt());
+			String rawPayload = serializePayload(response);
+
 			payment.setStatus(PaymentStatus.PAID);
 			payment.setApprovedAt(approvedAt);
-			payment.setRawPayload(serializePayload(response));
+			payment.setRawPayload(rawPayload);
 			Payment saved = paymentRepository.save(payment);
 
 			OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), OrderStatus.PAID, "결제 승인");
@@ -84,13 +88,18 @@ public class TossPaymentService {
 			// 결제 성공 이벤트 발행 (비동기 후속 작업 트리거)
 			publishPaymentSuccessEvent(order, saved, approvedAt, paymentKey);
 
-			log.info("✅ 토스 결제 승인 완료 - orderNo: {}, orderId: {}, paymentId: {}, amount: {}, status: {}, orderStatus: {}",
+			log.info("✅ 토스 결제 승인 완료 - orderNo: {}, orderId: {}, paymentId: {}, amount: {}, status: {}, orderStatus: {}, approvedAt: {}",
 					orderNo,
 					order.getId(),
 					saved.getId(),
 					saved.getAmount(),
 					saved.getStatus(),
-					orderStatus);
+					orderStatus,
+					approvedAt);
+
+			log.info("🎯 결제 데이터 저장 완료 - rawPayload 길이: {} bytes, approvedAt: {}",
+					rawPayload.length(),
+					approvedAt);
 
 			return TossPaymentConfirmResult.builder()
 					.paymentId(saved.getId())

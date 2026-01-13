@@ -119,14 +119,19 @@ public class PaymentQueryService {
 	 * 결제 엔티티 조회 (공통 메서드)
 	 */
 	private Payment findPaymentById(UUID paymentId) {
-		Payment payment = paymentRepository.findById(paymentId)
-				.orElseThrow(PaymentException::paymentNotFound);
+		try {
+			Payment payment = paymentRepository.findById(paymentId)
+					.orElseThrow(PaymentException::paymentNotFound);
 
-		if (payment.getDeletedAt() != null) {
+			if (payment.getDeletedAt() != null) {
+				throw PaymentException.paymentNotFound();
+			}
+
+			return payment;
+		} catch (Exception e) {
+			log.error("결제 조회 실패 - paymentId: {}", paymentId, e);
 			throw PaymentException.paymentNotFound();
 		}
-
-		return payment;
 	}
 
 	/**

@@ -70,55 +70,21 @@ public class PaymentCommandService {
 	}
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
-	public PaymentCreationResult createOrderPayment(UUID orderId, String method, Integer amount, String rawPayload) {
-		Order order = loadOrder(orderId);
-		validateOrderType(orderId, false);
-		PaymentMethod paymentMethod = parseMethod(method);
-		if (paymentMethod != PaymentMethod.CARD) {
-			throw PaymentException.invalidRequest();
-		}
-		return createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
+	public PaymentDetailResult updatePaymentStatus(UUID paymentId, String status) {
+		return updatePaymentStatus(paymentId, status, null, null);
 	}
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
-	public PaymentCreationResult createReadyPayment(UUID orderId, String method, Integer amount, String rawPayload) {
-		Order order = loadOrder(orderId);
-		PaymentMethod paymentMethod = parseMethod(method);
-		return createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
-	}
-
-	@Transactional(transactionManager = "jdbcTransactionManager")
-	public PaymentDetailResult approvePayment(UUID paymentId) {
+	public PaymentDetailResult updatePaymentStatus(UUID paymentId, String status, String rawPayload, LocalDateTime approvedAt) {
+		PaymentStatus targetStatus = parseStatus(status);
 		Payment payment = loadPayment(paymentId);
-		ensureStatus(payment, PaymentStatus.READY);
-		PaymentStatus updatedStatus = PaymentStatus.PAID;
-		LocalDateTime approvedAt = LocalDateTime.now();
-		payment.setStatus(updatedStatus);
-		payment.setApprovedAt(approvedAt);
-		Payment saved = paymentRepository.save(payment);
-		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), resolvePaymentOrderStatus(saved.getOrderId()), "결제 승인");
-		return toDetailResult(saved, orderStatus);
-	}
 
-	@Transactional(transactionManager = "jdbcTransactionManager")
-	public PaymentDetailResult failPayment(UUID paymentId) {
-		Payment payment = loadPayment(paymentId);
-		ensureStatus(payment, PaymentStatus.READY);
-		payment.setStatus(PaymentStatus.FAILED);
-		Payment saved = paymentRepository.save(payment);
-		return toDetailResult(saved, null);
-	}
-
-	@Transactional(transactionManager = "jdbcTransactionManager")
-	public PaymentDetailResult cancelPayment(UUID paymentId) {
-		Payment payment = loadPayment(paymentId);
-		if (payment.getStatus() != PaymentStatus.READY && payment.getStatus() != PaymentStatus.PAID) {
-			throw OrderValidationException.invalidStatusTransition();
-		}
-		payment.setStatus(PaymentStatus.CANCELLED);
-		Payment saved = paymentRepository.save(payment);
-		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), OrderStatus.CANCELLED, "결제 취소");
-		return toDetailResult(saved, orderStatus);
+		return switch (targetStatus) {
+			case PAID -> approvePayment(payment, rawPayload, approvedAt);
+			case FAILED -> failPayment(payment);
+			case CANCELLED -> cancelPayment(payment);
+			default -> throw PaymentException.invalidRequest();
+		};
 	}
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
@@ -266,10 +232,23 @@ public class PaymentCommandService {
 	}
 
 	private PaymentDetailResult approvePayment(Payment payment) {
+		return approvePayment(payment, null, null);
+	}
+
+	private PaymentDetailResult approvePayment(Payment payment, String rawPayload, LocalDateTime approvedAt) {
 		ensureStatus(payment, PaymentStatus.READY);
-		LocalDateTime approvedAt = LocalDateTime.now();
+
+		// approvedAt이 null이면 현재 시간 사용 (기본 동작)
+		LocalDateTime finalApprovedAt = approvedAt != null ? approvedAt : LocalDateTime.now();
+
 		payment.setStatus(PaymentStatus.PAID);
-		payment.setApprovedAt(approvedAt);
+		payment.setApprovedAt(finalApprovedAt);
+
+		// rawPayload가 제공되면 업데이트
+		if (rawPayload != null) {
+			payment.setRawPayload(rawPayload);
+		}
+
 		Payment saved = paymentRepository.save(payment);
 		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), resolvePaymentOrderStatus(saved.getOrderId()), "결제 승인");
 
@@ -285,7 +264,7 @@ public class PaymentCommandService {
 					saved.getAmount(),
 					orderType,
 					order.getCustomerId(),
-					approvedAt
+					finalApprovedAt
 			));
 		}
 

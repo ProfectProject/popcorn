@@ -29,7 +29,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@Tag(name = "Payments", description = "결제 조회/승인/실패/취소 API")
+@Tag(name = "Payments", description = "결제 관리 API")
 @ApiVersion("v1")
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
