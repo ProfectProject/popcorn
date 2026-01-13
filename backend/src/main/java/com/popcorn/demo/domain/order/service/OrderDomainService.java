@@ -46,6 +46,7 @@ public class OrderDomainService {
 				new java.util.EnumMap<>(OrderStatus.class);
 		transitions.put(OrderStatus.REQUESTED, java.util.EnumSet.of(
 				OrderStatus.ACCEPTED,
+				OrderStatus.PAYMENT_PENDING,
 				OrderStatus.RESERVED,
 				OrderStatus.REJECTED,
 				OrderStatus.CANCELLED

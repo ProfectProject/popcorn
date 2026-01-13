@@ -76,13 +76,15 @@ class PaymentCommandServiceTest {
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(false);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAYMENT_PENDING.name()), any()))
+				.thenReturn(createOrder(orderId, OrderType.RESERVATION, OrderStatus.PAYMENT_PENDING));
 
 		PaymentCommandService.PaymentCreationResult result =
 				paymentCommandService.createPayment(orderId, "CARD", 4000, null);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
 		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.READY);
-		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.REQUESTED);
+		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
 		assertThat(result.getApprovedAt()).isNull();
 	}
 
@@ -105,13 +107,15 @@ class PaymentCommandServiceTest {
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(true);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAYMENT_PENDING.name()), any()))
+				.thenReturn(createOrder(orderId, OrderType.PURCHASE, OrderStatus.PAYMENT_PENDING));
 
 		PaymentCommandService.PaymentCreationResult result =
 				paymentCommandService.createPayment(orderId, "CARD", 3000, null);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
 		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.READY);
-		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.REQUESTED);
+		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
 		assertThat(result.getApprovedAt()).isNull();
 	}
 
@@ -220,7 +224,6 @@ class PaymentCommandServiceTest {
 		Order updatedOrder = createOrder(orderId, OrderType.RESERVATION, OrderStatus.PAID);
 
 		when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
 				.thenReturn(updatedOrder);
 		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));

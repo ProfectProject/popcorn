@@ -42,4 +42,10 @@ logging:
     org.springframework.boot.web: DEBUG
     org.hibernate.SQL: DEBUG
 
-
+toss:
+  payments:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
+    checkout-url: ${TOSS_PAYMENTS_CHECKOUT_URL:http://localhost:3000/payments}
+    success-url: ${TOSS_PAYMENTS_SUCCESS_URL:http://localhost:3000/payments/success}
+    fail-url: ${TOSS_PAYMENTS_FAIL_URL:http://localhost:3000/payments/fail}

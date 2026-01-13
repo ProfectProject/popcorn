@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PaymentCreateResponse {
+public class TossPaymentConfirmResponse {
 
 	private UUID paymentId;
 	private String status;
@@ -20,9 +20,5 @@ public class PaymentCreateResponse {
 	private UUID orderId;
 	private String orderNo;
 	private Integer amount;
-	private String customerKey;
-	private String successUrl;
-	private String failUrl;
-	private String paymentToken; // JWT 암호화된 결제 토큰
 	private LocalDateTime approvedAt;
 }

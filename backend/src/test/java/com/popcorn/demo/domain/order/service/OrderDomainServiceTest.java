@@ -229,8 +229,8 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 불가")
-	void canChangeStatus_RequestedToReady_ReturnsFalse() {
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 가능")
+	void canChangeStatus_RequestedToPending_ReturnsTrue() {
 		// given
 		OrderStatus currentStatus = OrderStatus.REQUESTED;
 		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
@@ -239,7 +239,7 @@ class OrderDomainServiceTest {
 		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
 
 		// then
-		assertThat(canChange).isFalse();
+		assertThat(canChange).isTrue();
 	}
 
 	@Test

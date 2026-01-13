@@ -19,6 +19,8 @@ import com.popcorn.demo.domain.payment.dto.response.PaymentCreateResponse;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,6 +41,8 @@ public class PaymentCommandController extends BaseController {
 
 	private final PaymentCommandService paymentCommandService;
 	private final ObjectMapper objectMapper;
+	private final TossPaymentsProperties tossPaymentsProperties;
+	private final PaymentTokenService paymentTokenService;
 
 	@Operation(
 			summary = "결제 기록 생성",
@@ -133,10 +137,28 @@ public class PaymentCommandController extends BaseController {
 						request.getAmount(),
 						rawPayload);
 
+		// JWT 토큰으로 결제 정보 암호화
+		String paymentToken = paymentTokenService.createPaymentToken(
+				PaymentTokenService.PaymentTokenInfo.builder()
+						.orderNo(result.getOrderNo())
+						.amount(result.getAmount())
+						.customerKey(toCustomerKey(result.getCustomerId()))
+						.paymentId(result.getPaymentId())
+						.successUrl(tossPaymentsProperties.getSuccessUrl())
+						.failUrl(tossPaymentsProperties.getFailUrl())
+						.build());
+
 		PaymentCreateResponse response = PaymentCreateResponse.builder()
 				.paymentId(result.getPaymentId())
 				.status(toApiPaymentStatus(result.getPaymentStatus()))
 				.orderStatus(result.getOrderStatus().name())
+				.orderId(orderId)
+				.orderNo(result.getOrderNo())
+				.amount(result.getAmount())
+				.customerKey(toCustomerKey(result.getCustomerId()))
+				.successUrl(tossPaymentsProperties.getSuccessUrl())
+				.failUrl(tossPaymentsProperties.getFailUrl())
+				.paymentToken(paymentToken) // 암호화된 토큰 추가
 				.approvedAt(result.getApprovedAt())
 				.build();
 
@@ -159,5 +181,12 @@ public class PaymentCommandController extends BaseController {
 			throw PaymentException.invalidRequest();
 		}
 		return status.name();
+	}
+
+	private String toCustomerKey(Long customerId) {
+		if (customerId == null) {
+			return "guest";
+		}
+		return customerId.toString();
 	}
 }

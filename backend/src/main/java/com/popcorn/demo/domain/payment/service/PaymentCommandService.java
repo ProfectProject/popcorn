@@ -110,12 +110,19 @@ public class PaymentCommandService {
 				.build();
 
 		Payment saved = paymentRepository.save(payment);
+		OrderStatus orderStatus = order.getStatus();
+		if (orderStatus != OrderStatus.PAYMENT_PENDING) {
+			orderStatus = updateOrderStatus(order.getId(), OrderStatus.PAYMENT_PENDING, "결제 대기");
+		}
 
 		return PaymentCreationResult.builder()
 				.paymentId(saved.getId())
 				.paymentStatus(paymentStatus)
-				.orderStatus(order.getStatus())
+				.orderStatus(orderStatus)
 				.approvedAt(approvedAt)
+				.orderNo(order.getOrderNo())
+				.amount(saved.getAmount())
+				.customerId(order.getCustomerId())
 				.build();
 	}
 
@@ -170,6 +177,9 @@ public class PaymentCommandService {
 		private PaymentStatus paymentStatus;
 		private OrderStatus orderStatus;
 		private LocalDateTime approvedAt;
+		private String orderNo;
+		private Integer amount;
+		private Long customerId;
 	}
 
 	@Getter
@@ -240,11 +250,7 @@ public class PaymentCommandService {
 	}
 
 	private OrderStatus resolvePaymentOrderStatus(UUID orderId) {
-		boolean hasSchedule = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
-		if (hasSchedule) {
-			return OrderStatus.PAID;
-		}
-		return OrderStatus.COMPLETED;
+		return OrderStatus.PAID;
 	}
 
 	private OrderStatus updateOrderStatus(UUID orderId, OrderStatus status, String reason) {

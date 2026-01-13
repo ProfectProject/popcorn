@@ -28,8 +28,11 @@ import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 
 class OrderCommandControllerTest {
 
@@ -37,7 +40,12 @@ class OrderCommandControllerTest {
 	@DisplayName("주문 생성 응답을 반환한다")
 	void createOrderReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
-		OrderCommandController controller = new OrderCommandController(service, new ObjectMapper());
+		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
+		tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
+		tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
+		OrderCommandController controller = new OrderCommandController(
+				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties);
 
 		UUID orderId = UUID.randomUUID();
 		UUID popupId = UUID.randomUUID();
@@ -45,7 +53,7 @@ class OrderCommandControllerTest {
 				.orderId(orderId)
 				.orderNo("O-1001")
 				.orderType("RESERVATION")
-				.status("REQUESTED")
+				.status("PAYMENT_PENDING")
 				.storeId(UUID.randomUUID())
 				.popupId(popupId)
 				.totalAmount(10000)
@@ -59,7 +67,8 @@ class OrderCommandControllerTest {
 						.lineAmount(10000)
 						.build()))
 				.build();
-		when(service.createOrder(Mockito.any())).thenReturn(response);
+		when(paymentFacade.createOrderWithPayment(Mockito.any(), Mockito.any()))
+				.thenReturn(buildOrderWithPaymentResult(response));
 
 		CreateOrderRequest request = CreateOrderRequest.builder()
 				.orderType("RESERVATION")
@@ -82,7 +91,10 @@ class OrderCommandControllerTest {
 	@DisplayName("주문 상태 변경을 처리한다")
 	void updateOrderStatusReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
-		OrderCommandController controller = new OrderCommandController(service, new ObjectMapper());
+		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
+		OrderCommandController controller = new OrderCommandController(
+				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties);
 
 		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
@@ -107,7 +119,10 @@ class OrderCommandControllerTest {
 	@DisplayName("주문 취소 응답을 반환한다")
 	void cancelOrderReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
-		OrderCommandController controller = new OrderCommandController(service, new ObjectMapper());
+		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
+		OrderCommandController controller = new OrderCommandController(
+				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties);
 
 		UUID orderId = UUID.randomUUID();
 		Order cancelled = Order.builder().id(orderId).status(OrderStatus.CANCELLED).build();
@@ -125,11 +140,27 @@ class OrderCommandControllerTest {
 	@DisplayName("모든 주문 삭제 요청을 전달한다")
 	void deleteAllOrdersDelegates() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
-		OrderCommandController controller = new OrderCommandController(service, new ObjectMapper());
+		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
+		OrderCommandController controller = new OrderCommandController(
+				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties);
 
 		controller.deleteAllOrders();
 
 		verify(service).deleteAllOrders();
+	}
+
+	private OrderPaymentFacade.OrderWithPaymentResult buildOrderWithPaymentResult(CreateOrderResponse response) {
+		PaymentCommandService.PaymentCreationResult paymentResult =
+				PaymentCommandService.PaymentCreationResult.builder()
+						.paymentId(UUID.randomUUID())
+						.amount(response.getTotalAmount())
+						.customerId(1001L)
+						.build();
+		return OrderPaymentFacade.OrderWithPaymentResult.builder()
+				.orderResponse(response)
+				.paymentResult(paymentResult)
+				.build();
 	}
 
 	private Authentication authentication(Long userId, UserRole role) {

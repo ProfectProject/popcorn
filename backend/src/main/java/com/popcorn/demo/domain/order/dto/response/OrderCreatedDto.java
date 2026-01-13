@@ -26,7 +26,13 @@ import lombok.Setter;
 		"totalAmount",
 		"cancelableUntil",
 		"createdAt",
-		"items"
+		"items",
+		"paymentId",
+		"paymentAmount",
+		"checkoutUrl",
+		"customerKey",
+		"successUrl",
+		"failUrl"
 })
 public class OrderCreatedDto {
 
@@ -47,6 +53,12 @@ public class OrderCreatedDto {
 	private LocalDateTime cancelableUntil;
 	private LocalDateTime createdAt;
 	private List<OrderItemDto> items;
+	private UUID paymentId;
+	private Integer paymentAmount;
+	private String checkoutUrl;
+	private String customerKey;
+	private String successUrl;
+	private String failUrl;
 
 	@Getter
 	@Setter
