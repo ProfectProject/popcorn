@@ -28,7 +28,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "Popup", description = "팝업 관련 API")
+@Tag(name = "Popup", description = "팝업 관리 API")
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/popups")

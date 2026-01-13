@@ -70,11 +70,16 @@ public class PaymentCommandService {
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public PaymentDetailResult updatePaymentStatus(UUID paymentId, String status) {
+		return updatePaymentStatus(paymentId, status, null, null);
+	}
+
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public PaymentDetailResult updatePaymentStatus(UUID paymentId, String status, String rawPayload, LocalDateTime approvedAt) {
 		PaymentStatus targetStatus = parseStatus(status);
 		Payment payment = loadPayment(paymentId);
 
 		return switch (targetStatus) {
-			case PAID -> approvePayment(payment);
+			case PAID -> approvePayment(payment, rawPayload, approvedAt);
 			case FAILED -> failPayment(payment);
 			case CANCELLED -> cancelPayment(payment);
 			default -> throw PaymentException.invalidRequest();
@@ -237,10 +242,23 @@ public class PaymentCommandService {
 	}
 
 	private PaymentDetailResult approvePayment(Payment payment) {
+		return approvePayment(payment, null, null);
+	}
+
+	private PaymentDetailResult approvePayment(Payment payment, String rawPayload, LocalDateTime approvedAt) {
 		ensureStatus(payment, PaymentStatus.READY);
-		LocalDateTime approvedAt = LocalDateTime.now();
+
+		// approvedAt이 null이면 현재 시간 사용 (기본 동작)
+		LocalDateTime finalApprovedAt = approvedAt != null ? approvedAt : LocalDateTime.now();
+
 		payment.setStatus(PaymentStatus.PAID);
-		payment.setApprovedAt(approvedAt);
+		payment.setApprovedAt(finalApprovedAt);
+
+		// rawPayload가 제공되면 업데이트
+		if (rawPayload != null) {
+			payment.setRawPayload(rawPayload);
+		}
+
 		Payment saved = paymentRepository.save(payment);
 		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), resolvePaymentOrderStatus(saved.getOrderId()), "결제 승인");
 
@@ -256,7 +274,7 @@ public class PaymentCommandService {
 					saved.getAmount(),
 					orderType,
 					order.getCustomerId(),
-					approvedAt
+					finalApprovedAt
 			));
 		}
 

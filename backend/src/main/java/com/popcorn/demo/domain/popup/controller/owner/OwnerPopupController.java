@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-@Tag(name = "OwnerPopupController", description = "팝업 관리(Owner)")
+@Tag(name = "OwnerPopupController", description = "사장님 팝업 관리 API")
 @RestController
 @RequestMapping("/api/v1/owner/stores")
 public class OwnerPopupController {

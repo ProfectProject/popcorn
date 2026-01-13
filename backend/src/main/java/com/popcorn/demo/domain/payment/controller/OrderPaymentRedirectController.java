@@ -20,6 +20,7 @@ import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -32,6 +33,7 @@ public class OrderPaymentRedirectController {
 	private final JpaPaymentRepository paymentRepository;
 	private final TossPaymentsProperties tossPaymentsProperties;
 
+	@Operation(hidden = true)
 	@GetMapping("/{orderId}/pay")
 	public ResponseEntity<Void> redirectToPayment(@PathVariable UUID orderId) {
 		Order order = orderRepository.findById(orderId)

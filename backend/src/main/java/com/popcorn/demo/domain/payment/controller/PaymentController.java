@@ -33,7 +33,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@Tag(name = "Payments", description = "결제 조회/상태 변경/삭제 API")
+@Tag(name = "Payments", description = "결제 관리 API")
 @ApiVersion("v1")
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor

@@ -159,7 +159,7 @@ public class PaymentEventHandler {
 			log.info("🎉 결제 완료 자동 처리 완료 - 결제ID: {}", event.getPaymentId());
 
 		} catch (Exception e) {
-			log.error("❌ 결제 승인 이벤트 처리 실패 - 결제ID: {}, 주문ID: {}",
+			log.error("결제 완료 자동 처리 실패 - 결제ID: {}, 주문ID: {}",
 					event.getPaymentId(), event.getOrderId(), e);
 		}
 	}

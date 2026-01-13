@@ -24,6 +24,7 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 import com.popcorn.demo.global.config.CommonConfig;
 
@@ -36,18 +37,20 @@ class PaymentCommandControllerTest {
 	private MockMvc mockMvc;
 	private ObjectMapper objectMapper;
 	private PaymentCommandService paymentCommandService;
+	private PaymentTokenService paymentTokenService;
 	private TossPaymentsProperties tossPaymentsProperties;
 
 	@BeforeEach
 	void setUp() {
 		paymentCommandService = Mockito.mock(PaymentCommandService.class);
+		paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		objectMapper = new CommonConfig().objectMapper();
 		tossPaymentsProperties = new TossPaymentsProperties();
 		tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
 		tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
 
 		PaymentCommandController controller = new PaymentCommandController(
-				paymentCommandService, objectMapper, tossPaymentsProperties);
+				paymentCommandService, objectMapper, tossPaymentsProperties, paymentTokenService);
 		mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))

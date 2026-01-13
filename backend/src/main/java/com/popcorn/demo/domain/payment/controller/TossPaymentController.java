@@ -18,7 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-@Tag(name = "Payments", description = "토스 결제 승인 API")
+@Tag(name = "Payments", description = "결제 관리 API")
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/payments/toss")

@@ -43,7 +43,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * - 내 주문 목록 조회
  * - 가게 주문 목록 조회
  */
-@Tag(name = "Order", description = "주문 관련 API")
+@Tag(name = "Order", description = "주문 관리 API")
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/orders")

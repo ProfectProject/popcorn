@@ -59,7 +59,8 @@ public class PaymentCommandController extends BaseController {
 
 				**결제 상태:**
 				- 생성 시 상태는 READY로 고정됩니다.
-				"""
+				""",
+			hidden = true
 	)
 	@ApiResponse(
 			responseCode = "201",

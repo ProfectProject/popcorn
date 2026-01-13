@@ -31,7 +31,8 @@ public class PaymentPageController extends BaseController {
 
 	@Operation(
 			summary = "토큰 기반 결제 페이지 리다이렉트",
-			description = "JWT 토큰으로 암호화된 결제 정보를 이용해 결제 페이지로 리다이렉트합니다."
+			description = "JWT 토큰으로 암호화된 결제 정보를 이용해 결제 페이지로 리다이렉트합니다.",
+			hidden = true
 	)
 	@GetMapping("/checkout")
 	public ResponseEntity<Void> redirectToPaymentPage(
@@ -56,7 +57,8 @@ public class PaymentPageController extends BaseController {
 
 	@Operation(
 			summary = "토큰에서 결제 정보 추출",
-			description = "JWT 토큰을 디코딩하여 결제에 필요한 정보를 반환합니다."
+			description = "JWT 토큰을 디코딩하여 결제에 필요한 정보를 반환합니다.",
+			hidden = true
 	)
 	@GetMapping("/decode")
 	public ResponseEntity<BaseResponse<PaymentTokenService.PaymentTokenInfo>> decodePaymentToken(
