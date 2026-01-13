@@ -90,16 +90,16 @@ class TossPaymentServiceTest {
 				.amount(4000)
 				.build();
 
-		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-		when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId))
+		when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(order));
+		when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(any(UUID.class)))
 				.thenReturn(java.util.List.of(payment));
-		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderId.toString()));
+		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderNo));
 		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
 				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
 
 		TossPaymentService.TossPaymentConfirmResult result =
-				tossPaymentService.confirmPayment("pay_123", orderId.toString(), 4000);
+				tossPaymentService.confirmPayment("pay_123", orderNo, 4000);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
 		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
