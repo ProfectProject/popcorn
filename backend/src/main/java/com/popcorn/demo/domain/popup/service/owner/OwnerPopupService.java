@@ -23,6 +23,7 @@ import com.popcorn.demo.domain.popup.dto.owner.response.PopupUpdatedDto;
 import com.popcorn.demo.domain.popup.entity.Popup;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
+import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupRepository;
 import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupScheduleRepository;
 import com.popcorn.demo.domain.popup.repository.owner.view.OwnerPopupScheduleView;
@@ -123,6 +124,15 @@ public class OwnerPopupService {
         if (request.getPopupCategory() != null) {
             popup.setCategory(request.getPopupCategory());
         }
+        if (request.getReservationOpenAt() != null) {
+            popup.setReservationOpenAt(request.getReservationOpenAt());
+        }
+        if (request.getAddressRoad() != null) {
+            popup.setAddressRoad(request.getAddressRoad());
+        }
+        if (request.getAddressDetail() != null) {
+            popup.setAddressDetail(request.getAddressDetail());
+        }
         popup.setUpdatedBy(ownerId);
 
         Popup updatedPopup = ownerPopupRepository.save(popup);
@@ -188,6 +198,9 @@ public class OwnerPopupService {
                 .description(popup.getDescription())
                 .popupCategory(popup.getCategory())
                 .status(popup.getStatus())
+                .reservationOpenAt(popup.getReservationOpenAt())
+                .addressRoad(popup.getAddressRoad())
+                .addressDetail(popup.getAddressDetail())
                 .createdAt(popup.getCreatedAt())
                 .createdBy(popup.getCreatedBy())
                 .build();
@@ -199,6 +212,9 @@ public class OwnerPopupService {
                 .title(popup.getTitle())
                 .popupCategory(popup.getCategory())
                 .status(popup.getStatus())
+                .reservationOpenAt(popup.getReservationOpenAt())
+                .addressRoad(popup.getAddressRoad())
+                .addressDetail(popup.getAddressDetail())
                 .createdAt(popup.getCreatedAt())
                 .build();
     }
@@ -211,6 +227,9 @@ public class OwnerPopupService {
                 .description(popup.getDescription())
                 .popupCategory(popup.getCategory())
                 .status(popup.getStatus())
+                .reservationOpenAt(popup.getReservationOpenAt())
+                .addressRoad(popup.getAddressRoad())
+                .addressDetail(popup.getAddressDetail())
                 .createdAt(popup.getCreatedAt())
                 .updatedAt(popup.getUpdatedAt())
                 .schedules(schedules)
@@ -236,6 +255,9 @@ public class OwnerPopupService {
                 .description(popup.getDescription())
                 .status(popup.getStatus())
                 .popupCategory(popup.getCategory())
+                .reservationOpenAt(popup.getReservationOpenAt())
+                .addressRoad(popup.getAddressRoad())
+                .addressDetail(popup.getAddressDetail())
                 .updatedBy(popup.getUpdatedBy())
                 .updatedAt(popup.getUpdatedAt())
                 .build();
@@ -246,6 +268,9 @@ public class OwnerPopupService {
                 .popupId(popup.getId())
                 .title(popup.getTitle())
                 .status(popup.getStatus())
+                .reservationOpenAt(popup.getReservationOpenAt())
+                .addressRoad(popup.getAddressRoad())
+                .addressDetail(popup.getAddressDetail())
                 .updatedBy(popup.getUpdatedBy())
                 .updatedAt(popup.getUpdatedAt())
                 .build();
@@ -257,6 +282,9 @@ public class OwnerPopupService {
                 .title(popup.getTitle())
                 .deletedAt(popup.getDeletedAt())
                 .deletedBy(popup.getDeletedBy())
+                .reservationOpenAt(popup.getReservationOpenAt())
+                .addressRoad(popup.getAddressRoad())
+                .addressDetail(popup.getAddressDetail())
                 .build();
     }
 
@@ -268,6 +296,9 @@ public class OwnerPopupService {
                 .description(request.getDescription())
                 .status(PopupStatus.REQUEST)
                 .category(request.getCategory())
+                .reservationOpenAt(request.getReservationOpenAt())
+                .addressRoad(request.getAddressRoad())
+                .addressDetail(request.getAddressDetail())
                 .createdBy(userId)
                 .build();
     }
@@ -392,7 +423,8 @@ public class OwnerPopupService {
                         ownerId
                 );
                 if (updated == 0) {
-                    throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+                    throw OwnerPopupException.of(
+                            com.popcorn.demo.domain.popup.dto.owner.OwnerPopupResponseCode.SCHEDULE_UPDATE_NOT_FOUND);
                 }
             }
         }
@@ -402,7 +434,8 @@ public class OwnerPopupService {
             for (UUID scheduleId : deleteScheduleIds) {
                 int deleted = ownerPopupScheduleRepository.softDeleteSchedule(scheduleId, popupId, now, ownerId);
                 if (deleted == 0) {
-                    throw new PopupException(PopupResponseCode.INVALID_REQUEST);
+                    throw OwnerPopupException.of(
+                            com.popcorn.demo.domain.popup.dto.owner.OwnerPopupResponseCode.SCHEDULE_DELETE_NOT_FOUND);
                 }
             }
         }

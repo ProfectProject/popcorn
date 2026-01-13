@@ -17,6 +17,12 @@ public interface PopupListView {
 
 	String getStatus();
 
+	LocalDateTime getReservationOpenAt();
+
+	String getAddressRoad();
+
+	String getAddressDetail();
+
 	LocalDateTime getEventStartAt();
 
 	LocalDateTime getEventEndAt();

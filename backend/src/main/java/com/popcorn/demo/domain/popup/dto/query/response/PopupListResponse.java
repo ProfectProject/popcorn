@@ -32,6 +32,9 @@ public class PopupListResponse {
 		private String title;
 		private PopupCategory category;
 		private PopupStatus status;
+		private LocalDateTime reservationOpenAt;
+		private String addressRoad;
+		private String addressDetail;
 		private LocalDateTime eventStartAt;
 		private LocalDateTime eventEndAt;
 	}

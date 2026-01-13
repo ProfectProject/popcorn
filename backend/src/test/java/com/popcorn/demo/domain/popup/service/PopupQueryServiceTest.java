@@ -41,6 +41,9 @@ class PopupQueryServiceTest {
 				"예약형 팝업",
 				"FOOD",
 				"OPEN",
+				LocalDateTime.of(2024, 12, 20, 9, 0),
+				"서울시 강남구 테헤란로 123",
+				"4층 401호",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
 				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
@@ -66,6 +69,9 @@ class PopupQueryServiceTest {
 		assertEquals(1L, response.getTotal());
 		assertEquals("Seed Popup 1", response.getItems().get(0).getTitle());
 		assertEquals(PopupStatus.OPEN, response.getItems().get(0).getStatus());
+		assertEquals(LocalDateTime.of(2024, 12, 20, 9, 0), response.getItems().get(0).getReservationOpenAt());
+		assertEquals("서울시 강남구 테헤란로 123", response.getItems().get(0).getAddressRoad());
+		assertEquals("4층 401호", response.getItems().get(0).getAddressDetail());
 		verify(repository).countPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null));
 		verify(repository).findPopups(eq(101L), eq("FOOD"), eq("팝업"), eq(null), eq(100), eq(0L));
 	}
@@ -83,6 +89,9 @@ class PopupQueryServiceTest {
 				"예약형 팝업",
 				"FOOD",
 				"OPEN",
+				LocalDateTime.of(2024, 12, 20, 9, 0),
+				"서울시 강남구 테헤란로 123",
+				"4층 401호",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
 				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
@@ -119,6 +128,9 @@ class PopupQueryServiceTest {
 				null,
 				"FOOD",
 				"OPEN",
+				null,
+				null,
+				null,
 				null,
 				null
 		);
@@ -160,6 +172,9 @@ class PopupQueryServiceTest {
 				"예약형 팝업",
 				"FOOD",
 				"OPEN",
+				LocalDateTime.of(2024, 12, 20, 9, 0),
+				"서울시 강남구 테헤란로 123",
+				"4층 401호",
 				LocalDateTime.of(2025, 1, 1, 10, 0),
 				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
@@ -170,11 +185,15 @@ class PopupQueryServiceTest {
 		assertEquals(productId, response.getId());
 		assertEquals("Seed Popup 1", response.getTitle());
 		assertEquals("예약형 팝업", response.getDescription());
+		assertEquals(LocalDateTime.of(2024, 12, 20, 9, 0), response.getReservationOpenAt());
+		assertEquals("서울시 강남구 테헤란로 123", response.getAddressRoad());
+		assertEquals("4층 401호", response.getAddressDetail());
 	}
 
 	private record TestPopupView(String id, String storeId, String title, String description, String category,
-								 String status, LocalDateTime eventStartAt,
-								 LocalDateTime eventEndAt) implements PopupListView {
+								 String status, LocalDateTime reservationOpenAt, String addressRoad,
+								 String addressDetail, LocalDateTime eventStartAt, LocalDateTime eventEndAt)
+			implements PopupListView {
 
 		@Override
 		public String getId() {
@@ -204,6 +223,21 @@ class PopupQueryServiceTest {
 		@Override
 		public String getStatus() {
 			return status;
+		}
+
+		@Override
+		public LocalDateTime getReservationOpenAt() {
+			return reservationOpenAt;
+		}
+
+		@Override
+		public String getAddressRoad() {
+			return addressRoad;
+		}
+
+		@Override
+		public String getAddressDetail() {
+			return addressDetail;
 		}
 
 		@Override

@@ -169,6 +169,9 @@
 | description | text           |          |                                  | 설명              |
 | category    | popup_category | YES      |                                  | 카테고리            |
 | status      | popup_status   | YES      |                                  | 상태              |
+| reservation_open_at | timestamp |          |                                  | 예약 오픈 시각        |
+| address_road | text           |          |                                  | 도로명 주소          |
+| address_detail | text         |          |                                  | 상세 주소            |
 | created_at  | timestamp      | YES      |                                  | 생성              |
 | updated_at  | timestamp      | YES      |                                  | 수정              |
 | deleted_at  | timestamp      |          |                                  | 삭제              |
