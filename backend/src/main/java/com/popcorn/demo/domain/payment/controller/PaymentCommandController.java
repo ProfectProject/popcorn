@@ -141,6 +141,7 @@ public class PaymentCommandController extends BaseController {
 		// JWT 토큰으로 결제 정보 암호화
 		String paymentToken = paymentTokenService.createPaymentToken(
 				PaymentTokenService.PaymentTokenInfo.builder()
+						.orderId(orderId)
 						.orderNo(result.getOrderNo())
 						.amount(result.getAmount())
 						.customerKey(toCustomerKey(result.getCustomerId()))

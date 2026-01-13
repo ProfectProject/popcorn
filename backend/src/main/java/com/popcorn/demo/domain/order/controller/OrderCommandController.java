@@ -492,6 +492,7 @@ private final PaymentTokenService paymentTokenService;
 		// JWT 토큰으로 결제 정보 암호화
 		String paymentToken = paymentTokenService.createPaymentToken(
 				PaymentTokenService.PaymentTokenInfo.builder()
+						.orderId(response.getOrderId())
 						.orderNo(response.getOrderNo())
 						.amount(paymentResult.getAmount())
 						.customerKey(toCustomerKey(paymentResult.getCustomerId()))

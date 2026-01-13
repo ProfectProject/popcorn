@@ -33,6 +33,7 @@ public class PaymentTokenService {
                 .setSubject("p") // "payment" → "p" (더 짧게)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
+                .claim("i", paymentInfo.getOrderId() != null ? paymentInfo.getOrderId().toString() : null) // "orderId" → "i"
                 .claim("o", paymentInfo.getOrderNo()) // "orderNo" → "o"
                 .claim("a", paymentInfo.getAmount()) // "amount" → "a"
                 .claim("c", paymentInfo.getCustomerKey()) // "customerKey" → "c"
@@ -52,7 +53,14 @@ public class PaymentTokenService {
                     .parseClaimsJws(token)
                     .getBody();
 
+            String orderIdValue = claims.get("i", String.class);
+            UUID orderId = null;
+            if (orderIdValue != null && !orderIdValue.isBlank()) {
+                orderId = UUID.fromString(orderIdValue);
+            }
+
             return PaymentTokenInfo.builder()
+                    .orderId(orderId)
                     .orderNo(claims.get("o", String.class)) // 축약된 필드명 사용
                     .amount(claims.get("a", Integer.class))
                     .customerKey(claims.get("c", String.class))
@@ -83,6 +91,7 @@ public class PaymentTokenService {
     @Getter
     @Builder
     public static class PaymentTokenInfo {
+        private UUID orderId;
         private String orderNo;
         private Integer amount;
         private String customerKey;

@@ -51,14 +51,43 @@ public class TossPaymentService {
 	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
-	public TossPaymentConfirmResult confirmPayment(String paymentKey, String orderNo, Integer amount) {
+	public TossPaymentConfirmResult confirmPayment(String paymentKey, String orderId, Integer amount) {
 		try {
-			Order order = orderRepository.findByOrderNo(orderNo)
-					.orElseThrow(OrderNotFoundException::orderNotFound);
-			Payment payment = paymentRepository.findByOrderId(order.getId())
-					.orElseThrow(PaymentException::paymentNotFound);
+			Order order;
+			String tossOrderId = orderId;
+			try {
+				UUID orderUuid = UUID.fromString(orderId);
+				order = orderRepository.findById(orderUuid)
+						.orElseThrow(OrderNotFoundException::orderNotFound);
+			} catch (IllegalArgumentException ex) {
+				// Backward compatibility: allow orderNo as orderId.
+				order = orderRepository.findByOrderNo(orderId)
+						.orElseThrow(OrderNotFoundException::orderNotFound);
+				tossOrderId = order.getOrderNo();
+			}
+			List<Payment> payments = paymentRepository
+					.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(order.getId());
+			if (payments.isEmpty()) {
+				throw PaymentException.paymentNotFound();
+			}
+			Payment payment = payments.get(0);
 			if (payment.getDeletedAt() != null) {
 				throw PaymentException.paymentNotFound();
+			}
+			if (payment.getStatus() == PaymentStatus.PAID) {
+				OrderStatus orderStatus = order.getStatus();
+				if (orderStatus != OrderStatus.PAID) {
+					orderStatus = updateOrderStatus(order.getId(), OrderStatus.PAID, "결제 승인");
+				}
+				return TossPaymentConfirmResult.builder()
+						.paymentId(payment.getId())
+						.paymentStatus(payment.getStatus())
+						.orderStatus(orderStatus)
+						.orderId(order.getId())
+						.orderNo(order.getOrderNo())
+						.amount(payment.getAmount())
+						.approvedAt(payment.getApprovedAt())
+						.build();
 			}
 			ensureStatus(payment, PaymentStatus.READY);
 			validateAmount(payment, amount);
@@ -66,7 +95,7 @@ public class TossPaymentService {
 			TossPaymentsConfirmResponse response = tossPaymentsClient.confirm(
 					TossPaymentsConfirmRequest.builder()
 							.paymentKey(paymentKey)
-							.orderId(orderNo)
+							.orderId(tossOrderId)
 							.amount(amount)
 							.build());
 			if (response == null) {
@@ -89,7 +118,7 @@ public class TossPaymentService {
 			publishPaymentSuccessEvent(order, saved, approvedAt, paymentKey);
 
 			log.info("✅ 토스 결제 승인 완료 - orderNo: {}, orderId: {}, paymentId: {}, amount: {}, status: {}, orderStatus: {}, approvedAt: {}",
-					orderNo,
+					order.getOrderNo(),
 					order.getId(),
 					saved.getId(),
 					saved.getAmount(),
@@ -106,13 +135,13 @@ public class TossPaymentService {
 					.paymentStatus(saved.getStatus())
 					.orderStatus(orderStatus)
 					.orderId(order.getId())
-					.orderNo(orderNo)
+					.orderNo(order.getOrderNo())
 					.amount(saved.getAmount())
 					.approvedAt(saved.getApprovedAt())
 					.build();
 		} catch (Exception ex) {
-			log.error("❌ 토스 결제 승인 실패 - orderNo: {}, paymentKey: {}, amount: {}",
-					orderNo,
+			log.error("❌ 토스 결제 승인 실패 - orderId: {}, paymentKey: {}, amount: {}",
+					orderId,
 					paymentKey,
 					amount,
 					ex);
