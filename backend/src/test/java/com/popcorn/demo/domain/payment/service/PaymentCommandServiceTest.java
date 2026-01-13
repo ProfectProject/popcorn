@@ -32,6 +32,7 @@ import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.global.exception.BaseException;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("결제 기록 생성 서비스 테스트")
@@ -49,12 +50,15 @@ class PaymentCommandServiceTest {
 	@Mock
 	private JpaOrderItemRepository orderItemRepository;
 
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
+
 	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		paymentCommandService = new PaymentCommandService(
-				orderRepository, orderCommandService, paymentRepository, orderItemRepository);
+				orderRepository, orderCommandService, paymentRepository, orderItemRepository, eventPublisher);
 	}
 
 	@Test

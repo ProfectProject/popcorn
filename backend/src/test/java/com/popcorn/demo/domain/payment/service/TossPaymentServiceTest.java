@@ -27,7 +27,6 @@ import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsClient;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
-import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -64,10 +63,11 @@ class TossPaymentServiceTest {
 				orderRepository,
 				paymentRepository,
 				orderCommandService,
+				paymentCommandService,
 				orderItemRepository,
-				qrCodeService,
 				tossPaymentsClient,
-				new ObjectMapper());
+				new ObjectMapper(),
+				eventPublisher);
 	}
 
 	@Test
@@ -97,11 +97,6 @@ class TossPaymentServiceTest {
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
 				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
-		when(qrCodeService.issue(orderId)).thenReturn(QrCodeResponse.builder()
-				.orderId(orderId)
-				.qrCode("qr-auto-001")
-				.expiresAt(LocalDateTime.now().plusMinutes(10))
-				.build());
 
 		TossPaymentService.TossPaymentConfirmResult result =
 				tossPaymentService.confirmPayment("pay_123", orderNo, 4000);
