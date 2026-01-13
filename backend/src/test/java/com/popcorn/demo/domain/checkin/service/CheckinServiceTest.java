@@ -46,9 +46,9 @@ class CheckinServiceTest {
 				1001L
 		);
 
-		when(checkinRepository.findAll()).thenReturn(List.of(row));
+		when(checkinRepository.findAll(20)).thenReturn(List.of(row));
 
-		CheckinListResponse response = checkinService.getCheckins();
+		CheckinListResponse response = checkinService.getCheckins(20);
 
 		assertThat(response.getCount()).isEqualTo(1);
 		assertThat(response.getItems().get(0).getCheckinId()).isEqualTo(checkinId);

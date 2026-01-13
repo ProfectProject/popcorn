@@ -61,3 +61,6 @@ There
 **/*seed*.json
 **/*seed*.csv
 **/*seed*.java
+
+# k6 files
+k6

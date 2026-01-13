@@ -56,13 +56,14 @@ public class CheckinRepository {
 		return rows.stream().findFirst();
 	}
 
-	public List<CheckinRow> findAll() {
+	public List<CheckinRow> findAll(int limit) {
 		return jdbcTemplate.query(
 				"""
 				SELECT c.checkin_id, c.order_id, c.order_qr_code_id, c.created_at, c.created_by, q.qr_code
 				FROM p_checkins c
 				JOIN p_order_qr_codes q ON q.qr_id = c.order_qr_code_id
-				ORDER BY c.created_at DESC
+				ORDER BY c.created_at DESC, c.checkin_id DESC
+				LIMIT ?
 				""",
 				(rs, rowNum) -> new CheckinRow(
 						UUID.fromString(rs.getString("checkin_id")),
@@ -71,7 +72,8 @@ public class CheckinRepository {
 						rs.getString("qr_code"),
 						toLocalDateTime(rs.getTimestamp("created_at")),
 						(Long) rs.getObject("created_by")
-				)
+				),
+				limit
 		);
 	}
 
