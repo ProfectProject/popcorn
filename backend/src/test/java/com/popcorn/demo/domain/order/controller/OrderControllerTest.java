@@ -27,6 +27,8 @@ import com.popcorn.demo.domain.order.exception.OrderForbiddenException;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 
 class OrderControllerTest extends OrderControllerTestBase {
 
@@ -47,7 +49,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 				.orderId(orderId)
 				.orderNo("O20251231-000001")
 				.orderType("RESERVATION")
-				.status("REQUESTED")
+				.status("PAYMENT_PENDING")
 				.storeId(storeId)
 				.popupId(productId)
 				.totalAmount(2000)
@@ -64,7 +66,15 @@ class OrderControllerTest extends OrderControllerTestBase {
 				))
 				.build();
 
-		when(orderCommandService.createOrder(any())).thenReturn(response);
+		when(orderPaymentFacade.createOrderWithPayment(any(), any()))
+				.thenReturn(OrderPaymentFacade.OrderWithPaymentResult.builder()
+						.orderResponse(response)
+						.paymentResult(PaymentCommandService.PaymentCreationResult.builder()
+								.paymentId(UUID.randomUUID())
+								.amount(response.getTotalAmount())
+								.customerId(1001L)
+								.build())
+						.build());
 
 		String jsonRequest = buildReservationOrderRequest(productId.toString(), 2);
 
@@ -75,13 +85,13 @@ class OrderControllerTest extends OrderControllerTestBase {
 				.andExpect(MockMvcResultMatchers.status().isCreated())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
-				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("REQUESTED"));
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PAYMENT_PENDING"));
 	}
 
 	@Test
 	@DisplayName("주문 생성 실패 - 빈 아이템")
 	void createOrder_fail_emptyItems() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderValidationException.emptyItems());
+		when(orderPaymentFacade.createOrderWithPayment(any(), any())).thenThrow(OrderValidationException.emptyItems());
 
 		String jsonRequest = buildReservationOrderRequest(DEFAULT_PRODUCT_ID, 1);
 
@@ -214,7 +224,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	@Test
 	@DisplayName("주문 생성 실패 - 잘못된 수량")
 	void createOrder_fail_invalidQty() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderValidationException.invalidQty());
+		when(orderPaymentFacade.createOrderWithPayment(any(), any())).thenThrow(OrderValidationException.invalidQty());
 
 		String jsonRequest = buildReservationOrderRequest(DEFAULT_PRODUCT_ID, 1);
 
@@ -230,7 +240,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	@Test
 	@DisplayName("주문 생성 실패 - 상품 없음")
 	void createOrder_fail_productNotFound() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderNotFoundException.productNotFound());
+		when(orderPaymentFacade.createOrderWithPayment(any(), any())).thenThrow(OrderNotFoundException.productNotFound());
 
 		String jsonRequest = buildReservationOrderRequest(
 				"00000000-0000-0000-0000-000000000999",
@@ -249,7 +259,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 	@Test
 	@DisplayName("주문 생성 실패 - 멱등성 키 중복")
 	void createOrder_fail_duplicateIdempotency() throws Exception {
-		when(orderCommandService.createOrder(any())).thenThrow(OrderConflictException.duplicateIdempotencyKey());
+		when(orderPaymentFacade.createOrderWithPayment(any(), any())).thenThrow(OrderConflictException.duplicateIdempotencyKey());
 
 		String jsonRequest = buildReservationOrderRequest(DEFAULT_PRODUCT_ID, 1);
 
@@ -409,7 +419,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 				.orderId(UUID.randomUUID())
 				.orderNo("O20251231-000001")
 				.orderType("RESERVATION")
-				.status("REQUESTED")
+				.status("PAYMENT_PENDING")
 				.storeId(storeId)
 				.popupId(productId)
 				.totalAmount(2000)
@@ -418,7 +428,15 @@ class OrderControllerTest extends OrderControllerTestBase {
 				.items(List.of())
 				.build();
 
-		when(orderCommandService.createOrder(any())).thenReturn(response);
+		when(orderPaymentFacade.createOrderWithPayment(any(), any()))
+				.thenReturn(OrderPaymentFacade.OrderWithPaymentResult.builder()
+						.orderResponse(response)
+						.paymentResult(PaymentCommandService.PaymentCreationResult.builder()
+								.paymentId(UUID.randomUUID())
+								.amount(response.getTotalAmount())
+								.customerId(1001L)
+								.build())
+						.build());
 
 		String jsonRequest = buildReservationOrderRequest(productId.toString(), 2);
 
@@ -428,7 +446,7 @@ class OrderControllerTest extends OrderControllerTestBase {
 						.principal(createCustomerAuthentication()))
 				.andExpect(MockMvcResultMatchers.status().isCreated());
 
-		verify(orderCommandService).createOrder(any());
+		verify(orderPaymentFacade).createOrderWithPayment(any(), any());
 	}
 
 	@Test

@@ -2,7 +2,9 @@ package com.popcorn.demo.common.entity;
 
 import java.time.LocalDateTime;
 
+import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -26,8 +28,19 @@ public abstract class BaseEntity {
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
 
+	@CreatedBy
+	@Column(name = "created_by")
+	private Long createdBy;
+
+	@LastModifiedBy
+	@Column(name = "updated_by")
+	private Long updatedBy;
+
 	@Column(name = "deleted_at")
 	private LocalDateTime deletedAt;
+
+	@Column(name = "deleted_by")
+	private Long deletedBy;
 
 	/**
 	 * 소프트 삭제 수행

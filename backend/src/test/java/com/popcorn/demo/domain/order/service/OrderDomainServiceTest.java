@@ -229,6 +229,48 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 가능")
+	void canChangeStatus_RequestedToPending_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.REQUESTED;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - ACCEPTED에서 RESERVED로 변경 가능")
+	void canChangeStatus_OwnerAcceptedToConfirmed_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.ACCEPTED;
+		OrderStatus newStatus = OrderStatus.RESERVED;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - RESERVED에서 PAYMENT_PENDING으로 변경 가능")
+	void canChangeStatus_ConfirmedToPreparing_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.RESERVED;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
 	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 불가")
 	void canChangeStatus_RequestedToReady_ReturnsFalse() {
 		// given

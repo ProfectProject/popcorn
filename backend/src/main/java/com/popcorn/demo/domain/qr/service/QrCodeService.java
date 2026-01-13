@@ -5,15 +5,18 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;
+import com.popcorn.demo.domain.qr.event.QrCheckinRequestedEvent;
 import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
 import com.popcorn.demo.domain.qr.repository.QrCodeRow;
 import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
+import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,15 +28,16 @@ public class QrCodeService {
 
 	private final QrCodeRepository qrCodeRepository;
 	private final CheckinRepository checkinRepository;
+	private final JpaOrderItemRepository orderItemRepository;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public QrCodeResponse issue(UUID orderId) {
 		String orderStatus = qrCodeRepository.findOrderStatus(orderId)
 				.orElseThrow(QrException::orderNotFound);
 
-		if (!"RESERVED".equals(orderStatus)) {
-			throw QrException.orderNotReserved();
-		}
+		ensurePaid(orderStatus);
+		ensureReservationOrder(orderId);
 
 		LocalDateTime now = LocalDateTime.now();
 		Optional<QrCodeRow> existing = qrCodeRepository.findLatestByOrderId(orderId)
@@ -55,7 +59,7 @@ public class QrCodeService {
 		return toResponse(created);
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional(transactionManager = "jdbcTransactionManager", readOnly = true)
 	public QrCodeResponse get(UUID orderId) {
 		LocalDateTime now = LocalDateTime.now();
 		QrCodeRow row = qrCodeRepository.findLatestByOrderId(orderId)
@@ -68,14 +72,13 @@ public class QrCodeService {
 		String orderStatus = qrCodeRepository.findOrderStatus(orderId)
 				.orElseThrow(QrException::orderNotFound);
 
-		if (!"RESERVED".equals(orderStatus)) {
-			throw QrException.orderNotReserved();
-		}
+		ensurePaid(orderStatus);
+		ensureReservationOrder(orderId);
 
 		return toResponse(row);
 	}
 
-	@Transactional
+	@Transactional(transactionManager = "jdbcTransactionManager")
 	public QrVerifyResponse verify(String qrCode) {
 		LocalDateTime now = LocalDateTime.now();
 		QrCodeRow row = qrCodeRepository.findLatestByQrCode(qrCode)
@@ -88,9 +91,8 @@ public class QrCodeService {
 		String orderStatus = qrCodeRepository.findOrderStatus(row.orderId())
 				.orElseThrow(QrException::orderNotFound);
 
-		if (!"RESERVED".equals(orderStatus)) {
-			throw QrException.orderNotReserved();
-		}
+		ensurePaid(orderStatus);
+		ensureReservationOrder(row.orderId());
 
 		java.util.Optional<com.popcorn.demo.domain.checkin.repository.CheckinRow> existing =
 				checkinRepository.findLatestByOrderQrCodeId(row.qrId());
@@ -104,12 +106,23 @@ public class QrCodeService {
 					.build();
 		}
 
+		// 동기적으로 체크인 처리 (응답 속도를 위해)
 		java.util.UUID checkinId = checkinRepository.insert(
 				row.orderId(),
 				row.qrId(),
 				null,
 				now
 		);
+
+		// 체크인 요청 이벤트 발행 (비동기 후처리)
+		eventPublisher.publishEvent(new QrCheckinRequestedEvent(
+				this,
+				row.qrId(),
+				row.orderId(),
+				row.qrCode(),
+				row.expiresAt(),
+				now
+		));
 
 		return QrVerifyResponse.builder()
 				.valid(true)
@@ -126,5 +139,18 @@ public class QrCodeService {
 				.qrCode(row.qrCode())
 				.expiresAt(row.expiresAt())
 				.build();
+	}
+
+	private void ensurePaid(String orderStatus) {
+		if (!"PAID".equals(orderStatus)) {
+			throw QrException.orderNotReserved();
+		}
+	}
+
+	private void ensureReservationOrder(UUID orderId) {
+		boolean isReservation = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
+		if (!isReservation) {
+			throw QrException.orderNotReserved();
+		}
 	}
 }
