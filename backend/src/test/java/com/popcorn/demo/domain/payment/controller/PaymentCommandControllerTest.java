@@ -24,6 +24,7 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 import com.popcorn.demo.global.config.CommonConfig;
 
 /**
@@ -35,14 +36,18 @@ class PaymentCommandControllerTest {
 	private MockMvc mockMvc;
 	private ObjectMapper objectMapper;
 	private PaymentCommandService paymentCommandService;
+	private TossPaymentsProperties tossPaymentsProperties;
 
 	@BeforeEach
 	void setUp() {
 		paymentCommandService = Mockito.mock(PaymentCommandService.class);
 		objectMapper = new CommonConfig().objectMapper();
+		tossPaymentsProperties = new TossPaymentsProperties();
+		tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
+		tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
 
 		PaymentCommandController controller = new PaymentCommandController(
-				paymentCommandService, objectMapper);
+				paymentCommandService, objectMapper, tossPaymentsProperties);
 		mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -59,7 +64,10 @@ class PaymentCommandControllerTest {
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
 						.paymentStatus(PaymentStatus.READY)
-						.orderStatus(OrderStatus.REQUESTED)
+						.orderStatus(OrderStatus.PAYMENT_PENDING)
+						.orderNo("O20251231-001003")
+						.amount(4000)
+						.customerId(1001L)
 						.approvedAt(null)
 						.build());
 
@@ -78,8 +86,8 @@ class PaymentCommandControllerTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
-				.andExpect(jsonPath("$.data.paymentStatus").value("READY"))
-				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
+				.andExpect(jsonPath("$.data.status").value("READY"))
+				.andExpect(jsonPath("$.data.orderStatus").value("PAYMENT_PENDING"));
 	}
 
 	@Test
@@ -93,7 +101,10 @@ class PaymentCommandControllerTest {
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
 						.paymentStatus(PaymentStatus.READY)
-						.orderStatus(OrderStatus.REQUESTED)
+						.orderStatus(OrderStatus.PAYMENT_PENDING)
+						.orderNo("O20251231-001004")
+						.amount(3000)
+						.customerId(1002L)
 						.build());
 
 		mockMvc.perform(post("/api/v1/orders/{orderId}/payments", orderId)
@@ -112,7 +123,7 @@ class PaymentCommandControllerTest {
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
 				.andExpect(jsonPath("$.data.status").value("READY"))
-				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
+				.andExpect(jsonPath("$.data.orderStatus").value("PAYMENT_PENDING"));
 	}
 
 	@Test

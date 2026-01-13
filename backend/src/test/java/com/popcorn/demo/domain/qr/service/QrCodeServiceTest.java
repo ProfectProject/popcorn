@@ -20,6 +20,7 @@ import org.mockito.Mockito;
 
 import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
 import com.popcorn.demo.domain.checkin.repository.CheckinRow;
+import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;
 import com.popcorn.demo.domain.qr.exception.QrException;
@@ -31,23 +32,26 @@ class QrCodeServiceTest {
 
 	private QrCodeRepository qrCodeRepository;
 	private CheckinRepository checkinRepository;
+	private JpaOrderItemRepository orderItemRepository;
 	private QrCodeService qrCodeService;
 
 	@BeforeEach
 	void setUp() {
 		qrCodeRepository = Mockito.mock(QrCodeRepository.class);
 		checkinRepository = Mockito.mock(CheckinRepository.class);
-		qrCodeService = new QrCodeService(qrCodeRepository, checkinRepository);
+		orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
+		qrCodeService = new QrCodeService(qrCodeRepository, checkinRepository, orderItemRepository);
 	}
 
 	@Test
-	@DisplayName("RESERVED 주문은 QR 신규 발급")
-	void issue_createsQr_whenReserved() {
+	@DisplayName("PAID 예약 주문은 QR 신규 발급")
+	void issue_createsQr_whenPaidReservation() {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 		LocalDateTime before = LocalDateTime.now();
 
-		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("RESERVED"));
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("PAID"));
 		when(qrCodeRepository.findLatestByOrderId(orderId)).thenReturn(Optional.empty());
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 
 		QrCodeResponse response = qrCodeService.issue(orderId);
 
@@ -70,8 +74,9 @@ class QrCodeServiceTest {
 				now.minusMinutes(1)
 		);
 
-		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("RESERVED"));
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("PAID"));
 		when(qrCodeRepository.findLatestByOrderId(orderId)).thenReturn(Optional.of(row));
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 
 		QrCodeResponse response = qrCodeService.issue(orderId);
 
@@ -80,11 +85,12 @@ class QrCodeServiceTest {
 	}
 
 	@Test
-	@DisplayName("RESERVED가 아니면 QR 발급 실패")
-	void issue_throws_whenNotReserved() {
+	@DisplayName("PAID가 아니면 QR 발급 실패")
+	void issue_throws_whenNotPaid() {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
 
 		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("REQUESTED"));
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 
 		assertThatThrownBy(() -> qrCodeService.issue(orderId))
 				.isInstanceOf(QrException.class);
@@ -106,7 +112,8 @@ class QrCodeServiceTest {
 		);
 
 		when(qrCodeRepository.findLatestByQrCode("qr-verify-001")).thenReturn(Optional.of(row));
-		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("RESERVED"));
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("PAID"));
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 		when(checkinRepository.findLatestByOrderQrCodeId(qrId)).thenReturn(Optional.empty());
 		when(checkinRepository.insert(eq(orderId), eq(qrId), isNull(), any(LocalDateTime.class)))
 				.thenReturn(checkinId);
@@ -141,7 +148,8 @@ class QrCodeServiceTest {
 		);
 
 		when(qrCodeRepository.findLatestByQrCode("qr-verify-002")).thenReturn(Optional.of(row));
-		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("RESERVED"));
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("PAID"));
+		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 		when(checkinRepository.findLatestByOrderQrCodeId(qrId)).thenReturn(Optional.of(existing));
 
 		QrVerifyResponse response = qrCodeService.verify("qr-verify-002");

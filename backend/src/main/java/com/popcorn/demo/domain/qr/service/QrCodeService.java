@@ -14,6 +14,7 @@ import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
 import com.popcorn.demo.domain.qr.repository.QrCodeRow;
 import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
+import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,15 +26,15 @@ public class QrCodeService {
 
 	private final QrCodeRepository qrCodeRepository;
 	private final CheckinRepository checkinRepository;
+	private final JpaOrderItemRepository orderItemRepository;
 
-	@Transactional
+	@Transactional(transactionManager = "jdbcTransactionManager")
 	public QrCodeResponse issue(UUID orderId) {
 		String orderStatus = qrCodeRepository.findOrderStatus(orderId)
 				.orElseThrow(QrException::orderNotFound);
 
-		if (!"RESERVED".equals(orderStatus)) {
-			throw QrException.orderNotReserved();
-		}
+		ensurePaid(orderStatus);
+		ensureReservationOrder(orderId);
 
 		LocalDateTime now = LocalDateTime.now();
 		Optional<QrCodeRow> existing = qrCodeRepository.findLatestByOrderId(orderId)
@@ -55,7 +56,7 @@ public class QrCodeService {
 		return toResponse(created);
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional(transactionManager = "jdbcTransactionManager", readOnly = true)
 	public QrCodeResponse get(UUID orderId) {
 		LocalDateTime now = LocalDateTime.now();
 		QrCodeRow row = qrCodeRepository.findLatestByOrderId(orderId)
@@ -68,14 +69,13 @@ public class QrCodeService {
 		String orderStatus = qrCodeRepository.findOrderStatus(orderId)
 				.orElseThrow(QrException::orderNotFound);
 
-		if (!"RESERVED".equals(orderStatus)) {
-			throw QrException.orderNotReserved();
-		}
+		ensurePaid(orderStatus);
+		ensureReservationOrder(orderId);
 
 		return toResponse(row);
 	}
 
-	@Transactional
+	@Transactional(transactionManager = "jdbcTransactionManager")
 	public QrVerifyResponse verify(String qrCode) {
 		LocalDateTime now = LocalDateTime.now();
 		QrCodeRow row = qrCodeRepository.findLatestByQrCode(qrCode)
@@ -88,9 +88,8 @@ public class QrCodeService {
 		String orderStatus = qrCodeRepository.findOrderStatus(row.orderId())
 				.orElseThrow(QrException::orderNotFound);
 
-		if (!"RESERVED".equals(orderStatus)) {
-			throw QrException.orderNotReserved();
-		}
+		ensurePaid(orderStatus);
+		ensureReservationOrder(row.orderId());
 
 		java.util.Optional<com.popcorn.demo.domain.checkin.repository.CheckinRow> existing =
 				checkinRepository.findLatestByOrderQrCodeId(row.qrId());
@@ -126,5 +125,18 @@ public class QrCodeService {
 				.qrCode(row.qrCode())
 				.expiresAt(row.expiresAt())
 				.build();
+	}
+
+	private void ensurePaid(String orderStatus) {
+		if (!"PAID".equals(orderStatus)) {
+			throw QrException.orderNotReserved();
+		}
+	}
+
+	private void ensureReservationOrder(UUID orderId) {
+		boolean isReservation = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
+		if (!isReservation) {
+			throw QrException.orderNotReserved();
+		}
 	}
 }

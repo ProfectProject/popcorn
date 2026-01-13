@@ -26,6 +26,7 @@ class QrIntegrationTest extends BaseIntegrationTest {
 
 	private static final Long USER_ID = 1001L;
 	private static final UUID STORE_ID = UUID.fromString("20000000-0000-0000-0000-000000000001");
+	private static final UUID POPUP_ID = UUID.fromString("30000000-0000-0000-0000-000000000001");
 
 	@BeforeEach
 	void setUp() {
@@ -45,13 +46,15 @@ class QrIntegrationTest extends BaseIntegrationTest {
 
 		insertUser(USER_ID);
 		insertStore(STORE_ID, USER_ID);
+		insertPopup(POPUP_ID, STORE_ID);
 	}
 
 	@Test
 	@DisplayName("QR 발급 통합 테스트")
 	void issueQr_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000010");
-		insertOrder(orderId, USER_ID, STORE_ID, "RESERVED");
+		insertOrder(orderId, USER_ID, STORE_ID, "PAID");
+		insertReservationItem(orderId, POPUP_ID);
 
 		mockMvc.perform(post("/api/v1/orders/{orderId}/qr", orderId))
 				.andExpect(status().isOk())
@@ -66,7 +69,8 @@ class QrIntegrationTest extends BaseIntegrationTest {
 	void getQr_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000011");
 		UUID qrId = UUID.fromString("80000000-0000-0000-0000-000000000011");
-		insertOrder(orderId, USER_ID, STORE_ID, "RESERVED");
+		insertOrder(orderId, USER_ID, STORE_ID, "PAID");
+		insertReservationItem(orderId, POPUP_ID);
 		insertQr(qrId, orderId, "qr-get-001", LocalDateTime.now().plusMinutes(5));
 
 		mockMvc.perform(get("/api/v1/orders/{orderId}/qr", orderId))
@@ -81,7 +85,8 @@ class QrIntegrationTest extends BaseIntegrationTest {
 	void verifyQr_createsCheckin_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000012");
 		UUID qrId = UUID.fromString("80000000-0000-0000-0000-000000000012");
-		insertOrder(orderId, USER_ID, STORE_ID, "RESERVED");
+		insertOrder(orderId, USER_ID, STORE_ID, "PAID");
+		insertReservationItem(orderId, POPUP_ID);
 		insertQr(qrId, orderId, "qr-verify-001", LocalDateTime.now().plusMinutes(5));
 
 		String requestJson = """
@@ -104,7 +109,8 @@ class QrIntegrationTest extends BaseIntegrationTest {
 	void verifyQr_reusesCheckin_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000013");
 		UUID qrId = UUID.fromString("80000000-0000-0000-0000-000000000013");
-		insertOrder(orderId, USER_ID, STORE_ID, "RESERVED");
+		insertOrder(orderId, USER_ID, STORE_ID, "PAID");
+		insertReservationItem(orderId, POPUP_ID);
 		insertQr(qrId, orderId, "qr-verify-002", LocalDateTime.now().plusMinutes(5));
 
 		String requestJson = """
@@ -162,6 +168,24 @@ class QrIntegrationTest extends BaseIntegrationTest {
 		);
 	}
 
+	private void insertPopup(UUID popupId, UUID storeId) {
+		LocalDateTime now = LocalDateTime.now();
+		jdbcTemplate.update(
+				"""
+				INSERT INTO p_popups (popup_id, store_id, title, description, category, status, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				popupId,
+				storeId,
+				"테스트 팝업",
+				"설명",
+				"ETC",
+				"APPROVED",
+				toTimestamp(now),
+				toTimestamp(now)
+		);
+	}
+
 	private void insertOrder(UUID orderId, Long userId, UUID storeId, String status) {
 		LocalDateTime now = LocalDateTime.now();
 		jdbcTemplate.update(
@@ -174,6 +198,45 @@ class QrIntegrationTest extends BaseIntegrationTest {
 				userId,
 				storeId,
 				status,
+				10000,
+				toTimestamp(now),
+				toTimestamp(now)
+		);
+	}
+
+	private void insertReservationItem(UUID orderId, UUID popupId) {
+		LocalDateTime now = LocalDateTime.now();
+		UUID scheduleId = UUID.randomUUID();
+		jdbcTemplate.update(
+				"""
+				INSERT INTO p_popup_schedules
+					(schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				scheduleId,
+				popupId,
+				toTimestamp(now.plusDays(1)),
+				toTimestamp(now.plusDays(1).plusHours(2)),
+				10000,
+				10,
+				10,
+				true,
+				toTimestamp(now),
+				toTimestamp(now)
+		);
+
+		jdbcTemplate.update(
+				"""
+				INSERT INTO p_order_goods
+					(order_goods_id, order_id, schedule_id, goods_variant_id, qty, unit_price, price, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				UUID.randomUUID(),
+				orderId,
+				scheduleId,
+				null,
+				1,
+				10000,
 				10000,
 				toTimestamp(now),
 				toTimestamp(now)

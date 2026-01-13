@@ -39,7 +39,7 @@ public class QrController extends BaseController {
 
 	@Operation(
 			summary = "QR 발급",
-			description = "RESERVED 상태의 주문에 대해 QR 코드를 발급합니다."
+			description = "PAID 상태의 주문에 대해 QR 코드를 발급합니다."
 	)
 	@PostMapping("/orders/{orderId}/qr")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> issueQr(
@@ -51,7 +51,7 @@ public class QrController extends BaseController {
 
 	@Operation(
 			summary = "QR 조회",
-			description = "주문에 연결된 QR 코드를 조회합니다."
+			description = "PAID 상태의 주문에 연결된 QR 코드를 조회합니다."
 	)
 	@GetMapping("/orders/{orderId}/qr")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> getQr(

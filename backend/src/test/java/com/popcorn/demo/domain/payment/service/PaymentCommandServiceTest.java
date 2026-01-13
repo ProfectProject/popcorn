@@ -75,13 +75,15 @@ class PaymentCommandServiceTest {
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(false);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAYMENT_PENDING.name()), any()))
+				.thenReturn(createOrder(orderId, OrderType.RESERVATION, OrderStatus.PAYMENT_PENDING));
 
 		PaymentCommandService.PaymentCreationResult result =
 				paymentCommandService.createReservationPayment(orderId, "CARD", 4000, null);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
 		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.READY);
-		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.REQUESTED);
+		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
 		assertThat(result.getApprovedAt()).isNull();
 	}
 
@@ -104,6 +106,8 @@ class PaymentCommandServiceTest {
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(true);
 		when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAYMENT_PENDING.name()), any()))
+				.thenReturn(createOrder(orderId, OrderType.PURCHASE, OrderStatus.PAYMENT_PENDING));
 
 		PaymentCommandService.PaymentCreationResult result =
 				paymentCommandService.createOrderPayment(orderId, "CARD", 3000, null);
@@ -137,7 +141,7 @@ class PaymentCommandServiceTest {
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
 		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.READY);
-		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.REQUESTED);
+		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
 		assertThat(result.getApprovedAt()).isNull();
 	}
 
@@ -231,6 +235,72 @@ class PaymentCommandServiceTest {
 				() -> paymentCommandService.createReservationPayment(orderId, "CARD", 4000, null));
 
 		assertThat(exception.getResponseCode()).isEqualTo(OrderResponseCode.ORDER_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("성공: 결제 상태 PAID 변경")
+	void updatePaymentStatus_paid() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001010");
+		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004010");
+
+		Payment payment = Payment.builder()
+				.id(paymentId)
+				.orderId(orderId)
+				.method(PaymentMethod.CARD)
+				.status(PaymentStatus.READY)
+				.amount(3000)
+				.build();
+
+		Order updatedOrder = createOrder(orderId, OrderType.RESERVATION, OrderStatus.PAID);
+
+		when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
+				.thenReturn(updatedOrder);
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		PaymentCommandService.PaymentDetailResult result =
+				paymentCommandService.updatePaymentStatus(paymentId, "PAID");
+
+		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.PAID);
+		assertThat(result.getApprovedAt()).isNotNull();
+	}
+
+	@Test
+	@DisplayName("성공: 결제 상태 CANCELLED 변경")
+	void updatePaymentStatus_cancelled() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001011");
+		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004011");
+
+		Payment payment = Payment.builder()
+				.id(paymentId)
+				.orderId(orderId)
+				.method(PaymentMethod.CARD)
+				.status(PaymentStatus.PAID)
+				.amount(3000)
+				.build();
+
+		Order updatedOrder = createOrder(orderId, OrderType.PURCHASE, OrderStatus.CANCELLED);
+
+		when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.CANCELLED.name()), any()))
+				.thenReturn(updatedOrder);
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		PaymentCommandService.PaymentDetailResult result =
+				paymentCommandService.updatePaymentStatus(paymentId, "CANCELLED");
+
+		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELLED);
+		assertThat(result.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+	}
+
+	@Test
+	@DisplayName("실패: 잘못된 결제 상태")
+	void updatePaymentStatus_invalidStatus() {
+		PaymentException exception = assertThrows(PaymentException.class,
+				() -> paymentCommandService.updatePaymentStatus(UUID.randomUUID(), "UNKNOWN"));
+
+		assertThat(exception.getResponseCode()).isEqualTo(CommonResponseCode.INVALID_REQUEST);
 	}
 
 	private Order createOrder(UUID orderId, OrderType orderType, OrderStatus status) {
