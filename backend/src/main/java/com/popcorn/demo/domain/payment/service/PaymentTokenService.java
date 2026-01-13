@@ -30,15 +30,14 @@ public class PaymentTokenService {
         Date expiry = new Date(now.getTime() + TOKEN_VALIDITY_MINUTES * 60 * 1000);
 
         return Jwts.builder()
-                .setSubject("payment")
+                .setSubject("p") // "payment" → "p" (더 짧게)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
-                .claim("orderNo", paymentInfo.getOrderNo())
-                .claim("amount", paymentInfo.getAmount())
-                .claim("customerKey", paymentInfo.getCustomerKey())
-                .claim("paymentId", paymentInfo.getPaymentId().toString())
-                .claim("successUrl", paymentInfo.getSuccessUrl())
-                .claim("failUrl", paymentInfo.getFailUrl())
+                .claim("o", paymentInfo.getOrderNo()) // "orderNo" → "o"
+                .claim("a", paymentInfo.getAmount()) // "amount" → "a"
+                .claim("c", paymentInfo.getCustomerKey()) // "customerKey" → "c"
+                .claim("p", paymentInfo.getPaymentId().toString()) // "paymentId" → "p"
+                // successUrl, failUrl 제거 (프론트엔드에서 설정)
                 .signWith(SignatureAlgorithm.HS256, secretKey.getBytes())
                 .compact();
     }
@@ -54,12 +53,13 @@ public class PaymentTokenService {
                     .getBody();
 
             return PaymentTokenInfo.builder()
-                    .orderNo(claims.get("orderNo", String.class))
-                    .amount(claims.get("amount", Integer.class))
-                    .customerKey(claims.get("customerKey", String.class))
-                    .paymentId(UUID.fromString(claims.get("paymentId", String.class)))
-                    .successUrl(claims.get("successUrl", String.class))
-                    .failUrl(claims.get("failUrl", String.class))
+                    .orderNo(claims.get("o", String.class)) // 축약된 필드명 사용
+                    .amount(claims.get("a", Integer.class))
+                    .customerKey(claims.get("c", String.class))
+                    .paymentId(UUID.fromString(claims.get("p", String.class)))
+                    // URL은 프론트엔드에서 하드코딩으로 처리
+                    .successUrl("http://localhost:3000/payments/success")
+                    .failUrl("http://localhost:3000/payments/fail")
                     .build();
         } catch (Exception e) {
             throw new IllegalArgumentException("유효하지 않은 결제 토큰입니다.", e);

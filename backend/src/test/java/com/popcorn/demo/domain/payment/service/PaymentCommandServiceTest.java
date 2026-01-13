@@ -175,6 +175,7 @@ class PaymentCommandServiceTest {
 		Order order = createOrder(orderId, OrderType.PURCHASE, OrderStatus.REQUESTED);
 
 		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+		when(paymentRepository.existsByOrderIdAndDeletedAtIsNull(orderId)).thenReturn(false);
 		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 		when(orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId)).thenReturn(true);
 
