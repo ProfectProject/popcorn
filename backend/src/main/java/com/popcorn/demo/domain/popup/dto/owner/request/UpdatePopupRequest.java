@@ -18,6 +18,9 @@ public class UpdatePopupRequest {
     private String title;
     private String description;
     private PopupCategory popupCategory;
+    private java.time.LocalDateTime reservationOpenAt;
+    private String addressRoad;
+    private String addressDetail;
     @Valid
     private List<CreatePopupScheduleRequest> createSchedules;
     @Valid

@@ -45,6 +45,15 @@ public class Popup extends BaseEntity {
 	@Column(name = "status")
 	private PopupStatus status;
 
+	@Column(name = "reservation_open_at")
+	private java.time.LocalDateTime reservationOpenAt;
+
+	@Column(name = "address_road")
+	private String addressRoad;
+
+	@Column(name = "address_detail")
+	private String addressDetail;
+
 	@Column(name = "deleted_at")
 	private java.time.LocalDateTime deletedAt;
 
@@ -66,6 +75,9 @@ public class Popup extends BaseEntity {
 			String description,
 			PopupCategory category,
 			PopupStatus status,
+			java.time.LocalDateTime reservationOpenAt,
+			String addressRoad,
+			String addressDetail,
 			Long createdBy
 	) {
 		this.storeId = storeId;
@@ -73,6 +85,9 @@ public class Popup extends BaseEntity {
 		this.description = description;
 		this.category = category;
 		this.status = status;
+		this.reservationOpenAt = reservationOpenAt;
+		this.addressRoad = addressRoad;
+		this.addressDetail = addressDetail;
 		this.createdBy = createdBy;
 	}
 

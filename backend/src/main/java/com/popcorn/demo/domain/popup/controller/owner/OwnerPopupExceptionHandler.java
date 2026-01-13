@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.popup.controller.owner;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.annotation.Order;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +20,7 @@ import com.popcorn.demo.domain.store.exception.StoreException;
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice(basePackages = "com.popcorn.demo.domain.popup.controller.owner")
+@Order(1) // GlobalExceptionHandler보다 높은 우선순위
 @Slf4j
 public class OwnerPopupExceptionHandler extends BaseController {
 
