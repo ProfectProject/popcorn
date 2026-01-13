@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +21,10 @@ import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.payment.entity.Payment;
 import com.popcorn.demo.domain.payment.entity.PaymentMethod;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
+import com.popcorn.demo.domain.payment.event.PaymentApprovedEvent;
+import com.popcorn.demo.domain.payment.event.PaymentCancelledEvent;
+import com.popcorn.demo.domain.payment.event.PaymentCreatedEvent;
+import com.popcorn.demo.domain.payment.event.PaymentFailedEvent;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 
@@ -29,18 +36,37 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PaymentCommandService {
 
+	private static final Logger log = LoggerFactory.getLogger(PaymentCommandService.class);
+
 	private final OrderRepository orderRepository;
 	private final OrderCommandService orderCommandService;
 	private final JpaPaymentRepository paymentRepository;
 	private final JpaOrderItemRepository orderItemRepository;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public PaymentCreationResult createReservationPayment(UUID orderId, String method, Integer amount, String rawPayload) {
 		Order order = loadOrder(orderId);
 		validateOrderType(orderId, true);
 		PaymentMethod paymentMethod = parseMethod(method);
-		validateReservationMethod(paymentMethod);
-		return createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
+		OrderType orderType = resolveOrderType(orderId);
+		validateMethodByOrderType(orderType, paymentMethod);
+		PaymentCreationResult result = createPayment(order, paymentMethod, amount, rawPayload, PaymentStatus.READY, null);
+
+		// 결제 생성 이벤트 발행
+		eventPublisher.publishEvent(new PaymentCreatedEvent(
+				this,
+				result.getPaymentId(),
+				orderId,
+				paymentMethod,
+				PaymentStatus.READY,
+				amount,
+				orderType,
+				order.getCustomerId(),
+				LocalDateTime.now()
+		));
+
+		return result;
 	}
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
@@ -102,19 +128,6 @@ public class PaymentCommandService {
 		paymentRepository.save(payment);
 	}
 
-	@Transactional(readOnly = true)
-	public PaymentDetailResult getPayment(UUID paymentId) {
-		Payment payment = loadPayment(paymentId);
-		return toDetailResult(payment, null);
-	}
-
-	@Transactional(readOnly = true)
-	public java.util.List<PaymentDetailResult> getPaymentsByOrder(UUID orderId) {
-		return paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
-				.stream()
-				.map(payment -> toDetailResult(payment, null))
-				.toList();
-	}
 
 	private Order loadOrder(UUID orderId) {
 		Order order = orderRepository.findById(orderId)
@@ -187,11 +200,10 @@ public class PaymentCommandService {
 	private void validateOrderType(UUID orderId, boolean expectReservation) {
 		boolean hasSchedule = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
 		boolean hasGoods = orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId);
-		if (hasSchedule && hasGoods) {
-			throw PaymentException.invalidRequest();
-		}
-		if (expectReservation && !hasSchedule) {
-			throw PaymentException.invalidRequest();
+
+		// 혼합 주문의 경우 예약이 있으면 RESERVATION 타입으로 처리 (예약이 더 시간에 민감함)
+		if (hasSchedule) {
+			return OrderType.RESERVATION;
 		}
 		if (!expectReservation && !hasGoods) {
 			throw PaymentException.invalidRequest();
@@ -210,6 +222,9 @@ public class PaymentCommandService {
 		private Long customerId;
 	}
 
+	/**
+	 * 결제 명령 작업 결과 DTO (CQRS - Command Side)
+	 */
 	@Getter
 	@Builder
 	public static class PaymentDetailResult {
@@ -239,6 +254,136 @@ public class PaymentCommandService {
 		}
 	}
 
+	private PaymentStatus parseStatus(String status) {
+		if (status == null || status.isBlank()) {
+			throw PaymentException.invalidRequest();
+		}
+		try {
+			return PaymentStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			throw PaymentException.invalidRequest();
+		}
+	}
+
+	private PaymentDetailResult approvePayment(Payment payment) {
+		ensureStatus(payment, PaymentStatus.READY);
+		LocalDateTime approvedAt = LocalDateTime.now();
+		payment.setStatus(PaymentStatus.PAID);
+		payment.setApprovedAt(approvedAt);
+		Payment saved = paymentRepository.save(payment);
+		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), resolvePaymentOrderStatus(saved.getOrderId()), "결제 승인");
+
+		// 결제 승인 이벤트 발행 (재고 차감, QR 생성 등을 비동기로 처리)
+		Order order = orderRepository.findById(saved.getOrderId()).orElse(null);
+		if (order != null) {
+			OrderType orderType = resolveOrderType(saved.getOrderId());
+			eventPublisher.publishEvent(new PaymentApprovedEvent(
+					this,
+					saved.getId(),
+					saved.getOrderId(),
+					saved.getMethod(),
+					saved.getAmount(),
+					orderType,
+					order.getCustomerId(),
+					approvedAt
+			));
+		}
+
+		return PaymentDetailResult.builder()
+				.paymentId(saved.getId())
+				.orderId(saved.getOrderId())
+				.method(saved.getMethod())
+				.paymentStatus(saved.getStatus())
+				.amount(saved.getAmount())
+				.approvedAt(saved.getApprovedAt())
+				.createdAt(saved.getCreatedAt())
+				.updatedAt(saved.getUpdatedAt())
+				.orderStatus(orderStatus)
+				.build();
+	}
+
+	private PaymentDetailResult failPayment(Payment payment) {
+		ensureStatus(payment, PaymentStatus.READY);
+		LocalDateTime failedAt = LocalDateTime.now();
+		payment.setStatus(PaymentStatus.FAILED);
+		Payment saved = paymentRepository.save(payment);
+
+		// 결제 실패 이벤트 발행 (재고 복원 등을 비동기로 처리)
+		Order order = orderRepository.findById(saved.getOrderId()).orElse(null);
+		if (order != null) {
+			OrderType orderType = resolveOrderType(saved.getOrderId());
+			eventPublisher.publishEvent(new PaymentFailedEvent(
+					this,
+					saved.getId(),
+					saved.getOrderId(),
+					saved.getMethod(),
+					saved.getAmount(),
+					orderType,
+					order.getCustomerId(),
+					failedAt
+			));
+		}
+
+		return PaymentDetailResult.builder()
+				.paymentId(saved.getId())
+				.orderId(saved.getOrderId())
+				.method(saved.getMethod())
+				.paymentStatus(saved.getStatus())
+				.amount(saved.getAmount())
+				.approvedAt(saved.getApprovedAt())
+				.createdAt(saved.getCreatedAt())
+				.updatedAt(saved.getUpdatedAt())
+				.orderStatus(null)
+				.build();
+	}
+
+	private PaymentDetailResult cancelPayment(Payment payment) {
+		if (payment.getStatus() != PaymentStatus.READY && payment.getStatus() != PaymentStatus.PAID) {
+			throw OrderValidationException.invalidStatusTransition();
+		}
+
+		// 결제 승인 후 5분이 지났는지 확인 (PAID 상태인 경우만)
+		if (payment.getStatus() == PaymentStatus.PAID && payment.getApprovedAt() != null) {
+			LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
+			if (payment.getApprovedAt().isBefore(fiveMinutesAgo)) {
+				throw PaymentException.cancellationTimeExpired();
+			}
+		}
+
+		LocalDateTime cancelledAt = LocalDateTime.now();
+		payment.setStatus(PaymentStatus.CANCELLED);
+		Payment saved = paymentRepository.save(payment);
+		OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), OrderStatus.CANCELLED, "결제 취소");
+
+		// 결제 취소 이벤트 발행 (재고 복원 등을 비동기로 처리)
+		Order order = orderRepository.findById(saved.getOrderId()).orElse(null);
+		if (order != null) {
+			OrderType orderType = resolveOrderType(saved.getOrderId());
+			eventPublisher.publishEvent(new PaymentCancelledEvent(
+					this,
+					saved.getId(),
+					saved.getOrderId(),
+					saved.getMethod(),
+					saved.getAmount(),
+					orderType,
+					order.getCustomerId(),
+					cancelledAt
+			));
+		}
+
+		return PaymentDetailResult.builder()
+				.paymentId(saved.getId())
+				.orderId(saved.getOrderId())
+				.method(saved.getMethod())
+				.paymentStatus(saved.getStatus())
+				.amount(saved.getAmount())
+				.approvedAt(saved.getApprovedAt())
+				.createdAt(saved.getCreatedAt())
+				.updatedAt(saved.getUpdatedAt())
+				.orderStatus(orderStatus)
+				.build();
+	}
+
 	private OrderStatus resolvePaymentOrderStatus(UUID orderId) {
 		return OrderStatus.PAID;
 	}
@@ -248,17 +393,4 @@ public class PaymentCommandService {
 		return updatedOrder.getStatus();
 	}
 
-	private PaymentDetailResult toDetailResult(Payment payment, OrderStatus orderStatus) {
-		return PaymentDetailResult.builder()
-				.paymentId(payment.getId())
-				.orderId(payment.getOrderId())
-				.method(payment.getMethod())
-				.paymentStatus(payment.getStatus())
-				.amount(payment.getAmount())
-				.approvedAt(payment.getApprovedAt())
-				.createdAt(payment.getCreatedAt())
-				.updatedAt(payment.getUpdatedAt())
-				.orderStatus(orderStatus)
-				.build();
-	}
 }

@@ -17,7 +17,8 @@ import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.payment.dto.response.PaymentDetailResponse;
 import com.popcorn.demo.domain.payment.dto.response.PaymentListResponse;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
-import com.popcorn.demo.domain.payment.service.PaymentCommandService.PaymentDetailResult;
+import com.popcorn.demo.domain.payment.service.PaymentQueryService;
+import com.popcorn.demo.domain.payment.service.PaymentQueryService.PaymentDetailResult;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 public class PaymentController extends BaseController {
 
 	private final PaymentCommandService paymentCommandService;
+	private final PaymentQueryService paymentQueryService;
 
 	@Operation(summary = "결제 조회(주문 기준)", description = "주문 기준으로 결제 기록을 조회합니다.")
 	@ApiResponse(
@@ -46,7 +48,7 @@ public class PaymentController extends BaseController {
 	public ResponseEntity<BaseResponse<PaymentListResponse>> getPaymentsByOrder(
 			@Parameter(description = "주문 ID", required = true, example = "40000000-0000-0000-0000-000000000004")
 			@PathVariable UUID orderId) {
-		List<PaymentDetailResult> results = paymentCommandService.getPaymentsByOrder(orderId);
+		List<PaymentDetailResult> results = paymentQueryService.getPaymentsByOrder(orderId);
 		List<PaymentListResponse.Item> items = results.stream()
 				.map(this::toListItem)
 				.toList();
@@ -67,7 +69,7 @@ public class PaymentController extends BaseController {
 	public ResponseEntity<BaseResponse<PaymentDetailResponse>> getPayment(
 			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000001")
 			@PathVariable UUID paymentId) {
-		PaymentDetailResult result = paymentCommandService.getPayment(paymentId);
+		PaymentDetailResult result = paymentQueryService.getPayment(paymentId);
 		return ok(toDetailResponse(result));
 	}
 
@@ -80,37 +82,44 @@ public class PaymentController extends BaseController {
 	@PostMapping("/payments/{paymentId}/approve")
 	public ResponseEntity<BaseResponse<PaymentDetailResponse>> approvePayment(
 			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000003")
-			@PathVariable UUID paymentId) {
-		PaymentDetailResult result = paymentCommandService.approvePayment(paymentId);
-		return ok(toDetailResponse(result));
-	}
-
-	@Operation(summary = "결제 실패 처리", description = "결제 실패 처리")
-	@ApiResponse(
-			responseCode = "200",
-			description = "결제 실패 처리 성공",
-			content = @Content(schema = @Schema(implementation = PaymentDetailResponse.class))
-	)
-	@PostMapping("/payments/{paymentId}/fail")
-	public ResponseEntity<BaseResponse<PaymentDetailResponse>> failPayment(
-			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000003")
-			@PathVariable UUID paymentId) {
-		PaymentDetailResult result = paymentCommandService.failPayment(paymentId);
-		return ok(toDetailResponse(result));
-	}
-
-	@Operation(summary = "결제 취소/환불", description = "결제 취소/환불 처리")
-	@ApiResponse(
-			responseCode = "200",
-			description = "결제 취소 처리 성공",
-			content = @Content(schema = @Schema(implementation = PaymentDetailResponse.class))
-	)
-	@PostMapping("/payments/{paymentId}/cancel")
-	public ResponseEntity<BaseResponse<PaymentDetailResponse>> cancelPayment(
-			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000003")
-			@PathVariable UUID paymentId) {
-		PaymentDetailResult result = paymentCommandService.cancelPayment(paymentId);
-		return ok(toDetailResponse(result));
+			@PathVariable UUID paymentId,
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+				description = "결제 상태 변경 요청",
+				required = true,
+				content = @Content(
+					schema = @Schema(implementation = PaymentStatusUpdateRequest.class),
+					examples = {
+						@ExampleObject(
+							name = "결제 승인",
+							value = """
+								{
+								  "status": "PAID"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "결제 실패",
+							value = """
+								{
+								  "status": "FAILED"
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "결제 취소",
+							value = """
+								{
+								  "status": "CANCELLED"
+								}
+								"""
+						)
+					}
+				)
+			)
+			@Valid @RequestBody PaymentStatusUpdateRequest request) {
+		com.popcorn.demo.domain.payment.service.PaymentCommandService.PaymentDetailResult result =
+				paymentCommandService.updatePaymentStatus(paymentId, request.getStatus());
+		return ok(toCommandDetailResponse(result));
 	}
 
 	@Operation(summary = "결제 삭제(소프트 삭제)", description = "결제 기록을 소프트 삭제합니다.")
@@ -123,6 +132,9 @@ public class PaymentController extends BaseController {
 		return noContent();
 	}
 
+	/**
+	 * Query Service 결과를 응답 DTO로 변환 (QR 정보 포함)
+	 */
 	private PaymentDetailResponse toDetailResponse(PaymentDetailResult result) {
 		return PaymentDetailResponse.builder()
 				.paymentId(result.getPaymentId())
@@ -134,6 +146,30 @@ public class PaymentController extends BaseController {
 				.createdAt(result.getCreatedAt())
 				.updatedAt(result.getUpdatedAt())
 				.orderStatus(result.getOrderStatus() != null ? result.getOrderStatus().name() : null)
+				.qrAvailable(result.getQrAvailable())
+				.qrCode(result.getQrCode())
+				.qrExpiresAt(result.getQrExpiresAt())
+				.build();
+	}
+
+	/**
+	 * Command Service 결과를 응답 DTO로 변환 (QR 정보 없음)
+	 */
+	private PaymentDetailResponse toCommandDetailResponse(
+			com.popcorn.demo.domain.payment.service.PaymentCommandService.PaymentDetailResult result) {
+		return PaymentDetailResponse.builder()
+				.paymentId(result.getPaymentId())
+				.orderId(result.getOrderId())
+				.method(result.getMethod() != null ? result.getMethod().name() : null)
+				.status(result.getPaymentStatus() != null ? result.getPaymentStatus().name() : null)
+				.amount(result.getAmount())
+				.approvedAt(result.getApprovedAt())
+				.createdAt(result.getCreatedAt())
+				.updatedAt(result.getUpdatedAt())
+				.orderStatus(result.getOrderStatus() != null ? result.getOrderStatus().name() : null)
+				.qrAvailable(false) // Command 작업에서는 QR 정보 없음
+				.qrCode(null)
+				.qrExpiresAt(null)
 				.build();
 	}
 

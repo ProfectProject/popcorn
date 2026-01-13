@@ -53,7 +53,9 @@ public enum OrderResponseCode implements com.popcorn.demo.common.dto.ResponseCod
 
     ALREADY_CANCELED(1303, 409, "이미 취소된 주문입니다."),
 
-    PAYMENT_ALREADY_EXISTS(1304, 409, "해당 주문에 결제 기록이 이미 존재합니다.");
+    PAYMENT_ALREADY_EXISTS(1304, 409, "해당 주문에 결제 기록이 이미 존재합니다."),
+
+    PAYMENT_CANCELLATION_TIME_EXPIRED(1305, 400, "이미 결제된 처리 건이어서 주문 취소가 안됩니다.");
 
     private final int code;
     private final int httpStatus;
