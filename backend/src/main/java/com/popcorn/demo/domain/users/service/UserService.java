@@ -1,13 +1,19 @@
 package com.popcorn.demo.domain.users.service;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.users.dto.SignupRequest;
 import com.popcorn.demo.domain.users.dto.SignupResponse;
+import com.popcorn.demo.domain.users.dto.UserAddressRequest;
 import com.popcorn.demo.domain.users.dto.UserUpdateRequest;
 import com.popcorn.demo.domain.users.entity.User;
+import com.popcorn.demo.domain.users.entity.UserAddress;
+import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 import com.popcorn.demo.domain.users.repository.UserRepository;
 import com.popcorn.demo.global.exception.ValidationException;
 
@@ -18,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserAddressRepository userAddressRepository;
 
     public SignupResponse register(SignupRequest request){
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -109,5 +116,148 @@ public class UserService {
         user.setActive(false); // 비활성화
 
         userRepository.save(user);
+    }
+
+    /**
+     *  배송지 정보
+     */
+
+    // 주소 목록 조회
+    public List<UserAddress> getUserAddresses(Long userId) {
+        return userAddressRepository.findByUserUserId(userId);
+    }
+
+    // 주소 생성
+    @Transactional
+    public UserAddress createUserAddress(Long userId, UserAddressRequest request) {
+        System.out.println("createUserAddress called with userId: " + userId + ", request: " + request);
+        User user = getUserById(userId);
+        System.out.println("User found: " + user);
+        
+        // 기본 주소로 설정하는 경우, 기존 기본 주소들을 false로 변경
+        if (request.getIsDefault() != null && request.getIsDefault()) {
+            List<UserAddress> existingAddresses = userAddressRepository.findByUserUserId(userId);
+            existingAddresses.forEach(addr -> addr.setIsDefault(false));
+            userAddressRepository.saveAll(existingAddresses);
+        }
+        
+        UserAddress address = new UserAddress();
+        address.setUser(user);
+        address.setAddrName(request.getAddrName());
+        address.setAddress1(request.getAddress1());
+        address.setAddress2(request.getAddress2());
+        address.setPostalCode(request.getPostalCode());
+        address.setIsDefault(request.getIsDefault() != null ? request.getIsDefault() : false);
+        
+        System.out.println("Saving address: " + address);
+        UserAddress savedAddress = userAddressRepository.save(address);
+        System.out.println("Address saved successfully: " + savedAddress);
+        return savedAddress;
+    }
+
+    /**
+     * 사용자 주소 수정
+     */
+    @Transactional
+    public UserAddress updateUserAddress(Long userId, UUID addressId, UserAddressRequest request) {
+        User user = getUserById(userId);
+        UserAddress address = userAddressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("주소를 찾을 수 없습니다: " + addressId));
+        
+        // 주소가 해당 사용자의 것인지 확인
+        if (!address.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("해당 사용자의 주소가 아닙니다.");
+        }
+        
+        // 기본 주소로 설정하는 경우, 기존 기본 주소들을 false로 변경
+        if (request.getIsDefault() != null && request.getIsDefault()) {
+            List<UserAddress> existingAddresses = userAddressRepository.findByUserUserId(userId);
+            existingAddresses.stream()
+                    .filter(addr -> !addr.getId().equals(addressId))
+                    .forEach(addr -> addr.setIsDefault(false));
+            userAddressRepository.saveAll(existingAddresses);
+        }
+        
+        // 업데이트할 필드만 변경
+        if (request.getAddrName() != null) {
+            address.setAddrName(request.getAddrName());
+        }
+        if (request.getAddress1() != null) {
+            address.setAddress1(request.getAddress1());
+        }
+        if (request.getAddress2() != null) {
+            address.setAddress2(request.getAddress2());
+        }
+        if (request.getPostalCode() != null) {
+            address.setPostalCode(request.getPostalCode());
+        }
+        if (request.getIsDefault() != null) {
+            address.setIsDefault(request.getIsDefault());
+        }
+        
+        return userAddressRepository.save(address);
+    }
+
+    /**
+     * 사용자 주소 삭제
+     */
+    @Transactional
+    public void deleteUserAddress(Long userId, UUID addressId) {
+        User user = getUserById(userId);
+        UserAddress address = userAddressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("주소를 찾을 수 없습니다: " + addressId));
+        
+        // 주소가 해당 사용자의 것인지 확인
+        if (!address.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("해당 사용자의 주소가 아닙니다.");
+        }
+        
+        userAddressRepository.delete(address);
+    }
+
+    /**
+     * 기본 배송지 설정
+     */
+    @Transactional
+    public UserAddress setDefaultAddress(Long userId, UUID addressId) {
+        try {
+            System.out.println("setDefaultAddress called with userId: " + userId + ", addressId: " + addressId);
+            
+            // 사용자 존재 확인
+            User user = getUserById(userId);
+            System.out.println("User found with ID: " + user.getUserId());
+            
+            // 주소 존재 확인
+            UserAddress address = userAddressRepository.findById(addressId)
+                    .orElseThrow(() -> new RuntimeException("주소를 찾을 수 없습니다: " + addressId));
+            System.out.println("Address found with ID: " + address.getId());
+            
+            // 주소가 해당 사용자의 것인지 확인
+            if (!address.getUser().getUserId().equals(userId)) {
+                throw new RuntimeException("해당 사용자의 주소가 아닙니다.");
+            }
+            
+            // 기존 기본 주소들을 모두 false로 변경
+            List<UserAddress> existingAddresses = userAddressRepository.findByUserUserId(userId);
+            System.out.println("Found " + existingAddresses.size() + " existing addresses");
+            
+            for (UserAddress existingAddr : existingAddresses) {
+                existingAddr.setIsDefault(false);
+            }
+            userAddressRepository.saveAll(existingAddresses);
+            
+            // 선택한 주소를 기본 주소로 설정
+            address.setIsDefault(true);
+            System.out.println("Setting address " + addressId + " as default");
+            
+            UserAddress savedAddress = userAddressRepository.save(address);
+            System.out.println("Address saved successfully with ID: " + savedAddress.getId());
+            
+            return savedAddress;
+        } catch (Exception e) {
+            System.err.println("Error in setDefaultAddress: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 }
