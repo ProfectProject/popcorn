@@ -173,6 +173,11 @@
 | QR 검증(스캔 전용)                      | POST   | `/api/v1/qr/verify`            | -     | 없음           | 없음            | -              | -                       | 시작 전   | -             |
 | 체크인 목록 조회 (OWNER/ADMIN 또는 스캐너 계정) | POST   | `/api/v1/checkins`             | -     | 없음           | 없음            | Bearer         | OWNER/ADMIN(or Scanner) | 시작 전   | -             |
 | 체크인 상세 조회                         | GET    | `/api/v1/checkins/{checkinId}` | -     | 없음           | 없음            | -              | -                       | 시작 전   | -             |
+<<<<<<< HEAD
+=======
+| 체크인 목록 조회 (OWNER, 팝업별)             | GET    | `/api/v1/owner/popups/{popupId}/checkins` | - | 없음 | 없음 | Bearer | OWNER | 시작 전 | - |
+| 체크인 목록 조회 (OWNER, 스케줄별)            | GET    | `/api/v1/owner/popups/{popupId}/schedules/{scheduleId}/checkins` | - | 없음 | 없음 | Bearer | OWNER | 시작 전 | - |
+>>>>>>> 9491c79e04238af579ce9ce7fc173c18de14e7f2
 
 ### 1-10) 관리자/운영(OWNER/MANAGER)
 
