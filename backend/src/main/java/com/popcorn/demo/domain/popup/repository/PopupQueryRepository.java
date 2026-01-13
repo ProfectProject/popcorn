@@ -20,6 +20,9 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 			       p.description AS description,
 			       p.category AS category,
 			       p.status AS status,
+			       p.reservation_open_at AS reservationOpenAt,
+			       p.address_road AS addressRoad,
+			       p.address_detail AS addressDetail,
 			       MIN(ps.start_at) AS eventStartAt,
 			       MAX(ps.end_at) AS eventEndAt
 			  FROM p_popups p
@@ -28,7 +31,8 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 			   AND (:category IS NULL OR p.category = CAST(:category AS popup_category))
 			   AND (:keyword IS NULL OR UPPER(p.title) LIKE UPPER(CONCAT('%', :keyword, '%')) OR UPPER(p.description) LIKE UPPER(CONCAT('%', :keyword, '%')))
 			   AND (:storeId IS NULL OR p.store_id = :storeId)
-			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
+			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status,
+			          p.reservation_open_at, p.address_road, p.address_detail
 			 ORDER BY p.created_at DESC
 			 LIMIT :limit OFFSET :offset
 			""", nativeQuery = true)
@@ -59,42 +63,17 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 			       p.description AS description,
 			       p.category AS category,
 			       p.status AS status,
+			       p.reservation_open_at AS reservationOpenAt,
+			       p.address_road AS addressRoad,
+			       p.address_detail AS addressDetail,
 			       MIN(ps.start_at) AS eventStartAt,
 			       MAX(ps.end_at) AS eventEndAt
 			  FROM p_popups p
 			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
 			   AND p.popup_id = :popupId
-			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
+			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status,
+			          p.reservation_open_at, p.address_road, p.address_detail
 			""", nativeQuery = true)
 	Optional<PopupListView> findPopupDetail(@Param("popupId") UUID popupId);
-
-	@Query(value = """
-			SELECT CAST(p.popup_id AS VARCHAR) AS id,
-			       CAST(p.store_id AS VARCHAR) AS storeId,
-			       p.title AS title,
-			       p.description AS description,
-			       p.category AS category,
-			       p.status AS status,
-			       MIN(ps.start_at) AS eventStartAt,
-			       MAX(ps.end_at) AS eventEndAt
-			  FROM p_popups p
-			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
-			 WHERE p.deleted_at IS NULL
-			   AND p.status = CAST(:status AS popup_status)
-			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status
-			 ORDER BY p.created_at DESC
-			 LIMIT :limit OFFSET :offset
-			""", nativeQuery = true)
-	List<PopupListView> findPopupsByStatus(@Param("status") String status,
-			@Param("limit") int limit,
-			@Param("offset") long offset);
-
-	@Query(value = """
-			SELECT COUNT(1)
-			  FROM p_popups p
-			 WHERE p.deleted_at IS NULL
-			   AND p.status = CAST(:status AS popup_status)
-			""", nativeQuery = true)
-	long countPopupsByStatus(@Param("status") String status);
 }

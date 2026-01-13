@@ -30,7 +30,9 @@ public enum OwnerPopupResponseCode implements ResponseCode {
 	CAPACITY_REQUIRED(2425, 400, "수용 인원은 필수입니다."),
 	CAPACITY_MIN_INVALID(2426, 400, "수용 인원은 1 이상이어야 합니다."),
 	UPDATE_NO_CHANGES(2427, 400, "수정할 내용이 없습니다."),
-	REQUEST_BODY_REQUIRED(2428, 400, "요청 본문이 비어 있습니다.");
+	REQUEST_BODY_REQUIRED(2428, 400, "요청 본문이 비어 있습니다."),
+	SCHEDULE_UPDATE_NOT_FOUND(2429, 400, "수정할 스케줄을 찾을 수 없습니다."),
+	SCHEDULE_DELETE_NOT_FOUND(2430, 400, "삭제할 스케줄을 찾을 수 없습니다.");
 
 	private final int code;
 	private final int httpStatus;

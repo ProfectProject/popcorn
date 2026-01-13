@@ -40,10 +40,10 @@ class OrderQueryServiceTest {
 
 		UUID storeId = UUID.randomUUID();
 		UUID popupId = UUID.randomUUID();
-		when(repository.countStoreOrders(storeId, popupId, null, null, null)).thenReturn(0L);
+		when(repository.countStoreOrders(storeId, popupId, null, null, null, null, null)).thenReturn(0L);
 
 		StoreOrderReservationListResponse response = service.getStoreOrderReservations(
-				storeId, popupId, null, null, null, null, null);
+				storeId, popupId, null, null, null, null, null, null, null);
 
 		assertThat(response.getItems()).isEmpty();
 		assertThat(response.getTotal()).isZero();
@@ -57,15 +57,16 @@ class OrderQueryServiceTest {
 
 		UUID storeId = UUID.randomUUID();
 		UUID popupId = UUID.randomUUID();
-		when(repository.countStoreOrders(storeId, popupId, "REQUESTED", null, null)).thenReturn(2L);
+		when(repository.countStoreOrders(storeId, popupId, null, null, "REQUESTED", null, null)).thenReturn(2L);
 		List<StoreOrderReservationView> views = List.of(
 				storeOrderView(UUID.randomUUID(), "O-1"),
 				storeOrderView(UUID.randomUUID(), "O-2")
 		);
-		when(repository.findStoreOrders(storeId, popupId, "REQUESTED", null, null, 5, 0L)).thenReturn(views);
+		when(repository.findStoreOrders(storeId, popupId, null, null, "REQUESTED", null, null, 5, 0L))
+				.thenReturn(views);
 
 		StoreOrderReservationListResponse response = service.getStoreOrderReservations(
-				storeId, popupId, "REQUESTED", null, null, 5, 0L);
+				storeId, popupId, null, null, "REQUESTED", null, null, 5, 0L);
 
 		assertThat(response.getItems()).hasSize(2);
 		assertThat(response.getSize()).isEqualTo(5);

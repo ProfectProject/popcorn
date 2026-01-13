@@ -21,9 +21,9 @@ import lombok.Data;
 public class OrderProperties {
 
 	/**
-	 * 주문 취소 가능 시간 (기본: 15분)
+	 * 주문 취소 가능 시간 (기본: 5분)
 	 */
-	private Duration cancelableTimeout = Duration.ofMinutes(15);
+	private Duration cancelableTimeout = Duration.ofMinutes(5);
 
 	/**
 	 * 결제 성공률 (개발/테스트용, 기본: 90%)

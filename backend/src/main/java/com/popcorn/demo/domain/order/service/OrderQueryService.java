@@ -54,10 +54,12 @@ public class OrderQueryService {
 	/**
 	 * 점주용 주문 예약 목록 조회 (캐싱 적용)
 	 */
-	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #popupId + '_' + #status")
+	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #popupId + '_' + #scheduleId + '_' + #orderType + '_' + #status")
 	public StoreOrderReservationListResponse getStoreOrderReservations(
 			UUID storeId,
 			UUID popupId,
+			UUID scheduleId,
+			String orderType,
 			String status,
 			LocalDateTime startDate,
 			LocalDateTime endDate,
@@ -73,8 +75,9 @@ public class OrderQueryService {
 		long pageOffset = (offset != null && offset >= 0) ? offset : 0L;
 
 		// 📈 성능 최적화: 카운트와 데이터 조회를 병렬로 처리
+		String normalizedOrderType = normalizeOrderTypeFilter(orderType);
 		long totalCount = orderQueryRepository.countStoreOrders(
-				storeId, popupId, status, startDate, endDate);
+				storeId, popupId, scheduleId, normalizedOrderType, status, startDate, endDate);
 
 		if (totalCount == 0) {
 			return StoreOrderReservationListResponse.builder()
@@ -87,7 +90,7 @@ public class OrderQueryService {
 
 		// 🚀 배치 조회로 N+1 쿼리 해결
 		List<StoreOrderReservationView> views = orderQueryRepository.findStoreOrders(
-				storeId, popupId, status, startDate, endDate, pageLimit, pageOffset);
+				storeId, popupId, scheduleId, normalizedOrderType, status, startDate, endDate, pageLimit, pageOffset);
 
 		List<StoreOrderReservationListResponse.ItemDto> items = views.stream()
 				.map(this::convertToOrderReservation)
@@ -103,6 +106,17 @@ public class OrderQueryService {
 				.size(pageLimit)
 				.total(totalCount)
 				.build();
+	}
+
+	public StoreOrderReservationListResponse getStoreOrderReservations(
+			UUID storeId,
+			UUID popupId,
+			String status,
+			LocalDateTime startDate,
+			LocalDateTime endDate,
+			Integer limit,
+			Long offset) {
+		return getStoreOrderReservations(storeId, popupId, null, null, status, startDate, endDate, limit, offset);
 	}
 
 	/**

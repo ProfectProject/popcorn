@@ -26,6 +26,8 @@ public class CreateOrderRequest {
 
 	private UUID reservationId;
 
+	private String paymentMethod;
+
 	@NotEmpty(message = "주문 항목은 최소 1개 이상이어야 합니다.")
 	@Valid
 	private List<OrderItemRequest> items;
