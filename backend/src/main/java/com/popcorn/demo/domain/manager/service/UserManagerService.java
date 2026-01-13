@@ -29,9 +29,12 @@ public class UserManagerService {
         if (user.getRole() != UserRole.OWNER) {
             throw new ApprovalNotAllowedException("승인대상이 아닙니다.");
         }
+        if(user.getRole() == com.popcorn.demo.domain.users.entity.enums.UserRole.OWNER){
+
+        }
 
         user.setRole(UserRole.OWNER);
-        user.setActive(true);
+        user.setActive(false);
         User saved = userRepository.save(user);
 
         return OwnerApproveResponse.builder()
