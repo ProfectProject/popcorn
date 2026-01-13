@@ -73,9 +73,9 @@ class TossPaymentServiceTest {
 	@Test
 	@DisplayName("성공: 토스 결제 승인 처리")
 	void confirmPayment_success() {
-		String orderNo = "O20251231-001003";
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
 		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004003");
+		String orderNo = "O20251231-001003";
 
 		Order order = Order.builder()
 				.id(orderId)
@@ -90,15 +90,16 @@ class TossPaymentServiceTest {
 				.amount(4000)
 				.build();
 
-		when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(order));
-		when(paymentRepository.findByOrderId(orderId)).thenReturn(Optional.of(payment));
-		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderNo));
+		when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+		when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId))
+				.thenReturn(java.util.List.of(payment));
+		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderId.toString()));
 		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
 				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
 
 		TossPaymentService.TossPaymentConfirmResult result =
-				tossPaymentService.confirmPayment("pay_123", orderNo, 4000);
+				tossPaymentService.confirmPayment("pay_123", orderId.toString(), 4000);
 
 		assertThat(result.getPaymentId()).isEqualTo(paymentId);
 		assertThat(result.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
