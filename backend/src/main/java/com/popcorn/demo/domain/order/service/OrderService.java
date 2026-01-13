@@ -160,6 +160,8 @@ public class OrderService {
 		long total = orderQueryRepository.countStoreOrders(
 				storeId,
 				popupId,
+				null,
+				null,
 				normalizedStatus,
 				from,
 				to
@@ -168,6 +170,8 @@ public class OrderService {
 		List<StoreOrderReservationView> rows = orderQueryRepository.findStoreOrders(
 				storeId,
 				popupId,
+				null,
+				null,
 				normalizedStatus,
 				from,
 				to,
