@@ -402,20 +402,48 @@ public class UserController {
         return ResponseEntity.noContent().build(); // 204
     }
 
-    /*
-    * 배송지 CRUD
-     */
 
     // 주소 목록 조회
-    /*@GetMapping("/{userId}/addresses")
-    public List<UserAddressResponse> getUserAddresses(@PathVariable Long userId) {
-        List<UserAddress> addresses = userService.getUserAddresses(userId);
-        return addresses.stream()
-                .map(UserAddressResponse::from)
-                .toList();
-    }*/
+    @Operation(
+    summary = "내 주소 목록 조회",
+    description = """
+        현재 로그인한 사용자의 전체 주소 목록을 조회합니다.
 
-    // 주소 목록 조회
+        **인증 필수**
+        - JWT 토큰 필요 (Authorization: Bearer {token})
+
+        **반환 정보**
+        - 주소 ID(UUID)
+        - 주소명(addrName)
+        - 기본주소(address1)
+        - 상세주소(address2)
+        - 우편번호(postalCode)
+        - 기본주소 여부(isDefault)
+        """
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "주소 목록 조회 성공",
+        content = @Content(
+            schema = @Schema(implementation = UserAddressResponse.class),
+            examples = @ExampleObject(
+                name = "조회 성공",
+                value = """
+                    [
+                    {
+                        "addressId": "b6c1d7ea-4b1b-4fa2-9ad1-53b30a7f6abc",
+                        "addrName": "집",
+                        "address1": "서울 강남구 테헤란로 123",
+                        "address2": "101동 1001호",
+                        "postalCode": "06236",
+                        "isDefault": true
+                    }
+                    ]
+                    """
+            )
+        )
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/me/address")
     public List<UserAddressResponse> getUserAddresses(@AuthenticationPrincipal CustomUserDetails userDetails){
         Long userId = userDetails.getUserId();
@@ -425,7 +453,48 @@ public class UserController {
                 .toList();
     }
 
-    // 주소 생성
+    // 주소 
+    @Operation(
+    summary = "내 주소 등록",
+    description = """
+        새로운 주소를 등록합니다.
+
+        **인증 필수**
+        - JWT 토큰 필요
+
+        **입력 예시**
+        {
+          "addrName": "회사",
+          "address1": "서울 강남구 역삼동 111",
+          "address2": "4층",
+          "postalCode": "06250",
+          "isDefault": false
+        }
+
+        **기능**
+        - 기본주소(isDefault=true)를 생성하면 기존 기본 주소는 false 처리됨
+        """
+    )
+    @ApiResponse(
+        responseCode = "201",
+        description = "주소 등록 성공",
+        content = @Content(
+            schema = @Schema(implementation = UserAddressResponse.class),
+            examples = @ExampleObject(
+                value = """
+                    {
+                    "addressId": "d21e9a2b-981a-48c0-9122-e8cdf32a03ce",
+                    "addrName": "회사",
+                    "address1": "서울 강남구 역삼동 111",
+                    "address2": "4층",
+                    "postalCode": "06250",
+                    "isDefault": false
+                    }
+                    """
+            )
+        )
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
     @PostMapping("/me/addresses")
     public UserAddressResponse createUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody UserAddressRequest request) {
         Long userId = userDetails.getUserId();
@@ -434,6 +503,42 @@ public class UserController {
     }
 
     // 주소 수정
+    @Operation(
+    summary = "내 주소 수정",
+    description = """
+        기존 주소를 수정합니다.
+
+        **인증 필수**
+        - JWT 토큰 필요
+
+        **수정 가능 항목**
+        - addrName
+        - address1
+        - address2
+        - postalCode
+        - isDefault (true로 변경 시 기존 기본주소는 false 처리)
+        """
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "주소 수정 성공",
+        content = @Content(
+            schema = @Schema(implementation = UserAddressResponse.class),
+            examples = @ExampleObject(
+                value = """
+                    {
+                    "addressId": "085bd510-87db-4b8c-9613-17f77bb02d92",
+                    "addrName": "집2",
+                    "address1": "서울 송파구 올림픽로 240",
+                    "address2": "20층",
+                    "postalCode": "05554",
+                    "isDefault": true
+                    }
+                    """
+            )
+        )
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
     @PutMapping("me/addresses/{addressId}")
     public UserAddressResponse updateUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
         Long userId = userDetails.getUserId();
@@ -442,6 +547,29 @@ public class UserController {
     }
 
     // 주소 삭제
+    @Operation(
+        summary = "내 주소 삭제",
+        description = """
+            로그인된 사용자의 특정 주소를 삭제합니다.
+
+            **인증 요구:**
+            - JWT 토큰 필수
+            """
+    )
+    @ApiResponse(
+            responseCode = "204",
+            description = "주소 삭제 성공",
+            content = @Content(schema = @Schema(hidden = true))
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "주소를 찾을 수 없음"
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
     @DeleteMapping("/me/addresses/{addressId}")
     public void deleteUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId) {
         Long userId = userDetails.getUserId();
@@ -449,41 +577,34 @@ public class UserController {
     }
 
     // 기존 주소 설정
+    @Operation(
+        summary = "기본 주소 설정",
+        description = """
+            로그인된 사용자의 특정 주소를 기본 주소로 설정합니다.
+
+            **인증 요구:**
+            - JWT 토큰 필수
+            """
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "기본 주소 설정 성공"
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "인증 필요"
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "주소를 찾을 수 없음"
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
     @PutMapping("/me/addresses/{addressId}/default")
     public UserAddressResponse setDefaultAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId) {
         Long userId = userDetails.getUserId();
         UserAddress address = userService.setDefaultAddress(userId, addressId);
         return UserAddressResponse.from(address);
     }
-    
-    //사용자 주소 생성
-    /* 
-    @PostMapping("/{userId}/addresses")
-    public UserAddressResponse createUserAddress(@PathVariable Long userId, @RequestBody UserAddressRequest request) {
-        UserAddress address = userService.createUserAddress(userId, request);
-        return UserAddressResponse.from(address);
-    }*/
 
-    //사용자 주소 수정
-    /*
-    @PutMapping("/{userId}/addresses/{addressId}")
-    public UserAddressResponse updateUserAddress(@PathVariable Long userId, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
-        UserAddress address = userService.updateUserAddress(userId, addressId, request);
-        return UserAddressResponse.from(address);
-    }*/
-    
-    //사용자 주소 삭제
-    /*
-    @DeleteMapping("/{userId}/addresses/{addressId}")
-    public void deleteUserAddress(@PathVariable Long userId, @PathVariable UUID addressId) {
-        userService.deleteUserAddress(userId, addressId);
-    }*/
-
-    //기본 배송지 설정
-    /*
-    @PutMapping("/{userId}/addresses/{addressId}/default")
-    public UserAddressResponse setDefaultAddress(@PathVariable Long userId, @PathVariable UUID addressId) {
-        UserAddress address = userService.setDefaultAddress(userId, addressId);
-        return UserAddressResponse.from(address);
-    }*/
 }
+
