@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
@@ -107,7 +108,7 @@ public class PaymentCommandService {
 		return order;
 	}
 
-	private PaymentCreationResult createPayment(
+	public PaymentCreationResult createPayment(
 			Order order,
 			PaymentMethod method,
 			Integer amount,
@@ -172,8 +173,8 @@ public class PaymentCommandService {
 			throw PaymentException.invalidRequest();
 		}
 
-		if (hasSchedule) {
-			return OrderType.RESERVATION;
+		if (hasSchedule && !expectReservation) {
+			throw PaymentException.invalidRequest();
 		}
 		if (!expectReservation && !hasGoods) {
 			throw PaymentException.invalidRequest();
@@ -374,6 +375,27 @@ public class PaymentCommandService {
 	private OrderStatus updateOrderStatus(UUID orderId, OrderStatus status, String reason) {
 		Order updatedOrder = orderCommandService.updateStatus(orderId, status.name(), reason);
 		return updatedOrder.getStatus();
+	}
+
+	/**
+	 * 주문 ID로 주문 타입을 조회
+	 */
+	private OrderType resolveOrderType(UUID orderId) {
+		Order order = loadOrder(orderId);
+		return order.getOrderType();
+	}
+
+	/**
+	 * 주문 타입에 따른 결제 수단 유효성 검증
+	 */
+	private void validateMethodByOrderType(OrderType orderType, PaymentMethod paymentMethod) {
+		// 주문 타입별 결제 수단 제한 로직 구현
+		if (orderType == OrderType.RESERVATION) {
+			// 예약 주문은 모든 결제 수단 허용
+			return;
+		}
+		// 일반 주문도 모든 결제 수단 허용
+		// 필요시 추가 검증 로직 구현
 	}
 
 }

@@ -35,10 +35,12 @@ public class Payment extends BaseEntity {
 	private UUID orderId;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "method", nullable = false)
 	private PaymentMethod method;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
 	@Column(name = "status", nullable = false)
 	private PaymentStatus status;
 

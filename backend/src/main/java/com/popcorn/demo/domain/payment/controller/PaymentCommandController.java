@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.payment.controller;
 
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +17,7 @@ import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.payment.dto.request.PaymentCreateRequest;
 import com.popcorn.demo.domain.payment.dto.response.OrderPaymentCreateResponse;
+import com.popcorn.demo.domain.payment.dto.response.PaymentCreateResponse;
 import com.popcorn.demo.domain.payment.dto.response.ReservationPaymentCreateResponse;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
@@ -137,21 +139,14 @@ public class PaymentCommandController extends BaseController {
 						.failUrl(tossPaymentsProperties.getFailUrl())
 						.build());
 
-		PaymentCreateResponse response = PaymentCreateResponse.builder()
+		ReservationPaymentCreateResponse response = ReservationPaymentCreateResponse.builder()
 				.paymentId(result.getPaymentId())
-				.status(toApiPaymentStatus(result.getPaymentStatus()))
+				.paymentStatus(toApiPaymentStatus(result.getPaymentStatus()))
 				.orderStatus(result.getOrderStatus().name())
-				.orderId(orderId)
-				.orderNo(result.getOrderNo())
-				.amount(result.getAmount())
-				.customerKey(toCustomerKey(result.getCustomerId()))
-				.successUrl(tossPaymentsProperties.getSuccessUrl())
-				.failUrl(tossPaymentsProperties.getFailUrl())
-				.paymentToken(paymentToken) // 암호화된 토큰 추가
 				.approvedAt(result.getApprovedAt())
 				.build();
 
-		return created(response);
+		return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.success(response));
 	}
 
 	private String toPayloadJson(Object payload) {

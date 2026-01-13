@@ -5,7 +5,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
+import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.payment.entity.PaymentMethod;
+import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 
 import lombok.RequiredArgsConstructor;
@@ -18,16 +22,26 @@ public class OrderPaymentFacade {
 
 	private final OrderCommandService orderCommandService;
 	private final PaymentCommandService paymentCommandService;
+	private final OrderRepository orderRepository;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public OrderWithPaymentResult createOrderWithPayment(CreateOrderCommand command, String paymentMethod) {
 		CreateOrderResponse orderResponse = orderCommandService.createOrder(command);
-		String method = normalizePaymentMethod(paymentMethod);
+
+		// Order 객체 조회
+		Order order = orderRepository.findById(orderResponse.getOrderId())
+				.orElseThrow(() -> new RuntimeException("Order not found: " + orderResponse.getOrderId()));
+
+		// PaymentMethod enum으로 변환
+		PaymentMethod method = PaymentMethod.valueOf(normalizePaymentMethod(paymentMethod));
+
 		PaymentCommandService.PaymentCreationResult paymentResult =
 				paymentCommandService.createPayment(
-						orderResponse.getOrderId(),
+						order,
 						method,
 						orderResponse.getTotalAmount(),
+						null,
+						PaymentStatus.READY,
 						null);
 		OrderStatus orderStatus = paymentResult.getOrderStatus();
 		CreateOrderResponse updatedOrder = updateOrderStatusInResponse(orderResponse, orderStatus);
