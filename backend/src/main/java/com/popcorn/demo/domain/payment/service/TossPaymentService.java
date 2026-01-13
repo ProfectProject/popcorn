@@ -2,6 +2,7 @@ package com.popcorn.demo.domain.payment.service;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
@@ -24,12 +26,14 @@ import com.popcorn.demo.domain.qr.service.QrCodeService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsClient;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
+import com.popcorn.demo.domain.payment.event.PaymentSuccessEvent;
 
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 @RequiredArgsConstructor
@@ -41,9 +45,9 @@ public class TossPaymentService {
 	private final JpaPaymentRepository paymentRepository;
 	private final OrderCommandService orderCommandService;
 	private final JpaOrderItemRepository orderItemRepository;
-	private final QrCodeService qrCodeService;
 	private final TossPaymentsClient tossPaymentsClient;
 	private final ObjectMapper objectMapper;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public TossPaymentConfirmResult confirmPayment(String paymentKey, String orderNo, Integer amount) {
@@ -76,7 +80,9 @@ public class TossPaymentService {
 			Payment saved = paymentRepository.save(payment);
 
 			OrderStatus orderStatus = updateOrderStatus(saved.getOrderId(), OrderStatus.PAID, "결제 승인");
-			issueReservationQr(saved.getOrderId());
+
+			// 결제 성공 이벤트 발행 (비동기 후속 작업 트리거)
+			publishPaymentSuccessEvent(order, saved, approvedAt, paymentKey);
 
 			log.info("✅ 토스 결제 승인 완료 - orderNo: {}, orderId: {}, paymentId: {}, amount: {}, status: {}, orderStatus: {}",
 					orderNo,
@@ -130,10 +136,36 @@ public class TossPaymentService {
 		return orderCommandService.updateStatus(orderId, status.name(), reason).getStatus();
 	}
 
-	private void issueReservationQr(UUID orderId) {
-		boolean isReservation = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
-		if (isReservation) {
-			qrCodeService.issue(orderId);
+	/**
+	 * 결제 성공 이벤트 발행 (비동기 후속 작업 트리거)
+	 */
+	private void publishPaymentSuccessEvent(Order order, Payment payment, LocalDateTime approvedAt, String paymentKey) {
+		try {
+			// 주문 항목 조회
+			List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+			// 이벤트 생성 및 발행
+			PaymentSuccessEvent event = PaymentSuccessEvent.builder()
+					.orderId(order.getId())
+					.orderNo(order.getOrderNo())
+					.paymentId(payment.getId())
+					.orderType(order.getOrderType() != null ? order.getOrderType().name() : "PURCHASE") // RESERVATION or PURCHASE
+					.totalAmount(payment.getAmount())
+					.userId(order.getCustomerId())
+					.orderItems(orderItems)
+					.paidAt(approvedAt)
+					.paymentMethod("TOSS")
+					.paymentKey(paymentKey)
+					.build();
+
+			eventPublisher.publishEvent(event);
+			log.info("📨 결제 성공 이벤트 발행 완료 - orderNo: {}, paymentId: {}",
+					order.getOrderNo(), payment.getId());
+
+		} catch (Exception e) {
+			// 이벤트 발행 실패해도 결제는 성공으로 처리
+			log.error("❌ 결제 성공 이벤트 발행 실패 - orderNo: {}, error: {}",
+					order.getOrderNo(), e.getMessage(), e);
 		}
 	}
 

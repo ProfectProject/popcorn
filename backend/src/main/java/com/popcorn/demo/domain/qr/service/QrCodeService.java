@@ -5,11 +5,13 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;
+import com.popcorn.demo.domain.qr.event.QrCheckinRequestedEvent;
 import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
 import com.popcorn.demo.domain.qr.repository.QrCodeRow;
@@ -27,8 +29,9 @@ public class QrCodeService {
 	private final QrCodeRepository qrCodeRepository;
 	private final CheckinRepository checkinRepository;
 	private final JpaOrderItemRepository orderItemRepository;
+	private final ApplicationEventPublisher eventPublisher;
 
-	@Transactional(transactionManager = "jdbcTransactionManager")
+	@Transactional
 	public QrCodeResponse issue(UUID orderId) {
 		String orderStatus = qrCodeRepository.findOrderStatus(orderId)
 				.orElseThrow(QrException::orderNotFound);
@@ -103,12 +106,23 @@ public class QrCodeService {
 					.build();
 		}
 
+		// 동기적으로 체크인 처리 (응답 속도를 위해)
 		java.util.UUID checkinId = checkinRepository.insert(
 				row.orderId(),
 				row.qrId(),
 				null,
 				now
 		);
+
+		// 체크인 요청 이벤트 발행 (비동기 후처리)
+		eventPublisher.publishEvent(new QrCheckinRequestedEvent(
+				this,
+				row.qrId(),
+				row.orderId(),
+				row.qrCode(),
+				row.expiresAt(),
+				now
+		));
 
 		return QrVerifyResponse.builder()
 				.valid(true)

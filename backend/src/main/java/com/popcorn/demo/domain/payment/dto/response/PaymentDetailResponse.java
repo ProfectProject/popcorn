@@ -33,4 +33,12 @@ public class PaymentDetailResponse {
 	private LocalDateTime updatedAt;
 	@Schema(example = "PAID")
 	private String orderStatus;
+
+	// QR 코드 관련 정보 (예약 주문이고 결제 완료된 경우에만 제공)
+	@Schema(example = "true", description = "QR 코드 사용 가능 여부")
+	private Boolean qrAvailable;
+	@Schema(example = "abc123-def456-ghi789", description = "QR 코드 (qrAvailable이 true인 경우에만 제공)")
+	private String qrCode;
+	@Schema(example = "2026-01-13T14:00:00", description = "QR 코드 만료 시각")
+	private LocalDateTime qrExpiresAt;
 }
