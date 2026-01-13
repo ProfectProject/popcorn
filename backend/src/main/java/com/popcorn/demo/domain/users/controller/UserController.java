@@ -38,6 +38,8 @@ import com.popcorn.demo.domain.users.entity.UserAddress;
 import com.popcorn.demo.domain.users.service.UserService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @Tag(name = "User", description = "사용자 관련 API")
 @RestController
@@ -405,38 +407,83 @@ public class UserController {
      */
 
     // 주소 목록 조회
-    @GetMapping("/{userId}/addresses")
+    /*@GetMapping("/{userId}/addresses")
     public List<UserAddressResponse> getUserAddresses(@PathVariable Long userId) {
+        List<UserAddress> addresses = userService.getUserAddresses(userId);
+        return addresses.stream()
+                .map(UserAddressResponse::from)
+                .toList();
+    }*/
+
+    // 주소 목록 조회
+    @GetMapping("/me/address")
+    public List<UserAddressResponse> getUserAddresses(@AuthenticationPrincipal CustomUserDetails userDetails){
+        Long userId = userDetails.getUserId();
         List<UserAddress> addresses = userService.getUserAddresses(userId);
         return addresses.stream()
                 .map(UserAddressResponse::from)
                 .toList();
     }
 
-    //사용자 주소 생성
-    @PostMapping("/{userId}/addresses")
-    public UserAddressResponse createUserAddress(@PathVariable Long userId, @RequestBody UserAddressRequest request) {
+    // 주소 생성
+    @PostMapping("/me/addresses")
+    public UserAddressResponse createUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody UserAddressRequest request) {
+        Long userId = userDetails.getUserId();
         UserAddress address = userService.createUserAddress(userId, request);
         return UserAddressResponse.from(address);
     }
 
+    // 주소 수정
+    @PutMapping("me/addresses/{addressId}")
+    public UserAddressResponse updateUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
+        Long userId = userDetails.getUserId();
+        UserAddress address = userService.updateUserAddress(userId, addressId, request);
+        return UserAddressResponse.from(address);
+    }
+
+    // 주소 삭제
+    @DeleteMapping("/me/addresses/{addressId}")
+    public void deleteUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId) {
+        Long userId = userDetails.getUserId();
+        userService.deleteUserAddress(userId, addressId);
+    }
+
+    // 기존 주소 설정
+    @PutMapping("/me/addresses/{addressId}/default")
+    public UserAddressResponse setDefaultAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId) {
+        Long userId = userDetails.getUserId();
+        UserAddress address = userService.setDefaultAddress(userId, addressId);
+        return UserAddressResponse.from(address);
+    }
+    
+    //사용자 주소 생성
+    /* 
+    @PostMapping("/{userId}/addresses")
+    public UserAddressResponse createUserAddress(@PathVariable Long userId, @RequestBody UserAddressRequest request) {
+        UserAddress address = userService.createUserAddress(userId, request);
+        return UserAddressResponse.from(address);
+    }*/
+
     //사용자 주소 수정
+    /*
     @PutMapping("/{userId}/addresses/{addressId}")
     public UserAddressResponse updateUserAddress(@PathVariable Long userId, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
         UserAddress address = userService.updateUserAddress(userId, addressId, request);
         return UserAddressResponse.from(address);
-    }
+    }*/
     
     //사용자 주소 삭제
+    /*
     @DeleteMapping("/{userId}/addresses/{addressId}")
     public void deleteUserAddress(@PathVariable Long userId, @PathVariable UUID addressId) {
         userService.deleteUserAddress(userId, addressId);
-    }
+    }*/
 
     //기본 배송지 설정
+    /*
     @PutMapping("/{userId}/addresses/{addressId}/default")
     public UserAddressResponse setDefaultAddress(@PathVariable Long userId, @PathVariable UUID addressId) {
         UserAddress address = userService.setDefaultAddress(userId, addressId);
         return UserAddressResponse.from(address);
-    }
+    }*/
 }
