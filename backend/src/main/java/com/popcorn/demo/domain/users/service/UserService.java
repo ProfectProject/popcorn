@@ -17,6 +17,11 @@ import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 import com.popcorn.demo.domain.users.repository.UserRepository;
 import com.popcorn.demo.global.exception.ValidationException;
 
+//추가
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -25,6 +30,10 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserAddressRepository userAddressRepository;
+
+    //추가
+
+
 
     public SignupResponse register(SignupRequest request){
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -43,7 +52,7 @@ public class UserService {
         user.setPhone(request.getPhone());
         user.setName(request.getName());
         user.setRole(request.getRole());
-        user.setActive(true);
+
 
         User savedUser = userRepository.save(user);
 
