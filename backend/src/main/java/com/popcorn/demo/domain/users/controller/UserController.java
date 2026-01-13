@@ -1,5 +1,8 @@
 package com.popcorn.demo.domain.users.controller;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,9 +29,12 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.users.dto.SignupRequest;
 import com.popcorn.demo.domain.users.dto.SignupResponse;
+import com.popcorn.demo.domain.users.dto.UserAddressRequest;
+import com.popcorn.demo.domain.users.dto.UserAddressResponse;
 import com.popcorn.demo.domain.users.dto.UserResponse;
 import com.popcorn.demo.domain.users.dto.UserUpdateRequest;
 import com.popcorn.demo.domain.users.entity.User;
+import com.popcorn.demo.domain.users.entity.UserAddress;
 import com.popcorn.demo.domain.users.service.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -346,23 +352,91 @@ public class UserController {
         return UserResponse.from(updatedUser);
     }
 
-    /*@PutMapping("/mypage")
-    public UserResponse UpdateMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails,@RequestBody UserUpdateRequest request ) {
-        // SecurityContext에서 userId 가져오기
-        Long userId = customUserDetails.getUserId();
-        System.out.println("SecurityContext에서 가져온 userId: " + userId);
-
-        User updatedUser = userService.updateUser(userId, request);
-        return UserResponse.from(updatedUser);
-    }*/
-
     /**
      * 사용자 계정 탈퇴
      */
+    @Operation(
+        summary = "내 계정 삭제(탈퇴)",
+        description = """
+            현재 로그인된 사용자의 계정을 삭제(탈퇴)합니다.
+
+            **인증 요구:**
+            - JWT 토큰 필수 (Authorization: Bearer {token})
+
+            **응답 정보:**
+            - 204 No Content (반환 데이터 없음)
+
+            **사용 케이스:**
+            - 회원이 직접 계정 탈퇴를 원할 때
+            - 서비스 이용 중지 시
+            """
+    )
+    @ApiResponse(
+        responseCode = "204",
+        description = "계정 삭제(탈퇴) 성공",
+        content = @Content( // 204는 바디가 없으므로 content는 비워두는 것이 더 표준적이지만, 유지해도 무방
+            schema = @Schema(hidden = true)
+        )
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "인증 필요",
+        content = @Content(
+            examples = @ExampleObject(
+                name = "인증 실패",
+                value = """
+                    {
+                    "code": 401,
+                    "message": "인증이 필요합니다."
+                    }
+                    """
+            )
+        )
+    )
+    @SecurityRequirement(name = "Bearer Authentication")
     @DeleteMapping("/me/deactivate")
-    public ResponseEntity<Void> deactivateUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        userService.deactivateUser(userDetails.getUserId());
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        userService.deactivateUser(userDetails.getUserId()); // 메서드명도 delete로 변경 권장
+        return ResponseEntity.noContent().build(); // 204
     }
 
+    /*
+    * 배송지 CRUD
+     */
+
+    // 주소 목록 조회
+    @GetMapping("/{userId}/addresses")
+    public List<UserAddressResponse> getUserAddresses(@PathVariable Long userId) {
+        List<UserAddress> addresses = userService.getUserAddresses(userId);
+        return addresses.stream()
+                .map(UserAddressResponse::from)
+                .toList();
+    }
+
+    //사용자 주소 생성
+    @PostMapping("/{userId}/addresses")
+    public UserAddressResponse createUserAddress(@PathVariable Long userId, @RequestBody UserAddressRequest request) {
+        UserAddress address = userService.createUserAddress(userId, request);
+        return UserAddressResponse.from(address);
+    }
+
+    //사용자 주소 수정
+    @PutMapping("/{userId}/addresses/{addressId}")
+    public UserAddressResponse updateUserAddress(@PathVariable Long userId, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
+        UserAddress address = userService.updateUserAddress(userId, addressId, request);
+        return UserAddressResponse.from(address);
+    }
+    
+    //사용자 주소 삭제
+    @DeleteMapping("/{userId}/addresses/{addressId}")
+    public void deleteUserAddress(@PathVariable Long userId, @PathVariable UUID addressId) {
+        userService.deleteUserAddress(userId, addressId);
+    }
+
+    //기본 배송지 설정
+    @PutMapping("/{userId}/addresses/{addressId}/default")
+    public UserAddressResponse setDefaultAddress(@PathVariable Long userId, @PathVariable UUID addressId) {
+        UserAddress address = userService.setDefaultAddress(userId, addressId);
+        return UserAddressResponse.from(address);
+    }
 }
