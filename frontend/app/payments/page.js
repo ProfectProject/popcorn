@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Script from "next/script";
 
 export default function PaymentsPage() {
@@ -15,6 +15,7 @@ export default function PaymentsPage() {
   };
 
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get("token");
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
   const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || "";
@@ -61,6 +62,31 @@ export default function PaymentsPage() {
 
     fetchPaymentInfo();
   }, [token, apiBase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleStorage = (event) => {
+      if (event.key !== "payment:success" || !event.newValue) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(event.newValue);
+        if (!payload?.redirectUrl) {
+          return;
+        }
+        const redirectUrl = new URL(payload.redirectUrl, window.location.origin);
+        router.replace(`${redirectUrl.pathname}${redirectUrl.search}`);
+      } catch (err) {
+        // ignore malformed payloads
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [router]);
 
   useEffect(() => {
     if (!scriptReady || !paymentInfo) {

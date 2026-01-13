@@ -20,6 +20,16 @@ export default function PaymentSuccessPage() {
     if (typeof window === "undefined") {
       return;
     }
+    if (paymentKey && orderId && amount) {
+      try {
+        localStorage.setItem(
+          "payment:success",
+          JSON.stringify({ redirectUrl: window.location.href, ts: Date.now() })
+        );
+      } catch (err) {
+        // ignore storage errors
+      }
+    }
     if (window.opener && !window.opener.closed) {
       try {
         window.opener.location.href = window.location.href;
@@ -28,7 +38,7 @@ export default function PaymentSuccessPage() {
         // ignore cross-window errors
       }
     }
-  }, []);
+  }, [paymentKey, orderId, amount]);
 
   useEffect(() => {
     const confirmPayment = async () => {
