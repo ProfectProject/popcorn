@@ -35,6 +35,10 @@ public class UserService {
 
 
 
+    //추가
+
+
+
     public SignupResponse register(SignupRequest request){
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
