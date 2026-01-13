@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpInputMessage;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -64,8 +65,9 @@ class OwnerPopupExceptionHandlerTest {
 				handler.handleTypeMismatchException(mismatchException);
 		assertThat(mismatchResponse.getBody().getData().getDetail()).contains("Integer");
 
+		HttpInputMessage inputMessage = Mockito.mock(HttpInputMessage.class);
 		ResponseEntity<BaseResponse<BaseError>> readResponse =
-				handler.handleMessageNotReadable(new HttpMessageNotReadableException("bad"));
+				handler.handleMessageNotReadable(new HttpMessageNotReadableException("bad", new RuntimeException("cause"), inputMessage));
 		assertThat(readResponse.getBody().getData()).isNotNull();
 
 		ResponseEntity<BaseResponse<BaseError>> generalResponse =

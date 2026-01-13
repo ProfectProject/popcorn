@@ -42,7 +42,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-@Tag(name = "Stores", description = "스토어 관리 API")
+@Tag(name = "Stores", description = "매장 관리 API")
 @RestController
 @RequestMapping("/api/v1/owner/stores")
 public class StoreController extends BaseController {

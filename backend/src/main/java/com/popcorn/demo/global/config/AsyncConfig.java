@@ -62,4 +62,42 @@ public class AsyncConfig {
 		executor.initialize();
 		return executor;
 	}
+
+	/**
+	 * 결제 관련 비동기 작업 전용 스레드 풀
+	 * - 재고 차감, QR 발급, 알림 발송 등 후속 작업 처리
+	 * - 결제 성공 이벤트 핸들러에서 사용
+	 */
+	@Bean(name = "paymentTaskExecutor")
+	public Executor paymentTaskExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(2);          // 기본 스레드 수
+		executor.setMaxPoolSize(5);           // 최대 스레드 수
+		executor.setQueueCapacity(100);       // 대기 큐 크기
+		executor.setKeepAliveSeconds(60);     // 스레드 생존 시간
+		executor.setThreadNamePrefix("PaymentAsync-");
+		executor.setWaitForTasksToCompleteOnShutdown(true);
+		executor.setAwaitTerminationSeconds(30);
+		executor.initialize();
+		return executor;
+	}
+
+	/**
+	 * QR 체크인 비동기 처리 전용 스레드 풀
+	 * - QR 체크인 요청 및 완료 이벤트 처리
+	 * - 체크인 관련 알림, 로그, 외부 연동 등
+	 */
+	@Bean(name = "qrCheckinExecutor")
+	public Executor qrCheckinExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(1);          // 기본 스레드 수
+		executor.setMaxPoolSize(3);           // 최대 스레드 수
+		executor.setQueueCapacity(50);        // 대기 큐 크기
+		executor.setKeepAliveSeconds(60);     // 스레드 생존 시간
+		executor.setThreadNamePrefix("QrCheckin-");
+		executor.setWaitForTasksToCompleteOnShutdown(true);
+		executor.setAwaitTerminationSeconds(30);
+		executor.initialize();
+		return executor;
+	}
 }
