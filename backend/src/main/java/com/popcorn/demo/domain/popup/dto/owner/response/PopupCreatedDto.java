@@ -20,6 +20,9 @@ public class PopupCreatedDto {
     private String description;
     private PopupCategory popupCategory;
     private PopupStatus status;
+    private LocalDateTime reservationOpenAt;
+    private String addressRoad;
+    private String addressDetail;
     private LocalDateTime createdAt;
     private Long createdBy;
 

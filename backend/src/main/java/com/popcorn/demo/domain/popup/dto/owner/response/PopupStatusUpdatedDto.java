@@ -16,6 +16,9 @@ public class PopupStatusUpdatedDto {
     private UUID popupId;
     private String title;
     private PopupStatus status;
+    private LocalDateTime reservationOpenAt;
+    private String addressRoad;
+    private String addressDetail;
     private Long updatedBy;
     private LocalDateTime updatedAt;
 

@@ -203,6 +203,11 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "상품 ID",
 					example = "00000000-0000-0000-0000-000000000101")
 			@RequestParam(required = false) UUID popupId,
+			@Parameter(description = "스케줄 ID",
+					example = "00000000-0000-0000-0000-000000000201")
+			@RequestParam(required = false) UUID scheduleId,
+			@Parameter(description = "주문 타입 (RESERVATION/PURCHASE)")
+			@RequestParam(required = false) String orderType,
 			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false) OrderStatus status,
@@ -211,14 +216,14 @@ public class OrderQueryController extends BaseController {
 			@Parameter(description = "사이즈 (기본 20)")
 			@RequestParam(required = false, defaultValue = "20") Integer size) {
 
-		if (storeId == null && popupId == null) {
+		if (storeId == null && popupId == null && scheduleId == null) {
 			throw OrderValidationException.invalidRequest();
 		}
 
 		Long offset = (long) (page - 1) * size;
 		String statusStr = status == null ? null : status.name();
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
-				storeId, popupId, statusStr, null, null, size, offset
+				storeId, popupId, scheduleId, orderType, statusStr, null, null, size, offset
 		);
 		return ok(response);
 	}
@@ -267,6 +272,11 @@ public class OrderQueryController extends BaseController {
 					example = "00000000-0000-0000-0000-000000000101")
 			@RequestParam(required = false,
 					defaultValue = "00000000-0000-0000-0000-000000000101") UUID popupId,
+			@Parameter(description = "스케줄 ID",
+					example = "00000000-0000-0000-0000-000000000201")
+			@RequestParam(required = false) UUID scheduleId,
+			@Parameter(description = "주문 타입 (RESERVATION/PURCHASE)")
+			@RequestParam(required = false) String orderType,
 			@Parameter(description = "주문 상태",
 					schema = @Schema(implementation = OrderStatus.class))
 			@RequestParam(required = false, defaultValue = "REQUESTED") OrderStatus status,
@@ -284,7 +294,69 @@ public class OrderQueryController extends BaseController {
 		// page/size를 limit/offset으로 변환
 		Long offset = (long) (page - 1) * size;
 		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
-				storeId, popupId, status.name(), from, to, size, offset
+				storeId, popupId, scheduleId, orderType, status.name(), from, to, size, offset
+		);
+		return ok(response);
+	}
+
+	@Operation(
+			summary = "팝업 예약형 주문 목록 조회 (OWNER/MANAGER)",
+			description = "OWNER/MANAGER가 팝업별 예약형 주문 목록을 조회합니다."
+	)
+	@GetMapping("/popup/{popupId}/reservations")
+	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getPopupReservationOrders(
+			@Parameter(description = "상품 ID", example = "00000000-0000-0000-0000-000000000101")
+			@PathVariable UUID popupId,
+			@Parameter(description = "스케줄 ID", example = "00000000-0000-0000-0000-000000000201")
+			@RequestParam(required = false) UUID scheduleId,
+			@Parameter(description = "주문 상태",
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false) OrderStatus status,
+			@Parameter(description = "조회 시작 시각")
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+			@Parameter(description = "조회 종료 시각")
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+			@Parameter(description = "페이지 (기본 1)")
+			@RequestParam(required = false, defaultValue = "1") Integer page,
+			@Parameter(description = "사이즈 (기본 20)")
+			@RequestParam(required = false, defaultValue = "20") Integer size) {
+
+		Long offset = (long) (page - 1) * size;
+		String statusStr = status == null ? null : status.name();
+		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
+				null, popupId, scheduleId, "RESERVATION", statusStr, from, to, size, offset
+		);
+		return ok(response);
+	}
+
+	@Operation(
+			summary = "팝업 구매형 주문 목록 조회 (OWNER/MANAGER)",
+			description = "OWNER/MANAGER가 팝업별 구매형 주문 목록을 조회합니다."
+	)
+	@GetMapping("/popup/{popupId}/purchases")
+	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getPopupPurchaseOrders(
+			@Parameter(description = "상품 ID", example = "00000000-0000-0000-0000-000000000101")
+			@PathVariable UUID popupId,
+			@Parameter(description = "주문 상태",
+					schema = @Schema(implementation = OrderStatus.class))
+			@RequestParam(required = false) OrderStatus status,
+			@Parameter(description = "조회 시작 시각")
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+			@Parameter(description = "조회 종료 시각")
+			@RequestParam(required = false)
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+			@Parameter(description = "페이지 (기본 1)")
+			@RequestParam(required = false, defaultValue = "1") Integer page,
+			@Parameter(description = "사이즈 (기본 20)")
+			@RequestParam(required = false, defaultValue = "20") Integer size) {
+
+		Long offset = (long) (page - 1) * size;
+		String statusStr = status == null ? null : status.name();
+		StoreOrderReservationListResponse response = orderQueryService.getStoreOrderReservations(
+				null, popupId, null, "PURCHASE", statusStr, from, to, size, offset
 		);
 		return ok(response);
 	}
