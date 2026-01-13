@@ -1,4 +1,3 @@
 {
-  "/payments/success/page": "app/payments/success/page.js",
   "/payments/page": "app/payments/page.js"
 }

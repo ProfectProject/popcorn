@@ -27,7 +27,7 @@ function PaymentFailContent() {
 
 export default function PaymentFailPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>결제 실패 정보 로딩 중...</div>}>
       <PaymentFailContent />
     </Suspense>
   );

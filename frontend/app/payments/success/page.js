@@ -145,7 +145,7 @@ function PaymentSuccessContent() {
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>결제 승인 확인 중...</div>}>
       <PaymentSuccessContent />
     </Suspense>
   );
