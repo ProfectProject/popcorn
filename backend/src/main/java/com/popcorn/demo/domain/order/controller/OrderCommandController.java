@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +23,10 @@ import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CancelOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
@@ -53,7 +58,7 @@ import jakarta.validation.Valid;
  * - 주문 상태 변경
  * - 주문 취소
  */
-@Tag(name = "Order", description = "주문 관련 API")
+@Tag(name = "Order", description = "주문 관리 API")
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/orders")
@@ -62,7 +67,10 @@ import jakarta.validation.Valid;
 public class OrderCommandController extends BaseController {
 
 private final OrderCommandService orderCommandService;
+private final OrderPaymentFacade orderPaymentFacade;
 private final ObjectMapper objectMapper;
+private final TossPaymentsProperties tossPaymentsProperties;
+private final PaymentTokenService paymentTokenService;
 
 	/**
 	 * 새로운 주문을 생성합니다.
@@ -208,8 +216,12 @@ private final ObjectMapper objectMapper;
 				.build();
 
 		// 유스케이스 결과를 표준 응답으로 감싸서 반환합니다.
-		CreateOrderResponse response = orderCommandService.createOrder(command);
-		OrderCreatedDto dto = convertToOrderCreatedDto(response);
+		OrderPaymentFacade.OrderWithPaymentResult result = orderPaymentFacade.createOrderWithPayment(
+				command,
+				request.getPaymentMethod());
+		OrderCreatedDto dto = convertToOrderCreatedDto(
+				result.getOrderResponse(),
+				result.getPaymentResult());
 		return created(dto);
 	}
 
@@ -435,7 +447,9 @@ private final ObjectMapper objectMapper;
 	 * CreateOrderResponse를 OrderCreatedDto로 변환하는 헬퍼 메서드
 	 * Clean Architecture의 Response를 Controller Layer의 DTO로 변환
 	 */
-	private OrderCreatedDto convertToOrderCreatedDto(CreateOrderResponse response) {
+	private OrderCreatedDto convertToOrderCreatedDto(
+			CreateOrderResponse response,
+			PaymentCommandService.PaymentCreationResult paymentResult) {
 		return new OrderCreatedDto(
 				response.getOrderId(),
 				response.getOrderNo(),
@@ -454,8 +468,51 @@ private final ObjectMapper objectMapper;
 								item.getUnitPrice(),
 								item.getLineAmount()
 						))
-						.toList()
+						.toList(),
+				paymentResult != null ? paymentResult.getPaymentId() : null,
+				paymentResult != null ? paymentResult.getAmount() : null,
+				buildCheckoutUrl(response, paymentResult),
+				toCustomerKey(paymentResult != null ? paymentResult.getCustomerId() : null),
+				tossPaymentsProperties.getSuccessUrl(),
+				tossPaymentsProperties.getFailUrl()
 		);
+	}
+
+	private String buildCheckoutUrl(
+			CreateOrderResponse response,
+			PaymentCommandService.PaymentCreationResult paymentResult) {
+		if (response == null || paymentResult == null) {
+			return null;
+		}
+		String checkoutUrl = tossPaymentsProperties.getCheckoutUrl();
+		if (checkoutUrl == null || checkoutUrl.isBlank()) {
+			return null;
+		}
+
+		// JWT 토큰으로 결제 정보 암호화
+		String paymentToken = paymentTokenService.createPaymentToken(
+				PaymentTokenService.PaymentTokenInfo.builder()
+						.orderId(response.getOrderId())
+						.orderNo(response.getOrderNo())
+						.amount(paymentResult.getAmount())
+						.customerKey(toCustomerKey(paymentResult.getCustomerId()))
+						.paymentId(paymentResult.getPaymentId())
+						.successUrl(tossPaymentsProperties.getSuccessUrl())
+						.failUrl(tossPaymentsProperties.getFailUrl())
+						.build());
+
+		// 암호화된 토큰만 포함한 안전한 URL 생성
+		return UriComponentsBuilder.fromHttpUrl(checkoutUrl)
+				.queryParam("token", paymentToken)
+				.build(true)
+				.toUriString();
+	}
+
+	private String toCustomerKey(Long customerId) {
+		if (customerId == null) {
+			return "guest";
+		}
+		return customerId.toString();
 	}
 
 	private void logRequestDebug(String label, Object request) {

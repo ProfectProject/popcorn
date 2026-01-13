@@ -25,10 +25,14 @@ import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import com.popcorn.demo.global.config.CommonConfig;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -49,18 +53,22 @@ public abstract class OrderControllerTestBase {
     protected MockMvc mockMvc;
     protected ObjectMapper objectMapper;
     protected OrderCommandService orderCommandService;
+    protected OrderPaymentFacade orderPaymentFacade;
     protected OrderQueryService orderQueryService;
+    protected PaymentTokenService paymentTokenService;
 
     @BeforeEach
     void setUpBase() {
         // 공통 설정을 한 번만 수행하여 성능 최적화
         orderCommandService = Mockito.mock(OrderCommandService.class);
+        orderPaymentFacade = Mockito.mock(OrderPaymentFacade.class);
         orderQueryService = Mockito.mock(OrderQueryService.class);
+        paymentTokenService = Mockito.mock(PaymentTokenService.class);
         objectMapper = createOptimizedObjectMapper();
         mockMvc = createOptimizedMockMvc();
 
         // 각 테스트 간 격리를 위한 Mock 초기화
-        Mockito.reset(orderCommandService, orderQueryService);
+        Mockito.reset(orderCommandService, orderPaymentFacade, orderQueryService, paymentTokenService);
     }
 
     /**
@@ -75,8 +83,11 @@ public abstract class OrderControllerTestBase {
      * Command와 Query 컨트롤러를 모두 설정하여 테스트 가능
      */
     private MockMvc createOptimizedMockMvc() {
+        TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
+        tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
+        tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
         OrderCommandController commandController = new OrderCommandController(
-                orderCommandService, objectMapper);
+                orderCommandService, orderPaymentFacade, objectMapper, tossPaymentsProperties, paymentTokenService);
         OrderQueryController queryController = new OrderQueryController(orderQueryService);
 
         return MockMvcBuilders.standaloneSetup(commandController, queryController)
@@ -127,7 +138,7 @@ public abstract class OrderControllerTestBase {
                 .orderId(orderId)
                 .orderNo("O" + System.currentTimeMillis())
                 .orderType("RESERVATION")
-                .status("REQUESTED")
+                .status("PAYMENT_PENDING")
                 .storeId(storeId)
                 .popupId(popupId)
                 .totalAmount(2000)
@@ -142,6 +153,21 @@ public abstract class OrderControllerTestBase {
                                 .lineAmount(2000)
                                 .build()
                 ))
+                .build();
+    }
+
+    protected OrderPaymentFacade.OrderWithPaymentResult createTestOrderWithPaymentResponse(
+            UUID orderId, UUID storeId, UUID popupId) {
+        CreateOrderResponse orderResponse = createTestOrderResponse(orderId, storeId, popupId);
+        PaymentCommandService.PaymentCreationResult paymentResult =
+                PaymentCommandService.PaymentCreationResult.builder()
+                        .paymentId(UUID.randomUUID())
+                        .amount(orderResponse.getTotalAmount())
+                        .customerId(1001L)
+                        .build();
+        return OrderPaymentFacade.OrderWithPaymentResult.builder()
+                .orderResponse(orderResponse)
+                .paymentResult(paymentResult)
                 .build();
     }
 

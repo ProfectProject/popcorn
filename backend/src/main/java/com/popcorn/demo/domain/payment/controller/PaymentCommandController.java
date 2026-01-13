@@ -15,11 +15,12 @@ import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.payment.dto.request.PaymentCreateRequest;
-import com.popcorn.demo.domain.payment.dto.response.OrderPaymentCreateResponse;
-import com.popcorn.demo.domain.payment.dto.response.ReservationPaymentCreateResponse;
+import com.popcorn.demo.domain.payment.dto.response.PaymentCreateResponse;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,28 +41,44 @@ public class PaymentCommandController extends BaseController {
 
 	private final PaymentCommandService paymentCommandService;
 	private final ObjectMapper objectMapper;
+	private final TossPaymentsProperties tossPaymentsProperties;
+	private final PaymentTokenService paymentTokenService;
 
 	@Operation(
-			summary = "예약 결제 기록 생성",
-			description = "예약 주문에 대한 결제 기록을 생성합니다."
+			summary = "결제 기록 생성",
+			description = """
+				주문에 대한 결제 기록을 생성합니다.
+
+				**주문 유형 판별:**
+				- 주문 아이템에 세션 옵션이 포함되면 예약 주문(RESERVATION)
+				- 주문 아이템에 굿즈가 포함되면 구매 주문(PURCHASE)
+
+				**결제 수단 제한:**
+				- 예약 주문: CARD, TRANSFER, EASY_PAY
+				- 구매 주문: CARD
+
+				**결제 상태:**
+				- 생성 시 상태는 READY로 고정됩니다.
+				""",
+			hidden = true
 	)
 	@ApiResponse(
 			responseCode = "201",
-			description = "예약 결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = ReservationPaymentCreateResponse.class))
+			description = "결제 기록 생성 성공",
+			content = @Content(schema = @Schema(implementation = PaymentCreateResponse.class))
 	)
-	@PostMapping("/{orderId}/reservation-payments")
-	public ResponseEntity<BaseResponse<ReservationPaymentCreateResponse>> createReservationPayment(
+	@PostMapping("/{orderId}/payments")
+	public ResponseEntity<BaseResponse<PaymentCreateResponse>> createPayment(
 			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001003")
 			@PathVariable UUID orderId,
 			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "예약 결제 생성 요청",
+				description = "결제 생성 요청",
 				required = true,
 				content = @Content(
 					schema = @Schema(implementation = PaymentCreateRequest.class),
 					examples = {
 						@ExampleObject(
-							name = "CARD 결제",
+							name = "예약 주문 - 카드 결제",
 							value = """
 								{
 								  "method": "CARD",
@@ -74,7 +91,7 @@ public class PaymentCommandController extends BaseController {
 								"""
 						),
 						@ExampleObject(
-							name = "EASY_PAY 결제",
+							name = "예약 주문 - 간편결제",
 							value = """
 								{
 								  "method": "EASY_PAY",
@@ -83,7 +100,7 @@ public class PaymentCommandController extends BaseController {
 								"""
 						),
 						@ExampleObject(
-							name = "TRANSFER 결제",
+							name = "예약 주문 - 계좌이체",
 							value = """
 								{
 								  "method": "TRANSFER",
@@ -91,6 +108,19 @@ public class PaymentCommandController extends BaseController {
 								  "rawPayload": {
 								    "bank": "K-BANK",
 								    "account": "123-456-7890"
+								  }
+								}
+								"""
+						),
+						@ExampleObject(
+							name = "구매 주문 - 카드 결제",
+							value = """
+								{
+								  "method": "CARD",
+								  "amount": 3000,
+								  "rawPayload": {
+								    "pg": "example",
+								    "transactionId": "T-20250102"
 								  }
 								}
 								"""
@@ -102,121 +132,36 @@ public class PaymentCommandController extends BaseController {
 
 		String rawPayload = toPayloadJson(request.getRawPayload());
 		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createReservationPayment(
+				paymentCommandService.createPayment(
 						orderId,
 						request.getMethod(),
 						request.getAmount(),
 						rawPayload);
 
-		ReservationPaymentCreateResponse response = ReservationPaymentCreateResponse.builder()
+		// JWT 토큰으로 결제 정보 암호화
+		String paymentToken = paymentTokenService.createPaymentToken(
+				PaymentTokenService.PaymentTokenInfo.builder()
+						.orderId(orderId)
+						.orderNo(result.getOrderNo())
+						.amount(result.getAmount())
+						.customerKey(toCustomerKey(result.getCustomerId()))
+						.paymentId(result.getPaymentId())
+						.successUrl(tossPaymentsProperties.getSuccessUrl())
+						.failUrl(tossPaymentsProperties.getFailUrl())
+						.build());
+
+		PaymentCreateResponse response = PaymentCreateResponse.builder()
 				.paymentId(result.getPaymentId())
-				.paymentStatus(toApiPaymentStatus(result.getPaymentStatus()))
+				.status(toApiPaymentStatus(result.getPaymentStatus()))
 				.orderStatus(result.getOrderStatus().name())
+				.orderId(orderId)
+				.orderNo(result.getOrderNo())
+				.amount(result.getAmount())
+				.customerKey(toCustomerKey(result.getCustomerId()))
+				.successUrl(tossPaymentsProperties.getSuccessUrl())
+				.failUrl(tossPaymentsProperties.getFailUrl())
+				.paymentToken(paymentToken) // 암호화된 토큰 추가
 				.approvedAt(result.getApprovedAt())
-				.build();
-
-		return created(response);
-	}
-
-	@Operation(
-			summary = "주문 결제 기록 생성",
-			description = "구매형 주문에 대한 결제 기록을 생성합니다."
-	)
-	@ApiResponse(
-			responseCode = "201",
-			description = "주문 결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = OrderPaymentCreateResponse.class))
-	)
-	@PostMapping("/{orderId}/payments")
-	public ResponseEntity<BaseResponse<OrderPaymentCreateResponse>> createOrderPayment(
-			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001004")
-			@PathVariable UUID orderId,
-			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "구매 결제 생성 요청",
-				required = true,
-				content = @Content(
-					schema = @Schema(implementation = PaymentCreateRequest.class),
-					examples = @ExampleObject(
-						name = "CARD 결제",
-						value = """
-							{
-							  "method": "CARD",
-							  "amount": 3000,
-							  "rawPayload": {
-							    "pg": "example",
-							    "transactionId": "T-20250102"
-							  }
-							}
-							"""
-					)
-				)
-			)
-			@Valid @RequestBody PaymentCreateRequest request) {
-
-		String rawPayload = toPayloadJson(request.getRawPayload());
-		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createOrderPayment(
-						orderId,
-						request.getMethod(),
-						request.getAmount(),
-						rawPayload);
-
-		OrderPaymentCreateResponse response = OrderPaymentCreateResponse.builder()
-				.paymentId(result.getPaymentId())
-				.status(toApiPaymentStatus(result.getPaymentStatus()))
-				.orderStatus(result.getOrderStatus().name())
-				.build();
-
-		return created(response);
-	}
-
-	@Operation(
-			summary = "결제 생성(READY)",
-			description = "결제 대기(READY) 상태의 결제 기록을 생성합니다."
-	)
-	@ApiResponse(
-			responseCode = "201",
-			description = "결제 기록 생성 성공",
-			content = @Content(schema = @Schema(implementation = OrderPaymentCreateResponse.class))
-	)
-	@PostMapping("/{orderId}/payments/ready")
-	public ResponseEntity<BaseResponse<OrderPaymentCreateResponse>> createReadyPayment(
-			@Parameter(description = "주문 ID", required = true, example = "00000000-0000-0000-0000-000000001004")
-			@PathVariable UUID orderId,
-			@io.swagger.v3.oas.annotations.parameters.RequestBody(
-				description = "결제 생성 요청",
-				required = true,
-				content = @Content(
-					schema = @Schema(implementation = PaymentCreateRequest.class),
-					examples = @ExampleObject(
-						name = "READY 생성",
-						value = """
-							{
-							  "method": "CARD",
-							  "amount": 3000,
-							  "rawPayload": {
-							    "pg": "example",
-							    "transactionId": "T-20250102"
-							  }
-							}
-							"""
-					)
-				)
-			)
-			@Valid @RequestBody PaymentCreateRequest request) {
-
-		String rawPayload = toPayloadJson(request.getRawPayload());
-		PaymentCommandService.PaymentCreationResult result =
-				paymentCommandService.createReadyPayment(
-						orderId,
-						request.getMethod(),
-						request.getAmount(),
-						rawPayload);
-
-		OrderPaymentCreateResponse response = OrderPaymentCreateResponse.builder()
-				.paymentId(result.getPaymentId())
-				.status(toApiPaymentStatus(result.getPaymentStatus()))
-				.orderStatus(result.getOrderStatus().name())
 				.build();
 
 		return created(response);
@@ -238,5 +183,12 @@ public class PaymentCommandController extends BaseController {
 			throw PaymentException.invalidRequest();
 		}
 		return status.name();
+	}
+
+	private String toCustomerKey(Long customerId) {
+		if (customerId == null) {
+			return "guest";
+		}
+		return customerId.toString();
 	}
 }

@@ -25,4 +25,8 @@ public class PaymentException extends BaseException {
 	public static PaymentException paymentNotFound() {
 		return new PaymentException(CommonResponseCode.NOT_FOUND);
 	}
+
+	public static PaymentException cancellationTimeExpired() {
+		return new PaymentException(OrderResponseCode.PAYMENT_CANCELLATION_TIME_EXPIRED);
+	}
 }
