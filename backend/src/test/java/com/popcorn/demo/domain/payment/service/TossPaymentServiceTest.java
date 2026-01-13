@@ -96,7 +96,6 @@ class TossPaymentServiceTest {
 		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
 				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
-		when(orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId)).thenReturn(true);
 
 		TossPaymentService.TossPaymentConfirmResult result =
 				tossPaymentService.confirmPayment("pay_123", orderNo, 4000);

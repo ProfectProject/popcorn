@@ -167,7 +167,11 @@ public class PaymentCommandService {
 		boolean hasSchedule = orderItemRepository.existsByOrderIdAndSessionOptionIdIsNotNull(orderId);
 		boolean hasGoods = orderItemRepository.existsByOrderIdAndGoodsVariantIdIsNotNull(orderId);
 
-		// 혼합 주문의 경우 예약이 있으면 RESERVATION 타입으로 처리 (예약이 더 시간에 민감함)
+		// 혼합 주문 타입은 허용하지 않음
+		if (hasSchedule && hasGoods) {
+			throw PaymentException.invalidRequest();
+		}
+
 		if (hasSchedule) {
 			return OrderType.RESERVATION;
 		}
