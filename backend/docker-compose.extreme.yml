@@ -1,0 +1,291 @@
+# 🚀 Popcorn 극한 테스트 통합 환경
+# K6 + JMeter + Chaos Monkey + Grafana + Prometheus
+
+version: '3.8'
+
+services:
+
+  # 🚀 Popcorn Backend 애플리케이션
+  popcorn-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.extreme
+    container_name: popcorn-backend-extreme
+    ports:
+      - "8080:8080"
+      - "9090:9090"  # JVM 디버깅용
+    environment:
+      - SPRING_PROFILES_ACTIVE=extreme-chaos
+      - JAVA_OPTS=-Xms2g -Xmx8g -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+      - CHAOS_MONKEY_ENABLED=true
+      - PROMETHEUS_ENABLED=true
+    volumes:
+      - ./monitoring/logs:/app/logs
+    networks:
+      - extreme-test-net
+    depends_on:
+      - postgres-extreme
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 🐳 PostgreSQL (극한 설정)
+  postgres-extreme:
+    image: postgres:15-alpine
+    container_name: postgres-extreme
+    environment:
+      POSTGRES_DB: popcorn_extreme
+      POSTGRES_USER: popcorn
+      POSTGRES_PASSWORD: extreme_password
+      # PostgreSQL 극한 성능 설정
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command: >
+      postgres
+      -c max_connections=1000
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=64MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=32MB
+      -c min_wal_size=4GB
+      -c max_wal_size=16GB
+    volumes:
+      - postgres_extreme_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - extreme-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U popcorn -d popcorn_extreme"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 📊 Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-extreme
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - extreme-test-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 📊 Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-extreme
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=extreme_admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-clock-panel,natel-discrete-panel
+      - GF_FEATURE_TOGGLES_ENABLE=ngAlert
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana
+    networks:
+      - extreme-test-net
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 🎯 JMeter (극한 부하 테스트)
+  jmeter-extreme:
+    image: justb4/jmeter:5.5
+    container_name: jmeter-extreme
+    environment:
+      - JVM_ARGS=-Xms2g -Xmx4g -XX:+UseG1GC
+      - HEAP="-Xms2g -Xmx4g"
+    volumes:
+      - ./jmeter-tests:/tests
+      - ./monitoring/reports/jmeter:/reports
+    networks:
+      - extreme-test-net
+    depends_on:
+      - popcorn-backend
+    profiles:
+      - jmeter
+    entrypoint: >
+      sh -c "
+        echo '🔥 JMeter 극한 테스트 준비 중...'
+        sleep 30
+        jmeter -n
+        -t /tests/extreme-load-test.jmx
+        -l /reports/extreme-results.jtl
+        -e
+        -o /reports/html
+        -JMAX_USERS=1000000
+        -JRAMP_TIME=1800
+        -JBASE_URL=http://popcorn-backend:8080
+        && echo '✅ JMeter 테스트 완료!'
+      "
+
+  # 🚀 K6 (JavaScript 극한 테스트)
+  k6-extreme:
+    image: grafana/k6:latest
+    container_name: k6-extreme
+    volumes:
+      - ./k6-tests:/scripts
+      - ./monitoring/reports/k6:/reports
+    networks:
+      - extreme-test-net
+    depends_on:
+      - popcorn-backend
+    profiles:
+      - k6
+    environment:
+      - BASE_URL=http://popcorn-backend:8080
+    entrypoint: >
+      sh -c "
+        echo '🌊 K6 극한 테스트 시작...'
+        sleep 30
+        k6 run
+        --out json=/reports/extreme-results.json
+        --out influxdb=http://influxdb:8086/k6
+        /scripts/ultimate-extreme-test.js
+        && echo '🎉 K6 테스트 완료!'
+      "
+
+  # 📈 InfluxDB (시계열 데이터)
+  influxdb:
+    image: influxdb:1.8-alpine
+    container_name: influxdb-extreme
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+      - INFLUXDB_HTTP_MAX_BODY_SIZE=0
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    networks:
+      - extreme-test-net
+
+  # 🔔 AlertManager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-extreme
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    networks:
+      - extreme-test-net
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+
+  # 🖥️ Node Exporter (시스템 메트릭)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter-extreme
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - extreme-test-net
+
+  # 🐳 cAdvisor (컨테이너 메트릭)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor-extreme
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - extreme-test-net
+
+  # 📊 Pushgateway (배치 메트릭)
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: pushgateway-extreme
+    ports:
+      - "9092:9091"
+    networks:
+      - extreme-test-net
+
+  # 🎛️ 테스트 제어 대시보드
+  test-control:
+    build:
+      context: ./monitoring/test-control
+      dockerfile: Dockerfile
+    container_name: test-control-extreme
+    ports:
+      - "8888:8080"
+    environment:
+      - BACKEND_URL=http://popcorn-backend:8080
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=http://grafana:3000
+    volumes:
+      - ./monitoring/reports:/reports
+    networks:
+      - extreme-test-net
+    depends_on:
+      - popcorn-backend
+      - prometheus
+      - grafana
+
+volumes:
+  postgres_extreme_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  influxdb_data:
+    driver: local
+
+networks:
+  extreme-test-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16

@@ -46,7 +46,7 @@ import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
  * - 동시성 제어 및 멱등성 검증
  * - 시스템 한계점 및 복구 능력 테스트
  */
-class OrderTrafficSurgeTest {
+class OrderTrafficSurgeTestEnhanced {
 
     @Mock
     private OrderRepository orderRepository;
@@ -80,7 +80,8 @@ class OrderTrafficSurgeTest {
                 orderItemPriceService, eventPublisher, validationService);
 
         // Mock basic validations
-        when(validationService.validateOrderAsync(any(), any(), any())).thenReturn(true);
+        when(validationService.validateOrderAsync(any(Long.class), any(UUID.class), any(Integer.class))).thenReturn(true);
+        when(validationService.resolveStoreId(any(UUID.class))).thenReturn(UUID.randomUUID());
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -163,8 +164,8 @@ class OrderTrafficSurgeTest {
         // Flash sale performance assertions
         double successRate = (double) successfulOrders.get() / totalCustomers * 100;
         assertThat(successRate).isGreaterThan(70.0); // 70% 이상 성공률 (높은 경쟁 고려)
-        assertThat(duplicateRejections.get()).isLessThan(totalCustomers * 0.1); // 10% 미만 중복
-        assertThat(failedOrders.get()).isLessThan(totalCustomers * 0.2); // 20% 미만 실패
+        assertThat(duplicateRejections.get()).isLessThan((int)(totalCustomers * 0.1)); // 10% 미만 중복
+        assertThat(failedOrders.get()).isLessThan((int)(totalCustomers * 0.2)); // 20% 미만 실패
     }
 
     @Test
@@ -181,7 +182,7 @@ class OrderTrafficSurgeTest {
 
         // Mock product inventory validation
         AtomicInteger remainingStock = new AtomicInteger(50); // Limited stock
-        when(validationService.validateOrderCreation(any())).thenAnswer(invocation -> {
+        when(validationService.validateOrderAsync(any(Long.class), any(UUID.class), any(Integer.class))).thenAnswer(invocation -> {
             if (remainingStock.decrementAndGet() >= 0) {
                 return true;
             } else {
@@ -200,7 +201,8 @@ class OrderTrafficSurgeTest {
                     Instant orderStart = Instant.now();
 
                     CreateOrderCommand popularOrder = createPopularProductOrder(customerId, popularProduct);
-                    UUID orderId = commandService.createOrder(popularOrder);
+                    CreateOrderResponse response = commandService.createOrder(popularOrder);
+                    UUID orderId = response.getOrderId();
 
                     Instant orderEnd = Instant.now();
                     concurrentOrderTimes.add(Duration.between(orderStart, orderEnd).toMillis());
@@ -264,7 +266,8 @@ class OrderTrafficSurgeTest {
                     }
 
                     CreateOrderCommand duplicateOrder = createIdempotentOrder(customerKey, idempotencyKey);
-                    UUID orderId = commandService.createOrder(duplicateOrder);
+                    CreateOrderResponse response = commandService.createOrder(duplicateOrder);
+                    UUID orderId = response.getOrderId();
 
                     idempotencyCache.put(idempotencyKey, orderId);
                     successfulCreations.incrementAndGet();
@@ -315,7 +318,7 @@ class OrderTrafficSurgeTest {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
                     CreateOrderCommand surgeOrder = createStandardOrder(customerId);
-                    commandService.createOrder(surgeOrder);
+                    CreateOrderResponse response = commandService.createOrder(surgeOrder);
                     surgeSuccessCount.incrementAndGet();
                 } catch (Exception e) {
                     // Expected under surge conditions
@@ -347,7 +350,7 @@ class OrderTrafficSurgeTest {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
                     CreateOrderCommand recoveryOrder = createStandardOrder(customerId);
-                    commandService.createOrder(recoveryOrder);
+                    CreateOrderResponse response = commandService.createOrder(recoveryOrder);
                     recoverySuccessCount.incrementAndGet();
                 } catch (Exception e) {
                     System.err.println("Recovery phase order failed: " + e.getMessage());

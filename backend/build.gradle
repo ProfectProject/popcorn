@@ -69,6 +69,10 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// 🐒 Chaos Engineering (장애 시뮬레이션)
+	implementation 'de.codecentric:chaos-monkey-spring-boot:3.0.1'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 }
 
 tasks.named('test') {
@@ -174,6 +178,8 @@ tasks.register('performanceTest', Test) {
 
 	useJUnitPlatform()
 	include '**/performance/**/*Test.class'
+	exclude '**/*ExtremeLoadTest.class'
+	exclude '**/gateway/**/*Test.class'
 
 	// 성능 테스트용 JVM 옵션
 	maxHeapSize = '2g'
@@ -187,6 +193,52 @@ tasks.register('performanceTest', Test) {
 	reports {
 		html.outputLocation = layout.buildDirectory.dir('reports/tests/performance')
 		junitXml.outputLocation = layout.buildDirectory.dir('test-results/performance')
+	}
+}
+
+// ========================= 스트레스/과부하 테스트 태스크 =========================
+tasks.register('stressTest', Test) {
+	description = '🔥 스트레스/과부하 테스트 실행 (극한 부하 상황)'
+	group = 'verification'
+
+	useJUnitPlatform()
+	include '**/ExtremeLoadTest.class'
+	include '**/gateway/**/*Test.class'
+
+	// 극한 테스트용 강력한 JVM 옵션 (Java 17 호환)
+	maxHeapSize = '4g'
+	minHeapSize = '2g'
+	jvmArgs = [
+		'-XX:+UseG1GC',
+		'-XX:MaxGCPauseMillis=100',
+		'-XX:MaxDirectMemorySize=1g',
+		'-Djava.awt.headless=true',
+		'-Dspring.profiles.active=stress-test'
+	]
+
+	// 스트레스 테스트용 타임아웃 설정
+	systemProperty 'junit.jupiter.execution.timeout.default', '10m'
+	systemProperty 'junit.jupiter.execution.timeout.testable.method.default', '15m'
+
+	// 병렬 실행 설정
+	systemProperty 'junit.jupiter.execution.parallel.enabled', 'true'
+	systemProperty 'junit.jupiter.execution.parallel.mode.default', 'concurrent'
+
+	reports {
+		html.outputLocation = layout.buildDirectory.dir('reports/tests/stress')
+		junitXml.outputLocation = layout.buildDirectory.dir('test-results/stress')
+	}
+
+	doFirst {
+		println '🔥🔥🔥 EXTREME STRESS TEST STARTING 🔥🔥🔥'
+		println '시스템 극한 부하 테스트를 시작합니다...'
+		println 'JVM 설정: 힙 메모리 4GB, G1GC, 최적화 옵션 활성화'
+		println '테스트 범위: 1000-1,000,000명 동시 접속, API Gateway 부하'
+	}
+
+	doLast {
+		println '✅ 스트레스 테스트 완료!'
+		println '결과 보고서: build/reports/tests/stress'
 	}
 }
 
@@ -300,6 +352,189 @@ jacocoTestCoverageVerification {
 				minimum = 0.80
 			}
 		}
+	}
+}
+
+// ========================= JMeter Docker 극한 테스트 태스크 =========================
+tasks.register('jmeterTest', Exec) {
+	description = '🎯 JMeter Docker 기반 극한 부하 테스트 실행'
+	group = 'verification'
+
+	// Docker 기반 JMeter 실행 명령
+	commandLine 'docker', 'run', '--rm',
+		'-v', "${projectDir}/jmeter-tests:/tests",
+		'-v', "${projectDir}/build/reports/jmeter:/reports",
+		'--network', 'host',  // 로컬 8080 포트 접근
+		'justb4/jmeter:5.5',
+		'-n',  // Non-GUI 모드
+		'-t', '/tests/extreme-load-test.jmx',  // 테스트 파일
+		'-l', '/reports/results.jtl',    // 결과 파일
+		'-e',  // HTML 보고서 생성
+		'-o', '/reports/html',           // HTML 보고서 경로
+		'-JMAX_USERS=' + (project.hasProperty('maxUsers') ? project.maxUsers : '10000'),
+		'-JRAMP_TIME=' + (project.hasProperty('rampTime') ? project.rampTime : '300'),
+		'-JBASE_URL=' + (project.hasProperty('baseUrl') ? project.baseUrl : 'http://host.docker.internal:8080')
+
+	// 출력 디렉토리 생성
+	doFirst {
+		file('build/reports/jmeter').mkdirs()
+		println '🔥🔥🔥 JMeter Docker 극한 부하 테스트 시작! 🔥🔥🔥'
+		println "최대 사용자: ${project.hasProperty('maxUsers') ? project.maxUsers : '10,000'}명"
+		println "증가 시간: ${project.hasProperty('rampTime') ? project.rampTime : '300'}초"
+		println "대상 URL: ${project.hasProperty('baseUrl') ? project.baseUrl : 'http://host.docker.internal:8080'}"
+		println "📊 실시간 모니터링: http://localhost:3000 (Grafana)"
+	}
+
+	doLast {
+		println '✅ JMeter Docker 테스트 완료!'
+		println '📊 결과 보고서: build/reports/jmeter/html/index.html'
+		println '📈 원시 데이터: build/reports/jmeter/results.jtl'
+	}
+
+	// 오류 시에도 계속 진행
+	ignoreExitValue = true
+}
+
+// JMeter Docker 백만 사용자 테스트
+tasks.register('jmeterMillionTest', Exec) {
+	description = '🌊 JMeter Docker 백만 사용자 극한 테스트'
+	group = 'verification'
+
+	commandLine 'docker', 'run', '--rm',
+		'-m', '8g',  // 컨테이너 메모리 제한
+		'-v', "${projectDir}/jmeter-tests:/tests",
+		'-v', "${projectDir}/build/reports/jmeter:/reports",
+		'--network', 'host',
+		'-e', 'JVM_ARGS=-Xms4g -Xmx8g -XX:+UseG1GC',
+		'justb4/jmeter:5.5',
+		'-n',
+		'-t', '/tests/extreme-load-test.jmx',
+		'-l', '/reports/million-results.jtl',
+		'-e',
+		'-o', '/reports/million-html',
+		'-JMAX_USERS=1000000',
+		'-JRAMP_TIME=1800',  // 30분 증가
+		'-JBASE_URL=' + (project.hasProperty('baseUrl') ? project.baseUrl : 'http://host.docker.internal:8080')
+
+	doFirst {
+		file('build/reports/jmeter').mkdirs()
+		println '🌊🌊🌊 JMeter Docker 백만 사용자 ULTIMATE 테스트 시작! 🌊🌊🌊'
+		println '⚠️  주의: 이 테스트는 극한 부하를 생성합니다!'
+		println '🐳 Docker 기반 실행으로 시스템 안정성 확보'
+	}
+
+	doLast {
+		println '✅ JMeter 백만 사용자 테스트 완료!'
+		println '📊 결과 보고서: build/reports/jmeter/million-html/index.html'
+	}
+
+	ignoreExitValue = true
+}
+
+// K6 Docker 테스트 태스크
+tasks.register('k6Test', Exec) {
+	description = '🌊 K6 Docker 기반 극한 부하 테스트 실행'
+	group = 'verification'
+
+	commandLine 'docker', 'run', '--rm',
+		'-v', "${projectDir}/k6-tests:/scripts",
+		'-v', "${projectDir}/build/reports/k6:/reports",
+		'--network', 'host',
+		'-e', 'BASE_URL=http://host.docker.internal:8080',
+		'grafana/k6:latest',
+		'run',
+		'--out', 'json=/reports/extreme-results.json',
+		'/scripts/extreme-load-test.js'
+
+	doFirst {
+		file('build/reports/k6').mkdirs()
+		println '🌊🌊🌊 K6 Docker 극한 테스트 시작! 🌊🌊🌊'
+		println '🎯 목표: 1,000,000명 동시 접속 시뮬레이션'
+	}
+
+	doLast {
+		println '✅ K6 테스트 완료!'
+		println '📊 결과: build/reports/k6/extreme-results.json'
+	}
+
+	ignoreExitValue = true
+}
+
+// K6 5백만명 ULTIMATE 테스트
+tasks.register('k6UltimateTest', Exec) {
+	description = '🔥 K6 5백만명 ULTIMATE 극한 테스트'
+	group = 'verification'
+
+	commandLine 'docker', 'run', '--rm',
+		'-m', '4g',
+		'-v', "${projectDir}/k6-tests:/scripts",
+		'-v', "${projectDir}/build/reports/k6:/reports",
+		'--network', 'host',
+		'-e', 'BASE_URL=http://host.docker.internal:8080',
+		'grafana/k6:latest',
+		'run',
+		'--out', 'json=/reports/ultimate-results.json',
+		'/scripts/ultimate-extreme-test.js'
+
+	doFirst {
+		file('build/reports/k6').mkdirs()
+		println '🔥🌊🚀 K6 5백만명 ULTIMATE 테스트 시작! 🚀🌊🔥'
+		println '⚠️  경고: 이 테스트는 시스템에 극한 부하를 가합니다!'
+	}
+
+	doLast {
+		println '🏆 K6 ULTIMATE 테스트 완료!'
+		println '📊 결과: build/reports/k6/ultimate-results.json'
+	}
+
+	ignoreExitValue = true
+}
+
+// 통합 극한 테스트 (Docker 기반)
+tasks.register('ultimateLoadTest') {
+	description = '🚀 Docker 기반 JMeter + K6 + Chaos Monkey 통합 극한 테스트'
+	group = 'verification'
+
+	doFirst {
+		println '🚀🔥🌊 ULTIMATE 극한 테스트 시작! 🌊🔥🚀'
+		println '=== 실행 순서 ==='
+		println '1. 🏥 애플리케이션 상태 확인'
+		println '2. 🐒 Chaos Monkey 활성화'
+		println '3. 🎯 JMeter 부하 테스트'
+		println '4. 🌊 K6 극한 테스트'
+		println '=================='
+	}
+
+	doLast {
+		// 1. 애플리케이션 헬스체크
+		try {
+			exec {
+				commandLine 'curl', '-f', 'http://localhost:8080/actuator/health'
+			}
+			println '✅ 애플리케이션 상태: 정상'
+		} catch (Exception e) {
+			println '❌ 애플리케이션이 실행 중이 아닙니다!'
+			println '💡 먼저 애플리케이션을 시작하세요: ./gradlew bootRun'
+			return
+		}
+
+		// 2. Chaos Monkey 활성화
+		try {
+			exec {
+				commandLine 'curl', '-X', 'POST', 'http://localhost:8080/api/v1/chaos/extreme-mode'
+			}
+			println '✅ Chaos Monkey 극한 모드 활성화'
+		} catch (Exception e) {
+			println '⚠️  Chaos Monkey 활성화 실패 (계속 진행)'
+		}
+
+		// 3. Docker Compose로 모든 테스트 실행
+		println '🚀 Docker Compose로 통합 테스트 실행...'
+		println '💡 명령어: docker-compose -f docker-compose.extreme.yml --profile k6 --profile jmeter up'
+		println '📊 실시간 모니터링: '
+		println '   - Grafana: http://localhost:3000 (admin/extreme_admin)'
+		println '   - Prometheus: http://localhost:9091'
+		println '   - Application: http://localhost:8080'
 	}
 }
 

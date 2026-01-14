@@ -16,13 +16,16 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 /**
  * API Gateway 부하 테스트
@@ -32,16 +35,29 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
  * - 메모리 사용량 모니터링
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureWebMvc
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @TestPropertySource(properties = {
-    "spring.datasource.url=jdbc:h2:mem:loadtestdb",
+    "spring.datasource.url=jdbc:h2:mem:gateway-loadtest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+    "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.jpa.hibernate.ddl-auto=create-drop",
-    "logging.level.com.popcorn.demo=INFO"
+    "logging.level.com.popcorn.demo=INFO",
+    "spring.flyway.enabled=false",
+    "spring.sql.init.mode=never",
+    "spring.jpa.show-sql=false",
+    "spring.profiles.active=stress-test",
+    "jwt.secret=test-jwt-secret-for-api-gateway-load-testing-purposes-only",
+    "jwt.expiration=86400000",
+    "toss.secret-key=test-secret-key",
+    "toss.client-key=test-client-key",
+    "spring.security.enabled=true"
 })
 class ApiGatewayLoadTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private TestRestTemplate restTemplate;
+
+    @LocalServerPort
+    private int port;
 
     private static final int CONCURRENT_USERS = 50;
     private static final int REQUESTS_PER_USER = 20;
@@ -66,25 +82,32 @@ class ApiGatewayLoadTest {
                     try {
                         Instant requestStart = Instant.now();
 
-                        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders")
-                                .header("X-Request-ID", Thread.currentThread().getId() + "-" + j))
-                                .andExpect(result -> {
-                                    Instant requestEnd = Instant.now();
-                                    long responseTime = Duration.between(requestStart, requestEnd).toMillis();
-                                    totalResponseTime.addAndGet(responseTime);
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.set("X-Request-ID", Thread.currentThread().getId() + "-" + j);
+                        HttpEntity<String> entity = new HttpEntity<>(null, headers);
 
-                                    int status = result.getResponse().getStatus();
-                                    if (status == 401 || status == 403) {
-                                        // Expected unauthorized responses
-                                        successCount.incrementAndGet();
-                                    } else if (status >= 500) {
-                                        // Server errors are concerning
-                                        errorCount.incrementAndGet();
-                                    } else {
-                                        // Other 4xx responses are also acceptable
-                                        successCount.incrementAndGet();
-                                    }
-                                });
+                        ResponseEntity<String> response = restTemplate.exchange(
+                            "http://localhost:" + port + "/api/v1/orders",
+                            HttpMethod.GET,
+                            entity,
+                            String.class
+                        );
+
+                        Instant requestEnd = Instant.now();
+                        long responseTime = Duration.between(requestStart, requestEnd).toMillis();
+                        totalResponseTime.addAndGet(responseTime);
+
+                        int status = response.getStatusCodeValue();
+                        if (status == 401 || status == 403) {
+                            // Expected unauthorized responses
+                            successCount.incrementAndGet();
+                        } else if (status >= 500) {
+                            // Server errors are concerning
+                            errorCount.incrementAndGet();
+                        } else {
+                            // Other 4xx responses are also acceptable
+                            successCount.incrementAndGet();
+                        }
 
                         // Simulate realistic user behavior with small delays
                         Thread.sleep(10);
@@ -125,7 +148,7 @@ class ApiGatewayLoadTest {
         // Assertions
         assertThat(successRate).isGreaterThan(95.0); // 95% 이상 성공률
         assertThat(avgResponseTime).isLessThan(200.0); // 평균 응답시간 200ms 미만
-        assertThat(errorCount.get()).isLessThan(TOTAL_REQUESTS * 0.05); // 5% 미만 오류율
+        assertThat(errorCount.get()).isLessThan((int)(TOTAL_REQUESTS * 0.05)); // 5% 미만 오류율
     }
 
     @Test
@@ -143,9 +166,19 @@ class ApiGatewayLoadTest {
                 try {
                     Instant start = Instant.now();
 
-                    mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders")
-                            .header("X-Load-Test", "spike-test"))
-                            .andExpect(MockMvcResultMatchers.status().isUnauthorized()); // Expected
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set("X-Load-Test", "spike-test");
+                    HttpEntity<String> entity = new HttpEntity<>(null, headers);
+
+                    ResponseEntity<String> response = restTemplate.exchange(
+                        "http://localhost:" + port + "/api/v1/orders",
+                        HttpMethod.GET,
+                        entity,
+                        String.class
+                    );
+
+                    // Expected unauthorized status
+                    assertThat(response.getStatusCodeValue()).isEqualTo(401);
 
                     Instant end = Instant.now();
                     responseTimes.add(Duration.between(start, end).toMillis());
@@ -212,8 +245,12 @@ class ApiGatewayLoadTest {
                     try {
                         Instant requestStart = Instant.now();
 
-                        mockMvc.perform(MockMvcRequestBuilders.get("/actuator/health"))
-                                .andExpect(MockMvcResultMatchers.status().isOk());
+                        ResponseEntity<String> response = restTemplate.getForEntity(
+                            "http://localhost:" + port + "/actuator/health",
+                            String.class
+                        );
+
+                        assertThat(response.getStatusCodeValue()).isEqualTo(200);
 
                         Instant requestEnd = Instant.now();
                         responseTimes.add(Duration.between(requestStart, requestEnd).toMillis());
@@ -284,8 +321,12 @@ class ApiGatewayLoadTest {
             for (int i = 0; i < 50; i++) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     try {
-                        mockMvc.perform(MockMvcRequestBuilders.get("/actuator/health"))
-                                .andExpect(MockMvcResultMatchers.status().isOk());
+                        ResponseEntity<String> response = restTemplate.getForEntity(
+                            "http://localhost:" + port + "/actuator/health",
+                            String.class
+                        );
+
+                        assertThat(response.getStatusCodeValue()).isEqualTo(200);
                         responseCount.incrementAndGet();
                     } catch (Exception e) {
                         // System might reject requests under pressure
@@ -327,13 +368,20 @@ class ApiGatewayLoadTest {
                 try {
                     Instant start = Instant.now();
 
-                    mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders")
-                            .header("X-Trace-Test", "filter-performance"))
-                            .andExpect(result -> {
-                                // Verify trace filter added trace ID
-                                String traceHeader = result.getResponse().getHeader("X-Trace-ID");
-                                // Note: Actual header presence depends on filter implementation
-                            });
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set("X-Trace-Test", "filter-performance");
+                    HttpEntity<String> entity = new HttpEntity<>(null, headers);
+
+                    ResponseEntity<String> response = restTemplate.exchange(
+                        "http://localhost:" + port + "/api/v1/orders",
+                        HttpMethod.GET,
+                        entity,
+                        String.class
+                    );
+
+                    // Verify trace filter added trace ID (if implemented)
+                    String traceHeader = response.getHeaders().getFirst("X-Trace-ID");
+                    // Note: Actual header presence depends on filter implementation
 
                     Instant end = Instant.now();
                     filterResponseTimes.add(Duration.between(start, end).toMillis());

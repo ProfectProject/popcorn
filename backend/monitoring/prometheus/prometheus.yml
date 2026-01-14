@@ -1,0 +1,91 @@
+# 📊 Prometheus 극한 테스트 모니터링 설정
+# 실시간 메트릭 수집 및 알람 구성
+
+global:
+  scrape_interval: 5s          # 5초마다 메트릭 수집 (극한 모니터링)
+  evaluation_interval: 5s     # 5초마다 알람 평가
+  external_labels:
+    cluster: 'popcorn-extreme-test'
+    environment: 'stress-test'
+
+# 🚨 알람 규칙 파일
+rule_files:
+  - "alerts.yml"
+
+# 🔔 알람 매니저 설정
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# 🎯 스크랩 작업 설정
+scrape_configs:
+
+  # 🏥 Prometheus 자체 모니터링
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 🚀 Popcorn Backend 애플리케이션
+  - job_name: 'popcorn-backend'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 3s        # 극한 테스트 중 더 빈번한 수집
+    static_configs:
+      - targets: ['popcorn-backend:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'popcorn-backend'
+
+  # 🐒 Chaos Monkey 메트릭
+  - job_name: 'chaos-monkey'
+    metrics_path: '/api/v1/chaos/stats'
+    scrape_interval: 10s       # Chaos Monkey 통계
+    static_configs:
+      - targets: ['popcorn-backend:8080']
+
+  # 🎯 JMeter 결과 (Pushgateway를 통해)
+  - job_name: 'pushgateway-jmeter'
+    static_configs:
+      - targets: ['pushgateway:9091']
+    honor_labels: true
+
+  # 🔥 K6 결과 (InfluxDB에서 Prometheus로 전환 시)
+  - job_name: 'k6-metrics'
+    static_configs:
+      - targets: ['k6-prometheus-exporter:9090']
+
+  # 🖥️ 시스템 메트릭 (Node Exporter)
+  - job_name: 'node-exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # 🐳 Docker 메트릭 (cAdvisor)
+  - job_name: 'cadvisor'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # 💾 PostgreSQL 메트릭
+  - job_name: 'postgres-exporter'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # 🌐 Nginx/Load Balancer 메트릭 (확장용)
+  - job_name: 'nginx-exporter'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+# 📈 원격 쓰기 설정 (장기 저장용)
+remote_write:
+  - url: "http://influxdb:8086/api/v1/prom/write?db=prometheus"
+    queue_config:
+      capacity: 2500
+      max_shards: 200
+      min_shards: 1
+      max_samples_per_send: 500
+      batch_send_deadline: 5s
