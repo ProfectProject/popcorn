@@ -1,0 +1,198 @@
+package com.popcorn.demo.domain.inventory.controller;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import com.popcorn.demo.domain.inventory.service.InventoryService;
+
+@WebMvcTest(InventoryController.class)
+class InventoryControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private InventoryService inventoryService;
+
+    @Test
+    void getGoodsStockReturnsSoldOutStatus() throws Exception {
+        // Given
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(0);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.goodsVariantId").value(goodsVariantId.toString()))
+                .andExpect(jsonPath("$.data.currentStock").value(0))
+                .andExpect(jsonPath("$.data.status").value("SOLD_OUT"));
+    }
+
+    @Test
+    void getGoodsStockReturnsLowStockStatus() throws Exception {
+        // Given
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(3);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentStock").value(3))
+                .andExpect(jsonPath("$.data.status").value("LOW_STOCK"));
+    }
+
+    @Test
+    void getGoodsStockReturnsNormalStatus() throws Exception {
+        // Given
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(15);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentStock").value(15))
+                .andExpect(jsonPath("$.data.status").value("NORMAL"));
+    }
+
+    @Test
+    void getGoodsStockReturnsSufficientStatus() throws Exception {
+        // Given
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(50);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentStock").value(50))
+                .andExpect(jsonPath("$.data.status").value("SUFFICIENT"));
+    }
+
+    @Test
+    void getGoodsStockThrowsWhenStockIsNull() throws Exception {
+        // Given
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(null);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getScheduleCapacityReturnsFullStatus() throws Exception {
+        // Given
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(0);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.scheduleId").value(scheduleId.toString()))
+                .andExpect(jsonPath("$.data.remainingCapacity").value(0))
+                .andExpect(jsonPath("$.data.status").value("FULL"));
+    }
+
+    @Test
+    void getScheduleCapacityReturnsAlmostFullStatus() throws Exception {
+        // Given
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(2);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.remainingCapacity").value(2))
+                .andExpect(jsonPath("$.data.status").value("ALMOST_FULL"));
+    }
+
+    @Test
+    void getScheduleCapacityReturnsNormalStatus() throws Exception {
+        // Given
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(8);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.remainingCapacity").value(8))
+                .andExpect(jsonPath("$.data.status").value("NORMAL"));
+    }
+
+    @Test
+    void getScheduleCapacityReturnsAvailableStatus() throws Exception {
+        // Given
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(25);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.remainingCapacity").value(25))
+                .andExpect(jsonPath("$.data.status").value("AVAILABLE"));
+    }
+
+    @Test
+    void getScheduleCapacityThrowsWhenCapacityIsNull() throws Exception {
+        // Given
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(null);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getGoodsStockWithExactBoundaryValues() throws Exception {
+        // Test exact boundary for LOW_STOCK (5)
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(5);
+
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("LOW_STOCK"));
+    }
+
+    @Test
+    void getGoodsStockWithNormalBoundary() throws Exception {
+        // Test exact boundary for NORMAL (20)
+        UUID goodsVariantId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(20);
+
+        mockMvc.perform(get("/api/v1/inventory/goods/{goodsVariantId}", goodsVariantId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("NORMAL"));
+    }
+
+    @Test
+    void getScheduleCapacityWithBoundaryValues() throws Exception {
+        // Test exact boundary for ALMOST_FULL (3)
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(3);
+
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ALMOST_FULL"));
+    }
+
+    @Test
+    void getScheduleCapacityWithNormalBoundary() throws Exception {
+        // Test exact boundary for NORMAL (10)
+        UUID scheduleId = UUID.randomUUID();
+        when(inventoryService.getCurrentScheduleCapacity(scheduleId)).thenReturn(10);
+
+        mockMvc.perform(get("/api/v1/inventory/schedules/{scheduleId}", scheduleId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("NORMAL"));
+    }
+}

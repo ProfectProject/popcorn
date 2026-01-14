@@ -22,19 +22,31 @@ public class OrderPaymentFacade {
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public OrderWithPaymentResult createOrderWithPayment(CreateOrderCommand command, String paymentMethod) {
 		CreateOrderResponse orderResponse = orderCommandService.createOrder(command);
-		String method = normalizePaymentMethod(paymentMethod);
-		PaymentCommandService.PaymentCreationResult paymentResult =
-				paymentCommandService.createPayment(
-						orderResponse.getOrderId(),
-						method,
-						orderResponse.getTotalAmount(),
-						null);
-		OrderStatus orderStatus = paymentResult.getOrderStatus();
-		CreateOrderResponse updatedOrder = updateOrderStatusInResponse(orderResponse, orderStatus);
+
+		// 🎯 결제 기록은 생성하지 않고, 주문만 생성
+		// 실제 결제는 프론트엔드에서 토스 결제 완료 후 webhook으로 처리
+
+		// 🎯 결제 정보 제공용 (실제 결제 기록 없이)
+		PaymentCommandService.PaymentCreationResult mockPaymentResult =
+				PaymentCommandService.PaymentCreationResult.builder()
+						.paymentId(null) // 아직 결제 기록 없음
+						.paymentStatus(null)
+						.orderStatus(orderResponse.getStatus() != null ?
+								OrderStatus.valueOf(orderResponse.getStatus()) : OrderStatus.REQUESTED)
+						.orderNo(orderResponse.getOrderNo())
+						.amount(orderResponse.getTotalAmount())
+						.customerId(extractCustomerIdFromCommand(command))
+						.approvedAt(null)
+						.build();
+
 		return OrderWithPaymentResult.builder()
-				.orderResponse(updatedOrder)
-				.paymentResult(paymentResult)
+				.orderResponse(orderResponse)
+				.paymentResult(mockPaymentResult)
 				.build();
+	}
+
+	private Long extractCustomerIdFromCommand(CreateOrderCommand command) {
+		return command.getUserId();
 	}
 
 	private String normalizePaymentMethod(String paymentMethod) {

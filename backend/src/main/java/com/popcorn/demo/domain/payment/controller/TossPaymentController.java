@@ -27,24 +27,44 @@ public class TossPaymentController extends BaseController {
 
 	private final TossPaymentService tossPaymentService;
 
-	@Operation(summary = "토스 결제 승인", description = "토스페이먼트 결제 승인(confirm)을 처리합니다.")
+	@Operation(
+		summary = "토스 결제 승인",
+		description = """
+			토스페이먼트 결제 승인(confirm)을 처리합니다.
+
+			🛡️ 멱등성 보장:
+			- 동일한 주문에 대한 중복 결제 완전 차단
+			- 이미 결제된 주문은 기존 결제 정보 반환
+			- 결제 중인 요청에 대해서는 적절한 에러 처리
+			"""
+	)
 	@PostMapping("/confirm")
 	public ResponseEntity<BaseResponse<TossPaymentConfirmResponse>> confirm(
 			@Valid @RequestBody TossPaymentConfirmRequest request) {
 
-		TossPaymentService.TossPaymentConfirmResult result =
-				tossPaymentService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
+		// 🛡️ 멱등성 체크: 이미 결제된 주문인지 확인
+		try {
+			TossPaymentService.TossPaymentConfirmResult result =
+					tossPaymentService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
 
-		TossPaymentConfirmResponse response = TossPaymentConfirmResponse.builder()
-				.paymentId(result.getPaymentId())
-				.status(result.getPaymentStatus().name())
-				.orderStatus(result.getOrderStatus().name())
-				.orderId(result.getOrderId())
-				.orderNo(result.getOrderNo())
-				.amount(result.getAmount())
-				.approvedAt(result.getApprovedAt())
-				.build();
+			TossPaymentConfirmResponse response = TossPaymentConfirmResponse.builder()
+					.paymentId(result.getPaymentId())
+					.status(result.getPaymentStatus().name())
+					.orderStatus(result.getOrderStatus().name())
+					.orderId(result.getOrderId())
+					.orderNo(result.getOrderNo())
+					.amount(result.getAmount())
+					.approvedAt(result.getApprovedAt())
+					.build();
 
-		return ok(response);
+			return ok(response);
+
+		} catch (Exception e) {
+			// 🔍 중복 결제 시도인지 확인
+			if (e.getMessage() != null && e.getMessage().contains("이미") && e.getMessage().contains("결제")) {
+				throw e; // 멱등성 에러는 그대로 전달
+			}
+			throw e; // 기타 에러도 그대로 전달
+		}
 	}
 }

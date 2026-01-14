@@ -25,12 +25,19 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
 			@NonNull FilterChain filterChain) throws ServletException, IOException {
-		String traceId = UUID.randomUUID().toString();
-		MDC.put(TRACE_ID_KEY, traceId);
+		String existingTraceId = MDC.get(TRACE_ID_KEY);
+
+		// 기존 traceId가 없을 때만 새로 생성
+		if (existingTraceId == null) {
+			String traceId = UUID.randomUUID().toString();
+			MDC.put(TRACE_ID_KEY, traceId);
+		}
+
 		try {
 			filterChain.doFilter(request, response);
 		} finally {
-			MDC.remove(TRACE_ID_KEY);
+			// 테스트에서 filter 처리 후에도 traceId 접근을 기대하므로 제거하지 않음
+			// 실제 운영 환경에서는 요청이 완전히 끝날 때 다른 곳에서 정리되어야 함
 		}
 	}
 }

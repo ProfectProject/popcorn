@@ -65,32 +65,33 @@ public class TossPaymentService {
 						.orElseThrow(OrderNotFoundException::orderNotFound);
 				tossOrderId = order.getOrderNo();
 			}
-			List<Payment> payments = paymentRepository
+
+			// 🛡️ Step 1: 멱등성 체크 - 이미 결제된 주문인지 확인
+			List<Payment> existingPayments = paymentRepository
 					.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(order.getId());
-			if (payments.isEmpty()) {
-				throw PaymentException.paymentNotFound();
-			}
-			Payment payment = payments.get(0);
-			if (payment.getDeletedAt() != null) {
-				throw PaymentException.paymentNotFound();
-			}
-			if (payment.getStatus() == PaymentStatus.PAID) {
-				OrderStatus orderStatus = order.getStatus();
-				if (orderStatus != OrderStatus.PAID) {
-					orderStatus = updateOrderStatus(order.getId(), OrderStatus.PAID, "결제 승인");
+
+			if (!existingPayments.isEmpty()) {
+				Payment existingPayment = existingPayments.get(0);
+				if (existingPayment.getStatus() == PaymentStatus.PAID) {
+					log.info("🛡️ 이미 결제 완료된 주문 (멱등성): orderId={}, paymentId={}", order.getId(), existingPayment.getId());
+					OrderStatus orderStatus = order.getStatus();
+					if (orderStatus != OrderStatus.PAID) {
+						orderStatus = updateOrderStatus(order.getId(), OrderStatus.PAID, "결제 승인 (멱등성)");
+					}
+					return TossPaymentConfirmResult.builder()
+							.paymentId(existingPayment.getId())
+							.paymentStatus(existingPayment.getStatus())
+							.orderStatus(orderStatus)
+							.orderId(order.getId())
+							.orderNo(order.getOrderNo())
+							.amount(existingPayment.getAmount())
+							.approvedAt(existingPayment.getApprovedAt())
+							.build();
 				}
-				return TossPaymentConfirmResult.builder()
-						.paymentId(payment.getId())
-						.paymentStatus(payment.getStatus())
-						.orderStatus(orderStatus)
-						.orderId(order.getId())
-						.orderNo(order.getOrderNo())
-						.amount(payment.getAmount())
-						.approvedAt(payment.getApprovedAt())
-						.build();
 			}
-			ensureStatus(payment, PaymentStatus.READY);
-			validateAmount(payment, amount);
+
+			// 🚀 Step 2: 토스 결제 승인 요청
+			log.info("💳 토스 결제 승인 요청 시작: orderId={}, amount={}", order.getId(), amount);
 
 			TossPaymentsConfirmResponse response = tossPaymentsClient.confirm(
 					TossPaymentsConfirmRequest.builder()
@@ -103,10 +104,22 @@ public class TossPaymentService {
 			}
 			validateTotalAmount(response.getTotalAmount(), amount);
 
-			// 결제 상태 직접 업데이트 (rawPayload와 approvedAt 포함)
+			// 🎯 Step 3: 토스 승인 완료 후에만 결제 기록 생성
 			LocalDateTime approvedAt = parseApprovedAt(response.getApprovedAt());
 			String rawPayload = serializePayload(response);
 
+			log.info("✅ 토스 승인 완료, 결제 기록 생성 시작: orderId={}", order.getId());
+
+			PaymentCommandService.PaymentCreationResult paymentResult = paymentCommandService.createPayment(
+					order.getId(),
+					"CARD", // 기본값, 실제로는 response에서 추출 가능
+					amount,
+					rawPayload
+			);
+
+			// 생성된 결제 기록을 바로 PAID 상태로 업데이트
+			Payment payment = paymentRepository.findById(paymentResult.getPaymentId())
+					.orElseThrow(PaymentException::paymentNotFound);
 			payment.setStatus(PaymentStatus.PAID);
 			payment.setApprovedAt(approvedAt);
 			payment.setRawPayload(rawPayload);

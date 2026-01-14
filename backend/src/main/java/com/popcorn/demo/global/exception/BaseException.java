@@ -12,7 +12,7 @@ public class BaseException extends RuntimeException {
 
 
 
-	public BaseException(ResponseCode responseCode) {
+	public BaseException(ResponseCode responseCode, String s) {
 
 		super(responseCode.getMessage());
 

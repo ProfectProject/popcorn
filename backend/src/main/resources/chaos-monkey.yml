@@ -1,0 +1,124 @@
+# 🐒 Chaos Monkey 극한 장애 시뮬레이션 설정
+
+chaos:
+  monkey:
+    enabled: true
+
+    # 🎯 공격 대상 설정
+    watcher:
+      controller: true      # 컨트롤러 공격
+      restController: true  # REST 컨트롤러 공격
+      service: true         # 서비스 계층 공격
+      repository: true      # 데이터베이스 계층 공격
+      component: true       # 일반 컴포넌트 공격
+      restTemplate: false   # 외부 API 호출은 제외
+      webClient: false      # WebClient 제외
+
+    # 🎭 공격 유형별 설정
+    assaults:
+      level: 3              # 공격 강도 (1-10, 10이 최고)
+      deterministic: false  # 랜덤 공격 활성화
+
+      # ⚡ 지연 공격 (Latency)
+      latencyActive: true
+      latencyRangeStart: 1000    # 1초 지연
+      latencyRangeEnd: 10000     # 최대 10초 지연
+
+      # 💥 예외 공격 (Exception)
+      exceptionsActive: true
+      exception:
+        type: "java.lang.RuntimeException"
+        message: "🐒 Chaos Monkey Strike! 장애 시뮬레이션 실행 중..."
+
+      # 🔥 애플리케이션 킬 공격 (App Killer)
+      killApplicationActive: false  # 프로덕션에서는 비활성화
+
+      # 💾 메모리 공격 (Memory)
+      memoryActive: true
+      memoryFillIncrementFraction: 0.15  # 15%씩 메모리 증가
+      memoryFillTargetFraction: 0.75     # 75%까지 채우기
+
+      # 🏃‍♂️ CPU 공격 (Runtime)
+      runtimeAssaultCronExpression: "0 */1 * * * ?"  # 매분 실행
+      runtimeAssaultDuration: 60000                  # 60초간 공격
+
+    # 📊 공격 빈도 설정 (Cron 표현식)
+    scheduler:
+      enabled: true
+      cron: "0 */5 * * * ?"  # 5분마다 공격 시도
+
+# 🎯 프로파일별 설정
+---
+spring:
+  config:
+    activate:
+      on-profile: chaos-test
+
+chaos:
+  monkey:
+    enabled: true
+
+    # 테스트 환경에서 더 공격적
+    assaults:
+      level: 5
+      latencyActive: true
+      latencyRangeStart: 500
+      latencyRangeEnd: 5000
+      exceptionsActive: true
+      memoryActive: true
+      killApplicationActive: false  # 여전히 비활성화
+
+    scheduler:
+      enabled: true
+      cron: "0 */2 * * * ?"  # 2분마다 공격
+
+---
+spring:
+  config:
+    activate:
+      on-profile: extreme-chaos
+
+chaos:
+  monkey:
+    enabled: true
+
+    # 극한 테스트용 설정 🔥
+    assaults:
+      level: 8              # 매우 공격적
+      latencyActive: true
+      latencyRangeStart: 2000
+      latencyRangeEnd: 15000  # 최대 15초 지연!
+      exceptionsActive: true
+      memoryActive: true
+      killApplicationActive: false
+
+    watcher:
+      controller: true
+      restController: true
+      service: true
+      repository: true
+      component: true
+
+    scheduler:
+      enabled: true
+      cron: "0 */1 * * * ?"  # 매분 공격!
+
+---
+spring:
+  config:
+    activate:
+      on-profile: stress-test
+
+chaos:
+  monkey:
+    enabled: false  # 스트레스 테스트 중에는 비활성화
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+
+chaos:
+  monkey:
+    enabled: false  # 프로덕션에서는 완전 비활성화

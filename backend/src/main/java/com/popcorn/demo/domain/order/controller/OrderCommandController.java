@@ -24,12 +24,17 @@ import com.popcorn.demo.domain.order.dto.response.CancelOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
+import com.popcorn.demo.domain.users.repository.UserAddressRepository;
+import com.popcorn.demo.domain.users.entity.UserAddress;
+import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
+import com.popcorn.demo.domain.order.dto.request.AddressRequest;
 import com.popcorn.demo.domain.order.dto.response.OrderCreatedDto;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
 import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
@@ -68,6 +73,7 @@ public class OrderCommandController extends BaseController {
 
 private final OrderCommandService orderCommandService;
 private final OrderPaymentFacade orderPaymentFacade;
+private final UserAddressRepository userAddressRepository;
 private final ObjectMapper objectMapper;
 private final TossPaymentsProperties tossPaymentsProperties;
 private final PaymentTokenService paymentTokenService;
@@ -87,16 +93,23 @@ private final PaymentTokenService paymentTokenService;
 				**주요 기능:**
 				- 예약형 주문: 팝업 세션 예약 (시간 지정 방문)
 				- 구매형 주문: 굿즈 구매 (배송 또는 현장 픽업)
+				- 🎁 **스마트 주소 자동 설정**: 굿즈 구매 시 기본 배송지 자동 적용
 				- 실시간 재고 및 정원 체크
 				- 자동 가격 계산 (세션/굿즈별 단가 기준)
 				- 중복 주문 방지
+
+				**주소 처리 방식:**
+				- 굿즈 구매 시 address 필드는 **선택사항**
+				- address 없으면 → 기본 배송지 자동 설정
+				- address 있으면 → 입력된 배송지 우선 사용
+				- 기본 배송지 없으면 → 등록 안내 예외 발생
 
 				**주문 플로우:**
 				1. REQUESTED → 2. ACCEPTED/REJECTED → 3. RESERVED/PAYMENT_PENDING → 4. PAID → 5. COMPLETED
 
 				**사용 예시:**
 				- 예약형: POST /api/v1/orders (세션 기반 예약)
-				- 구매형: POST /api/v1/orders (굿즈 구매 + 배송지)
+				- 구매형: POST /api/v1/orders (굿즈 구매, 주소 자동 설정)
 				"""
 	)
 	@ApiResponse(
@@ -143,7 +156,7 @@ private final PaymentTokenService paymentTokenService;
 						),
 						@ExampleObject(
 							name = "굿즈 구매형 주문",
-							summary = "팝업 기념품 구매 (25,000원)",
+							summary = "팝업 기념품 구매 (주소 자동 설정)",
 							value = """
 								{
 								  "orderType": "PURCHASE",
@@ -154,13 +167,7 @@ private final PaymentTokenService paymentTokenService;
 								      "goodsVariantId": "00000000-0000-0000-0000-000000000301",
 								      "qty": 1
 								    }
-								  ],
-								  "address": {
-								    "address1": "서울특별시 강남구 테헤란로 123",
-								    "address2": "ABC빌딩 12층 1201호",
-								    "receiverName": "홍길동",
-								    "phone": "010-1234-5678"
-								  }
+								  ]
 								}
 								"""
 						),
@@ -198,12 +205,15 @@ private final PaymentTokenService paymentTokenService;
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long userId = userDetails.getUserId();
 
+		// 🎁 팝업 기념품/굿즈 구매 시 주소 자동 설정
+		CreateOrderRequest enhancedRequest = enhanceWithDefaultAddressIfNeeded(request, userId);
+
 		// 요청 DTO를 Command로 변환해 유스케이스에 전달합니다.
 		CreateOrderCommand command = CreateOrderCommand.builder()
 				.userId(userId)
-				.popupId(request.getPopupId())
-				.orderType(request.getOrderType())
-				.items(request.getItems().stream()
+				.popupId(enhancedRequest.getPopupId())
+				.orderType(enhancedRequest.getOrderType())
+				.items(enhancedRequest.getItems().stream()
 						.map(item -> CreateOrderCommand.OrderItemCommand.builder()
 								.orderItemType(OrderItemType.valueOf(item.getOrderItemType()))
 								.sessionId(item.getSessionId())
@@ -218,7 +228,7 @@ private final PaymentTokenService paymentTokenService;
 		// 유스케이스 결과를 표준 응답으로 감싸서 반환합니다.
 		OrderPaymentFacade.OrderWithPaymentResult result = orderPaymentFacade.createOrderWithPayment(
 				command,
-				request.getPaymentMethod());
+				enhancedRequest.getPaymentMethod());
 		OrderCreatedDto dto = convertToOrderCreatedDto(
 				result.getOrderResponse(),
 				result.getPaymentResult());
@@ -412,6 +422,8 @@ private final PaymentTokenService paymentTokenService;
 		Long userId = userDetails.getUserId();
 		String role = userDetails.getRole();
 
+		log.info("주문 취소 요청: orderId={}, userId={}, role={}", orderId, userId, role);
+
 		// 주문을 CANCELLED 상태로 변경 (권한 검증은 서비스 레이어에서 처리)
 		Order cancelledOrder = orderCommandService.updateStatus(
 				orderId,
@@ -450,6 +462,10 @@ private final PaymentTokenService paymentTokenService;
 	private OrderCreatedDto convertToOrderCreatedDto(
 			CreateOrderResponse response,
 			PaymentCommandService.PaymentCreationResult paymentResult) {
+		// 🎯 현재 인증된 사용자 ID를 createOrder 메소드에서 전달받아야 함
+		Long currentUserId = extractUserIdFromPaymentResult(paymentResult);
+		String validCustomerKey = generateValidCustomerKey(currentUserId);
+
 		return new OrderCreatedDto(
 				response.getOrderId(),
 				response.getOrderNo(),
@@ -469,41 +485,50 @@ private final PaymentTokenService paymentTokenService;
 								item.getLineAmount()
 						))
 						.toList(),
-				paymentResult != null ? paymentResult.getPaymentId() : null,
-				paymentResult != null ? paymentResult.getAmount() : null,
-				buildCheckoutUrl(response, paymentResult),
-				toCustomerKey(paymentResult != null ? paymentResult.getCustomerId() : null),
+				// 🎯 결제 완료 후 결제 기록 생성 방식: 결제 관련 필드들을 null로 설정
+				null, // paymentId: 결제 완료 후에 생성됨
+				response.getTotalAmount(), // paymentAmount: 주문 금액 사용
+				buildCheckoutUrl(response, validCustomerKey, response.getTotalAmount()), // checkoutUrl: 자동결제 페이지
+				validCustomerKey, // customerKey: 토스 규칙에 맞는 형식
 				tossPaymentsProperties.getSuccessUrl(),
-				tossPaymentsProperties.getFailUrl()
+				tossPaymentsProperties.getFailUrl(),
+				// 프론트엔드 결제용 정보 (하드코딩)
+				tossPaymentsProperties.getClientKey(),
+				null, // paymentKey: 결제 완료 후에 생성됨
+				true // readyForPayment: 결제 가능
 		);
 	}
 
 	private String buildCheckoutUrl(
 			CreateOrderResponse response,
-			PaymentCommandService.PaymentCreationResult paymentResult) {
-		if (response == null || paymentResult == null) {
-			return null;
-		}
-		String checkoutUrl = tossPaymentsProperties.getCheckoutUrl();
-		if (checkoutUrl == null || checkoutUrl.isBlank()) {
+			String customerKey,
+			Integer amount) {
+		if (response == null) {
 			return null;
 		}
 
-		// JWT 토큰으로 결제 정보 암호화
+		// 🎯 프론트엔드 결제 페이지로 바로 이동 (새로운 방식)
+		String frontendBaseUrl = System.getenv("FRONTEND_URL");
+		if (frontendBaseUrl == null || frontendBaseUrl.isBlank()) {
+			frontendBaseUrl = "http://localhost:3000"; // 개발환경 기본값
+		}
+
+		// 🔐 JWT 토큰으로 결제 정보 암호화
 		String paymentToken = paymentTokenService.createPaymentToken(
 				PaymentTokenService.PaymentTokenInfo.builder()
 						.orderId(response.getOrderId())
 						.orderNo(response.getOrderNo())
-						.amount(paymentResult.getAmount())
-						.customerKey(toCustomerKey(paymentResult.getCustomerId()))
-						.paymentId(paymentResult.getPaymentId())
+						.amount(amount)
+						.customerKey(customerKey)
+						.paymentId(null) // 결제 기록 아직 없음
 						.successUrl(tossPaymentsProperties.getSuccessUrl())
 						.failUrl(tossPaymentsProperties.getFailUrl())
 						.build());
 
-		// 암호화된 토큰만 포함한 안전한 URL 생성
-		return UriComponentsBuilder.fromHttpUrl(checkoutUrl)
-				.queryParam("token", paymentToken)
+		// 🚀 암호화된 토큰만 URL에 전달 (보안 강화)
+		return UriComponentsBuilder.fromUriString(frontendBaseUrl)
+				.path("/auto-payment")
+				.queryParam("token", paymentToken) // ✅ 암호화된 토큰만 전달
 				.build(true)
 				.toUriString();
 	}
@@ -515,6 +540,44 @@ private final PaymentTokenService paymentTokenService;
 		return customerId.toString();
 	}
 
+	/**
+	 * PaymentResult에서 사용자 ID 추출
+	 */
+	private Long extractUserIdFromPaymentResult(PaymentCommandService.PaymentCreationResult paymentResult) {
+		if (paymentResult != null && paymentResult.getCustomerId() != null) {
+			return paymentResult.getCustomerId();
+		}
+		return null; // guest로 처리
+	}
+
+	/**
+	 * 토스페이먼츠 규칙에 맞는 customerKey 생성
+	 * 규칙: 영문 대소문자, 숫자, 특수문자(-, *, =, ., @)를 포함한 2자 이상 255자 이하
+	 */
+	private String generateValidCustomerKey(Long userId) {
+		if (userId == null) {
+			// 🎯 게스트 사용자를 위한 유니크한 키 생성
+			return String.format("guest_%d@popcorn.demo", System.currentTimeMillis() % 1000000);
+		}
+
+		// 🎯 로그인 사용자를 위한 키 생성
+		return String.format("user_%d@popcorn.demo", userId);
+	}
+
+	/**
+	 * 토스 결제위젯용 결제키 생성
+	 * @param orderNo 주문번호
+	 * @param paymentId 결제 ID (null 가능)
+	 * @return 토스 결제키 (결제 식별용)
+	 */
+	private String generatePaymentKey(String orderNo, UUID paymentId) {
+		if (paymentId == null) {
+			// 🎯 결제 기록이 없을 때는 주문번호만으로 키 생성
+			return String.format("payment_%s_%s", orderNo, System.currentTimeMillis() % 100000000);
+		}
+		return String.format("payment_%s_%s", orderNo, paymentId.toString().replace("-", "").substring(0, 8));
+	}
+
 	private void logRequestDebug(String label, Object request) {
 		if (!log.isDebugEnabled()) {
 			return;
@@ -524,6 +587,97 @@ private final PaymentTokenService paymentTokenService;
 		} catch (JsonProcessingException ex) {
 			log.debug("{}: <failed to serialize request>", label, ex);
 		}
+	}
+
+	/**
+	 * 🎁 굿즈 구매 시 주소가 없으면 기본 주소 자동 설정
+	 */
+	private CreateOrderRequest enhanceWithDefaultAddressIfNeeded(CreateOrderRequest request, Long userId) {
+		// 굿즈 구매가 포함된 주문인지 확인
+		boolean hasGoodsItems = hasGoodsItems(request);
+
+		// 굿즈 구매가 없으면 주소 불필요
+		if (!hasGoodsItems) {
+			log.debug("굿즈 구매 없음, 주소 설정 생략: userId={}", userId);
+			return request;
+		}
+
+		// 이미 주소가 있으면 그대로 반환
+		if (hasValidAddress(request.getAddress())) {
+			log.debug("이미 유효한 주소가 있음: userId={}", userId);
+			return request;
+		}
+
+		// 굿즈 구매 시 기본 주소 조회 및 자동 설정
+		UserAddress defaultAddress = findDefaultAddress(userId);
+		if (defaultAddress == null) {
+			log.error("🚨 굿즈 구매를 위한 배송지가 등록되지 않음: userId={}", userId);
+			throw new BaseException(CommonResponseCode.INVALID_REQUEST,
+					"""
+					🎁 팝업 굿즈 배송을 위해 배송지를 먼저 등록해주세요!
+
+					📍 '내 정보 > 배송지 관리'에서 배송지를 등록한 후 다시 주문해 주세요.
+					💡 기본 배송지로 설정하면 다음 주문부터 자동으로 적용됩니다.
+					""");
+		}
+
+		// 기본 주소로 AddressRequest 생성
+		AddressRequest autoAddress = AddressRequest.builder()
+				.address1(defaultAddress.getAddress1())
+				.address2(defaultAddress.getAddress2())
+				.receiverName(defaultAddress.getAddrName())
+				.phone("") // 전화번호는 별도 입력 필요
+				.build();
+
+		log.info("✅ 기본 주소 자동 설정 완료: userId={}, addressName={}",
+				userId, defaultAddress.getAddrName());
+
+		// 주소가 설정된 새로운 요청 생성
+		return CreateOrderRequest.builder()
+				.orderType(request.getOrderType())
+				.popupId(request.getPopupId())
+				.reservationId(request.getReservationId())
+				.paymentMethod(request.getPaymentMethod())
+				.items(request.getItems())
+				.address(autoAddress)
+				.build();
+	}
+
+	/**
+	 * 사용자의 기본 주소 조회
+	 */
+	private UserAddress findDefaultAddress(Long userId) {
+		try {
+			return userAddressRepository.findByUserUserId(userId).stream()
+					.filter(addr -> Boolean.TRUE.equals(addr.getIsDefault()))
+					.filter(addr -> addr.getDeletedAt() == null) // 삭제되지 않은 주소만
+					.findFirst()
+					.orElse(null);
+		} catch (Exception e) {
+			log.error("기본 주소 조회 실패: userId={}", userId, e);
+			return null;
+		}
+	}
+
+	/**
+	 * 굿즈 구매가 포함된 주문인지 확인
+	 */
+	private boolean hasGoodsItems(CreateOrderRequest request) {
+		if (request.getItems() == null || request.getItems().isEmpty()) {
+			return false;
+		}
+
+		return request.getItems().stream()
+				.anyMatch(item -> "GOODS".equals(item.getOrderItemType()));
+	}
+
+	/**
+	 * 유효한 주소가 있는지 확인
+	 */
+	private boolean hasValidAddress(AddressRequest address) {
+		return address != null &&
+			   address.getAddress1() != null &&
+			   !address.getAddress1().trim().isEmpty();
 	}
 
 

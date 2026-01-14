@@ -97,13 +97,27 @@ public class JwtFilter extends OncePerRequestFilter {
         log.info("[JWTFILTER] 토큰에서 이메일 획득: {}", username);
         log.info("[JWTFILTER] 토큰에서 권한 획득: {}", role);
 
+        // 필수 정보가 null인 경우 인증 실패 처리
+        if (userId == null || username == null || role == null) {
+            System.out.println("JWT token contains null values - authentication failed");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         //SecurityContext에 저장할 Authentication 객체 만들기
         //userEntity를 생성하여 값 set
         User userEntity = new User();
-        userEntity.setUserId(userId); 
+        userEntity.setUserId(userId);
         userEntity.setEmail(username);
-        userEntity.setPassword("temppassword"); // 
-        userEntity.setRole(UserRole.valueOf(role)); // String -> UserRole 변환
+        userEntity.setPassword("temppassword");
+
+        try {
+            userEntity.setRole(UserRole.valueOf(role)); // String -> UserRole 변환
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid role value: " + role);
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         //UserDetails에 회원 정보 객체 담기
         CustomUserDetails customUserDetails = new CustomUserDetails(userEntity);
