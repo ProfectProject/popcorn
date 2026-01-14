@@ -255,44 +255,23 @@ jacocoTestCoverageVerification {
 		// Order 모듈 특정 패키지들
 		rule {
 			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.order.exception']
+			includes = [
+					'com.popcorn.demo.domain.order.exception',
+					'com.popcorn.demo.domain.order.event'
+			]
 			limit {
 				minimum = 0.80
 			}
 		}
-		rule {
-			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.order.event']
-			limit {
-				minimum = 0.80
-			}
-		}
-
 		// Payment 모듈 특정 패키지들
 		rule {
 			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.payment.controller']
-			limit {
-				minimum = 0.80
-			}
-		}
-		rule {
-			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.payment.event']
-			limit {
-				minimum = 0.80
-			}
-		}
-		rule {
-			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.payment.service']
-			limit {
-				minimum = 0.80
-			}
-		}
-		rule {
-			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.payment.toss']
+			includes = [
+					'com.popcorn.demo.domain.payment.controller',
+					'com.popcorn.demo.domain.payment.event',
+					'com.popcorn.demo.domain.payment.service',
+					'com.popcorn.demo.domain.payment.toss'
+			]
 			limit {
 				minimum = 0.80
 			}
@@ -310,14 +289,10 @@ jacocoTestCoverageVerification {
 		// Inventory 모듈 특정 패키지들
 		rule {
 			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.inventory.controller']
-			limit {
-				minimum = 0.80
-			}
-		}
-		rule {
-			element = 'PACKAGE'
-			includes = ['com.popcorn.demo.domain.inventory.service']
+			includes = [
+					'com.popcorn.demo.domain.inventory.controller',
+					'com.popcorn.demo.domain.inventory.service'
+			]
 			limit {
 				minimum = 0.80
 			}
