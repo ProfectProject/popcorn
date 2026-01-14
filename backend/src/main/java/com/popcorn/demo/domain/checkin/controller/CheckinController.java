@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,8 +38,10 @@ public class CheckinController extends BaseController {
 			description = "체크인 기록 목록을 조회합니다."
 	)
 	@GetMapping("/checkins")
-	public ResponseEntity<BaseResponse<CheckinListResponse>> getCheckins() {
-		CheckinListResponse response = checkinService.getCheckins();
+	public ResponseEntity<BaseResponse<CheckinListResponse>> getCheckins(
+			@Parameter(description = "조회 개수", example = "50")
+			@RequestParam(defaultValue = "50") int size) {
+		CheckinListResponse response = checkinService.getCheckins(normalizeLimit(size));
 		return ok(response);
 	}
 
@@ -52,5 +55,12 @@ public class CheckinController extends BaseController {
 			@PathVariable UUID checkinId) {
 		CheckinDetailResponse response = checkinService.getCheckin(checkinId);
 		return ok(response);
+	}
+
+	private int normalizeLimit(int size) {
+		if (size < 1) {
+			return 1;
+		}
+		return Math.min(size, 200);
 	}
 }
