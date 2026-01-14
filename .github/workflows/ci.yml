@@ -76,22 +76,3 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/popcorn-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/popcorn-backend:${{ github.sha }}
-
-      - name: Deploy on EC2 (docker compose)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-            cd ~/popcorn
-            export DB_HOST=${{ secrets.DB_HOST }}
-            export DB_PORT=${{ secrets.DB_PORT }}
-            export DB_NAME=${{ secrets.DB_NAME }}
-            export DB_USERNAME=${{ secrets.DB_USERNAME }}
-            export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-
-            docker compose pull
-            docker compose up -d
-            docker image prune -f

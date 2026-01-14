@@ -18,7 +18,7 @@ public enum QrResponseCode implements ResponseCode {
 
 	ORDER_NOT_FOUND(2002, 404, "주문을 찾을 수 없습니다."),
 
-	ORDER_NOT_RESERVED(2003, 409, "예약 상태의 주문만 QR 발급이 가능합니다.");
+	ORDER_NOT_RESERVED(2003, 409, "결제 완료(PAID)된 예약 주문만 QR 발급이 가능합니다.");
 
 	private final int code;
 	private final int httpStatus;

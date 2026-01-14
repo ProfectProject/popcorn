@@ -18,6 +18,8 @@ import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 
 class OrderAtddTest extends OrderControllerTestBase {
 
@@ -33,7 +35,7 @@ class OrderAtddTest extends OrderControllerTestBase {
 				.orderId(orderId)
 				.orderNo("O20260101-000001")
 				.orderType("RESERVATION")
-				.status("REQUESTED")
+				.status("PAYMENT_PENDING")
 				.storeId(storeId)
 				.popupId(popupId)
 				.totalAmount(2000)
@@ -50,7 +52,15 @@ class OrderAtddTest extends OrderControllerTestBase {
 				))
 				.build();
 
-		when(orderCommandService.createOrder(any())).thenReturn(response);
+		when(orderPaymentFacade.createOrderWithPayment(any(), any()))
+				.thenReturn(OrderPaymentFacade.OrderWithPaymentResult.builder()
+						.orderResponse(response)
+						.paymentResult(PaymentCommandService.PaymentCreationResult.builder()
+								.paymentId(UUID.randomUUID())
+								.amount(response.getTotalAmount())
+								.customerId(1001L)
+								.build())
+						.build());
 
 		Order updatedOrder = Order.builder()
 				.id(orderId)

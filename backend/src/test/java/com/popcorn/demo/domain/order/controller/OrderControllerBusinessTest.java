@@ -22,6 +22,8 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
+import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,7 +58,7 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 					.orderId(orderId)
 					.orderNo("O20251231-000001")
 					.orderType("RESERVATION")
-					.status("REQUESTED") // 예약 요청 상태
+					.status("PAYMENT_PENDING") // 결제 대기 상태
 					.storeId(storeId)
 					.popupId(popupId)
 					.totalAmount(2000)
@@ -73,7 +75,15 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 					))
 					.build();
 
-			when(orderCommandService.createOrder(any())).thenReturn(expectedReservation);
+			when(orderPaymentFacade.createOrderWithPayment(any(), any()))
+					.thenReturn(OrderPaymentFacade.OrderWithPaymentResult.builder()
+							.orderResponse(expectedReservation)
+							.paymentResult(PaymentCommandService.PaymentCreationResult.builder()
+									.paymentId(UUID.randomUUID())
+									.amount(expectedReservation.getTotalAmount())
+									.customerId(1001L)
+									.build())
+							.build());
 
 			// When: 고객이 팝콘 예약을 요청한다
 			String 고객의_예약요청 = """
@@ -100,12 +110,12 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 					.andExpect(MockMvcResultMatchers.status().isCreated())
 					.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
-					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("REQUESTED"))
+					.andExpect(MockMvcResultMatchers.jsonPath("$.data.status").value("PAYMENT_PENDING"))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.totalAmount").value(2000))
 					.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderType").value("RESERVATION"));
 
 			// 비즈니스 검증: 주문 서비스가 올바른 예약 로직을 수행했는지 확인
-			verify(orderCommandService, times(1)).createOrder(any());
+			verify(orderPaymentFacade, times(1)).createOrderWithPayment(any(), any());
 
 			log.info("✅ 고객 팝콘 예약이 성공적으로 접수되었습니다");
 		}
@@ -116,7 +126,7 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 			log.info("🎯 비즈니스 테스트: 매진된 시간대 예약 시도 시나리오");
 
 			// Given: 해당 시간대가 이미 매진된 상황
-			when(orderCommandService.createOrder(any()))
+			when(orderPaymentFacade.createOrderWithPayment(any(), any()))
 					.thenThrow(OrderValidationException.emptyItems()); // 실제로는 "매진" 예외가 더 적절
 
 			// When: 고객이 매진된 시간대에 예약을 시도한다
@@ -154,7 +164,7 @@ class OrderControllerBusinessTest extends OrderControllerTestBase {
 			log.info("🎯 비즈니스 테스트: 잘못된 수량 예약 시도 시나리오");
 
 			// Given: 비즈니스 규칙상 허용되지 않는 수량 (예: 0개 이하, 최대 수량 초과)
-			when(orderCommandService.createOrder(any()))
+			when(orderPaymentFacade.createOrderWithPayment(any(), any()))
 					.thenThrow(OrderValidationException.invalidQty());
 
 			// When: 고객이 잘못된 수량으로 예약을 시도한다

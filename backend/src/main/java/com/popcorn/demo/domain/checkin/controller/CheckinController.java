@@ -24,7 +24,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@Tag(name = "Checkin", description = "체크인 조회 API")
+@Tag(name = "Checkin", description = "체크인 관리 API")
 @ApiVersion("v1")
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor

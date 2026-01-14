@@ -16,10 +16,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
-import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
+import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 
 /**
  * 최적화된 주문 컨트롤러 테스트
@@ -42,14 +42,14 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             logTestStart("고객 팝콘 예약 성공");
 
             // Given: 공통 헬퍼 메서드 활용으로 코드 중복 제거
-            CreateOrderResponse response = createTestOrderResponse(
+            OrderPaymentFacade.OrderWithPaymentResult response = createTestOrderWithPaymentResponse(
                 TestUUIDs.ORDER_ID,
                 TestUUIDs.STORE_ID,
                 TestUUIDs.PRODUCT_ID
             );
 
             // Mock 설정 최적화 - 한 줄로 간소화
-            when(orderCommandService.createOrder(any())).thenReturn(response);
+            when(orderPaymentFacade.createOrderWithPayment(any(), any())).thenReturn(response);
 
             // When: 공통 JSON 헬퍼 메서드 활용
             String requestJson = createOrderRequestJson(TestUUIDs.PRODUCT_ID, 2);
@@ -64,12 +64,12 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
                         MockMvcResultMatchers.status().isCreated(),
                         MockMvcResultMatchers.jsonPath("$.code").value(200),
                         MockMvcResultMatchers.jsonPath("$.data.orderId").value(TestUUIDs.ORDER_ID.toString()),
-                        MockMvcResultMatchers.jsonPath("$.data.status").value("REQUESTED"),
+                        MockMvcResultMatchers.jsonPath("$.data.status").value("PAYMENT_PENDING"),
                         MockMvcResultMatchers.jsonPath("$.data.totalAmount").value(2000)
                     );
 
             // 비즈니스 검증 최적화
-            verify(orderCommandService, times(1)).createOrder(any());
+            verify(orderPaymentFacade, times(1)).createOrderWithPayment(any(), any());
 
             logTestComplete("고객 팝콘 예약 성공");
         }
@@ -80,7 +80,7 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             logTestStart("매진된 시간대 예약 시도");
 
             // Given: 예외 상황 Mock 설정
-            when(orderCommandService.createOrder(any()))
+            when(orderPaymentFacade.createOrderWithPayment(any(), any()))
                     .thenThrow(OrderValidationException.emptyItems());
 
             // When & Then: 한 번의 호출로 예외 검증
@@ -178,12 +178,12 @@ class OrderControllerOptimizedTest extends OrderControllerTestBase {
             long startTime = System.currentTimeMillis();
 
             for (int i = 0; i < 10; i++) {
-                CreateOrderResponse response = createTestOrderResponse(
+            OrderPaymentFacade.OrderWithPaymentResult response = createTestOrderWithPaymentResponse(
                     UUID.randomUUID(),
                     TestUUIDs.STORE_ID,
                     TestUUIDs.PRODUCT_ID
                 );
-                when(orderCommandService.createOrder(any())).thenReturn(response);
+                when(orderPaymentFacade.createOrderWithPayment(any(), any())).thenReturn(response);
 
                 String requestJson = createOrderRequestJson(TestUUIDs.PRODUCT_ID, 1);
 

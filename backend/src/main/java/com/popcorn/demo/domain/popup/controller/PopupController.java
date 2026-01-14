@@ -30,7 +30,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@Tag(name = "Popup", description = "팝업/상품 조회 API")
+@Tag(name = "Popup", description = "팝업 관리 API")
 @ApiVersion("v1")
 @RequestMapping("/api/v1/popups")
 @RequiredArgsConstructor

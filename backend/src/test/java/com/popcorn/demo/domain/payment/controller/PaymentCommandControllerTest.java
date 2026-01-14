@@ -24,6 +24,8 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 import com.popcorn.demo.global.config.CommonConfig;
 
 /**
@@ -35,14 +37,20 @@ class PaymentCommandControllerTest {
 	private MockMvc mockMvc;
 	private ObjectMapper objectMapper;
 	private PaymentCommandService paymentCommandService;
+	private PaymentTokenService paymentTokenService;
+	private TossPaymentsProperties tossPaymentsProperties;
 
 	@BeforeEach
 	void setUp() {
 		paymentCommandService = Mockito.mock(PaymentCommandService.class);
+		paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		objectMapper = new CommonConfig().objectMapper();
+		tossPaymentsProperties = new TossPaymentsProperties();
+		tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
+		tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
 
 		PaymentCommandController controller = new PaymentCommandController(
-				paymentCommandService, objectMapper);
+				paymentCommandService, objectMapper, tossPaymentsProperties, paymentTokenService);
 		mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new OrderExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -54,16 +62,19 @@ class PaymentCommandControllerTest {
 	void createReservationPayment_success() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
 		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004003");
-		when(paymentCommandService.createReservationPayment(
+		when(paymentCommandService.createPayment(
 				eq(orderId), eq("CARD"), eq(4000), any()))
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
 						.paymentStatus(PaymentStatus.READY)
-						.orderStatus(OrderStatus.REQUESTED)
+						.orderStatus(OrderStatus.PAYMENT_PENDING)
+						.orderNo("O20251231-001003")
+						.amount(4000)
+						.customerId(1001L)
 						.approvedAt(null)
 						.build());
 
-		mockMvc.perform(post("/api/v1/orders/{orderId}/reservation-payments", orderId)
+		mockMvc.perform(post("/api/v1/orders/{orderId}/payments", orderId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -78,8 +89,8 @@ class PaymentCommandControllerTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
-				.andExpect(jsonPath("$.data.paymentStatus").value("READY"))
-				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
+				.andExpect(jsonPath("$.data.status").value("READY"))
+				.andExpect(jsonPath("$.data.orderStatus").value("PAYMENT_PENDING"));
 	}
 
 	@Test
@@ -88,12 +99,15 @@ class PaymentCommandControllerTest {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001004");
 		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004004");
 
-		when(paymentCommandService.createOrderPayment(
+		when(paymentCommandService.createPayment(
 				eq(orderId), eq("CARD"), eq(3000), any()))
 				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
 						.paymentStatus(PaymentStatus.READY)
-						.orderStatus(OrderStatus.REQUESTED)
+						.orderStatus(OrderStatus.PAYMENT_PENDING)
+						.orderNo("O20251231-001004")
+						.amount(3000)
+						.customerId(1002L)
 						.build());
 
 		mockMvc.perform(post("/api/v1/orders/{orderId}/payments", orderId)
@@ -112,36 +126,7 @@ class PaymentCommandControllerTest {
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
 				.andExpect(jsonPath("$.data.status").value("READY"))
-				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
-	}
-
-	@Test
-	@DisplayName("성공: READY 결제 기록 생성")
-	void createReadyPayment_success() throws Exception {
-		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001005");
-		UUID paymentId = UUID.fromString("00000000-0000-0000-0000-000000004005");
-
-		when(paymentCommandService.createReadyPayment(
-				eq(orderId), eq("CARD"), eq(3000), any()))
-				.thenReturn(PaymentCommandService.PaymentCreationResult.builder()
-						.paymentId(paymentId)
-						.paymentStatus(PaymentStatus.READY)
-						.orderStatus(OrderStatus.REQUESTED)
-						.build());
-
-		mockMvc.perform(post("/api/v1/orders/{orderId}/payments/ready", orderId)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{
-					  "method": "CARD",
-					  "amount": 3000
-					}
-					"""))
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.code").value(200))
-				.andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()))
-				.andExpect(jsonPath("$.data.status").value("READY"))
-				.andExpect(jsonPath("$.data.orderStatus").value("REQUESTED"));
+				.andExpect(jsonPath("$.data.orderStatus").value("PAYMENT_PENDING"));
 	}
 
 	@Test
@@ -149,11 +134,11 @@ class PaymentCommandControllerTest {
 	void createReservationPayment_invalidMethod() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
 
-		when(paymentCommandService.createReservationPayment(
+		when(paymentCommandService.createPayment(
 				eq(orderId), eq("VIRTUAL"), eq(4000), any()))
 				.thenThrow(PaymentException.invalidRequest());
 
-		mockMvc.perform(post("/api/v1/orders/{orderId}/reservation-payments", orderId)
+		mockMvc.perform(post("/api/v1/orders/{orderId}/payments", orderId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -171,11 +156,11 @@ class PaymentCommandControllerTest {
 	void createReservationPayment_duplicate() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001003");
 
-		when(paymentCommandService.createReservationPayment(
+		when(paymentCommandService.createPayment(
 				eq(orderId), eq("CARD"), eq(4000), any()))
 				.thenThrow(PaymentException.paymentAlreadyExists());
 
-		mockMvc.perform(post("/api/v1/orders/{orderId}/reservation-payments", orderId)
+		mockMvc.perform(post("/api/v1/orders/{orderId}/payments", orderId)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
