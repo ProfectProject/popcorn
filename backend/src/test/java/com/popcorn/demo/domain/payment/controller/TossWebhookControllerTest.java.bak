@@ -1,0 +1,89 @@
+package com.popcorn.demo.domain.payment.controller;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@WebMvcTest(TossWebhookController.class)
+class TossWebhookControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void handleTossWebhookReturnsOk() throws Exception {
+        // Given
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventType", "PAYMENT_SUCCESS");
+        payload.put("orderId", "order-123");
+        payload.put("amount", 10000);
+
+        // When & Then
+        mockMvc.perform(post("/api/v1/payments/webhooks/toss")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ok"));
+    }
+
+    @Test
+    void handleTossWebhookWithEmptyPayload() throws Exception {
+        // Given
+        Map<String, Object> payload = new HashMap<>();
+
+        // When & Then
+        mockMvc.perform(post("/api/v1/payments/webhooks/toss")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ok"));
+    }
+
+    @Test
+    void handleTossWebhookWithComplexPayload() throws Exception {
+        // Given
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventType", "PAYMENT_CANCELLED");
+        payload.put("orderId", "order-456");
+        payload.put("paymentKey", "payment-key-789");
+        payload.put("amount", 25000);
+        payload.put("status", "CANCELLED");
+        payload.put("transactionId", "transaction-123");
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("userId", "user-100");
+        metadata.put("source", "mobile");
+        payload.put("metadata", metadata);
+
+        // When & Then
+        mockMvc.perform(post("/api/v1/payments/webhooks/toss")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ok"));
+    }
+
+    @Test
+    void handleTossWebhookWithNullPayload() throws Exception {
+        // When & Then
+        mockMvc.perform(post("/api/v1/payments/webhooks/toss")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value("ok"));
+    }
+}

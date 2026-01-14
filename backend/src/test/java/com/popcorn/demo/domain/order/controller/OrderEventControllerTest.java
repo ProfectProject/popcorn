@@ -135,20 +135,64 @@ class OrderEventControllerTest {
 		OrderEventController controller = new OrderEventController(eventStore, eventMetrics);
 
 		UUID orderId = UUID.randomUUID();
-		Mockito.when(eventStore.getEventStream(orderId)).thenThrow(new RuntimeException("fail"));
+		LocalDateTime from = LocalDateTime.now().minusHours(1);
+		LocalDateTime to = LocalDateTime.now();
 
+		Mockito.when(eventStore.getEventStream(orderId)).thenThrow(new RuntimeException("fail"));
 		org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.getEventStream(orderId))
 				.isInstanceOf(RuntimeException.class);
 
+		Mockito.when(eventStore.getEventStream(Mockito.eq(orderId), Mockito.any(), Mockito.any()))
+				.thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(
+				() -> controller.getEventStreamByTimeRange(orderId, from, to))
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventStore.getEventsByType("type")).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.getEventsByType("type"))
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventStore.getRecentEvents(1)).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.getRecentEvents(1))
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventStore.replayEvents(orderId)).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.replayEvents(orderId))
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventMetrics.getMetrics()).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(controller::getEventMetrics)
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventMetrics.getEventTypeMetrics("type")).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.getEventTypeMetrics("type"))
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventMetrics.getMetricsSummary()).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(controller::getMetricsSummary)
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.when(eventStore.getStatistics()).thenThrow(new RuntimeException("fail"));
+		org.assertj.core.api.Assertions.assertThatThrownBy(controller::getEventStoreStats)
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.doThrow(new RuntimeException("fail")).when(eventStore).cleanup(Mockito.any());
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.cleanupEventStore(LocalDateTime.now()))
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.doThrow(new RuntimeException("fail")).when(eventMetrics).resetMetrics();
+		org.assertj.core.api.Assertions.assertThatThrownBy(controller::resetMetrics)
+				.isInstanceOf(RuntimeException.class);
+
 		Mockito.when(eventMetrics.isHealthy()).thenReturn(false);
-		Mockito.when(eventStore.getStatistics()).thenReturn(
-				EventStoreStats.builder()
-						.totalEvents(0)
-						.totalOrderStreams(0)
-						.eventTypeCounts(Map.of())
-						.oldestEventTime(null)
-						.newestEventTime(null)
-						.build());
+		Mockito.doReturn(EventStoreStats.builder()
+				.totalEvents(0)
+				.totalOrderStreams(0)
+				.eventTypeCounts(Map.of())
+				.oldestEventTime(null)
+				.newestEventTime(null)
+				.build())
+			.when(eventStore).getStatistics();
 
 		org.assertj.core.api.Assertions.assertThatThrownBy(controller::healthCheck)
 				.isInstanceOf(RuntimeException.class);

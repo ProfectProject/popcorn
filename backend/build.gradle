@@ -253,27 +253,30 @@ tasks.register('testQualityCheck') {
 jacocoTestCoverageVerification {
 	violationRules {
 		rule {
-			element = 'BUNDLE'
+			element = 'PACKAGE'
 			includes = [
-				'com.popcorn.demo.domain.order*',
-				'com.popcorn.demo.domain.popup*'
+				'com.popcorn.demo.domain.order.*'
 			]
 			limit {
-				minimum = 0.60  // 주문/팝업 도메인 80% 이상
+				minimum = 0.80  // order 모듈 80% 이상
 			}
 		}
 		rule {
-			enabled = true
 			element = 'PACKAGE'
 			includes = [
-				'com.popcorn.demo.domain.order*',
-				'com.popcorn.demo.domain.popup*'
+				'com.popcorn.demo.domain.popup.*'
 			]
-
 			limit {
-				counter = 'LINE'
-				value = 'COVEREDRATIO'
-				minimum = 0.60
+				minimum = 0.80  // popup 모듈 80% 이상
+			}
+		}
+		rule {
+			element = 'PACKAGE'
+			includes = [
+				'com.popcorn.demo.domain.payment.*'
+			]
+			limit {
+				minimum = 0.80  // payment 모듈 80% 이상
 			}
 		}
 	}
