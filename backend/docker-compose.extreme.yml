@@ -182,18 +182,24 @@ services:
 
   # 📈 InfluxDB (시계열 데이터)
   influxdb:
-    image: influxdb:1.8-alpine
+    build:
+      context: ./monitoring/influxdb
+      dockerfile: Dockerfile
     platform: linux/amd64
     container_name: influxdb-extreme
     ports:
       - "8086:8086"
     environment:
-      - INFLUXDB_DB=k6 prometheus
       - INFLUXDB_HTTP_MAX_BODY_SIZE=0
     volumes:
       - influxdb_data:/var/lib/influxdb
     networks:
       - extreme-test-net
+    healthcheck:
+      test: ["CMD", "influx", "-execute", "SHOW DATABASES"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # 🔔 AlertManager
   alertmanager:
