@@ -21,8 +21,8 @@ public class CheckinService {
 	private final CheckinRepository checkinRepository;
 
 	@Transactional(readOnly = true)
-	public CheckinListResponse getCheckins() {
-		List<CheckinRow> rows = checkinRepository.findAll();
+	public CheckinListResponse getCheckins(int limit) {
+		List<CheckinRow> rows = checkinRepository.findAll(limit);
 		List<CheckinListResponse.Item> items = rows.stream()
 				.map(row -> CheckinListResponse.Item.builder()
 						.checkinId(row.checkinId())

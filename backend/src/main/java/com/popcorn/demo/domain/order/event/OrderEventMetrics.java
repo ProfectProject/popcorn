@@ -135,8 +135,13 @@ public class OrderEventMetrics {
         double errorRate = calculateErrorRate();
         long totalEvents = totalEventsProcessed.get();
 
-        // 전체 오류율이 5% 미만이고, 최소 처리량이 있으면 건강함
-        return errorRate < 5.0 && totalEvents > 0;
+        // 이벤트가 아직 없으면 초기 상태로 건강함 처리
+        if (totalEvents == 0) {
+            return true;
+        }
+
+        // 전체 오류율이 5% 미만이면 건강함
+        return errorRate < 5.0;
     }
 
     /**

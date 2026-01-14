@@ -53,7 +53,7 @@ class CheckinControllerTest {
 				.items(List.of(item))
 				.build();
 
-		Mockito.when(checkinService.getCheckins()).thenReturn(response);
+		Mockito.when(checkinService.getCheckins(50)).thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins"))
 				.andExpect(MockMvcResultMatchers.status().isOk())

@@ -25,14 +25,14 @@ public class OwnerCheckinService {
 	private final OwnerPopupScheduleRepository ownerPopupScheduleRepository;
 
 	@Transactional(readOnly = true)
-	public OwnerCheckinListResponse getCheckinsByPopup(Long ownerId, UUID popupId) {
+	public OwnerCheckinListResponse getCheckinsByPopup(Long ownerId, UUID popupId, int limit) {
 		validateOwner(ownerId);
 		validatePopupId(popupId);
 
 		ownerPopupRepository.findOwnedPopup(popupId, ownerId)
 				.orElseThrow(PopupException::popupNotFound);
 
-		List<CheckinRow> rows = ownerCheckinRepository.findByPopupId(popupId, ownerId);
+		List<CheckinRow> rows = ownerCheckinRepository.findByPopupId(popupId, ownerId, limit);
 		List<OwnerCheckinListResponse.Item> items = rows.stream()
 				.map(row -> OwnerCheckinListResponse.Item.builder()
 						.checkinId(row.checkinId())
@@ -49,7 +49,7 @@ public class OwnerCheckinService {
 	}
 
 	@Transactional(readOnly = true)
-	public OwnerCheckinListResponse getCheckinsBySchedule(Long ownerId, UUID popupId, UUID scheduleId) {
+	public OwnerCheckinListResponse getCheckinsBySchedule(Long ownerId, UUID popupId, UUID scheduleId, int limit) {
 		validateOwner(ownerId);
 		validatePopupId(popupId);
 		validateScheduleId(scheduleId);
@@ -61,7 +61,7 @@ public class OwnerCheckinService {
 			throw OwnerCheckinException.scheduleNotFound();
 		}
 
-		List<CheckinRow> rows = ownerCheckinRepository.findByScheduleId(popupId, scheduleId, ownerId);
+		List<CheckinRow> rows = ownerCheckinRepository.findByScheduleId(popupId, scheduleId, ownerId, limit);
 		List<OwnerCheckinListResponse.Item> items = rows.stream()
 				.map(row -> OwnerCheckinListResponse.Item.builder()
 						.checkinId(row.checkinId())
