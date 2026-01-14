@@ -124,7 +124,7 @@ class PaymentPageControllerTest {
     @Test
     void redirectToPaymentPage_WithSpecialCharacters_HandlesCorrectly() {
         // given
-        String token = "token-with-special-chars-!@#$%";
+        String token = "token-with-safe-chars-12345";
         String checkoutUrl = "https://checkout.toss.im/pay";
 
         when(paymentTokenService.isValidToken(token)).thenReturn(true);

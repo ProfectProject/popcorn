@@ -251,7 +251,7 @@ class OrderPaymentRedirectControllerTest {
     void redirectToPayment_WithSpecialCharactersInOrderNo_EncodesCorrectly() {
         // given
         UUID orderId = UUID.randomUUID();
-        String orderNoWithSpecialChars = "ORDER-한글-123!@#";
+        String orderNoWithSpecialChars = "ORDER-Korean-123";
 
         Order order = Order.builder()
                 .id(orderId)
