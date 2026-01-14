@@ -135,6 +135,7 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 	finalizedBy tasks.named('jacocoTestReport')
+	finalizedBy tasks.named('extremeComposeUp')
 	dependsOn 'jmeterTest'
 	dependsOn 'k6Test'
 	dependsOn 'jmeterMillionTest'
@@ -245,6 +246,28 @@ tasks.register('performanceTest', Test) {
 		html.outputLocation = layout.buildDirectory.dir('reports/tests/performance')
 		junitXml.outputLocation = layout.buildDirectory.dir('test-results/performance')
 	}
+}
+
+tasks.register('extremeComposeUp', Exec) {
+	description = 'docker-compose.extreme.yml 실행'
+	group = 'verification'
+	ext.execResult = [exitValue: 0]
+	onlyIf {
+		!System.getenv('CI') &&
+			tasks.named('test').get().state.failure == null
+	}
+	commandLine 'docker', 'compose', '-f', 'docker-compose.extreme.yml',
+		'--profile', 'k6', '--profile', 'jmeter',
+		'up', '--build', '--abort-on-container-exit'
+	finalizedBy tasks.named('extremeComposeDown')
+	ignoreExitValue = true
+}
+
+tasks.register('extremeComposeDown', Exec) {
+	description = 'docker-compose.extreme.yml 종료'
+	group = 'verification'
+	onlyIf { !System.getenv('CI') }
+	commandLine 'docker', 'compose', '-f', 'docker-compose.extreme.yml', 'down', '-v'
 }
 
 

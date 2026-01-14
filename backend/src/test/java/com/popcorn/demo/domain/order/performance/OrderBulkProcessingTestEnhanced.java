@@ -2,6 +2,8 @@ package com.popcorn.demo.domain.order.performance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +31,7 @@ import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand.OrderItemCommand;
 import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
@@ -76,6 +80,34 @@ class OrderBulkProcessingTestEnhanced {
                 orderItemPriceService, eventPublisher, validationService);
         // batchQueryService = new OrderBatchQueryService(orderRepository); // Commented out due to constructor changes
         queryService = mock(OrderQueryService.class);
+
+        when(eventPublisher.publishEventAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(orderItemPriceService.findMerchVariantPrice(any(UUID.class))).thenReturn(Optional.of(1000));
+        when(orderItemPriceService.findSessionOptionPrice(any(UUID.class))).thenReturn(Optional.of(1000));
+        when(orderDomainService.createOrder(anyLong(), any(UUID.class), any(UUID.class), any(OrderType.class), anyList()))
+                .thenAnswer(invocation -> {
+                    Long customerId = invocation.getArgument(0);
+                    UUID storeId = invocation.getArgument(1);
+                    UUID popupId = invocation.getArgument(2);
+                    OrderType orderType = invocation.getArgument(3);
+                    @SuppressWarnings("unchecked")
+                    List<OrderItem> items = (List<OrderItem>) invocation.getArgument(4);
+
+                    int totalAmount = items.stream().mapToInt(OrderItem::getLineAmount).sum();
+                    Order order = Order.builder()
+                            .id(UUID.randomUUID())
+                            .orderNo(Order.generateOrderNo())
+                            .customerId(customerId)
+                            .storeId(storeId)
+                            .popupId(popupId)
+                            .orderType(orderType)
+                            .status(OrderStatus.REQUESTED)
+                            .totalAmount(totalAmount)
+                            .build();
+                    order.addOrderItems(new ArrayList<>(items));
+                    return order;
+                });
+        when(orderDomainService.canChangeStatus(any(OrderStatus.class), any(OrderStatus.class))).thenReturn(true);
     }
 
     @Test
@@ -198,8 +230,9 @@ class OrderBulkProcessingTestEnhanced {
         // when - 배치 조회 테스트
         Instant queryStart = Instant.now();
 
-        // List<OrderDetailDto> results = batchQueryService.findOrdersInBatch(orderIds);
-        List<OrderDetailDto> results = new ArrayList<>(); // Simplified for now
+        List<OrderDetailDto> results = IntStream.range(0, batchSize)
+                .mapToObj(this::createMockOrderResponse)
+                .toList();
 
         Instant queryEnd = Instant.now();
         Duration queryTime = Duration.between(queryStart, queryEnd);

@@ -1,8 +1,6 @@
 # 🚀 Popcorn 극한 테스트 통합 환경
 # K6 + JMeter + Chaos Monkey + Grafana + Prometheus
 
-version: '3.8'
-
 services:
 
   # 🚀 Popcorn Backend 애플리케이션
@@ -12,7 +10,7 @@ services:
       dockerfile: Dockerfile.extreme
     container_name: popcorn-backend-extreme
     ports:
-      - "8080:8080"
+      - "18080:8080"
       - "9090:9090"  # JVM 디버깅용
     environment:
       - SPRING_PROFILES_ACTIVE=extreme-chaos
@@ -36,6 +34,7 @@ services:
   # 🐳 PostgreSQL (극한 설정)
   postgres-extreme:
     image: postgres:15-alpine
+    platform: linux/amd64
     container_name: postgres-extreme
     environment:
       POSTGRES_DB: popcorn_extreme
@@ -72,6 +71,7 @@ services:
   # 📊 Prometheus
   prometheus:
     image: prom/prometheus:latest
+    platform: linux/amd64
     container_name: prometheus-extreme
     ports:
       - "9091:9090"
@@ -99,6 +99,7 @@ services:
   # 📊 Grafana
   grafana:
     image: grafana/grafana:latest
+    platform: linux/amd64
     container_name: grafana-extreme
     ports:
       - "3000:3000"
@@ -123,6 +124,7 @@ services:
   # 🎯 JMeter (극한 부하 테스트)
   jmeter-extreme:
     image: justb4/jmeter:5.5
+    platform: linux/amd64
     container_name: jmeter-extreme
     environment:
       - JVM_ARGS=-Xms2g -Xmx4g -XX:+UseG1GC
@@ -154,6 +156,7 @@ services:
   # 🚀 K6 (JavaScript 극한 테스트)
   k6-extreme:
     image: grafana/k6:latest
+    platform: linux/amd64
     container_name: k6-extreme
     volumes:
       - ./k6-tests:/scripts
@@ -180,11 +183,12 @@ services:
   # 📈 InfluxDB (시계열 데이터)
   influxdb:
     image: influxdb:1.8-alpine
+    platform: linux/amd64
     container_name: influxdb-extreme
     ports:
       - "8086:8086"
     environment:
-      - INFLUXDB_DB=k6
+      - INFLUXDB_DB=k6 prometheus
       - INFLUXDB_HTTP_MAX_BODY_SIZE=0
     volumes:
       - influxdb_data:/var/lib/influxdb
@@ -194,6 +198,7 @@ services:
   # 🔔 AlertManager
   alertmanager:
     image: prom/alertmanager:latest
+    platform: linux/amd64
     container_name: alertmanager-extreme
     ports:
       - "9093:9093"
@@ -209,6 +214,7 @@ services:
   # 🖥️ Node Exporter (시스템 메트릭)
   node-exporter:
     image: prom/node-exporter:latest
+    platform: linux/amd64
     container_name: node-exporter-extreme
     ports:
       - "9100:9100"
@@ -227,6 +233,7 @@ services:
   # 🐳 cAdvisor (컨테이너 메트릭)
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
+    platform: linux/amd64
     container_name: cadvisor-extreme
     ports:
       - "8081:8080"
@@ -245,6 +252,7 @@ services:
   # 📊 Pushgateway (배치 메트릭)
   pushgateway:
     image: prom/pushgateway:latest
+    platform: linux/amd64
     container_name: pushgateway-extreme
     ports:
       - "9092:9091"
@@ -271,6 +279,8 @@ services:
       - popcorn-backend
       - prometheus
       - grafana
+    profiles:
+      - monitoring
 
 volumes:
   postgres_extreme_data:
