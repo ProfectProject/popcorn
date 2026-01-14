@@ -17,7 +17,9 @@ import com.popcorn.demo.domain.users.dto.manager.UserForceStopRequest;
 import com.popcorn.demo.domain.users.dto.manager.UserForceStopResponse;
 
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "유저매니저", description = "유저 매니저 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/manager")

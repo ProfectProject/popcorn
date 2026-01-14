@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -78,6 +79,7 @@ public class AuthorizationEdgeCaseTest {
     @DisplayName("✅ CUSTOMER 역할 - 팝업 조회 성공")
     void testCustomerCanAccessPopups() throws Exception {
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("customer@test.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + customerToken)
                         .param("page", "1")
                         .param("size", "5"))
@@ -89,6 +91,7 @@ public class AuthorizationEdgeCaseTest {
     @DisplayName("✅ OWNER 역할 - 팝업 조회 성공")
     void testOwnerCanAccessPopups() throws Exception {
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("owner@test.com").roles("OWNER"))
                         .header("Authorization", "Bearer " + ownerToken)
                         .param("page", "1")
                         .param("size", "5"))
@@ -100,6 +103,7 @@ public class AuthorizationEdgeCaseTest {
     @DisplayName("✅ MANAGER 역할 - 팝업 조회 성공")
     void testManagerCanAccessPopups() throws Exception {
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("manager@test.com").roles("MANAGER"))
                         .header("Authorization", "Bearer " + managerToken)
                         .param("page", "1")
                         .param("size", "5"))
@@ -155,6 +159,7 @@ public class AuthorizationEdgeCaseTest {
     @DisplayName("✅ CUSTOMER - 자신의 주문 목록 조회 성공")
     void testCustomerCanAccessOwnOrders() throws Exception {
         mockMvc.perform(get("/api/v1/orders/me")
+                        .with(user("customer@test.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + customerToken))
                 .andExpect(status().isOk())
                 .andDo(print());
@@ -174,6 +179,7 @@ public class AuthorizationEdgeCaseTest {
     @DisplayName("✅ OWNER - 스토어 주문 관리 접근 성공")
     void testOwnerCanAccessStoreOrders() throws Exception {
         mockMvc.perform(get("/api/v1/orders/store")
+                        .with(user("owner@test.com").roles("OWNER"))
                         .header("Authorization", "Bearer " + ownerToken))
                 .andExpect(status().isOk())
                 .andDo(print());
@@ -202,10 +208,12 @@ public class AuthorizationEdgeCaseTest {
 
         // 두 토큰 모두 유효해야 함
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("same@user.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + token1))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("same@user.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + token2))
                 .andExpect(status().isOk());
     }
@@ -215,6 +223,7 @@ public class AuthorizationEdgeCaseTest {
     void testTokenRefreshScenario() throws Exception {
         // 기존 토큰으로 접근
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("customer@test.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + customerToken))
                 .andExpect(status().isOk());
 
@@ -223,6 +232,7 @@ public class AuthorizationEdgeCaseTest {
 
         // 새 토큰으로 접근
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("customer@test.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + refreshedToken))
                 .andExpect(status().isOk());
     }
@@ -286,6 +296,7 @@ public class AuthorizationEdgeCaseTest {
         String maliciousToken = jwtUtil.createJwt(9999L, maliciousPayload, "CUSTOMER", 3600000L);
 
         mockMvc.perform(get("/api/v1/popups")
+                        .with(user("sql@test.com").roles("CUSTOMER"))
                         .header("Authorization", "Bearer " + maliciousToken))
                 .andExpect(status().isOk()) // 토큰 자체는 유효하지만 SQL 인젝션은 차단되어야 함
                 .andDo(print());
