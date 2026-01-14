@@ -2,7 +2,7 @@ package com.popcorn.demo.extreme;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.actuate.metrics.MetricsEndpoint;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 public class ExtremePerformanceController {
 
-    private final MetricsEndpoint metricsEndpoint;
+    private final MeterRegistry meterRegistry;
 
     // 📊 극한 테스트 통계
     private static final AtomicLong totalExtremeRequests = new AtomicLong(0);

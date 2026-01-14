@@ -33,7 +33,9 @@ import com.popcorn.demo.domain.popup.dto.manager.StoreWithdrawResponse;
 import com.popcorn.demo.domain.manager.service.PopupManagerService;
 
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "매니저팝업", description = "매니저 팝업 관리 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/manager/popups")

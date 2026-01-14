@@ -81,7 +81,7 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
-    tags-sorter: alpha
+    tags-sorter: order
 
 # ========================= Resilience4j 장애 복원력 설정 =========================
 resilience4j:
