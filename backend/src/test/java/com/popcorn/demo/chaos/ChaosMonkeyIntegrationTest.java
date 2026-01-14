@@ -1,87 +1,75 @@
 package com.popcorn.demo.chaos;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
+import java.util.Map;
 
 /**
- * 🐒 Chaos Monkey 통합 테스트
+ * 🐒 Chaos Monkey 단위 테스트
  *
  * 장애 시뮬레이션 기능이 정상적으로 작동하는지 검증
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("chaos-test")
-@TestPropertySource(properties = {
-    "chaos.monkey.enabled=true",
-    "spring.datasource.url=jdbc:h2:mem:chaostest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
-    "spring.datasource.driver-class-name=org.h2.Driver",
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.flyway.enabled=false",
-    "spring.sql.init.mode=never",
-    "jwt.secret=test-jwt-secret-for-chaos-testing",
-    "jwt.expiration=86400000",
-    "toss.secret-key=test-secret-key",
-    "toss.client-key=test-client-key"
-})
 class ChaosMonkeyIntegrationTest {
 
-    @Autowired
-    private TestRestTemplate restTemplate;
+    private ChaosMonkeyController chaosMonkeyController;
 
-    @LocalServerPort
-    private int port;
-
-    private String getBaseUrl() {
-        return "http://localhost:" + port + "/api/v1/chaos";
+    @BeforeEach
+    void setUp() {
+        chaosMonkeyController = new ChaosMonkeyController();
     }
 
     @Test
     void chaosMonkey_StatusEndpoint_ReturnsConfiguration() {
         // when
-        ResponseEntity<String> response = restTemplate.getForEntity(
-            getBaseUrl() + "/status",
-            String.class
-        );
+        ResponseEntity<Map<String, Object>> response = chaosMonkeyController.getChaosStatus();
 
         // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("enabled");
-        assertThat(response.getBody()).contains("assaults");
-        assertThat(response.getBody()).contains("watcher");
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).containsKey("enabled");
+        assertThat(response.getBody()).containsKey("totalAttacks");
+        assertThat(response.getBody()).containsKey("activeAttacks");
+        assertThat(response.getBody()).containsKey("attackStats");
 
         System.out.println("🐒 Chaos Monkey 상태: " + response.getBody());
     }
 
     @Test
-    void chaosMonkey_LatencyAttack_InducesDelay() {
+    void chaosMonkey_LatencyAttack_ExecutesSuccessfully() {
         // given
-        int maxDelay = 3000; // 3초
+        int maxDelayMs = 5000; // Controller의 최소값 1000ms보다 큰 값으로 설정
+
+        // when
+        ResponseEntity<String> response = chaosMonkeyController.triggerLatencyAttack(maxDelayMs);
+
+        // then
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).contains("지연 공격 완료");
+        assertThat(response.getBody()).contains("ms 지연 주입됨");
+
+        System.out.println("🐒 지연 공격 결과: " + response.getBody());
+    }
+
+    @Test
+    void chaosMonkey_LatencyAttack_WithMinimumDelay() {
+        // given - 최소 지연 시간 테스트
         Instant start = Instant.now();
 
         // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/attack/latency?maxDelayMs=" + maxDelay,
-            null,
-            String.class
-        );
+        ResponseEntity<String> response = chaosMonkeyController.triggerLatencyAttack(2000);
 
         // then
         Instant end = Instant.now();
         Duration actualDelay = Duration.between(start, end);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(actualDelay.toMillis()).isGreaterThan(800); // 최소 지연 확인
         assertThat(response.getBody()).contains("지연 공격 완료");
 
@@ -94,20 +82,17 @@ class ChaosMonkeyIntegrationTest {
         // when & then
         // 예외가 발생하거나 성공 메시지가 반환됨 (50% 확률)
         try {
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                getBaseUrl() + "/attack/exception?message=테스트예외",
-                null,
-                String.class
-            );
+            ResponseEntity<String> response = chaosMonkeyController.triggerExceptionAttack("테스트예외");
 
             // 예외가 발생하지 않은 경우
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
             assertThat(response.getBody()).contains("운이 좋았습니다");
 
             System.out.println("🐒 예외 공격 결과 (운이 좋음): " + response.getBody());
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             // 예외가 발생한 경우 (정상적인 Chaos Monkey 동작)
+            assertThat(e.getMessage()).contains("테스트예외");
             System.out.println("🐒 예외 공격 성공! 예외 발생: " + e.getMessage());
         }
     }
@@ -118,14 +103,10 @@ class ChaosMonkeyIntegrationTest {
         int sizeMB = 50;
 
         // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/attack/memory?sizeMB=" + sizeMB,
-            null,
-            String.class
-        );
+        ResponseEntity<String> response = chaosMonkeyController.triggerMemoryAttack(sizeMB);
 
         // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).contains("메모리 공격 완료");
         assertThat(response.getBody()).contains(sizeMB + "MB");
 
@@ -137,83 +118,74 @@ class ChaosMonkeyIntegrationTest {
         // given
         Instant start = Instant.now();
 
-        // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/attack/combo",
-            null,
-            String.class
-        );
+        // when & then
+        try {
+            ResponseEntity<String> response = chaosMonkeyController.triggerComboAttack();
 
-        // then
-        Instant end = Instant.now();
-        Duration duration = Duration.between(start, end);
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
 
-        // 복합 공격이므로 시간이 오래 걸림
-        assertThat(duration.toMillis()).isGreaterThan(900);
-
-        if (response.getStatusCode() == HttpStatus.OK) {
+            // 복합 공격이므로 시간이 오래 걸림
+            assertThat(duration.toMillis()).isGreaterThan(900);
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
             assertThat(response.getBody()).contains("복합 공격 결과");
             assertThat(response.getBody()).contains("지연:");
             assertThat(response.getBody()).contains("메모리:");
-        }
 
-        System.out.println("🐒 복합 공격 결과: " + response.getBody());
-        System.out.println("복합 공격 소요 시간: " + duration.toMillis() + "ms");
+            System.out.println("🐒 복합 공격 결과: " + response.getBody());
+            System.out.println("복합 공격 소요 시간: " + duration.toMillis() + "ms");
+
+        } catch (RuntimeException e) {
+            // 복합 공격에서 예외가 발생한 경우 (30% 확률)
+            assertThat(e.getMessage()).contains("복합 공격 중 예외 발생");
+            System.out.println("🐒 복합 공격에서 예외 발생 (정상): " + e.getMessage());
+        }
     }
 
     @Test
     void chaosMonkey_StopAllAttacks_DisablesAllAttacks() {
         // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/stop",
-            null,
-            String.class
-        );
+        ResponseEntity<String> response = chaosMonkeyController.stopAllAttacks();
 
         // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).contains("모든 Chaos Monkey 공격이 중지");
 
         System.out.println("🐒 공격 중지 결과: " + response.getBody());
 
         // 상태 확인
-        ResponseEntity<String> statusResponse = restTemplate.getForEntity(
-            getBaseUrl() + "/status",
-            String.class
-        );
-
-        // 모든 공격이 비활성화되었는지 확인은 생략 (설정이 복잡함)
-        assertThat(statusResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<Map<String, Object>> statusResponse = chaosMonkeyController.getChaosStatus();
+        assertThat(statusResponse.getStatusCode().value()).isEqualTo(200);
+        assertThat((Boolean) statusResponse.getBody().get("enabled")).isFalse();
     }
 
     @Test
     void chaosMonkey_ExtremeMode_ActivatesAggressiveSettings() {
         // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/extreme-mode",
-            null,
-            String.class
-        );
+        ResponseEntity<String> response = chaosMonkeyController.activateExtremeMode();
 
         // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).contains("EXTREME MODE 활성화");
 
         System.out.println("🔥 EXTREME MODE 활성화: " + response.getBody());
+
+        // 극한 모드 상태 확인
+        ResponseEntity<Map<String, Object>> statusResponse = chaosMonkeyController.getChaosStatus();
+        assertThat((Boolean) statusResponse.getBody().get("enabled")).isTrue();
+        assertThat((Boolean) statusResponse.getBody().get("extremeMode")).isTrue();
     }
 
     @Test
     void chaosMonkey_GetStats_ReturnsStatistics() {
         // when
-        ResponseEntity<String> response = restTemplate.getForEntity(
-            getBaseUrl() + "/stats",
-            String.class
-        );
+        ResponseEntity<Map<String, Object>> response = chaosMonkeyController.getChaosStats();
 
         // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("totalAttacks");
-        assertThat(response.getBody()).contains("systemImpact");
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).containsKey("totalAttacks");
+        assertThat(response.getBody()).containsKey("systemImpact");
 
         System.out.println("📊 Chaos Monkey 통계: " + response.getBody());
     }
@@ -223,72 +195,82 @@ class ChaosMonkeyIntegrationTest {
         // given
         Instant start = Instant.now();
 
-        // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/scenarios/blackfriday",
-            null,
-            String.class
-        );
+        // when & then
+        try {
+            ResponseEntity<String> response = chaosMonkeyController.executeScenario("blackfriday");
 
-        // then
-        Instant end = Instant.now();
-        Duration duration = Duration.between(start, end);
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
 
-        // Black Friday 시나리오는 시간이 오래 걸림
-        assertThat(duration.toMillis()).isGreaterThan(2500);
-
-        if (response.getStatusCode() == HttpStatus.OK) {
+            // Black Friday 시나리오는 시간이 오래 걸림
+            assertThat(duration.toMillis()).isGreaterThan(2500);
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
             assertThat(response.getBody()).contains("Black Friday");
-        }
 
-        System.out.println("🛍️ Black Friday 시나리오 결과: " + response.getBody());
-        System.out.println("시나리오 소요 시간: " + duration.toMillis() + "ms");
+            System.out.println("🛍️ Black Friday 시나리오 결과: " + response.getBody());
+            System.out.println("시나리오 소요 시간: " + duration.toMillis() + "ms");
+
+        } catch (RuntimeException e) {
+            // Black Friday 시나리오에서 예외 발생 (20% 확률)
+            assertThat(e.getMessage()).contains("Black Friday 트래픽 과부하");
+            System.out.println("🛍️ Black Friday 트래픽 과부하 발생 (정상): " + e.getMessage());
+        }
     }
 
     @Test
     void chaosMonkey_UnknownScenario_ReturnsBadRequest() {
         // when
-        ResponseEntity<String> response = restTemplate.postForEntity(
-            getBaseUrl() + "/scenarios/unknown-scenario",
-            null,
-            String.class
-        );
+        ResponseEntity<String> response = chaosMonkeyController.executeScenario("unknown-scenario");
 
         // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
         assertThat(response.getBody()).contains("알 수 없는 시나리오");
 
         System.out.println("🐒 알 수 없는 시나리오 처리: " + response.getBody());
     }
 
     @Test
-    void chaosMonkey_WithRealWorkload_MaintainsSystemStability() {
-        // given - 실제 워크로드와 함께 Chaos Monkey 테스트
-        System.out.println("🐒 실제 워크로드와 함께 Chaos Monkey 테스트 시작");
+    void chaosMonkey_PaymentFailureScenario_ExecutesCorrectly() {
+        // when & then
+        try {
+            ResponseEntity<String> response = chaosMonkeyController.executeScenario("payment-failure");
 
-        // 1. 정상적인 API 호출
-        ResponseEntity<String> healthResponse = restTemplate.getForEntity(
-            "http://localhost:" + port + "/actuator/health",
-            String.class
-        );
-        assertThat(healthResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            assertThat(response.getBody()).contains("결제 시스템 정상 작동");
 
-        // 2. Chaos Monkey 활성화
-        ResponseEntity<String> chaosResponse = restTemplate.postForEntity(
-            getBaseUrl() + "/attack/latency?maxDelayMs=2000",
-            null,
-            String.class
-        );
+            System.out.println("💳 결제 시나리오 성공: " + response.getBody());
 
-        // 3. 시스템이 여전히 응답하는지 확인
-        ResponseEntity<String> healthAfterChaos = restTemplate.getForEntity(
-            "http://localhost:" + port + "/actuator/health",
-            String.class
-        );
-
-        // then
-        assertThat(healthAfterChaos.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        System.out.println("✅ 시스템이 Chaos Monkey 공격 후에도 안정적으로 작동함");
+        } catch (RuntimeException e) {
+            // 결제 실패 시나리오에서 예외 발생 (40% 확률)
+            assertThat(e.getMessage()).contains("결제 시스템 장애 발생");
+            System.out.println("💳 결제 시스템 장애 발생 (정상): " + e.getMessage());
+        }
     }
+
+    @Test
+    void chaosMonkey_DatabaseOutageScenario_HandlesTimeout() {
+        // given
+        Instant start = Instant.now();
+
+        // when & then
+        try {
+            ResponseEntity<String> response = chaosMonkeyController.executeScenario("database-outage");
+
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+
+            // DB 장애는 긴 시간이 걸림
+            assertThat(duration.toMillis()).isGreaterThan(4000);
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            assertThat(response.getBody()).contains("데이터베이스 장애 복구 완료");
+
+            System.out.println("💾 DB 복구 완료: " + response.getBody());
+
+        } catch (RuntimeException e) {
+            // DB 연결 실패 (60% 확률)
+            assertThat(e.getMessage()).contains("데이터베이스 연결 실패");
+            System.out.println("💾 DB 연결 실패 (정상): " + e.getMessage());
+        }
+    }
+
 }

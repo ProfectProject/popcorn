@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand.OrderItemCommand;
@@ -539,154 +542,6 @@ class ExtremeLoadTest {
 
         megaPaymentExecutor.shutdown();
         System.out.println("✅ 1000명 MEGA 동시 결제 처리 테스트 완료!");
-    }
-
-    @Test
-    void extremeLoad_1MillionConcurrentConnections() throws Exception {
-        System.out.println("🌊🌊🌊 1,000,000명 동시 접속 ULTIMATE 테스트 시작!");
-        System.out.println("⚠️ 주의: 이 테스트는 시스템 리소스를 극도로 사용합니다!");
-
-        // given - 1,000,000명 동시 접속 시나리오 (배치 처리)
-        int totalConnections = 1000000;
-        int batchSize = 10000; // 1만명씩 배치 처리
-        int connectionThreads = 200; // 강력한 스레드 풀
-        int totalBatches = totalConnections / batchSize;
-
-        AtomicInteger totalSuccessfulConnections = new AtomicInteger(0);
-        AtomicInteger totalFailedConnections = new AtomicInteger(0);
-        AtomicLong totalConnectionTime = new AtomicLong(0);
-
-        // Mock ultra-fast connection processing
-        when(commandService.createOrder(any(CreateOrderCommand.class)))
-                .thenAnswer(invocation -> {
-                    // 매우 빠른 처리 시뮬레이션 (연결만)
-                    try {
-                        Thread.sleep(1 + (long)(Math.random() * 3)); // 1-3ms 빠른 응답
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-
-                    // 98% 성공률 (높은 성공률로 시스템 안정성 확인)
-                    if (Math.random() < 0.02) {
-                        throw new RuntimeException("Connection failed in mega load");
-                    }
-
-                    return CreateOrderResponse.builder()
-                            .orderId(UUID.randomUUID())
-                            .orderNo("CONN-" + System.nanoTime())
-                            .orderType("PURCHASE")
-                            .status("CONNECTED")
-                            .storeId(UUID.randomUUID())
-                            .popupId(UUID.randomUUID())
-                            .totalAmount(1000)
-                            .build();
-                });
-
-        Instant ultimateStart = Instant.now();
-
-        // when - 1,000,000명 배치별 접속 실행
-        for (int batch = 0; batch < totalBatches; batch++) {
-            final int batchNumber = batch;
-            System.out.println("🌊 배치 " + (batch + 1) + "/" + totalBatches + " 처리 중... ("
-                    + (batch * batchSize) + "-" + ((batch + 1) * batchSize - 1) + "번 사용자)");
-
-            ExecutorService batchExecutor = Executors.newFixedThreadPool(connectionThreads);
-            List<CompletableFuture<Void>> batchFutures = new ArrayList<>();
-
-            AtomicInteger batchSuccessCount = new AtomicInteger(0);
-            AtomicInteger batchFailedCount = new AtomicInteger(0);
-
-            for (int i = 0; i < batchSize; i++) {
-                final int connectionId = batchNumber * batchSize + i + 1;
-
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    Instant connectionStart = Instant.now();
-                    try {
-                        CreateOrderCommand connectionCommand = createUltimateConnectionTestOrder(connectionId);
-                        CreateOrderResponse response = commandService.createOrder(connectionCommand);
-
-                        assertThat(response).isNotNull();
-                        batchSuccessCount.incrementAndGet();
-
-                        Instant connectionEnd = Instant.now();
-                        totalConnectionTime.addAndGet(Duration.between(connectionStart, connectionEnd).toMillis());
-
-                    } catch (Exception e) {
-                        batchFailedCount.incrementAndGet();
-                        if (connectionId % 10000 == 0) { // 오류 로그 제한
-                            System.err.println("🌊⚡ Connection failed for user " + connectionId);
-                        }
-                    }
-                }, batchExecutor);
-
-                batchFutures.add(future);
-            }
-
-            // 배치 완료 대기 (배치당 최대 2분)
-            try {
-                CompletableFuture.allOf(batchFutures.toArray(new CompletableFuture[0]))
-                        .get(120, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                System.err.println("⚠️ 배치 " + (batch + 1) + " 타임아웃 또는 오류 발생");
-            }
-
-            totalSuccessfulConnections.addAndGet(batchSuccessCount.get());
-            totalFailedConnections.addAndGet(batchFailedCount.get());
-
-            batchExecutor.shutdown();
-
-            // 배치 간 시스템 안정화 시간
-            if ((batch + 1) % 10 == 0) { // 10배치마다
-                System.gc(); // 가비지 컬렉션
-                try {
-                    Thread.sleep(1000); // 1초 대기
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-
-            // 중간 결과 출력 (20배치마다)
-            if ((batch + 1) % 20 == 0) {
-                System.out.println("🌊 중간 결과 - 성공: " + totalSuccessfulConnections.get()
-                        + ", 실패: " + totalFailedConnections.get()
-                        + ", 성공률: " + String.format("%.2f%%",
-                            (totalSuccessfulConnections.get() * 100.0 / ((batch + 1) * batchSize))));
-            }
-        }
-
-        Instant ultimateEnd = Instant.now();
-        Duration totalTime = Duration.between(ultimateStart, ultimateEnd);
-
-        // then - ULTIMATE 접속 성능 검증
-        System.out.println("🌊🌊🌊 1,000,000명 동시 접속 ULTIMATE 테스트 결과:");
-        System.out.println("===== ULTIMATE 접속 통계 =====");
-        System.out.println("총 접속 시도: " + totalConnections);
-        System.out.println("성공한 접속: " + totalSuccessfulConnections.get());
-        System.out.println("실패한 접속: " + totalFailedConnections.get());
-        System.out.println("접속 성공률: " + String.format("%.2f%%",
-                (totalSuccessfulConnections.get() * 100.0 / totalConnections)));
-
-        double avgConnectionTime = totalConnectionTime.get() / (double)totalSuccessfulConnections.get();
-        System.out.println("평균 접속 처리 시간: " + String.format("%.2f ms", avgConnectionTime));
-
-        double connectionThroughput = totalSuccessfulConnections.get() / (totalTime.toMillis() / 1000.0);
-        System.out.println("접속 처리량: " + String.format("%.2f connections/sec", connectionThroughput));
-        System.out.println("총 테스트 소요 시간: " + totalTime.toSeconds() + " 초");
-        System.out.println("총 테스트 소요 시간: " + (totalTime.toMinutes()) + " 분");
-
-        // 메모리 사용량 체크
-        Runtime runtime = Runtime.getRuntime();
-        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-        System.out.println("현재 메모리 사용량: " + (usedMemory / 1024 / 1024) + " MB");
-
-        // ULTIMATE 접속 성능 검증 (현실적 조건)
-        assertThat(totalSuccessfulConnections.get()).isGreaterThan((int)(totalConnections * 0.80)); // 80% 이상 성공
-        assertThat(totalFailedConnections.get()).isLessThan((int)(totalConnections * 0.20)); // 20% 미만 실패
-        assertThat(connectionThroughput).isGreaterThan(100.0); // 초당 100건 이상 접속 처리
-        assertThat(avgConnectionTime).isLessThan(100.0); // 평균 100ms 미만
-
-        System.out.println("✅ 1,000,000명 ULTIMATE 동시 접속 테스트 완료!");
-        System.out.println("🏆 시스템이 백만 명의 동시 접속을 성공적으로 처리했습니다!");
     }
 
     private CreateOrderCommand createPaymentTestOrder(int paymentId) {

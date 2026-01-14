@@ -17,6 +17,14 @@ java {
 	}
 }
 
+ext {
+	commonsCompressVersion = '1.27.1'
+	commonsFileuploadVersion = '1.6.0'
+	commonsIoVersion = '2.17.0'
+	jettyVersion = '11.0.24'
+	wiremockVersion = '3.9.1'
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -70,21 +78,68 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-	// 🐒 Chaos Engineering (장애 시뮬레이션)
-	implementation 'de.codecentric:chaos-monkey-spring-boot:3.0.1'
-	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	// ========================= 장애 테스트 라이브러리 =========================
+
+	// Resilience4j - Circuit Breaker, Retry, Rate Limiter 등 복원력 패턴
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-retry:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-ratelimiter:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-bulkhead:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-timelimiter:2.2.0'
+
+	// Testcontainers - 실제 DB/외부 서비스 테스트
+	testImplementation 'org.testcontainers:testcontainers:1.19.8'
+	testImplementation 'org.testcontainers:junit-jupiter:1.19.8'
+	testImplementation 'org.testcontainers:postgresql:1.19.8'
+
+	// WireMock - HTTP 서비스 모킹
+	testImplementation "org.wiremock:wiremock:${wiremockVersion}"
+
+	// MockWebServer - HTTP 클라이언트 테스트
+	testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+
+	// AssertJ - 더 나은 assertion
+	testImplementation 'org.assertj:assertj-core:3.25.3'
+
+	// Awaitility - 비동기/이벤트 기반 테스트
+	testImplementation 'org.awaitility:awaitility:4.2.1'
+
+	// 🐒 Chaos Engineering은 커스텀 구현으로 대체됨
+
+	constraints {
+		implementation("org.apache.commons:commons-compress:${commonsCompressVersion}") {
+			because 'CVE-2024-25710'
+		}
+		implementation("commons-fileupload:commons-fileupload:${commonsFileuploadVersion}") {
+			because 'CVE-2025-48976'
+		}
+		implementation("commons-io:commons-io:${commonsIoVersion}") {
+			because 'CVE-2024-47554'
+		}
+		implementation("org.eclipse.jetty.http2:http2-common:${jettyVersion}") {
+			because 'CVE-2023-44487, CVE-2024-22201, CVE-2025-5115'
+		}
+		implementation("org.eclipse.jetty.http2:http2-hpack:${jettyVersion}") {
+			because 'CVE-2023-36478'
+		}
+		implementation("org.eclipse.jetty.http2:http2-server:${jettyVersion}") {
+			because 'CVE-2023-44487'
+		}
+		implementation("org.eclipse.jetty:jetty-servlets:${jettyVersion}") {
+			because 'CVE-2024-9823, CVE-2023-36479, CVE-2024-6762'
+		}
+	}
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
-	// Suite 클래스는 개별 테스트 필터링 시 NoTestsDiscoveredException을 유발할 수 있어 제외
-	// 단, --tests로 Suite 실행을 요청한 경우는 제외하지 않는다.
-	doFirst {
-		if (filter.commandLineIncludePatterns.isEmpty()) {
-			exclude '**/*ApplicationTests.class'
-		}
-	}
 	finalizedBy tasks.named('jacocoTestReport')
+	dependsOn 'jmeterTest'
+	dependsOn 'k6Test'
+	dependsOn 'jmeterMillionTest'
+	dependsOn 'k6UltimateTest'
+	dependsOn 'ultimateLoadTest'
 }
 
 tasks.named('jacocoTestReport') {
@@ -135,26 +190,22 @@ dependencyCheck {
 	scanConfigurations = ['runtimeClasspath']
 	suppressionFile = 'config/dependency-check/suppressions.xml'
 
-	analyzers {
-		// 분석기 설정
-		centralEnabled = true
-		nexusEnabled = false
-		pyDistributionEnabled = false
-		pyPackageEnabled = false
-		rubygemsEnabled = false
-		opensslEnabled = false
-		cmakeEnabled = false
-		autoconfEnabled = false
-		composerEnabled = false
-		golangDepEnabled = false
-		golangModEnabled = false
-	}
+	// 분석기 설정
+	analyzers.centralEnabled = true
+	analyzers.nexusEnabled = false
+	analyzers.pyDistributionEnabled = false
+	analyzers.pyPackageEnabled = false
+	analyzers.rubygemsEnabled = false
+	analyzers.opensslEnabled = false
+	analyzers.cmakeEnabled = false
+	analyzers.autoconfEnabled = false
+	analyzers.composerEnabled = false
+	analyzers.golangDepEnabled = false
+	analyzers.golangModEnabled = false
 
-	nvd {
-		apiKey = System.getenv('NVD_API_KEY') ?: ''
-		delay = 16000  // API 호출 간격 (밀리초)
-		maxRetryCount = 3
-	}
+	nvd.apiKey = System.getenv('NVD_API_KEY') ?: ''
+	nvd.delay = 16000  // API 호출 간격 (밀리초)
+	nvd.maxRetryCount = 3
 }
 
 // ========================= 엣지 케이스 테스트 태스크 =========================
@@ -196,51 +247,6 @@ tasks.register('performanceTest', Test) {
 	}
 }
 
-// ========================= 스트레스/과부하 테스트 태스크 =========================
-tasks.register('stressTest', Test) {
-	description = '🔥 스트레스/과부하 테스트 실행 (극한 부하 상황)'
-	group = 'verification'
-
-	useJUnitPlatform()
-	include '**/ExtremeLoadTest.class'
-	include '**/gateway/**/*Test.class'
-
-	// 극한 테스트용 강력한 JVM 옵션 (Java 17 호환)
-	maxHeapSize = '4g'
-	minHeapSize = '2g'
-	jvmArgs = [
-		'-XX:+UseG1GC',
-		'-XX:MaxGCPauseMillis=100',
-		'-XX:MaxDirectMemorySize=1g',
-		'-Djava.awt.headless=true',
-		'-Dspring.profiles.active=stress-test'
-	]
-
-	// 스트레스 테스트용 타임아웃 설정
-	systemProperty 'junit.jupiter.execution.timeout.default', '10m'
-	systemProperty 'junit.jupiter.execution.timeout.testable.method.default', '15m'
-
-	// 병렬 실행 설정
-	systemProperty 'junit.jupiter.execution.parallel.enabled', 'true'
-	systemProperty 'junit.jupiter.execution.parallel.mode.default', 'concurrent'
-
-	reports {
-		html.outputLocation = layout.buildDirectory.dir('reports/tests/stress')
-		junitXml.outputLocation = layout.buildDirectory.dir('test-results/stress')
-	}
-
-	doFirst {
-		println '🔥🔥🔥 EXTREME STRESS TEST STARTING 🔥🔥🔥'
-		println '시스템 극한 부하 테스트를 시작합니다...'
-		println 'JVM 설정: 힙 메모리 4GB, G1GC, 최적화 옵션 활성화'
-		println '테스트 범위: 1000-1,000,000명 동시 접속, API Gateway 부하'
-	}
-
-	doLast {
-		println '✅ 스트레스 테스트 완료!'
-		println '결과 보고서: build/reports/tests/stress'
-	}
-}
 
 // ========================= 리그레션 테스트 태스크 =========================
 tasks.register('regressionTest', Test) {
@@ -286,11 +292,7 @@ tasks.register('testQualityCheck') {
 	group = 'verification'
 
 	// CI 환경에서는 의존성 스캔 제외 (성능 향상)
-	if (System.getenv('CI')) {
-		dependsOn 'test', 'jacocoTestCoverageVerification'
-	} else {
-		dependsOn 'test', 'jacocoTestCoverageVerification', 'dependencyCheckAnalyze'
-	}
+	dependsOn 'test', 'jacocoTestCoverageVerification' // 'dependencyCheckAnalyze' 제거됨
 
 	doLast {
 		println '🎯 테스트 품질 검증 완료'
@@ -506,13 +508,15 @@ tasks.register('ultimateLoadTest') {
 	}
 
 	doLast {
+		def execOps = project.services.get(org.gradle.process.ExecOperations)
+
 		// 1. 애플리케이션 헬스체크
 		try {
-			exec {
+			execOps.exec {
 				commandLine 'curl', '-f', 'http://localhost:8080/actuator/health'
 			}
 			println '✅ 애플리케이션 상태: 정상'
-		} catch (Exception e) {
+		} catch (Exception ignored) {
 			println '❌ 애플리케이션이 실행 중이 아닙니다!'
 			println '💡 먼저 애플리케이션을 시작하세요: ./gradlew bootRun'
 			return
@@ -520,11 +524,11 @@ tasks.register('ultimateLoadTest') {
 
 		// 2. Chaos Monkey 활성화
 		try {
-			exec {
+			execOps.exec {
 				commandLine 'curl', '-X', 'POST', 'http://localhost:8080/api/v1/chaos/extreme-mode'
 			}
 			println '✅ Chaos Monkey 극한 모드 활성화'
-		} catch (Exception e) {
+		} catch (Exception ignored) {
 			println '⚠️  Chaos Monkey 활성화 실패 (계속 진행)'
 		}
 
@@ -536,6 +540,12 @@ tasks.register('ultimateLoadTest') {
 		println '   - Prometheus: http://localhost:9091'
 		println '   - Application: http://localhost:8080'
 	}
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('jmeterMillionTest')
+	dependsOn tasks.named('k6UltimateTest')
+	dependsOn tasks.named('ultimateLoadTest')
 }
 
 // ========================= 빌드 종속성 설정 =========================

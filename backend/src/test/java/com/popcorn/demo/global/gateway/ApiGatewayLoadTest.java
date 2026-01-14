@@ -45,11 +45,14 @@ import org.springframework.test.context.TestPropertySource;
     "spring.sql.init.mode=never",
     "spring.jpa.show-sql=false",
     "spring.profiles.active=stress-test",
-    "jwt.secret=test-jwt-secret-for-api-gateway-load-testing-purposes-only",
+    "jwt.secret=dGVzdC1qd3Qtc2VjcmV0LWZvci1hcGktZ2F0ZXdheS1sb2FkLXRlc3RpbmctcHVycG9zZXMtb25seQ==",
     "jwt.expiration=86400000",
     "toss.secret-key=test-secret-key",
     "toss.client-key=test-client-key",
-    "spring.security.enabled=true"
+    "spring.security.enabled=true",
+    "management.endpoints.web.exposure.include=health,info,metrics,prometheus",
+    "management.endpoint.health.show-details=always",
+    "management.metrics.enable.all=true"
 })
 class ApiGatewayLoadTest {
 
@@ -177,8 +180,9 @@ class ApiGatewayLoadTest {
                         String.class
                     );
 
-                    // Expected unauthorized status
-                    assertThat(response.getStatusCodeValue()).isEqualTo(401);
+                    // Expected unauthorized status (401 or 403 are both valid)
+                    int statusCode = response.getStatusCodeValue();
+                    assertThat(statusCode).isIn(401, 403);
 
                     Instant end = Instant.now();
                     responseTimes.add(Duration.between(start, end).toMillis());

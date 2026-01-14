@@ -82,3 +82,187 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+
+# ========================= Resilience4j 장애 복원력 설정 =========================
+resilience4j:
+  # Circuit Breaker 설정
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: 50           # 실패율 50% 시 Circuit Open
+        minimum-number-of-calls: 10          # 최소 호출 수
+        sliding-window-size: 20              # 슬라이딩 윈도우 크기
+        wait-duration-in-open-state: 10s     # Open 상태 유지 시간
+        permitted-number-of-calls-in-half-open-state: 5  # Half-Open에서 허용할 호출 수
+        automatic-transition-from-open-to-half-open-enabled: true
+
+      orderService:
+        failure-rate-threshold: 60           # 주문 서비스는 더 관대하게
+        minimum-number-of-calls: 5
+        sliding-window-size: 15
+        wait-duration-in-open-state: 5s
+
+      paymentService:
+        failure-rate-threshold: 30           # 결제 서비스는 더 엄격하게
+        minimum-number-of-calls: 3
+        sliding-window-size: 10
+        wait-duration-in-open-state: 15s
+
+  # Retry 설정
+  retry:
+    instances:
+      default:
+        max-attempts: 3                      # 최대 재시도 횟수
+        wait-duration: 1s                    # 재시도 간격
+        exponential-backoff-multiplier: 2    # 지수 백오프
+
+      orderService:
+        max-attempts: 2
+        wait-duration: 500ms
+
+      paymentService:
+        max-attempts: 5                      # 결제는 더 많이 재시도
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+
+  # Rate Limiter 설정
+  ratelimiter:
+    instances:
+      default:
+        limit-for-period: 100                # 기간당 허용 요청 수
+        limit-refresh-period: 1s             # 제한 갱신 주기
+        timeout-duration: 0s                 # 타임아웃 (0s = 즉시 실패)
+
+      orderApi:
+        limit-for-period: 50
+        limit-refresh-period: 1s
+        timeout-duration: 100ms
+
+      paymentApi:
+        limit-for-period: 20                 # 결제 API는 더 엄격하게
+        limit-refresh-period: 1s
+        timeout-duration: 200ms
+
+  # Bulkhead 설정 (격리)
+  bulkhead:
+    instances:
+      default:
+        max-concurrent-calls: 25             # 최대 동시 호출 수
+        max-wait-duration: 0s                # 대기 시간 없음
+
+      orderService:
+        max-concurrent-calls: 15
+
+      paymentService:
+        max-concurrent-calls: 10             # 결제는 더 제한적으로
+
+  # Time Limiter 설정
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 2s                 # 기본 타임아웃
+        cancel-running-future: true
+
+      orderService:
+        timeout-duration: 3s
+
+      paymentService:
+        timeout-duration: 5s                 # 결제는 더 오래 대기
+
+---
+# 테스트 환경용 Resilience4j 설정
+spring:
+  config:
+    activate:
+      on-profile: test
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: 80           # 테스트에서는 더 관대하게
+        minimum-number-of-calls: 3
+        sliding-window-size: 5
+        wait-duration-in-open-state: 2s
+
+  retry:
+    instances:
+      default:
+        max-attempts: 2                      # 테스트에서는 빠르게
+        wait-duration: 100ms
+
+---
+# 스트레스 테스트용 Resilience4j 설정
+spring:
+  config:
+    activate:
+      on-profile: stress-test
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: 70           # 스트레스 테스트에서는 적당히
+        minimum-number-of-calls: 20
+        sliding-window-size: 50
+        wait-duration-in-open-state: 1s      # 빠른 복구
+
+      connectionTest:
+        failure-rate-threshold: 60
+        minimum-number-of-calls: 10
+        sliding-window-size: 30
+        wait-duration-in-open-state: 500ms   # 매우 빠른 복구
+
+  ratelimiter:
+    instances:
+      default:
+        limit-for-period: 1000               # 스트레스 테스트는 높은 처리량
+        limit-refresh-period: 1s
+        timeout-duration: 10ms
+
+---
+# Chaos Test 프로파일 설정
+spring:
+  config:
+    activate:
+      on-profile: chaos-test
+
+# Chaos Monkey 설정 비활성화 (커스텀 구현 사용)
+chaos:
+  monkey:
+    enabled: false
+
+# Chaos Test용 Resilience4j 설정
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: 90           # 테스트에서는 매우 관대하게
+        minimum-number-of-calls: 2
+        sliding-window-size: 5
+        wait-duration-in-open-state: 1s
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  retry:
+    instances:
+      default:
+        max-attempts: 1                      # 테스트에서는 재시도 없음
+        wait-duration: 100ms
+
+---
+# 기본 테스트 프로파일 설정
+spring:
+  config:
+    activate:
+      on-profile: test
+
+# 기본 테스트 환경 설정 (application-test.yml이 추가 설정 제공)
+jwt:
+  secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItdGVzdC1lbnZpcm9ubWVudC1vbmx5
+  expiration: 3600000
+
+toss:
+  payments:
+    base-url: https://api.tosspayments.com
+    secret-key: test_toss_secret_key_for_testing_only
+    client-key: test_toss_client_key_for_testing_only

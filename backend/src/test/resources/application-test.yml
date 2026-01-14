@@ -30,6 +30,63 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
+# Actuator 설정 (테스트용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    enable:
+      all: true
+
 jwt:
   secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItdGVzdC1lbnZpcm9ubWVudC1vbmx5
   expiration: 3600000
+
+# 테스트용 토스 결제 설정
+toss:
+  payments:
+    base-url: https://api.tosspayments.com
+    secret-key: test_toss_secret_key_for_testing_only
+    client-key: test_toss_client_key_for_testing_only
+    checkout-url: http://localhost:3000/payments
+    success-url: http://localhost:3000/payments/success
+    fail-url: http://localhost:3000/payments/fail
+
+# 테스트용 Resilience4j 설정
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: 90           # 테스트에서는 매우 관대하게
+        minimum-number-of-calls: 2
+        sliding-window-size: 5
+        wait-duration-in-open-state: 100ms
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  retry:
+    instances:
+      default:
+        max-attempts: 1                      # 테스트에서는 재시도 없음
+        wait-duration: 10ms
+
+  ratelimiter:
+    instances:
+      default:
+        limit-for-period: 1000               # 테스트에서는 높은 처리량
+        limit-refresh-period: 1s
+        timeout-duration: 0ms
+
+  bulkhead:
+    instances:
+      default:
+        max-concurrent-calls: 100            # 테스트에서는 높은 동시성
+
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 5s                 # 테스트용 타임아웃
