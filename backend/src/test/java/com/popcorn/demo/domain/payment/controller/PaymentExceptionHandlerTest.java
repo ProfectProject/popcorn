@@ -34,7 +34,7 @@ class PaymentExceptionHandlerTest {
     @Test
     void handleBaseException_WithNotFoundError_ReturnsUserFriendlyMessage() {
         // given
-        BaseException ex = new BaseException(CommonResponseCode.NOT_FOUND);
+        BaseException ex = new BaseException(CommonResponseCode.NOT_FOUND, "🎁 팝업 굿즈 배송을 위해 배송지를 먼저 등록해주세요!\n\n" + "📍 '내 정보 > 배송지 관리'에서 배송지를 등록한 후 다시 주문해 주세요.\n" + "💡 기본 배송지로 설정하면 다음 주문부터 자동으로 적용됩니다.");
 
         // when
         ResponseEntity<BaseResponse<BaseError>> response = handler.handleBaseException(ex);
@@ -47,7 +47,7 @@ class PaymentExceptionHandlerTest {
     @Test
     void handleBaseException_WithInvalidRequestError_ReturnsUserFriendlyMessage() {
         // given
-        BaseException ex = new BaseException(CommonResponseCode.INVALID_REQUEST);
+        BaseException ex = new BaseException(CommonResponseCode.INVALID_REQUEST, "🎁 팝업 굿즈 배송을 위해 배송지를 먼저 등록해주세요!\n\n" + "📍 '내 정보 > 배송지 관리'에서 배송지를 등록한 후 다시 주문해 주세요.\n" + "💡 기본 배송지로 설정하면 다음 주문부터 자동으로 적용됩니다.");
 
         // when
         ResponseEntity<BaseResponse<BaseError>> response = handler.handleBaseException(ex);
@@ -60,7 +60,7 @@ class PaymentExceptionHandlerTest {
     @Test
     void handleBaseException_WithPaymentAlreadyExistsError_ReturnsSpecificMessage() {
         // given
-        BaseException ex = new BaseException(OrderResponseCode.PAYMENT_ALREADY_EXISTS);
+        BaseException ex = new BaseException(OrderResponseCode.PAYMENT_ALREADY_EXISTS, "🎁 팝업 굿즈 배송을 위해 배송지를 먼저 등록해주세요!\n\n" + "📍 '내 정보 > 배송지 관리'에서 배송지를 등록한 후 다시 주문해 주세요.\n" + "💡 기본 배송지로 설정하면 다음 주문부터 자동으로 적용됩니다.");
 
         // when
         ResponseEntity<BaseResponse<BaseError>> response = handler.handleBaseException(ex);
@@ -73,7 +73,7 @@ class PaymentExceptionHandlerTest {
     @Test
     void handleBaseException_WithInvalidStatusTransitionError_ReturnsSpecificMessage() {
         // given
-        BaseException ex = new BaseException(OrderResponseCode.INVALID_STATUS_TRANSITION);
+        BaseException ex = new BaseException(OrderResponseCode.INVALID_STATUS_TRANSITION, "🎁 팝업 굿즈 배송을 위해 배송지를 먼저 등록해주세요!\n\n" + "📍 '내 정보 > 배송지 관리'에서 배송지를 등록한 후 다시 주문해 주세요.\n" + "💡 기본 배송지로 설정하면 다음 주문부터 자동으로 적용됩니다.");
 
         // when
         ResponseEntity<BaseResponse<BaseError>> response = handler.handleBaseException(ex);
@@ -86,7 +86,7 @@ class PaymentExceptionHandlerTest {
     @Test
     void handleBaseException_WithOtherOrderResponseCode_ReturnsOriginalMessage() {
         // given
-        BaseException ex = new BaseException(OrderResponseCode.ORDER_NOT_FOUND);
+        BaseException ex = new BaseException(OrderResponseCode.ORDER_NOT_FOUND, "🎁 팝업 굿즈 배송을 위해 배송지를 먼저 등록해주세요!\n\n" + "📍 '내 정보 > 배송지 관리'에서 배송지를 등록한 후 다시 주문해 주세요.\n" + "💡 기본 배송지로 설정하면 다음 주문부터 자동으로 적용됩니다.");
 
         // when
         ResponseEntity<BaseResponse<BaseError>> response = handler.handleBaseException(ex);

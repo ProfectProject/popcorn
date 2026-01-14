@@ -33,6 +33,7 @@ import com.popcorn.demo.global.config.CommonConfig;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
+import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ public abstract class OrderControllerTestBase {
     protected OrderPaymentFacade orderPaymentFacade;
     protected OrderQueryService orderQueryService;
     protected PaymentTokenService paymentTokenService;
+    protected UserAddressRepository userAddressRepository;
 
     @BeforeEach
     void setUpBase() {
@@ -64,11 +66,12 @@ public abstract class OrderControllerTestBase {
         orderPaymentFacade = Mockito.mock(OrderPaymentFacade.class);
         orderQueryService = Mockito.mock(OrderQueryService.class);
         paymentTokenService = Mockito.mock(PaymentTokenService.class);
+        userAddressRepository = Mockito.mock(UserAddressRepository.class);
         objectMapper = createOptimizedObjectMapper();
         mockMvc = createOptimizedMockMvc();
 
         // 각 테스트 간 격리를 위한 Mock 초기화
-        Mockito.reset(orderCommandService, orderPaymentFacade, orderQueryService, paymentTokenService);
+        Mockito.reset(orderCommandService, orderPaymentFacade, orderQueryService, paymentTokenService, userAddressRepository);
     }
 
     /**
@@ -87,7 +90,7 @@ public abstract class OrderControllerTestBase {
         tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
         tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
         OrderCommandController commandController = new OrderCommandController(
-                orderCommandService, orderPaymentFacade, objectMapper, tossPaymentsProperties, paymentTokenService);
+                orderCommandService, orderPaymentFacade, userAddressRepository, objectMapper, tossPaymentsProperties, paymentTokenService);
         OrderQueryController queryController = new OrderQueryController(orderQueryService);
 
         return MockMvcBuilders.standaloneSetup(commandController, queryController)

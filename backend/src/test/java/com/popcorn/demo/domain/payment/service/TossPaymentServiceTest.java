@@ -93,10 +93,22 @@ class TossPaymentServiceTest {
 		when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(order));
 		when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(any(UUID.class)))
 				.thenReturn(java.util.List.of(payment));
+		when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
 		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderNo));
 		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
 				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
+
+		// PaymentCommandService mock 추가
+		PaymentCommandService.PaymentCreationResult paymentCreationResult =
+				PaymentCommandService.PaymentCreationResult.builder()
+						.paymentId(paymentId)
+						.paymentStatus(PaymentStatus.READY)
+						.orderStatus(OrderStatus.PAYMENT_PENDING)
+						.amount(4000)
+						.build();
+		when(paymentCommandService.createPayment(eq(orderId), eq("CARD"), eq(4000), any(String.class)))
+				.thenReturn(paymentCreationResult);
 
 		TossPaymentService.TossPaymentConfirmResult result =
 				tossPaymentService.confirmPayment("pay_123", orderNo, 4000);

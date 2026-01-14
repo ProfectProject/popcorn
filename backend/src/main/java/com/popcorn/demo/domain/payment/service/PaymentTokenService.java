@@ -37,7 +37,7 @@ public class PaymentTokenService {
                 .claim("o", paymentInfo.getOrderNo()) // "orderNo" → "o"
                 .claim("a", paymentInfo.getAmount()) // "amount" → "a"
                 .claim("c", paymentInfo.getCustomerKey()) // "customerKey" → "c"
-                .claim("p", paymentInfo.getPaymentId().toString()) // "paymentId" → "p"
+                .claim("p", paymentInfo.getPaymentId() != null ? paymentInfo.getPaymentId().toString() : null) // "paymentId" → "p"
                 // successUrl, failUrl 제거 (프론트엔드에서 설정)
                 .signWith(SignatureAlgorithm.HS256, secretKey.getBytes())
                 .compact();
@@ -59,12 +59,18 @@ public class PaymentTokenService {
                 orderId = UUID.fromString(orderIdValue);
             }
 
+            String paymentIdValue = claims.get("p", String.class);
+            UUID paymentId = null;
+            if (paymentIdValue != null && !paymentIdValue.isBlank()) {
+                paymentId = UUID.fromString(paymentIdValue);
+            }
+
             return PaymentTokenInfo.builder()
                     .orderId(orderId)
                     .orderNo(claims.get("o", String.class)) // 축약된 필드명 사용
                     .amount(claims.get("a", Integer.class))
                     .customerKey(claims.get("c", String.class))
-                    .paymentId(UUID.fromString(claims.get("p", String.class)))
+                    .paymentId(paymentId)
                     // URL은 프론트엔드에서 하드코딩으로 처리
                     .successUrl("http://localhost:3000/payments/success")
                     .failUrl("http://localhost:3000/payments/fail")

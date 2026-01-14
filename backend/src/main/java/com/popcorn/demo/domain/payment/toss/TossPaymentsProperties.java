@@ -11,6 +11,7 @@ public class TossPaymentsProperties {
 
 	private String baseUrl;
 	private String secretKey;
+	private String clientKey;  // 🎯 프론트엔드용 클라이언트 키 추가
 	private String checkoutUrl;
 	private String successUrl;
 	private String failUrl;

@@ -34,6 +34,7 @@ import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
+import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 
 class OrderCommandControllerTest {
 
@@ -42,12 +43,13 @@ class OrderCommandControllerTest {
 	void createOrderReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
 		tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
 		UUID popupId = UUID.randomUUID();
@@ -94,10 +96,11 @@ class OrderCommandControllerTest {
 	void updateOrderStatusReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
@@ -123,10 +126,11 @@ class OrderCommandControllerTest {
 	void cancelOrderReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
 		Order cancelled = Order.builder().id(orderId).status(OrderStatus.CANCELLED).build();
@@ -145,10 +149,11 @@ class OrderCommandControllerTest {
 	void deleteAllOrdersDelegates() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
+		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		controller.deleteAllOrders();
 
