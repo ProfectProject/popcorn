@@ -109,12 +109,12 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("취소 가능 시간 계산 - 예약형은 1일 후")
-	void calculateCancelableUntil_Reservation_Returns1DayLater() {
+	@DisplayName("취소 가능 시간 계산 - 예약형은 5분 후")
+	void calculateCancelableUntil_Reservation_Returns5MinutesLater() {
 		// given
 		OrderType orderType = OrderType.RESERVATION;
-		LocalDateTime before = LocalDateTime.now().plusDays(1).minusMinutes(1);
-		LocalDateTime after = LocalDateTime.now().plusDays(1).plusMinutes(1);
+		LocalDateTime before = LocalDateTime.now().plusMinutes(5).minusSeconds(30);
+		LocalDateTime after = LocalDateTime.now().plusMinutes(5).plusSeconds(30);
 
 		// when
 		LocalDateTime cancelableUntil = orderDomainService.calculateCancelableUntil(orderType);
@@ -124,12 +124,12 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("취소 가능 시간 계산 - 구매형은 1시간 후")
-	void calculateCancelableUntil_Purchase_Returns1HourLater() {
+	@DisplayName("취소 가능 시간 계산 - 구매형은 5분 후")
+	void calculateCancelableUntil_Purchase_Returns5MinutesLater() {
 		// given
 		OrderType orderType = OrderType.PURCHASE;
-		LocalDateTime before = LocalDateTime.now().plusHours(1).minusMinutes(1);
-		LocalDateTime after = LocalDateTime.now().plusHours(1).plusMinutes(1);
+		LocalDateTime before = LocalDateTime.now().plusMinutes(5).minusSeconds(30);
+		LocalDateTime after = LocalDateTime.now().plusMinutes(5).plusSeconds(30);
 
 		// when
 		LocalDateTime cancelableUntil = orderDomainService.calculateCancelableUntil(orderType);

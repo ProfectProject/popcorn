@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,6 +27,8 @@ import com.popcorn.demo.domain.qr.service.QrCodeService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsClient;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelRequest;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelResponse;
 import com.popcorn.demo.domain.payment.event.PaymentSuccessEvent;
 
 import lombok.Builder;
@@ -50,7 +53,7 @@ public class TossPaymentService {
 	private final ObjectMapper objectMapper;
 	private final ApplicationEventPublisher eventPublisher;
 
-	@Transactional(transactionManager = "jdbcTransactionManager")
+	@Transactional(transactionManager = "jdbcTransactionManager", isolation = Isolation.READ_COMMITTED)
 	public TossPaymentConfirmResult confirmPayment(String paymentKey, String orderId, Integer amount) {
 		try {
 			Order order;
@@ -66,12 +69,36 @@ public class TossPaymentService {
 				tossOrderId = order.getOrderNo();
 			}
 
-			// 🛡️ Step 1: 멱등성 체크 - 이미 결제된 주문인지 확인
+			// 🛡️ Step 0: PaymentKey 기반 중복 체크 - 동일한 결제 키로 이미 처리된 결제가 있는지 확인
+		List<Payment> existingPaymentsByKey = paymentRepository.findByPaymentKeyInRawPayload(paymentKey);
+		if (!existingPaymentsByKey.isEmpty()) {
+			Payment existingPayment = existingPaymentsByKey.get(0);
+			log.info("🛡️ 동일한 paymentKey로 이미 처리된 결제 발견 (중복 결제 차단): paymentKey={}, existingPaymentId={}",
+					paymentKey, existingPayment.getId());
+
+			// 기존 결제의 주문 정보 조회
+			Order existingOrder = orderRepository.findById(existingPayment.getOrderId())
+					.orElseThrow(OrderNotFoundException::orderNotFound);
+
+			return TossPaymentConfirmResult.builder()
+					.paymentId(existingPayment.getId())
+					.paymentStatus(existingPayment.getStatus())
+					.orderStatus(existingOrder.getStatus())
+					.orderId(existingOrder.getId())
+					.orderNo(existingOrder.getOrderNo())
+					.amount(existingPayment.getAmount())
+					.approvedAt(existingPayment.getApprovedAt())
+					.build();
+		}
+
+		// 🛡️ Step 1: 멱등성 체크 - 이미 결제된 주문인지 확인
 			List<Payment> existingPayments = paymentRepository
 					.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(order.getId());
 
 			if (!existingPayments.isEmpty()) {
 				Payment existingPayment = existingPayments.get(0);
+
+				// 이미 완료된 결제가 있는 경우
 				if (existingPayment.getStatus() == PaymentStatus.PAID) {
 					log.info("🛡️ 이미 결제 완료된 주문 (멱등성): orderId={}, paymentId={}", order.getId(), existingPayment.getId());
 					OrderStatus orderStatus = order.getStatus();
@@ -87,6 +114,13 @@ public class TossPaymentService {
 							.amount(existingPayment.getAmount())
 							.approvedAt(existingPayment.getApprovedAt())
 							.build();
+				}
+
+				// 진행 중인 결제가 있는 경우 (READY 상태 등) - 중복 결제 차단
+				if (existingPayment.getStatus() == PaymentStatus.READY) {
+					log.warn("⚠️ 동일한 주문에 진행 중인 결제 발견 (중복 결제 시도 차단): orderId={}, existingPaymentId={}, status={}",
+							order.getId(), existingPayment.getId(), existingPayment.getStatus());
+					throw PaymentException.duplicatePaymentAttempt();
 				}
 			}
 
@@ -239,6 +273,83 @@ public class TossPaymentService {
 		}
 	}
 
+	/**
+	 * 토스 결제 취소 처리
+	 */
+	@Transactional(transactionManager = "jdbcTransactionManager")
+	public TossPaymentCancelResult cancelPayment(UUID orderId, String cancelReason) {
+		log.info("🔄 토스 결제 취소 요청 - 주문ID: {}, 취소사유: {}", orderId, cancelReason);
+
+		// 1. 주문 조회
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(OrderNotFoundException::orderNotFound);
+
+		// 2. 결제 내역 조회
+		List<Payment> payments = paymentRepository
+				.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(order.getId());
+
+		if (payments.isEmpty()) {
+			throw PaymentException.paymentNotFound();
+		}
+
+		Payment payment = payments.get(0); // 가장 최근 결제
+		if (payment.getStatus() != PaymentStatus.PAID) {
+			throw PaymentException.invalidRequest();
+		}
+
+		// 3. 결제 원본 데이터에서 paymentKey 추출
+		String paymentKey = extractPaymentKeyFromRawPayload(payment.getRawPayload());
+		if (paymentKey == null) {
+			throw PaymentException.invalidRequest();
+		}
+
+		// 4. 토스 결제 취소 요청
+		TossPaymentsCancelResponse response = tossPaymentsClient.cancel(
+				paymentKey,
+				TossPaymentsCancelRequest.builder()
+						.cancelReason(cancelReason)
+						.build()
+		);
+
+		// 5. 결제 상태를 CANCELLED로 업데이트
+		payment.setStatus(PaymentStatus.CANCELLED);
+		payment.setRawPayload(serializePayload(response));
+		Payment savedPayment = paymentRepository.save(payment);
+
+		log.info("✅ 토스 결제 취소 완료 - 주문ID: {}, 결제ID: {}, 취소금액: {}원",
+				orderId, savedPayment.getId(), response.getTotalAmount());
+
+		return TossPaymentCancelResult.builder()
+				.paymentId(savedPayment.getId())
+				.orderId(orderId)
+				.cancelAmount(response.getTotalAmount())
+				.status(response.getStatus())
+				.cancelReason(cancelReason)
+				.build();
+	}
+
+	private String extractPaymentKeyFromRawPayload(String rawPayload) {
+		if (rawPayload == null) {
+			return null;
+		}
+		try {
+			ObjectMapper mapper = new ObjectMapper();
+			var node = mapper.readTree(rawPayload);
+			return node.get("paymentKey").asText();
+		} catch (Exception ex) {
+			log.warn("결제 원본 데이터에서 paymentKey 추출 실패", ex);
+			return null;
+		}
+	}
+
+	private String serializePayload(TossPaymentsCancelResponse response) {
+		try {
+			return objectMapper.writeValueAsString(response);
+		} catch (JsonProcessingException ex) {
+			throw PaymentException.invalidRequest();
+		}
+	}
+
 	@Getter
 	@Builder
 	public static class TossPaymentConfirmResult {
@@ -249,5 +360,15 @@ public class TossPaymentService {
 		private String orderNo;
 		private Integer amount;
 		private LocalDateTime approvedAt;
+	}
+
+	@Getter
+	@Builder
+	public static class TossPaymentCancelResult {
+		private UUID paymentId;
+		private UUID orderId;
+		private Integer cancelAmount;
+		private String status;
+		private String cancelReason;
 	}
 }

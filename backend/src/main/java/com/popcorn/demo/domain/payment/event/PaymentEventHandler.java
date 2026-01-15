@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.demo.domain.inventory.service.InventoryService;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
+import com.popcorn.demo.domain.payment.service.PaymentCancelFailureService;
 import com.popcorn.demo.domain.qr.service.QrCodeService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class PaymentEventHandler {
 	private final InventoryService inventoryService;
 	private final QrCodeService qrCodeService;
 	private final JpaOrderItemRepository orderItemRepository;
+	private final PaymentCancelFailureService paymentCancelFailureService;
 
 	/**
 	 * 결제 성공 시 재고 차감 처리
@@ -197,6 +199,29 @@ public class PaymentEventHandler {
 		} catch (Exception e) {
 			log.error("❌ 결제 취소 이벤트 처리 실패 - 결제ID: {}, 주문ID: {}",
 					event.getPaymentId(), event.getOrderId(), e);
+		}
+	}
+
+	/**
+	 * 결제 취소 실패 이벤트 처리
+	 * 실패 큐에 저장하여 재시도 처리
+	 */
+	@Async("paymentTaskExecutor")
+	@EventListener
+	@Transactional
+	public void handlePaymentCancelFailed(PaymentCancelFailedEvent event) {
+		log.info("⚠️ 결제 취소 실패 이벤트 처리 시작 - 주문ID: {}, 결제ID: {}, 시도횟수: {}",
+				event.getOrderId(), event.getPaymentId(), event.getAttemptCount());
+
+		try {
+			// 실패 큐에 저장하여 재시도 처리
+			paymentCancelFailureService.addToFailureQueue(event);
+
+			log.info("✅ 결제 취소 실패 큐 저장 완료 - 주문ID: {}", event.getOrderId());
+
+		} catch (Exception e) {
+			log.error("❌ 결제 취소 실패 이벤트 처리 실패 - 주문ID: {}, 결제ID: {}",
+					event.getOrderId(), event.getPaymentId(), e);
 		}
 	}
 }

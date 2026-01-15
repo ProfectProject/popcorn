@@ -22,7 +22,13 @@ import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CancelOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
+import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.entity.OrderStatus;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.exception.OrderValidationException;
+import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderDomainService;
 import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 import com.popcorn.demo.domain.users.entity.UserAddress;
@@ -72,6 +78,8 @@ import jakarta.validation.Valid;
 public class OrderCommandController extends BaseController {
 
 private final OrderCommandService orderCommandService;
+private final OrderDomainService orderDomainService;
+private final OrderRepository orderRepository;
 private final OrderPaymentFacade orderPaymentFacade;
 private final UserAddressRepository userAddressRepository;
 private final ObjectMapper objectMapper;
@@ -424,7 +432,25 @@ private final PaymentTokenService paymentTokenService;
 
 		log.info("주문 취소 요청: orderId={}, userId={}, role={}", orderId, userId, role);
 
-		// 주문을 CANCELLED 상태로 변경 (권한 검증은 서비스 레이어에서 처리)
+		// 🔍 Step 1: 주문 조회 및 취소 가능성 검증
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(OrderNotFoundException::orderNotFound);
+
+		// 시간 제한 체크
+		if (!order.isCancelable()) {
+			log.warn("⏰ 주문 취소 시간 만료 - 주문ID: {}, 취소가능시간: {}",
+					orderId, order.getCancelableUntil());
+			throw OrderValidationException.cancellationTimeExpired();
+		}
+
+		// 상태 전이 가능 여부 체크
+		if (!orderDomainService.canChangeStatus(order.getStatus(), OrderStatus.CANCELLED)) {
+			log.warn("❌ 주문 상태 전이 불가 - 주문ID: {}, 현재상태: {}",
+					orderId, order.getStatus());
+			throw OrderValidationException.orderCannotBeCancelled();
+		}
+
+		// 🔄 Step 2: 주문을 CANCELLED 상태로 변경
 		Order cancelledOrder = orderCommandService.updateStatus(
 				orderId,
 				OrderStatus.CANCELLED.name(),

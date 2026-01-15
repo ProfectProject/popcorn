@@ -1,9 +1,11 @@
 package com.popcorn.demo.domain.order.event;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -11,6 +13,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.popcorn.demo.domain.order.service.OrderNotificationService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.payment.service.TossPaymentService;
+import com.popcorn.demo.domain.payment.entity.Payment;
+import com.popcorn.demo.domain.payment.entity.PaymentStatus;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
+import com.popcorn.demo.domain.payment.event.PaymentCancelFailedEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +40,10 @@ public class OrderEventHandler {
     private final OrderNotificationService orderNotificationService;
     private final OrderEventStore eventStore;
     private final OrderEventMetrics eventMetrics;
+    private final TossPaymentService tossPaymentService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final JpaPaymentRepository paymentRepository;
+    private final ObjectMapper objectMapper;
 
     // ================ 주문 생성 이벤트 처리 ================
 
@@ -256,7 +268,84 @@ public class OrderEventHandler {
     private void initiateRefundProcess(OrderCancelledEvent event) {
         log.info("💰 환불 프로세스 시작 - 주문ID: {}, 환불금액: {}원",
                 event.getOrderId(), event.getRefundAmount());
-        // 환불 처리 로직
+
+        try {
+            // 토스 결제 취소 처리
+            TossPaymentService.TossPaymentCancelResult result = tossPaymentService.cancelPayment(
+                    event.getOrderId(),
+                    event.getCancellationReason()
+            );
+
+            log.info("✅ 토스 결제 취소 성공 - 주문ID: {}, 결제ID: {}, 취소금액: {}원",
+                    event.getOrderId(), result.getPaymentId(), result.getCancelAmount());
+        } catch (Exception ex) {
+            log.error("❌ 토스 결제 취소 실패 - 주문ID: {}", event.getOrderId(), ex);
+            // 결제 취소 실패 시 실패 이벤트 발행
+            handleRefundFailure(event, ex);
+        }
+    }
+
+    private void handleRefundFailure(OrderCancelledEvent event, Exception ex) {
+        log.warn("⚠️ 결제 취소 실패, 실패 큐에 저장 - 주문ID: {}, 오류: {}",
+                event.getOrderId(), ex.getMessage());
+
+        try {
+            // 해당 주문의 결제 정보 조회
+            var payments = paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(event.getOrderId());
+
+            if (payments.isEmpty()) {
+                log.warn("⚠️ 결제 정보 없음 - 주문ID: {}", event.getOrderId());
+                return;
+            }
+
+            Payment payment = payments.get(0); // 가장 최근 결제
+            if (payment.getStatus() != PaymentStatus.PAID) {
+                log.warn("⚠️ 결제 상태가 PAID가 아님 - 주문ID: {}, 상태: {}",
+                        event.getOrderId(), payment.getStatus());
+                return;
+            }
+
+            // rawPayload에서 paymentKey 추출
+            String paymentKey = extractPaymentKeyFromRawPayload(payment.getRawPayload());
+            if (paymentKey == null) {
+                log.warn("⚠️ paymentKey 추출 실패 - 주문ID: {}", event.getOrderId());
+                return;
+            }
+
+            // 결제 취소 실패 이벤트 발행
+            PaymentCancelFailedEvent failedEvent = new PaymentCancelFailedEvent(
+                    this,
+                    event.getOrderId(),
+                    payment.getId(),
+                    paymentKey,
+                    event.getCancellationReason(),
+                    ex.getMessage(),
+                    payment.getAmount(),
+                    LocalDateTime.now(),
+                    1 // 첫 번째 시도 실패
+            );
+
+            eventPublisher.publishEvent(failedEvent);
+
+            log.info("📨 결제 취소 실패 이벤트 발행 완료 - 주문ID: {}, 결제ID: {}",
+                    event.getOrderId(), payment.getId());
+
+        } catch (Exception e) {
+            log.error("❌ 결제 취소 실패 이벤트 발행 중 오류 - 주문ID: {}", event.getOrderId(), e);
+        }
+    }
+
+    private String extractPaymentKeyFromRawPayload(String rawPayload) {
+        if (rawPayload == null) {
+            return null;
+        }
+        try {
+            var node = objectMapper.readTree(rawPayload);
+            return node.get("paymentKey").asText();
+        } catch (Exception ex) {
+            log.warn("결제 원본 데이터에서 paymentKey 추출 실패", ex);
+            return null;
+        }
     }
 
     private void handleCancellationCompensation(OrderCancelledEvent event) {

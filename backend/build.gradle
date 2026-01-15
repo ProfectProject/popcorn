@@ -141,6 +141,7 @@ tasks.named('test') {
 		exclude '**/AuthorizationEdgeCaseTest*'
 		exclude '**/performance/**'
 		exclude '**/extreme/**'
+		exclude 'ultimateLoadTest'
 	}
 
 	// 부하 테스트는 CI/로컬 관계없이 항상 실행
@@ -148,8 +149,7 @@ tasks.named('test') {
 	dependsOn 'k6Test'
 	dependsOn 'jmeterMillionTest'
 	dependsOn 'k6UltimateTest'
-	dependsOn 'ultimateLoadTest'
-
+	dependsOn 'performanceTest'
 	// 로컬에서만 extremeComposeUp 실행
 	if (!System.getenv('CI')) {
 		finalizedBy tasks.named('extremeComposeUp')
@@ -306,7 +306,6 @@ tasks.register('extremeComposeDown', Exec) {
 	onlyIf { !System.getenv('CI') }
 	commandLine 'docker', 'compose', '-f', 'docker-compose.extreme.yml', 'down', '-v'
 }
-
 
 // ========================= 리그레션 테스트 태스크 =========================
 tasks.register('regressionTest', Test) {

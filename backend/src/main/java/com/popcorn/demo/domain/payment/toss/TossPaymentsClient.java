@@ -30,6 +30,15 @@ public class TossPaymentsClient {
 		return restTemplate.postForObject(url, entity, TossPaymentsConfirmResponse.class);
 	}
 
+	public TossPaymentsCancelResponse cancel(String paymentKey, TossPaymentsCancelRequest request) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.set(HttpHeaders.AUTHORIZATION, buildAuthorizationHeader());
+		HttpEntity<TossPaymentsCancelRequest> entity = new HttpEntity<>(request, headers);
+		String url = properties.getBaseUrl() + "/v1/payments/" + paymentKey + "/cancel";
+		return restTemplate.postForObject(url, entity, TossPaymentsCancelResponse.class);
+	}
+
 	private String buildAuthorizationHeader() {
 		String secretKey = properties.getSecretKey();
 		String token = secretKey == null ? "" : secretKey;

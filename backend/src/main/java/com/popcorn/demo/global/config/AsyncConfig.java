@@ -5,6 +5,7 @@ import java.util.concurrent.Executor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.popcorn.demo.domain.order.config.OrderProperties;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Configuration
 @EnableAsync
+@EnableScheduling
 @RequiredArgsConstructor
 public class AsyncConfig {
 
@@ -97,6 +99,25 @@ public class AsyncConfig {
 		executor.setThreadNamePrefix("QrCheckin-");
 		executor.setWaitForTasksToCompleteOnShutdown(true);
 		executor.setAwaitTerminationSeconds(30);
+		executor.initialize();
+		return executor;
+	}
+
+	/**
+	 * 결제 취소 재시도 전용 스레드 풀
+	 * - 실패한 결제 취소의 재시도 처리
+	 * - 스케줄러에서 주기적으로 실행되는 재시도 로직
+	 */
+	@Bean(name = "paymentRetryExecutor")
+	public Executor paymentRetryExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(1);          // 기본 스레드 수
+		executor.setMaxPoolSize(3);           // 최대 스레드 수
+		executor.setQueueCapacity(50);        // 대기 큐 크기
+		executor.setKeepAliveSeconds(120);    // 스레드 생존 시간 (재시도 간격 고려)
+		executor.setThreadNamePrefix("PaymentRetry-");
+		executor.setWaitForTasksToCompleteOnShutdown(true);
+		executor.setAwaitTerminationSeconds(60);
 		executor.initialize();
 		return executor;
 	}

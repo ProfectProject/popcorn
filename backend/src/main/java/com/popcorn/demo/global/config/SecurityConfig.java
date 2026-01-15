@@ -97,7 +97,6 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.PATCH, "/api/v1/payments/{paymentId}/status").permitAll()
 						.requestMatchers(HttpMethod.DELETE, "/api/v1/payments/{paymentId}").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/payments/toss/confirm").permitAll()
-						.requestMatchers(HttpMethod.POST, "/api/v1/payments/webhooks/toss").permitAll()
 
 						// Order domain - Status updates (Owner/Manager can change status)
 						.requestMatchers(HttpMethod.PATCH, "/api/v1/orders/{orderId}/status").hasAnyRole("OWNER", "MANAGER")
