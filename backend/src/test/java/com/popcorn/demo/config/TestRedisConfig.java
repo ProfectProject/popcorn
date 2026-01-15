@@ -1,5 +1,6 @@
 package com.popcorn.demo.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
  * 테스트 환경에서 Redis 의존성을 제거합니다.
  */
 @TestConfiguration
+@ConditionalOnClass(IdempotencyService.class)
 @Slf4j
 public class TestRedisConfig {
 

@@ -60,10 +60,14 @@ toss:
 # 테스트용 AOP 및 멱등성 설정 (Mock 사용)
 popcorn:
   idempotency:
-    enabled: true
+    enabled: false  # 테스트에서는 Mock 사용
     redis:
       key-prefix: "test:popcorn:idempotent"
       default-ttl: 300  # 5분 (테스트용 짧은 시간)
+
+# Redis 관련 설정 비활성화 (테스트 환경)
+spring.data.redis.repositories.enabled: false
+spring.cache.type: none
 
 # 테스트용 Resilience4j 설정
 resilience4j:
