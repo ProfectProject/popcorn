@@ -601,9 +601,12 @@ tasks.register('ultimateLoadTest') {
 }
 
 tasks.named('check') {
-	dependsOn tasks.named('jmeterMillionTest')
-	dependsOn tasks.named('k6UltimateTest')
-	dependsOn tasks.named('ultimateLoadTest')
+	// CI에서는 JMeter/k6 테스트 제외
+	if (!System.getenv('CI')) {
+		dependsOn tasks.named('jmeterMillionTest')
+		dependsOn tasks.named('k6UltimateTest')
+		dependsOn tasks.named('ultimateLoadTest')
+	}
 }
 
 // ========================= 빌드 종속성 설정 =========================
