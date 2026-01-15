@@ -11,9 +11,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderNotificationService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.payment.service.TossPaymentService;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
+import org.springframework.context.ApplicationEventPublisher;
 
 class OrderEventHandlerAdditionalTest {
 
@@ -25,7 +29,11 @@ class OrderEventHandlerAdditionalTest {
 				Mockito.mock(OrderQueryService.class),
 				Mockito.mock(OrderNotificationService.class),
 				Mockito.mock(OrderEventStore.class),
-				metrics);
+				metrics,
+				Mockito.mock(TossPaymentService.class),
+				Mockito.mock(ApplicationEventPublisher.class),
+				Mockito.mock(JpaPaymentRepository.class),
+				Mockito.mock(ObjectMapper.class));
 
 		OrderCompletedEvent event = new OrderCompletedEvent(
 				UUID.randomUUID(),
@@ -51,7 +59,11 @@ class OrderEventHandlerAdditionalTest {
 				Mockito.mock(OrderQueryService.class),
 				Mockito.mock(OrderNotificationService.class),
 				eventStore,
-				metrics);
+				metrics,
+				Mockito.mock(TossPaymentService.class),
+				Mockito.mock(ApplicationEventPublisher.class),
+				Mockito.mock(JpaPaymentRepository.class),
+				Mockito.mock(ObjectMapper.class));
 
 		OrderPaymentProcessedEvent event = new OrderPaymentProcessedEvent(
 				UUID.randomUUID(),
@@ -80,7 +92,11 @@ class OrderEventHandlerAdditionalTest {
 				Mockito.mock(OrderQueryService.class),
 				Mockito.mock(OrderNotificationService.class),
 				eventStore,
-				metrics);
+				metrics,
+				Mockito.mock(TossPaymentService.class),
+				Mockito.mock(ApplicationEventPublisher.class),
+				Mockito.mock(JpaPaymentRepository.class),
+				Mockito.mock(ObjectMapper.class));
 
 		OrderStatusChangedEvent event = new OrderStatusChangedEvent(
 				UUID.randomUUID(),

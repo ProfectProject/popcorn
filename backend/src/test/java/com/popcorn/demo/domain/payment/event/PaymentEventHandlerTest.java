@@ -17,6 +17,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 import com.popcorn.demo.domain.payment.entity.PaymentMethod;
+import com.popcorn.demo.domain.payment.service.PaymentCancelFailureService;
 import com.popcorn.demo.domain.qr.service.QrCodeService;
 
 class PaymentEventHandlerTest {
@@ -26,7 +27,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         PaymentSuccessEvent event = PaymentSuccessEvent.builder()
                 .orderId(UUID.randomUUID())
@@ -45,7 +47,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         List<OrderItem> items = List.of(OrderItem.builder().id(UUID.randomUUID()).qty(1).build());
@@ -74,7 +77,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         PaymentSuccessEvent purchase = PaymentSuccessEvent.builder()
@@ -99,7 +103,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         List<OrderItem> items = List.of(OrderItem.builder().id(UUID.randomUUID()).qty(2).build());
@@ -126,7 +131,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         List<OrderItem> items = List.of(OrderItem.builder().id(UUID.randomUUID()).qty(1).build());
@@ -152,7 +158,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         PaymentCreatedEvent event = new PaymentCreatedEvent(
                 this,
@@ -174,7 +181,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         PaymentFailedEvent event = new PaymentFailedEvent(
                 this,
@@ -195,7 +203,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         PaymentSuccessEvent event = PaymentSuccessEvent.builder()
                 .orderId(UUID.randomUUID())
@@ -215,7 +224,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         List<OrderItem> items = List.of(OrderItem.builder().id(UUID.randomUUID()).qty(1).build());
@@ -238,7 +248,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         PaymentSuccessEvent event = PaymentSuccessEvent.builder()
                 .orderId(UUID.randomUUID())
@@ -258,7 +269,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         PaymentSuccessEvent purchaseEvent = PaymentSuccessEvent.builder()
                 .orderId(UUID.randomUUID())
@@ -284,7 +296,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         when(orderItemRepository.findByOrderId(orderId)).thenReturn(List.of());
@@ -312,7 +325,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         List<OrderItem> items = List.of(OrderItem.builder().id(UUID.randomUUID()).qty(1).build());
@@ -340,7 +354,8 @@ class PaymentEventHandlerTest {
         InventoryService inventoryService = Mockito.mock(InventoryService.class);
         QrCodeService qrCodeService = Mockito.mock(QrCodeService.class);
         JpaOrderItemRepository orderItemRepository = Mockito.mock(JpaOrderItemRepository.class);
-        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository);
+        PaymentCancelFailureService paymentCancelFailureService = Mockito.mock(PaymentCancelFailureService.class);
+        PaymentEventHandler handler = new PaymentEventHandler(inventoryService, qrCodeService, orderItemRepository, paymentCancelFailureService);
 
         UUID orderId = UUID.randomUUID();
         when(orderItemRepository.findByOrderId(orderId)).thenReturn(List.of());

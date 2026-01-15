@@ -28,7 +28,9 @@ import com.popcorn.demo.domain.order.dto.response.UpdateOrderStatusResponse;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderDomainService;
 import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
+import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
@@ -42,6 +44,8 @@ class OrderCommandControllerTest {
 	@DisplayName("주문 생성 응답을 반환한다")
 	void createOrderReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
+		OrderDomainService domainService = Mockito.mock(OrderDomainService.class);
+		OrderRepository orderRepository = Mockito.mock(OrderRepository.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
 		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
@@ -49,7 +53,7 @@ class OrderCommandControllerTest {
 		tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, domainService, orderRepository, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
 		UUID popupId = UUID.randomUUID();
@@ -95,12 +99,14 @@ class OrderCommandControllerTest {
 	@DisplayName("주문 상태 변경을 처리한다")
 	void updateOrderStatusReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
+		OrderDomainService domainService = Mockito.mock(OrderDomainService.class);
+		OrderRepository orderRepository = Mockito.mock(OrderRepository.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
 		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, domainService, orderRepository, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
 		Order order = Order.builder()
@@ -125,12 +131,14 @@ class OrderCommandControllerTest {
 	@DisplayName("주문 취소 응답을 반환한다")
 	void cancelOrderReturnsResponse() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
+		OrderDomainService domainService = Mockito.mock(OrderDomainService.class);
+		OrderRepository orderRepository = Mockito.mock(OrderRepository.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
 		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, domainService, orderRepository, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
 		Order cancelled = Order.builder().id(orderId).status(OrderStatus.CANCELLED).build();
@@ -148,12 +156,14 @@ class OrderCommandControllerTest {
 	@DisplayName("모든 주문 삭제 요청을 전달한다")
 	void deleteAllOrdersDelegates() {
 		OrderCommandService service = Mockito.mock(OrderCommandService.class);
+		OrderDomainService domainService = Mockito.mock(OrderDomainService.class);
+		OrderRepository orderRepository = Mockito.mock(OrderRepository.class);
 		OrderPaymentFacade paymentFacade = Mockito.mock(OrderPaymentFacade.class);
 		UserAddressRepository userAddressRepository = Mockito.mock(UserAddressRepository.class);
 		TossPaymentsProperties tossPaymentsProperties = new TossPaymentsProperties();
 		PaymentTokenService paymentTokenService = Mockito.mock(PaymentTokenService.class);
 		OrderCommandController controller = new OrderCommandController(
-				service, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
+				service, domainService, orderRepository, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		controller.deleteAllOrders();
 

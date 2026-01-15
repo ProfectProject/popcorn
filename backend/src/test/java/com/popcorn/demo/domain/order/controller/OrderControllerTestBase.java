@@ -25,17 +25,18 @@ import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.service.OrderCommandService;
+import com.popcorn.demo.domain.order.service.OrderDomainService;
 import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
-import com.popcorn.demo.global.config.CommonConfig;
+import com.popcorn.demo.common.config.CommonConfig;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 
-import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,8 @@ public abstract class OrderControllerTestBase {
     protected MockMvc mockMvc;
     protected ObjectMapper objectMapper;
     protected OrderCommandService orderCommandService;
+    protected OrderDomainService orderDomainService;
+    protected OrderRepository orderRepository;
     protected OrderPaymentFacade orderPaymentFacade;
     protected OrderQueryService orderQueryService;
     protected PaymentTokenService paymentTokenService;
@@ -63,6 +66,8 @@ public abstract class OrderControllerTestBase {
     void setUpBase() {
         // 공통 설정을 한 번만 수행하여 성능 최적화
         orderCommandService = Mockito.mock(OrderCommandService.class);
+        orderDomainService = Mockito.mock(OrderDomainService.class);
+        orderRepository = Mockito.mock(OrderRepository.class);
         orderPaymentFacade = Mockito.mock(OrderPaymentFacade.class);
         orderQueryService = Mockito.mock(OrderQueryService.class);
         paymentTokenService = Mockito.mock(PaymentTokenService.class);
@@ -71,7 +76,7 @@ public abstract class OrderControllerTestBase {
         mockMvc = createOptimizedMockMvc();
 
         // 각 테스트 간 격리를 위한 Mock 초기화
-        Mockito.reset(orderCommandService, orderPaymentFacade, orderQueryService, paymentTokenService, userAddressRepository);
+        Mockito.reset(orderCommandService, orderDomainService, orderRepository, orderPaymentFacade, orderQueryService, paymentTokenService, userAddressRepository);
     }
 
     /**
@@ -90,7 +95,7 @@ public abstract class OrderControllerTestBase {
         tossPaymentsProperties.setSuccessUrl("http://localhost:3000/payments/success");
         tossPaymentsProperties.setFailUrl("http://localhost:3000/payments/fail");
         OrderCommandController commandController = new OrderCommandController(
-                orderCommandService, orderPaymentFacade, userAddressRepository, objectMapper, tossPaymentsProperties, paymentTokenService);
+                orderCommandService, orderDomainService, orderRepository, orderPaymentFacade, userAddressRepository, objectMapper, tossPaymentsProperties, paymentTokenService);
         OrderQueryController queryController = new OrderQueryController(orderQueryService);
 
         return MockMvcBuilders.standaloneSetup(commandController, queryController)

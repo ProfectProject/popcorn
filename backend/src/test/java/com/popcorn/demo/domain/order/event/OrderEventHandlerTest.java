@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
@@ -16,6 +17,9 @@ import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
 import com.popcorn.demo.domain.order.service.OrderNotificationService;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
+import com.popcorn.demo.domain.payment.service.TossPaymentService;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
+import org.springframework.context.ApplicationEventPublisher;
 
 class OrderEventHandlerTest {
 
@@ -26,12 +30,20 @@ class OrderEventHandlerTest {
 		OrderNotificationService notificationService = Mockito.mock(OrderNotificationService.class);
 		OrderEventStore eventStore = Mockito.mock(OrderEventStore.class);
 		OrderEventMetrics metrics = Mockito.mock(OrderEventMetrics.class);
+		TossPaymentService tossPaymentService = Mockito.mock(TossPaymentService.class);
+		ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		JpaPaymentRepository paymentRepository = Mockito.mock(JpaPaymentRepository.class);
+		ObjectMapper objectMapper = Mockito.mock(ObjectMapper.class);
 
 		OrderEventHandler handler = new OrderEventHandler(
 				orderQueryService,
 				notificationService,
 				eventStore,
-				metrics
+				metrics,
+				tossPaymentService,
+				eventPublisher,
+				paymentRepository,
+				objectMapper
 		);
 
 		Order order = Order.builder()
@@ -69,12 +81,20 @@ class OrderEventHandlerTest {
 		OrderNotificationService notificationService = Mockito.mock(OrderNotificationService.class);
 		OrderEventStore eventStore = Mockito.mock(OrderEventStore.class);
 		OrderEventMetrics metrics = Mockito.mock(OrderEventMetrics.class);
+		TossPaymentService tossPaymentService = Mockito.mock(TossPaymentService.class);
+		ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		JpaPaymentRepository paymentRepository = Mockito.mock(JpaPaymentRepository.class);
+		ObjectMapper objectMapper = Mockito.mock(ObjectMapper.class);
 
 		OrderEventHandler handler = new OrderEventHandler(
 				orderQueryService,
 				notificationService,
 				eventStore,
-				metrics
+				metrics,
+				tossPaymentService,
+				eventPublisher,
+				paymentRepository,
+				objectMapper
 		);
 
 		OrderCancelledEvent event = new OrderCancelledEvent(
@@ -99,12 +119,20 @@ class OrderEventHandlerTest {
 		OrderNotificationService notificationService = Mockito.mock(OrderNotificationService.class);
 		OrderEventStore eventStore = Mockito.mock(OrderEventStore.class);
 		OrderEventMetrics metrics = Mockito.mock(OrderEventMetrics.class);
+		TossPaymentService tossPaymentService = Mockito.mock(TossPaymentService.class);
+		ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		JpaPaymentRepository paymentRepository = Mockito.mock(JpaPaymentRepository.class);
+		ObjectMapper objectMapper = Mockito.mock(ObjectMapper.class);
 
 		OrderEventHandler handler = new OrderEventHandler(
 				orderQueryService,
 				notificationService,
 				eventStore,
-				metrics
+				metrics,
+				tossPaymentService,
+				eventPublisher,
+				paymentRepository,
+				objectMapper
 		);
 
 		OrderStatusChangedEvent event = new OrderStatusChangedEvent(

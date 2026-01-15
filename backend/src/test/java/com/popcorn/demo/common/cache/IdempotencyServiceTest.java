@@ -13,20 +13,20 @@ class IdempotencyServiceTest {
 
     @Test
     void processRequestWithoutKeyExecutesDirectly() {
-        IdempotencyService service = new IdempotencyService(new ObjectMapper());
+        IdempotencyService service = new CaffeineBasedIdempotencyService(new ObjectMapper());
 
         IdempotencyService.IdempotencyResult<String> result = service.processRequest(
                 null,
                 () -> "ok",
                 String.class);
 
-        assertThat(result.isCached()).isFalse();
+        assertThat(result.isFromCache()).isFalse();
         assertThat(result.getResult()).isEqualTo("ok");
     }
 
     @Test
     void processRequestCachesResponses() {
-        IdempotencyService service = new IdempotencyService(new ObjectMapper());
+        IdempotencyService service = new CaffeineBasedIdempotencyService(new ObjectMapper());
         AtomicInteger counter = new AtomicInteger();
 
         IdempotencyService.IdempotencyResult<String> first = service.processRequest(
@@ -41,14 +41,14 @@ class IdempotencyServiceTest {
                 },
                 String.class);
 
-        assertThat(first.isCached()).isFalse();
-        assertThat(second.isCached()).isTrue();
+        assertThat(first.isFromCache()).isFalse();
+        assertThat(second.isFromCache()).isTrue();
         assertThat(second.getResult()).isEqualTo(first.getResult());
     }
 
     @Test
     void processRequestThrowsWhenOperationFails() {
-        IdempotencyService service = new IdempotencyService(new ObjectMapper());
+        IdempotencyService service = new CaffeineBasedIdempotencyService(new ObjectMapper());
 
         assertThatThrownBy(() -> service.processRequest(
                 "key",
@@ -60,7 +60,7 @@ class IdempotencyServiceTest {
     @Test
     void processRequestContinuesWhenSerializationFails() throws JsonProcessingException {
         ObjectMapper objectMapper = Mockito.mock(ObjectMapper.class);
-        IdempotencyService service = new IdempotencyService(objectMapper);
+        IdempotencyService service = new CaffeineBasedIdempotencyService(objectMapper);
 
         Mockito.when(objectMapper.writeValueAsString(Mockito.any()))
                 .thenThrow(new JsonProcessingException("fail") {});
@@ -75,7 +75,7 @@ class IdempotencyServiceTest {
 
     @Test
     void invalidateAndClearCacheExecute() {
-        IdempotencyService service = new IdempotencyService(new ObjectMapper());
+        IdempotencyService service = new CaffeineBasedIdempotencyService(new ObjectMapper());
 
         service.processRequest("Key", () -> "value", String.class);
         service.invalidateKey("Key");
