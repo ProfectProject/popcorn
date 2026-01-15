@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -29,9 +31,15 @@ class TossPaymentsClientTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        // 🔧 RestTemplateBuilder 체이닝 메서드들을 Mock 설정
+        when(restTemplateBuilder.setConnectTimeout(any())).thenReturn(restTemplateBuilder);
+        when(restTemplateBuilder.setReadTimeout(any())).thenReturn(restTemplateBuilder);
         when(restTemplateBuilder.build()).thenReturn(restTemplate);
+
         when(properties.getBaseUrl()).thenReturn("https://api.tosspayments.com");
         when(properties.getSecretKey()).thenReturn("test_secret_key");
+
         client = new TossPaymentsClient(restTemplateBuilder, properties);
     }
 

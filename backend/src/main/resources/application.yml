@@ -69,10 +69,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,circuitbreakers,retries
   endpoint:
     health:
       show-details: always
+      show-components: always
+  health:
+    circuitbreakers:
+      enabled: true
 
 # SpringDoc OpenAPI 설정
 springdoc:
@@ -108,6 +112,17 @@ resilience4j:
         sliding-window-size: 10
         wait-duration-in-open-state: 15s
 
+      tossPaymentApi:                         # 🎯 TossPayments API 전용 설정
+        failure-rate-threshold: 50           # 외부 API 50% 실패 시 열기
+        slow-call-rate-threshold: 80         # 느린 호출 80% 시 열기
+        slow-call-duration-threshold: 2000ms # 2초 이상 = 느린 호출
+        minimum-number-of-calls: 5           # 최소 5번 호출 후 판단
+        sliding-window-size: 10              # 10번 호출 기준
+        wait-duration-in-open-state: 30s     # 30초 후 복구 시도
+        permitted-number-of-calls-in-half-open-state: 3  # 복구 시 3번 테스트
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true      # 헬스체크 등록
+
   # Retry 설정
   retry:
     instances:
@@ -124,6 +139,12 @@ resilience4j:
         max-attempts: 5                      # 결제는 더 많이 재시도
         wait-duration: 2s
         exponential-backoff-multiplier: 2
+
+      tossPaymentApi:                        # 🎯 TossPayments API 재시도 설정
+        max-attempts: 3                     # 최대 3회 시도 (원본 + 재시도 1회)
+        wait-duration: 500ms                 # 재시도 간격 500ms
+        enable-exponential-backoff: true     # 지수 백오프 활성화
+        exponential-backoff-multiplier: 2    # 500ms → 1000ms
 
   # Rate Limiter 설정
   ratelimiter:
@@ -168,6 +189,10 @@ resilience4j:
 
       paymentService:
         timeout-duration: 5s                 # 결제는 더 오래 대기
+
+      tossPaymentApi:                        # 🎯 TossPayments API 타임아웃 설정
+        timeout-duration: 5s                 # 외부 API 5초 타임아웃
+        cancel-running-future: true          # 타임아웃 시 실행 중인 Future 취소
 
 ---
 # 테스트 환경용 Resilience4j 설정
