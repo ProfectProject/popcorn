@@ -104,15 +104,65 @@ public class RateLimitAspect {
         Object[] args = joinPoint.getArgs();
 
         for (int i = 0; i < paramNames.length; i++) {
-            context.setVariable(paramNames[i], args[i]);
+            Object arg = args[i];
+            // null 값에 대해서도 변수 설정 (SpEL에서 null 처리를 위해)
+            context.setVariable(paramNames[i], arg);
+
+            // Authentication이 null인 경우 안전한 기본값 제공
+            if ("authentication".equals(paramNames[i]) && arg == null) {
+                log.debug("Rate Limit: Authentication이 null입니다. 익명 사용자로 처리");
+                context.setVariable("authentication", new SafeAuthenticationWrapper());
+            }
         }
 
         // 추가 유틸리티 등록
         context.setVariable("methodName", signature.getName());
         context.setVariable("className", signature.getDeclaringType().getSimpleName());
 
-        Object result = expressionParser.parseExpression(expression).getValue(context);
-        return result != null ? result.toString() : "";
+        try {
+            Object result = expressionParser.parseExpression(expression).getValue(context);
+            return result != null ? result.toString() : "";
+        } catch (Exception e) {
+            log.warn("SpEL 표현식 평가 실패: {} (expression: {})", e.getMessage(), expression);
+            // 기본 키로 폴백
+            return "anonymous";
+        }
+    }
+
+    /**
+     * 널 Authentication 객체에 대한 안전한 래퍼
+     */
+    private static class SafeAuthenticationWrapper {
+        private final SafePrincipal principal = new SafePrincipal();
+
+        public SafePrincipal getPrincipal() {
+            return principal;
+        }
+
+        public String getName() {
+            return "anonymous";
+        }
+
+        public boolean isAuthenticated() {
+            return false;
+        }
+    }
+
+    /**
+     * 널 Principal 객체에 대한 안전한 래퍼
+     */
+    private static class SafePrincipal {
+        public String getUserId() {
+            return "anonymous";
+        }
+
+        public String getUsername() {
+            return "anonymous";
+        }
+
+        public String getRole() {
+            return "anonymous";
+        }
     }
 
     /**
@@ -258,5 +308,25 @@ public class RateLimitAspect {
             this.lastRefillTime = System.currentTimeMillis();
             this.refillIntervalMillis = refillIntervalMillis;
         }
+    }
+
+    /**
+     * 모든 Rate Limit 캐시를 초기화합니다. (테스트용)
+     */
+    public void clearAllCaches() {
+        fixedWindowCounters.clear();
+        slidingWindowCounters.clear();
+        tokenBuckets.clear();
+        log.debug("🧹 Rate Limit 캐시 초기화 완료");
+    }
+
+    /**
+     * 특정 키의 Rate Limit 캐시를 초기화합니다. (테스트용)
+     */
+    public void clearCacheForKey(String key) {
+        fixedWindowCounters.remove(key);
+        slidingWindowCounters.remove(key);
+        tokenBuckets.remove(key);
+        log.debug("🧹 Rate Limit 캐시 초기화 완료 - 키: {}", key);
     }
 }

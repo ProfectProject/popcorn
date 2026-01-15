@@ -81,11 +81,50 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
 	//로그인 실패시 실행하는 메소드
     @Override
-    protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) {
-        
+    protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) throws IOException {
+
         // 로그인 실패시 응답코드 : 401
         response.setStatus(401);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
 
+        // 인증 실패 사유에 따른 메시지 설정
+        String errorMessage = "로그인에 실패했습니다.";
+        if (failed.getMessage() != null) {
+            if (failed.getMessage().contains("Bad credentials")) {
+                errorMessage = "아이디 또는 비밀번호가 잘못되었습니다.";
+            } else if (failed.getMessage().contains("User account is locked")) {
+                errorMessage = "계정이 잠겨있습니다.";
+            } else if (failed.getMessage().contains("User account is disabled")) {
+                errorMessage = "비활성화된 계정입니다.";
+            } else if (failed.getMessage().contains("User account has expired")) {
+                errorMessage = "만료된 계정입니다.";
+            }
+        }
+
+        // JSON 응답 생성
+        ObjectMapper mapper = new ObjectMapper();
+        String jsonResponse = mapper.writeValueAsString(new LoginErrorResponse(401, "인증 실패", errorMessage));
+
+        response.getWriter().write(jsonResponse);
+        response.getWriter().flush();
+    }
+
+    // 로그인 실패 응답 DTO
+    private static class LoginErrorResponse {
+        private final int code;
+        private final String message;
+        private final String detail;
+
+        public LoginErrorResponse(int code, String message, String detail) {
+            this.code = code;
+            this.message = message;
+            this.detail = detail;
+        }
+
+        public int getCode() { return code; }
+        public String getMessage() { return message; }
+        public String getDetail() { return detail; }
     }
     
 }

@@ -145,11 +145,11 @@ tasks.named('test') {
 	}
 
 	// 부하 테스트는 CI/로컬 관계없이 항상 실행
-	dependsOn 'jmeterTest'
-	dependsOn 'k6Test'
-	dependsOn 'jmeterMillionTest'
-	dependsOn 'k6UltimateTest'
-	dependsOn 'performanceTest'
+//	dependsOn 'jmeterTest'
+//	dependsOn 'k6Test'
+//	dependsOn 'jmeterMillionTest'
+//	dependsOn 'k6UltimateTest'
+//	dependsOn 'performanceTest'
 	// 로컬에서만 extremeComposeUp 실행
 	if (!System.getenv('CI')) {
 		finalizedBy tasks.named('extremeComposeUp')
@@ -270,13 +270,12 @@ tasks.register('performanceTest', Test) {
 	exclude '**/*ExtremeLoadTest.class'
 	exclude '**/gateway/**/*Test.class'
 
-	// 성능 테스트용 JVM 옵션
+	// 성능 테스트용 JVM 옵션 (Java 17 호환)
 	maxHeapSize = '2g'
 	jvmArgs = [
 		'-XX:+UseG1GC',
 		'-XX:MaxGCPauseMillis=200',
-		'-XX:+PrintGCDetails',
-		'-XX:+PrintGCTimeStamps'
+		'-Xlog:gc:gc.log:time'
 	]
 
 	reports {

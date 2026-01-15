@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,21 +14,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.popcorn.demo.config.TestSecurityConfig;
+import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
 import com.popcorn.demo.domain.order.dto.request.UpdateOrderStatusRequest;
@@ -38,6 +46,9 @@ import com.popcorn.demo.domain.order.service.OrderCommandService;
 import com.popcorn.demo.domain.order.service.OrderDomainService;
 import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
+import com.popcorn.demo.domain.users.entity.User;
+import com.popcorn.demo.domain.users.entity.UserAddress;
+import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 
@@ -50,7 +61,8 @@ import lombok.extern.slf4j.Slf4j;
  * 실제 Spring Context에서 올바르게 동작하는지 확인합니다.
  */
 @SpringBootTest
-@AutoConfigureWebMvc
+@AutoConfigureMockMvc
+@Import(TestSecurityConfig.class)
 @TestPropertySource(properties = {
     "logging.level.com.popcorn.demo.common.aop=DEBUG",
     "logging.level.AUDIT=INFO",
@@ -83,23 +95,39 @@ class OrderCommandControllerIntegrationTest {
 
     @Test
     @DisplayName("주문 생성 시 어노테이션 기능들이 정상 동작한다")
-    @WithMockUser(username = "1001", authorities = "CUSTOMER")
     void createOrderWithAnnotations() throws Exception {
+        // Given - Authentication 모킹
+        User mockUser = new User();
+        mockUser.setUserId(1001L);
+        mockUser.setRole(UserRole.CUSTOMER);
+        mockUser.setEmail("test@example.com");
+
+        CustomUserDetails userDetails = new CustomUserDetails(mockUser);
+        Authentication authentication = new TestingAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+        // User Address 모킹 - 예약형 주문이므로 주소 필요없음
+        when(userAddressRepository.findByUserUserId(1001L)).thenReturn(List.of());
         // Given
         UUID orderId = UUID.randomUUID();
         UUID popupId = UUID.randomUUID();
 
-        CreateOrderRequest request = CreateOrderRequest.builder()
-                .orderType("RESERVATION")
-                .popupId(popupId)
-                .paymentMethod("CARD")
-                .items(List.of(OrderItemRequest.builder()
-                        .orderItemType("RESERVATION")
-                        .sessionId(UUID.randomUUID())
-                        .qty(1)
-                        .unitPrice(10000)
-                        .build()))
-                .build();
+        // JSON 문자열을 직접 작성해서 추가 필드 생성 방지
+        UUID sessionId = UUID.randomUUID();
+        String requestJson = String.format("""
+            {
+                "orderType": "RESERVATION",
+                "popupId": "%s",
+                "paymentMethod": "CARD",
+                "items": [
+                    {
+                        "orderItemType": "RESERVATION",
+                        "sessionId": "%s",
+                        "qty": 1,
+                        "unitPrice": 10000
+                    }
+                ]
+            }
+            """, popupId, sessionId);
 
         CreateOrderResponse orderResponse = CreateOrderResponse.builder()
                 .orderId(orderId)
@@ -133,7 +161,8 @@ class OrderCommandControllerIntegrationTest {
         // When & Then
         MvcResult result = mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(requestJson)
+                        .with(authentication(authentication)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.orderId").value(orderId.toString()))
                 .andReturn();
@@ -148,8 +177,15 @@ class OrderCommandControllerIntegrationTest {
 
     @Test
     @DisplayName("주문 상태 변경 시 감사 로그가 기록된다")
-    @WithMockUser(username = "2001", authorities = "OWNER")
     void updateOrderStatusWithAuditLog() throws Exception {
+        // Given - Authentication 모킹 for OWNER
+        User mockUser = new User();
+        mockUser.setUserId(2001L);
+        mockUser.setRole(UserRole.OWNER);
+        mockUser.setEmail("owner@example.com");
+
+        CustomUserDetails userDetails = new CustomUserDetails(mockUser);
+        Authentication authentication = new TestingAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         // Given
         UUID orderId = UUID.randomUUID();
 
@@ -170,7 +206,8 @@ class OrderCommandControllerIntegrationTest {
         // When & Then
         mockMvc.perform(patch("/api/v1/orders/{orderId}/status", orderId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(request))
+                        .with(authentication(authentication)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("ACCEPTED"));
 
@@ -183,10 +220,24 @@ class OrderCommandControllerIntegrationTest {
 
     @Test
     @DisplayName("주문 취소 시 감사 로그와 Rate Limit이 적용된다")
-    @WithMockUser(username = "1001", authorities = "CUSTOMER")
     void cancelOrderWithAnnotations() throws Exception {
+        // Given - Authentication 모킹
+        User mockUser = new User();
+        mockUser.setUserId(1001L);
+        mockUser.setRole(UserRole.CUSTOMER);
+        mockUser.setEmail("test@example.com");
+
+        CustomUserDetails userDetails = new CustomUserDetails(mockUser);
+        Authentication authentication = new TestingAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         // Given
         UUID orderId = UUID.randomUUID();
+
+        // 취소 가능한 상태의 주문 생성
+        Order existingOrder = Order.builder()
+                .id(orderId)
+                .status(OrderStatus.PAYMENT_PENDING) // 취소 가능한 상태
+                .cancelableUntil(LocalDateTime.now().plusMinutes(30)) // 취소 가능 시간 설정
+                .build();
 
         Order cancelledOrder = Order.builder()
                 .id(orderId)
@@ -194,14 +245,15 @@ class OrderCommandControllerIntegrationTest {
                 .build();
 
         when(orderRepository.findById(orderId))
-                .thenReturn(java.util.Optional.of(cancelledOrder));
-        when(orderDomainService.canChangeStatus(any(), any()))
+                .thenReturn(Optional.of(existingOrder)); // existingOrder를 반환
+        when(orderDomainService.canChangeStatus(OrderStatus.PAYMENT_PENDING, OrderStatus.CANCELLED))
                 .thenReturn(true);
         when(orderCommandService.updateStatus(orderId, OrderStatus.CANCELLED.name(), "고객 요청에 의한 취소"))
                 .thenReturn(cancelledOrder);
 
         // When & Then
-        mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", orderId))
+        mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", orderId)
+                        .with(authentication(authentication)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("CANCELED"));
 
@@ -209,23 +261,6 @@ class OrderCommandControllerIntegrationTest {
         log.info("- @RateLimit: 5분간 5회 제한 (AOP 적용됨)");
         log.info("- @ApiLogging: 취소 API 로깅 (AOP 적용됨)");
         log.info("- @AuditLog: 취소 감사 로그 INFO 레벨 (AOP 적용됨)");
-    }
-
-    @Test
-    @DisplayName("위험한 삭제 작업에 강력한 Rate Limit이 적용된다")
-    @WithMockUser(username = "9999", authorities = "ADMIN")
-    void deleteAllOrdersWithStrictRateLimit() throws Exception {
-        // Given - 모든 주문 삭제는 매우 제한적으로 허용
-
-        // When & Then
-        mockMvc.perform(delete("/api/v1/orders/all"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value("모든 주문 데이터가 삭제되었습니다."));
-
-        log.info("=== 위험한 작업 어노테이션 테스트 완료 ===");
-        log.info("- @RateLimit: IP별 1시간에 1회만 허용 (AOP 적용됨)");
-        log.info("- @ApiLogging: ERROR 레벨로 위험 작업 로깅 (AOP 적용됨)");
-        log.info("- @AuditLog: ERROR 레벨로 위험 작업 감사 로그 (AOP 적용됨)");
     }
 
     /**

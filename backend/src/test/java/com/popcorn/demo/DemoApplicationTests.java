@@ -5,6 +5,5 @@ import org.junit.platform.suite.api.Suite;
 
 @Suite
 @SelectPackages("com.popcorn.demo")
-public class DemoApplicationTests {
-
+class DemoApplicationTests {
 }

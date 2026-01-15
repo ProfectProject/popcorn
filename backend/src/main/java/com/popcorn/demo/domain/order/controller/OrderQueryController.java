@@ -120,6 +120,9 @@ public class OrderQueryController extends BaseController {
 			@PathVariable UUID orderId,
 			Authentication authentication) {
 
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long userId = userDetails.getUserId();
 		String role = userDetails.getRole();
@@ -196,6 +199,9 @@ public class OrderQueryController extends BaseController {
 			@PathVariable UUID orderId,
 			Authentication authentication) {
 
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long customerId = userDetails.getUserId();
 
@@ -236,6 +242,9 @@ public class OrderQueryController extends BaseController {
 			@PathVariable UUID orderId,
 			Authentication authentication) {
 
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long userId = userDetails.getUserId();
 		String role = userDetails.getRole();
@@ -554,6 +563,9 @@ public class OrderQueryController extends BaseController {
 			Authentication authentication) {
 
 		// JWT에서 현재 인증된 사용자 정보 추출
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long customerId = userDetails.getUserId();
 

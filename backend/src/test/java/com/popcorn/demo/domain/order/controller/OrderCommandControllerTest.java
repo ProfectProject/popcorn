@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -141,6 +142,22 @@ class OrderCommandControllerTest {
 				service, domainService, orderRepository, paymentFacade, userAddressRepository, new ObjectMapper(), tossPaymentsProperties, paymentTokenService);
 
 		UUID orderId = UUID.randomUUID();
+
+		// 취소 가능한 주문 생성 (현재 시간 + 10분 후까지 취소 가능)
+		Order existingOrder = Order.builder()
+				.id(orderId)
+				.status(OrderStatus.PAYMENT_PENDING)
+				.cancelableUntil(java.time.LocalDateTime.now().plusMinutes(10))
+				.build();
+
+		// orderRepository.findById() 모킹
+		when(orderRepository.findById(orderId))
+				.thenReturn(java.util.Optional.of(existingOrder));
+
+		// orderDomainService.canChangeStatus() 모킹
+		when(domainService.canChangeStatus(OrderStatus.PAYMENT_PENDING, OrderStatus.CANCELLED))
+				.thenReturn(true);
+
 		Order cancelled = Order.builder().id(orderId).status(OrderStatus.CANCELLED).build();
 		when(service.updateStatus(orderId, OrderStatus.CANCELLED.name(), "고객 요청에 의한 취소"))
 				.thenReturn(cancelled);

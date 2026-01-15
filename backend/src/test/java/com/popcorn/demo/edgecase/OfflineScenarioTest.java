@@ -147,7 +147,7 @@ public class OfflineScenarioTest {
             // 의도적으로 잘못된 엔드포인트 호출 (연결 끊김 시뮬레이션)
             mockMvc.perform(get("/api/v1/nonexistent-endpoint")
                             .header("Authorization", testToken))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isNotFound()); // 404가 올바른 응답
         } catch (Exception e) {
             System.out.println("❌ 연결 오류 시뮬레이션: " + e.getMessage());
         }

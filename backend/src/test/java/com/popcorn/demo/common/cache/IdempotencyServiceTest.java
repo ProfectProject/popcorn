@@ -63,7 +63,7 @@ class IdempotencyServiceTest {
         IdempotencyService service = new CaffeineBasedIdempotencyService(objectMapper);
 
         Mockito.when(objectMapper.writeValueAsString(Mockito.any()))
-                .thenThrow(new JsonProcessingException("fail") {});
+                .thenThrow(new RuntimeException("fail"));
 
         IdempotencyService.IdempotencyResult<String> result = service.processRequest(
                 "serialize",

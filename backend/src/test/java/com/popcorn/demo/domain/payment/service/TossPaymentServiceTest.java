@@ -91,15 +91,11 @@ class TossPaymentServiceTest {
 				.build();
 
 		when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(order));
+		// 새로운 결제 확인 시나리오: 기존 결제가 없는 상황
 		when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(any(UUID.class)))
-				.thenReturn(java.util.List.of(payment));
-		when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
-		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderNo));
-		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
-				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
+				.thenReturn(java.util.List.of());
 
-		// PaymentCommandService mock 추가
+		// PaymentCommandService.createPayment 호출 시 새 결제 생성
 		PaymentCommandService.PaymentCreationResult paymentCreationResult =
 				PaymentCommandService.PaymentCreationResult.builder()
 						.paymentId(paymentId)
@@ -109,6 +105,11 @@ class TossPaymentServiceTest {
 						.build();
 		when(paymentCommandService.createPayment(eq(orderId), eq("CARD"), eq(4000), any(String.class)))
 				.thenReturn(paymentCreationResult);
+		when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+		when(tossPaymentsClient.confirm(any())).thenReturn(confirmResponse(orderNo));
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(orderCommandService.updateStatus(eq(orderId), eq(OrderStatus.PAID.name()), any()))
+				.thenReturn(Order.builder().id(orderId).status(OrderStatus.PAID).build());
 
 		TossPaymentService.TossPaymentConfirmResult result =
 				tossPaymentService.confirmPayment("pay_123", orderNo, 4000);

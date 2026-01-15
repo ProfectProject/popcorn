@@ -7,6 +7,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.controller.BaseController;
@@ -15,6 +17,9 @@ import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.common.exception.BaseException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
+
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  * - 기타 예상치 못한 예외: 500 Internal Server Error
  */
 @RestControllerAdvice
+@org.springframework.core.annotation.Order(10) // GlobalExceptionHandler 다음 순위
 @Slf4j
 public class OrderExceptionHandler extends BaseController {
 
@@ -111,10 +117,55 @@ public class OrderExceptionHandler extends BaseController {
 	}
 
 	/**
+	 * 인증 자격 증명 누락 오류 (403 Forbidden)
+	 */
+	@ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleAuthenticationCredentialsNotFoundException(
+			AuthenticationCredentialsNotFoundException ex) {
+		log.warn("🔒 인증 자격 증명 누락: {}", ex.getMessage());
+		String userMessage = "인증이 필요합니다.";
+		return error(CommonResponseCode.FORBIDDEN, userMessage);
+	}
+
+	/**
+	 * 잘못된 인증 정보 오류 (400 Bad Request)
+	 */
+	@ExceptionHandler(BadCredentialsException.class)
+	public ResponseEntity<BaseResponse<BaseError>> handleBadCredentialsException(
+			BadCredentialsException ex) {
+		log.warn("🔒 잘못된 인증 정보: {}", ex.getMessage());
+		String userMessage = "아이디 또는 비밀번호가 잘못되었습니다.";
+		return error(CommonResponseCode.INVALID_REQUEST, userMessage);
+	}
+
+
+	/**
 	 * 기타 예상치 못한 예외 처리 (500 Internal Server Error)
+	 * HttpRequestMethodNotSupportedException과 NoResourceFoundException은 제외 - Spring이 기본 상태로 처리하도록 함
+	 * 인증 관련 예외는 별도 핸들러에서 처리하므로 제외
 	 */
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex) {
+	public ResponseEntity<BaseResponse<BaseError>> handleGeneralException(Exception ex)
+			throws HttpRequestMethodNotSupportedException, NoResourceFoundException {
+		// HttpRequestMethodNotSupportedException은 Spring이 405 상태로 처리하도록 재throw
+		if (ex instanceof HttpRequestMethodNotSupportedException) {
+			throw (HttpRequestMethodNotSupportedException) ex;
+		}
+
+		// NoResourceFoundException은 Spring이 404 상태로 처리하도록 재throw
+		if (ex instanceof NoResourceFoundException) {
+			throw (NoResourceFoundException) ex;
+		}
+
+		// 인증 관련 예외는 이 클래스의 특화 핸들러에서 처리되어야 하는데 여기까지 온 경우
+		// 명시적으로 해당 핸들러로 리다이렉트
+		if (ex instanceof AuthenticationCredentialsNotFoundException) {
+			return handleAuthenticationCredentialsNotFoundException((AuthenticationCredentialsNotFoundException) ex);
+		}
+		if (ex instanceof BadCredentialsException) {
+			return handleBadCredentialsException((BadCredentialsException) ex);
+		}
+
 		log.error("🚨 주문 처리 중 예상치 못한 오류 발생 - 타입: {}, 메시지: {}",
 			ex.getClass().getSimpleName(), ex.getMessage(), ex);
 

@@ -250,7 +250,7 @@ public class RetryMechanismTest extends BaseIntegrationTest {
 
         for (int i = 0; i < 3; i++) {
             mockMvc.perform(get("/api/v1/popups/" + nonExistentPopupId))
-                    .andExpect(status().isForbidden())
+                    .andExpect(status().isNotFound())
                     .andDo(print());
 
             Thread.sleep(50); // 재시도 간격

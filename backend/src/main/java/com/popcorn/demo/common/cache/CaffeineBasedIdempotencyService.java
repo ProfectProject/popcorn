@@ -62,6 +62,18 @@ public class CaffeineBasedIdempotencyService implements IdempotencyService {
 
 		log.debug("🔄 멱등성 요청 처리 시작 - 키: {}", idempotencyKey);
 
+		// null key인 경우 캐시를 사용하지 않고 바로 실행
+		if (idempotencyKey == null) {
+			log.debug("⚠️ 멱등성 키가 null이므로 캐시 없이 직접 실행");
+			try {
+				T result = operation.execute();
+				return IdempotencyResult.newExecution(result);
+			} catch (Exception e) {
+				log.error("❌ 요청 처리 실패 - 키: null, 오류: {}", e.getMessage(), e);
+				throw new IdempotencyException("작업 실행 중 오류 발생", e);
+			}
+		}
+
 		// 1. 이미 완료된 요청인지 확인
 		IdempotencyRecord cachedRecord = responseCache.getIfPresent(idempotencyKey);
 		if (cachedRecord != null) {
@@ -95,16 +107,21 @@ public class CaffeineBasedIdempotencyService implements IdempotencyService {
 			// 실제 작업 실행
 			T result = operation.execute();
 
-			// 4. 성공 결과 캐싱
-			String serializedResult = serializeResponse(result);
-			IdempotencyRecord record = new IdempotencyRecord(
-					idempotencyKey,
-					serializedResult,
-					LocalDateTime.now()
-			);
+			// 4. 성공 결과 캐싱 (직렬화 실패 시에도 결과는 반환)
+			try {
+				String serializedResult = serializeResponse(result);
+				IdempotencyRecord record = new IdempotencyRecord(
+						idempotencyKey,
+						serializedResult,
+						LocalDateTime.now()
+				);
 
-			responseCache.put(idempotencyKey, record);
-			log.debug("✅ 요청 완료 및 캐싱 - 키: {}", idempotencyKey);
+				responseCache.put(idempotencyKey, record);
+				log.debug("✅ 요청 완료 및 캐싱 - 키: {}", idempotencyKey);
+			} catch (Exception e) {
+				log.warn("⚠️ 결과 캐싱 실패하지만 요청은 성공 처리 - 키: {}, 오류: {}",
+					idempotencyKey, e.getMessage());
+			}
 
 			metrics.recordSuccessfulExecution();
 			return IdempotencyResult.newExecution(result);
