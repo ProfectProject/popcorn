@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -255,6 +256,7 @@ class OrderCommandControllerIntegrationTest {
         // When & Then
         mockMvc.perform(delete("/api/v1/orders/{orderId}/cancel", orderId)
                         .with(authentication(authentication)))
+                .andDo(print()) // 실제 응답 출력
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("CANCELED"));
 
