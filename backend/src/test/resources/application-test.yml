@@ -57,6 +57,14 @@ toss:
     success-url: http://localhost:3000/payments/success
     fail-url: http://localhost:3000/payments/fail
 
+# 테스트용 AOP 및 멱등성 설정 (Mock 사용)
+popcorn:
+  idempotency:
+    enabled: true
+    redis:
+      key-prefix: "test:popcorn:idempotent"
+      default-ttl: 300  # 5분 (테스트용 짧은 시간)
+
 # 테스트용 Resilience4j 설정
 resilience4j:
   circuitbreaker:

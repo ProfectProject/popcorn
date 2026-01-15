@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.popcorn.demo.config.TestSecurityConfig;
+import com.popcorn.demo.config.TestRedisConfig;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.request.CreateOrderRequest;
 import com.popcorn.demo.domain.order.dto.request.OrderItemRequest;
@@ -62,7 +63,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestSecurityConfig.class)
+@Import({TestSecurityConfig.class, TestRedisConfig.class})
 @TestPropertySource(properties = {
     "logging.level.com.popcorn.demo.common.aop=DEBUG",
     "logging.level.AUDIT=INFO",
