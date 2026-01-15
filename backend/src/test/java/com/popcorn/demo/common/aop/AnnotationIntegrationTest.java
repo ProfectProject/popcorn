@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import com.popcorn.demo.config.TestRedisConfig;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
  * 실제 AOP 동작을 확인하는 통합 테스트입니다.
  */
 @SpringBootTest
+@ActiveProfiles("test")
 @Import(TestRedisConfig.class)
 @TestPropertySource(properties = {
     "logging.level.com.popcorn.demo.common.aop=DEBUG",

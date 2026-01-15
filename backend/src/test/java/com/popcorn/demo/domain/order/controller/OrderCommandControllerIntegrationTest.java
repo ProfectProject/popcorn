@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -63,6 +64,7 @@ import lombok.extern.slf4j.Slf4j;
  * 실제 Spring Context에서 올바르게 동작하는지 확인합니다.
  */
 @SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import({TestSecurityConfig.class, TestRedisConfig.class})
 @TestPropertySource(properties = {

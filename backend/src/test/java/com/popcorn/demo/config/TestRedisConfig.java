@@ -1,9 +1,11 @@
 package com.popcorn.demo.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 
 import com.popcorn.demo.common.cache.IdempotencyCacheStats;
 import com.popcorn.demo.common.cache.IdempotencyService;
@@ -18,8 +20,10 @@ import lombok.extern.slf4j.Slf4j;
  * 실제 Redis 대신 Mock 구현체를 제공하여
  * 테스트 환경에서 Redis 의존성을 제거합니다.
  */
-@TestConfiguration
+@Configuration
 @ConditionalOnClass(IdempotencyService.class)
+@ConditionalOnMissingBean(name = "idempotencyService")
+@Profile("test")
 @Slf4j
 public class TestRedisConfig {
 
