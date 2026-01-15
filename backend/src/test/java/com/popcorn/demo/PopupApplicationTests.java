@@ -16,10 +16,15 @@ import com.popcorn.demo.config.TestSecurityConfig;
  * 팝업 관련 컴포넌트들의 컨텍스트 로딩을 검증합니다.
  */
 
-@Suite
-@SelectPackages("com.popcorn.demo.domain.popup")
+@SpringBootTest
 @Import({TestSecurityConfig.class, TestRedisConfig.class})
+@ActiveProfiles("test")
 public class PopupApplicationTests {
 
+    @Test
+    void contextLoads() {
+        // 팝업 도메인이 정상적으로 로딩되는지 확인하는 기본 테스트
+        // Spring Boot Context가 정상 시작되면 테스트 성공
+    }
 
 }

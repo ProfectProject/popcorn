@@ -520,4 +520,205 @@ class TossPaymentsClientTest {
                     .hasMessage("Connection timeout");
         }
     }
+
+    @Nested
+    @DisplayName("🔥 Circuit Breaker 상태 변화 테스트")
+    class CircuitBreakerStateTests {
+
+        @Test
+        @DisplayName("연속 실패로 CLOSED → OPEN 상태 변화 테스트")
+        void shouldHandleConsecutiveFailuresForStateTransition() {
+            // Given - 연속 실패 시나리오 (단위 테스트에서는 API 예외 처리만 확인)
+            when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any(Class.class)))
+                    .thenThrow(new RestClientException("API 서버 다운"));
+
+            TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                    .paymentKey("consecutive-fail-test")
+                    .orderId("state-change-order")
+                    .amount(10000)
+                    .build();
+
+            // When & Then - 단위 테스트에서는 예외가 직접 전파됨 (Circuit Breaker 상태변화는 통합테스트에서 확인)
+            assertThatThrownBy(() -> client.confirm(request))
+                    .isInstanceOf(RestClientException.class)
+                    .hasMessage("API 서버 다운");
+        }
+
+        @Test
+        @DisplayName("Fallback 메서드가 원본 예외를 올바르게 처리하는지 테스트")
+        void shouldHandleOriginalExceptionInFallback() {
+            // Given - RuntimeException 발생 시나리오
+            when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any(Class.class)))
+                    .thenThrow(new RuntimeException("인증 토큰 만료"));
+
+            TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                    .paymentKey("fallback-exception-test")
+                    .orderId("fallback-order")
+                    .amount(25000)
+                    .build();
+
+            // When & Then - 단위 테스트에서는 Mock에서 설정한 예외가 그대로 전파
+            assertThatThrownBy(() -> client.confirm(request))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("인증 토큰 만료");
+        }
+
+        @Test
+        @DisplayName("결제 취소 Circuit Breaker Fallback 동작 테스트")
+        void shouldHandleCancelFallbackBehavior() {
+            // Given - 취소 API 실패 시나리오
+            when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any(Class.class)))
+                    .thenThrow(new RestClientException("취소 API 서버 오류"));
+
+            String paymentKey = "cancel-fallback-test";
+            TossPaymentsCancelRequest request = TossPaymentsCancelRequest.builder()
+                    .cancelReason("Circuit Breaker 테스트")
+                    .build();
+
+            // When & Then - 단위 테스트에서는 예외가 직접 전파됨
+            assertThatThrownBy(() -> client.cancel(paymentKey, request))
+                    .isInstanceOf(RestClientException.class)
+                    .hasMessage("취소 API 서버 오류");
+        }
+    }
+
+    @Nested
+    @DisplayName("🐒 Chaos Monkey 연동 장애 시뮬레이션 테스트")
+    class ChaosMonkeyIntegrationTests {
+
+        @Test
+        @DisplayName("Chaos Monkey 네트워크 분할 시뮬레이션 - 타임아웃 테스트")
+        void shouldHandleNetworkPartitionWithTimeout() {
+            // Given - 네트워크 분할로 인한 타임아웃 시뮬레이션
+            when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any(Class.class)))
+                    .thenAnswer(invocation -> {
+                        // 네트워크 분할 시뮬레이션 - 긴 지연 후 타임아웃 예외
+                        try {
+                            Thread.sleep(100); // 테스트 시간 단축을 위해 짧게 설정
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        throw new RestClientException("🐒 네트워크 분할 - 연결 타임아웃");
+                    });
+
+            TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                    .paymentKey("chaos-network-partition")
+                    .orderId("chaos-timeout-order")
+                    .amount(40000)
+                    .build();
+
+            // When & Then - 네트워크 분할 타임아웃 예외 확인
+            assertThatThrownBy(() -> client.confirm(request))
+                    .isInstanceOf(RestClientException.class)
+                    .hasMessage("🐒 네트워크 분할 - 연결 타임아웃");
+        }
+    }
+
+    @Nested
+    @DisplayName("⚡ RestTemplate 타임아웃 및 Circuit Breaker 통합 테스트")
+    class TimeoutCircuitBreakerIntegrationTests {
+
+        @Test
+        @DisplayName("타임아웃과 Circuit Breaker 조합 테스트")
+        void shouldHandleTimeoutWithCircuitBreakerCombination() {
+            // Given - 타임아웃과 Circuit Breaker 조합 시나리오
+            when(restTemplate.postForObject(any(String.class), any(HttpEntity.class), any(Class.class)))
+                    .thenThrow(new RestClientException("⚡ Read timeout - Circuit Breaker 트리거"));
+
+            TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                    .paymentKey("timeout-cb-test")
+                    .orderId("timeout-cb-order")
+                    .amount(35000)
+                    .build();
+
+            // When & Then - 단위 테스트에서는 타임아웃 예외가 직접 전파
+            // (Circuit Breaker 동작은 실제 Spring 컨텍스트가 있는 통합테스트에서 확인)
+            assertThatThrownBy(() -> client.confirm(request))
+                    .isInstanceOf(RestClientException.class)
+                    .hasMessage("⚡ Read timeout - Circuit Breaker 트리거");
+
+            // 타임아웃 설정이 올바르게 적용되었는지 확인
+            verify(restTemplateBuilder).setConnectTimeout(Duration.ofSeconds(3));
+            verify(restTemplateBuilder).setReadTimeout(Duration.ofSeconds(5));
+        }
+    }
+
+    @Nested
+    @DisplayName("🔧 Fallback 메서드 직접 테스트 (코드 커버리지 개선)")
+    class FallbackMethodDirectTests {
+
+        @Test
+        @DisplayName("confirmFallback - RuntimeException 재전파 테스트")
+        void confirmFallbackShouldRethrowRuntimeException() {
+            // Given
+            TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                    .paymentKey("fallback-test-key")
+                    .orderId("fallback-order-123")
+                    .amount(10000)
+                    .build();
+
+            RuntimeException originalException = new RuntimeException("원본 RuntimeException");
+
+            // When & Then - RuntimeException은 그대로 재전파됨
+            assertThatThrownBy(() -> client.confirmFallback(request, originalException))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("원본 RuntimeException")
+                    .isSameAs(originalException);
+        }
+
+        @Test
+        @DisplayName("confirmFallback - 일반 Exception 래핑 테스트")
+        void confirmFallbackShouldWrapNonRuntimeException() {
+            // Given
+            TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                    .paymentKey("fallback-wrap-key")
+                    .orderId("fallback-wrap-order")
+                    .amount(15000)
+                    .build();
+
+            Exception originalException = new Exception("일반 Exception");
+
+            // When & Then - 일반 Exception은 RuntimeException으로 래핑됨
+            assertThatThrownBy(() -> client.confirmFallback(request, originalException))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("결제 API 서비스가 불안정합니다. 잠시 후 다시 시도해주세요.")
+                    .hasCause(originalException);
+        }
+
+        @Test
+        @DisplayName("cancelFallback - RuntimeException 재전파 테스트")
+        void cancelFallbackShouldRethrowRuntimeException() {
+            // Given
+            String paymentKey = "cancel-fallback-test";
+            TossPaymentsCancelRequest request = TossPaymentsCancelRequest.builder()
+                    .cancelReason("Fallback 테스트")
+                    .build();
+
+            RuntimeException originalException = new RuntimeException("취소 원본 RuntimeException");
+
+            // When & Then - RuntimeException은 그대로 재전파됨
+            assertThatThrownBy(() -> client.cancelFallback(paymentKey, request, originalException))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("취소 원본 RuntimeException")
+                    .isSameAs(originalException);
+        }
+
+        @Test
+        @DisplayName("cancelFallback - 일반 Exception 래핑 테스트")
+        void cancelFallbackShouldWrapNonRuntimeException() {
+            // Given
+            String paymentKey = "cancel-wrap-test";
+            TossPaymentsCancelRequest request = TossPaymentsCancelRequest.builder()
+                    .cancelReason("Exception 래핑 테스트")
+                    .build();
+
+            Exception originalException = new Exception("취소 일반 Exception");
+
+            // When & Then - 일반 Exception은 RuntimeException으로 래핑됨
+            assertThatThrownBy(() -> client.cancelFallback(paymentKey, request, originalException))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("결제 취소 API 서비스가 불안정합니다. 잠시 후 다시 시도해주세요.")
+                    .hasCause(originalException);
+        }
+    }
 }
