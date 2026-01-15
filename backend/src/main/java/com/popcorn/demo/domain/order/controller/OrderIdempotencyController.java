@@ -14,6 +14,9 @@ import com.popcorn.demo.common.cache.IdempotencyCacheStats;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.demo.common.annotation.ApiLogging;
+import com.popcorn.demo.common.annotation.AuditLog;
+import com.popcorn.demo.common.annotation.RateLimit;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,26 @@ public class OrderIdempotencyController extends BaseController {
 	 * 캐시 성능, 히트율, 오류율 등 모니터링 정보 제공
 	 */
 	@GetMapping("/stats")
+	@RateLimit(
+		requests = 20,
+		window = 300,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "캐시 통계 조회 요청이 너무 많습니다."
+	)
+	@ApiLogging(
+		message = "멱등성 캐시 통계 조회",
+		includeRequest = true,
+		includeResponse = false,
+		level = ApiLogging.LogLevel.INFO
+	)
+	@AuditLog(
+		action = "CACHE_STATS_ACCESS",
+		resource = "IDEMPOTENCY_CACHE",
+		description = "멱등성 캐시 통계에 접근했습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+		staticResourceId = "CACHE_STATS",
+		level = AuditLog.Level.INFO
+	)
 	public ResponseEntity<BaseResponse<IdempotencyCacheStats>> getCacheStats() {
 		log.info("📊 멱등성 캐시 통계 조회 요청");
 
@@ -87,6 +110,26 @@ public class OrderIdempotencyController extends BaseController {
 	 * ⚠️ 주의: 모든 멱등성 캐시가 삭제됩니다
 	 */
 	@DeleteMapping("/cache")
+	@RateLimit(
+		requests = 1,
+		window = 86400,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "🚨 전체 캐시 삭제는 하루에 1번만 허용됩니다."
+	)
+	@ApiLogging(
+		message = "🚨 전체 멱등성 캐시 삭제",
+		includeRequest = true,
+		includeResponse = true,
+		level = ApiLogging.LogLevel.ERROR
+	)
+	@AuditLog(
+		action = "CACHE_CLEAR_ALL",
+		resource = "IDEMPOTENCY_CACHE",
+		description = "🚨 위험: 모든 멱등성 캐시를 삭제했습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+		staticResourceId = "ALL_CACHE",
+		level = AuditLog.Level.ERROR
+	)
 	public ResponseEntity<BaseResponse<String>> clearAllCache() {
 		log.warn("🧹 전체 멱등성 캐시 삭제 요청 - 관리자 작업");
 
@@ -110,6 +153,27 @@ public class OrderIdempotencyController extends BaseController {
 	 * @param idempotencyKey 삭제할 멱등성 키
 	 */
 	@DeleteMapping("/cache/{idempotencyKey}")
+	@RateLimit(
+		requests = 10,
+		window = 3600,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "⚠️ 캐시 키 삭제는 1시간에 10회만 허용됩니다."
+	)
+	@ApiLogging(
+		message = "⚠️ 특정 캐시 키 삭제",
+		includeRequest = true,
+		includeResponse = true,
+		level = ApiLogging.LogLevel.WARN
+	)
+	@AuditLog(
+		action = "CACHE_KEY_DELETE",
+		resource = "IDEMPOTENCY_CACHE",
+		description = "⚠️ 특정 멱등성 캐시 키를 삭제했습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+		resourceIdExpression = "#idempotencyKey",
+		level = AuditLog.Level.WARN,
+		includeRequestData = true
+	)
 	public ResponseEntity<BaseResponse<String>> invalidateKey(@PathVariable String idempotencyKey) {
 		log.warn("🗑️ 특정 멱등성 캐시 삭제 요청 - 키: {}", idempotencyKey);
 

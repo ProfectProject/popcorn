@@ -22,7 +22,7 @@ import com.popcorn.demo.domain.auth.jwt.LoginFilter;
 
 import lombok.RequiredArgsConstructor;
 import java.util.List;
-
+//TODO: 각 domian
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

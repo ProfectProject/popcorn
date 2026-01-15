@@ -2,7 +2,7 @@ package com.popcorn.demo.domain.order.exception;
 
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 public class OrderValidationException extends BaseException {
 

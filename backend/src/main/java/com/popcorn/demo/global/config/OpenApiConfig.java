@@ -14,6 +14,8 @@ import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
 import java.util.ArrayList;
 
+//TODO: 각 도메인
+
 @Configuration
 public class OpenApiConfig {
 

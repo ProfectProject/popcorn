@@ -1,7 +1,7 @@
 package com.popcorn.demo.domain.checkin.exception.owner;
 
 import com.popcorn.demo.domain.checkin.dto.owner.OwnerCheckinResponseCode;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 public class OwnerCheckinException extends BaseException {
 

@@ -32,7 +32,7 @@ import com.popcorn.demo.domain.order.service.OrderDomainService;
 import com.popcorn.demo.domain.order.service.OrderPaymentFacade;
 import com.popcorn.demo.domain.users.repository.UserAddressRepository;
 import com.popcorn.demo.domain.users.entity.UserAddress;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
@@ -48,6 +48,11 @@ import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.demo.common.annotation.ApiLogging;
+import com.popcorn.demo.common.annotation.AuditLog;
+import com.popcorn.demo.common.annotation.Idempotent;
+import com.popcorn.demo.common.annotation.RateLimit;
+import com.popcorn.demo.common.annotation.ValidateRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -138,6 +143,39 @@ private final PaymentTokenService paymentTokenService;
 		description = "비즈니스 규칙 위반 (재고부족, 정원초과, 상태오류 등)"
 	)
 	@PostMapping
+	@RateLimit(
+		requests = 10,
+		window = 60,
+		keyExpression = "#authentication.principal.userId",
+		errorMessage = "주문 생성 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+	)
+	@ApiLogging(
+		message = "주문 생성",
+		includeRequest = true,
+		includeResponse = true,
+		includeExecutionTime = true,
+		maskSensitiveData = true,
+		excludeParams = {"request.paymentMethod"}
+	)
+	@ValidateRequest(
+		validateNulls = true,
+		validateEmpty = true,
+		errorMessage = "주문 요청 데이터가 올바르지 않습니다."
+	)
+	@AuditLog(
+		action = "ORDER_CREATE",
+		resource = "ORDER",
+		description = "새로운 주문이 생성되었습니다",
+		userIdExpression = "#authentication.principal.userId",
+		resourceIdExpression = "#result.body.data.orderId",
+		includeRequestData = true,
+		excludeParams = {"request.paymentMethod"}
+	)
+	@Idempotent(
+		keyExpression = "#authentication.principal.userId + ':create_order:' + T(java.time.LocalDate).now() + ':' + #request.popupId",
+		keyPrefix = "order_creation",
+		responseType = OrderCreatedDto.class
+	)
 	public ResponseEntity<BaseResponse<OrderCreatedDto>> createOrder(
 			@io.swagger.v3.oas.annotations.parameters.RequestBody(
 				description = "주문 생성 요청 데이터",
@@ -278,6 +316,32 @@ private final PaymentTokenService paymentTokenService;
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@ApiResponse(responseCode = "409", description = "이미 취소된 주문")
 	@PatchMapping("/{orderId}/status")
+	@RateLimit(
+		requests = 30,
+		window = 60,
+		keyExpression = "#authentication != null ? #authentication.principal.userId : 'anonymous'",
+		algorithm = RateLimit.Algorithm.SLIDING_WINDOW
+	)
+	@ApiLogging(
+		message = "주문 상태 변경",
+		includeRequest = true,
+		includeResponse = true,
+		includeExecutionTime = true
+	)
+	@AuditLog(
+		action = "ORDER_STATUS_CHANGE",
+		resource = "ORDER",
+		description = "주문 상태가 변경되었습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'system'",
+		resourceIdExpression = "#orderId",
+		includeRequestData = true,
+		includeResponseData = true,
+		level = AuditLog.Level.WARN
+	)
+	@ValidateRequest(
+		validateNulls = true,
+		errorMessage = "주문 상태 변경 요청이 올바르지 않습니다."
+	)
 	public ResponseEntity<BaseResponse<UpdateOrderStatusResponse>> updateOrderStatus(
 			@Parameter(
 				description = "주문 ID",
@@ -416,6 +480,28 @@ private final PaymentTokenService paymentTokenService;
 	@ApiResponse(responseCode = "403", description = "권한 없음")
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@DeleteMapping("/{orderId}/cancel")
+	@ApiLogging(
+		message = "주문 취소",
+		includeRequest = true,
+		includeResponse = true,
+		includeExecutionTime = true
+	)
+	@AuditLog(
+		action = "ORDER_CANCEL",
+		resource = "ORDER",
+		description = "고객이 주문을 취소했습니다",
+		userIdExpression = "#authentication.principal.userId",
+		resourceIdExpression = "#orderId",
+		includeRequestData = false,
+		includeResponseData = true,
+		level = AuditLog.Level.INFO
+	)
+	@RateLimit(
+		requests = 5,
+		window = 300,
+		keyExpression = "#authentication.principal.userId",
+		errorMessage = "주문 취소 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+	)
 	public ResponseEntity<BaseResponse<CancelOrderResponse>> cancelOrder(
 			@Parameter(
 					description = "주문 ID",
@@ -475,6 +561,29 @@ private final PaymentTokenService paymentTokenService;
 			description = "모든 주문 데이터 삭제 완료"
 	)
 	@DeleteMapping("/all")
+	@RateLimit(
+		requests = 1,
+		window = 3600,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "⚠️ 위험한 작업입니다. 1시간에 1번만 실행 가능합니다."
+	)
+	@ApiLogging(
+		message = "⚠️ 모든 주문 데이터 삭제",
+		includeRequest = true,
+		includeResponse = true,
+		includeExecutionTime = true,
+		level = ApiLogging.LogLevel.ERROR
+	)
+	@AuditLog(
+		action = "ORDER_DELETE_ALL",
+		resource = "ORDER",
+		description = "⚠️ 위험: 모든 주문 데이터가 삭제되었습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+		staticResourceId = "ALL_ORDERS",
+		level = AuditLog.Level.ERROR,
+		includeRequestData = true,
+		includeResponseData = true
+	)
 	public ResponseEntity<BaseResponse<String>> deleteAllOrders() {
 		log.warn("🚨 모든 주문 데이터 삭제 요청");
 		orderCommandService.deleteAllOrders();

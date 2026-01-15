@@ -150,7 +150,7 @@ public class OrderPaymentProcessedEvent extends BaseOrderEvent {
     // ================ Event Payload ================
 
     @Override
-    protected Map<String, Object> getEventPayload() {
+    public Map<String, Object> getEventPayload() {
         Map<String, Object> payload = new java.util.HashMap<>();
         payload.put("orderId", getOrderId());
         payload.put("userId", getUserId());

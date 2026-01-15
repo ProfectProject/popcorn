@@ -19,6 +19,8 @@ import lombok.RequiredArgsConstructor;
  * - 주문 후처리 알림처럼 응답과 분리된 작업에 사용합니다.
  * - 도메인별 전용 스레드 풀 제공
  */
+
+//TODO: 주문
 @Configuration
 @EnableAsync
 @EnableScheduling

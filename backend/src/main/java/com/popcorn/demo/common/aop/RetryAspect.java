@@ -25,7 +25,7 @@ import com.popcorn.demo.common.annotation.RetryOnFailure;
  * 메서드 실행 실패 시 자동으로 재시도를 수행합니다.
  */
 @Aspect
-@Component
+@Component("customRetryAspect") // Resilience4j와 충돌 방지를 위한 명시적 bean 이름
 @Order(5) // 중간 우선순위
 public class RetryAspect {
 
