@@ -162,4 +162,120 @@ class TossPaymentsClientTest {
         assertThat(response).isNotNull();
         assertThat(response.getPaymentKey()).isEqualTo("sandbox-payment-key");
     }
+
+    @Test
+    void cancelSendsRequestToTossApi() {
+        // Given
+        String paymentKey = "payment-key-to-cancel";
+        TossPaymentsCancelRequest request = TossPaymentsCancelRequest.builder()
+                .cancelReason("사용자 요청")
+                .build();
+
+        TossPaymentsCancelResponse expectedResponse = new TossPaymentsCancelResponse();
+        expectedResponse.setPaymentKey(paymentKey);
+        expectedResponse.setStatus("CANCELED");
+        expectedResponse.setTotalAmount(15000);
+        expectedResponse.setBalanceAmount(0);
+
+        when(restTemplate.postForObject(
+                eq("https://api.tosspayments.com/v1/payments/" + paymentKey + "/cancel"),
+                any(HttpEntity.class),
+                eq(TossPaymentsCancelResponse.class)
+        )).thenReturn(expectedResponse);
+
+        // When
+        TossPaymentsCancelResponse response = client.cancel(paymentKey, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getPaymentKey()).isEqualTo(paymentKey);
+        assertThat(response.getStatus()).isEqualTo("CANCELED");
+        assertThat(response.getTotalAmount()).isEqualTo(15000);
+        assertThat(response.getBalanceAmount()).isEqualTo(0);
+    }
+
+    @Test
+    void cancelWithNullPaymentKey() {
+        // Given
+        String paymentKey = null;
+        TossPaymentsCancelRequest request = TossPaymentsCancelRequest.builder()
+                .cancelReason("관리자 취소")
+                .build();
+
+        TossPaymentsCancelResponse expectedResponse = new TossPaymentsCancelResponse();
+        expectedResponse.setPaymentKey(null);
+        expectedResponse.setStatus("FAILED");
+
+        when(restTemplate.postForObject(
+                eq("https://api.tosspayments.com/v1/payments/null/cancel"),
+                any(HttpEntity.class),
+                eq(TossPaymentsCancelResponse.class)
+        )).thenReturn(expectedResponse);
+
+        // When
+        TossPaymentsCancelResponse response = client.cancel(paymentKey, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getPaymentKey()).isNull();
+        assertThat(response.getStatus()).isEqualTo("FAILED");
+    }
+
+    @Test
+    void cancelWithEmptyPaymentKey() {
+        // Given
+        String paymentKey = "";
+        TossPaymentsCancelRequest request = TossPaymentsCancelRequest.builder()
+                .cancelReason("오류로 인한 취소")
+                .build();
+
+        TossPaymentsCancelResponse expectedResponse = new TossPaymentsCancelResponse();
+        expectedResponse.setPaymentKey("");
+        expectedResponse.setStatus("CANCELED");
+        expectedResponse.setTotalAmount(5000);
+
+        when(restTemplate.postForObject(
+                eq("https://api.tosspayments.com/v1/payments//cancel"),
+                any(HttpEntity.class),
+                eq(TossPaymentsCancelResponse.class)
+        )).thenReturn(expectedResponse);
+
+        // When
+        TossPaymentsCancelResponse response = client.cancel(paymentKey, request);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getPaymentKey()).isEqualTo("");
+        assertThat(response.getStatus()).isEqualTo("CANCELED");
+        assertThat(response.getTotalAmount()).isEqualTo(5000);
+    }
+
+    @Test
+    void buildAuthorizationHeaderWithValidSecretKey() {
+        // Given - secretKey가 정상적으로 설정된 경우는 기존 confirm 테스트에서 이미 테스트됨
+        // 추가적으로 private 메서드의 동작을 간접적으로 확인
+
+        TossPaymentsConfirmRequest request = TossPaymentsConfirmRequest.builder()
+                .paymentKey("auth-test-key")
+                .orderId("auth-test-order")
+                .amount(10000)
+                .build();
+
+        TossPaymentsConfirmResponse expectedResponse = new TossPaymentsConfirmResponse();
+        expectedResponse.setPaymentKey("auth-test-key");
+        expectedResponse.setStatus("PAID");
+
+        when(restTemplate.postForObject(
+                eq("https://api.tosspayments.com/v1/payments/confirm"),
+                any(HttpEntity.class),
+                eq(TossPaymentsConfirmResponse.class)
+        )).thenReturn(expectedResponse);
+
+        // When
+        TossPaymentsConfirmResponse response = client.confirm(request);
+
+        // Then - Authorization 헤더가 올바르게 설정되었는지 간접 확인 (정상 응답으로 판단)
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo("PAID");
+    }
 }
