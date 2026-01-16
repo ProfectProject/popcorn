@@ -1,6 +1,8 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=UUID
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=UUID;IGNORE_UNKNOWN_SETTINGS=TRUE
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -9,7 +11,7 @@ spring:
       mode: never
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
@@ -56,6 +58,18 @@ toss:
     checkout-url: http://localhost:3000/payments
     success-url: http://localhost:3000/payments/success
     fail-url: http://localhost:3000/payments/fail
+
+# 테스트용 AOP 및 멱등성 설정 (Mock 사용)
+popcorn:
+  idempotency:
+    enabled: false  # 테스트에서는 Mock 사용
+    redis:
+      key-prefix: "test:popcorn:idempotent"
+      default-ttl: 300  # 5분 (테스트용 짧은 시간)
+
+# Redis 관련 설정 비활성화 (테스트 환경)
+spring.data.redis.repositories.enabled: false
+spring.cache.type: none
 
 # 테스트용 Resilience4j 설정
 resilience4j:

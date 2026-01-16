@@ -7,6 +7,13 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
+
+import com.popcorn.demo.common.controller.BaseController;
+import com.popcorn.demo.common.dto.BaseError;
+import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,9 +24,9 @@ import lombok.extern.slf4j.Slf4j;
  * 전역 예외 처리 핸들러
  */
 @RestControllerAdvice
-@Order(100) // 도메인별 ExceptionHandler보다 낮은 우선순위
+@Order(1) // 인증 관련 예외를 우선 처리하기 위해 높은 우선순위
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseController {
 
     /**
      * 입력 값 검증 실패 (@Valid 어노테이션)
@@ -53,6 +60,28 @@ public class GlobalExceptionHandler {
         response.put("message", ex.getMessage());
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * 인증 자격 증명 누락 오류 (403 Forbidden)
+     */
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<BaseResponse<BaseError>> handleAuthenticationCredentialsNotFoundException(
+            AuthenticationCredentialsNotFoundException ex) {
+        log.warn("🔒 인증 자격 증명 누락: {}", ex.getMessage());
+        String userMessage = "인증이 필요합니다.";
+        return error(CommonResponseCode.FORBIDDEN, userMessage);
+    }
+
+    /**
+     * 잘못된 인증 정보 오류 (400 Bad Request)
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<BaseResponse<BaseError>> handleBadCredentialsException(
+            BadCredentialsException ex) {
+        log.warn("🔒 잘못된 인증 정보: {}", ex.getMessage());
+        String userMessage = "아이디 또는 비밀번호가 잘못되었습니다.";
+        return error(CommonResponseCode.INVALID_REQUEST, userMessage);
     }
 
     /**

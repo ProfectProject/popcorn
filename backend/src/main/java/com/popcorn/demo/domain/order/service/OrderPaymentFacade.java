@@ -24,7 +24,7 @@ public class OrderPaymentFacade {
 		CreateOrderResponse orderResponse = orderCommandService.createOrder(command);
 
 		// 🎯 결제 기록은 생성하지 않고, 주문만 생성
-		// 실제 결제는 프론트엔드에서 토스 결제 완료 후 webhook으로 처리
+		// 실제 결제는 프론트엔드에서 토스 결제 완료 후 confirm API로 처리
 
 		// 🎯 결제 정보 제공용 (실제 결제 기록 없이)
 		PaymentCommandService.PaymentCreationResult mockPaymentResult =

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,7 +21,7 @@ import com.popcorn.demo.domain.auth.jwt.JwtUtil;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "security-test"})
 class SecurityConfigTest {
 
     @Autowired
@@ -43,7 +44,7 @@ class SecurityConfigTest {
     @Test
     void protectedEndpoints_RequireAuthentication() throws Exception {
         // Order endpoints require authentication
-        mockMvc.perform(get("/api/v1/orders"))
+        mockMvc.perform(get("/api/v1/orders/me"))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/api/v1/orders")
@@ -76,7 +77,7 @@ class SecurityConfigTest {
     @Test
     void authenticationEndpoints_AllowPublicAccess() throws Exception {
         // Login endpoint should be publicly accessible (though may fail validation)
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().is4xxClientError()); // 4xx expected due to invalid request body
@@ -84,17 +85,18 @@ class SecurityConfigTest {
 
     @Test
     void apiEndpoints_RequireAuthenticationByDefault() throws Exception {
-        // Test various API endpoints
-        mockMvc.perform(get("/api/v1/orders/123"))
+        // Test various API endpoints with valid UUIDs
+        mockMvc.perform(get("/api/v1/orders/00000000-0000-0000-0000-000000001001"))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/v1/popups/456"))
+        mockMvc.perform(get("/api/v1/popups/00000000-0000-0000-0000-000000000101"))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/v1/qr/789"))
+        // Use endpoints that actually exist
+        mockMvc.perform(get("/api/v1/orders/me"))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/v1/checkin/test"))
+        mockMvc.perform(get("/api/v1/checkins"))
                 .andExpect(status().isForbidden());
     }
 
@@ -109,7 +111,7 @@ class SecurityConfigTest {
     @Test
     void sessionManagement_IsStateless() throws Exception {
         // Multiple requests should not create sessions
-        mockMvc.perform(get("/api/v1/orders"))
+        mockMvc.perform(get("/api/v1/orders/me"))
                 .andExpect(status().isForbidden())
                 .andExpect(result -> {
                     // Should not create any session
@@ -191,7 +193,7 @@ class SecurityConfigTest {
     @Test
     void httpMethodOverride_IsDisabled() throws Exception {
         // _method parameter should not override HTTP method
-        mockMvc.perform(get("/api/v1/orders")
+        mockMvc.perform(get("/api/v1/orders/me")
                 .param("_method", "POST"))
                 .andExpect(status().isForbidden()); // Should still be GET request
     }
@@ -211,7 +213,7 @@ class SecurityConfigTest {
     void rateLimiting_IsAppliedIfConfigured() throws Exception {
         // Test multiple rapid requests to same endpoint
         for (int i = 0; i < 10; i++) {
-            mockMvc.perform(get("/api/v1/orders"))
+            mockMvc.perform(get("/api/v1/orders/me"))
                     .andExpect(status().isForbidden()); // May be 429 if rate limiting is configured
         }
     }

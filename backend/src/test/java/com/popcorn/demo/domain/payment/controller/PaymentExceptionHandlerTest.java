@@ -20,7 +20,7 @@ import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 class PaymentExceptionHandlerTest {
 

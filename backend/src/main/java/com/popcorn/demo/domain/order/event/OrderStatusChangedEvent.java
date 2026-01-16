@@ -92,7 +92,7 @@ public class OrderStatusChangedEvent extends BaseOrderEvent {
     // ================ Event Payload ================
 
     @Override
-    protected Map<String, Object> getEventPayload() {
+    public Map<String, Object> getEventPayload() {
         return Map.of(
             "orderId", getOrderId(),
             "userId", getUserId(),

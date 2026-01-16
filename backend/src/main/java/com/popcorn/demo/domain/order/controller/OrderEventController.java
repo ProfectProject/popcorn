@@ -22,6 +22,9 @@ import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.event.BaseOrderEvent;
 import com.popcorn.demo.domain.order.event.OrderEventStore;
 import com.popcorn.demo.domain.order.event.OrderEventMetrics;
+import com.popcorn.demo.common.annotation.ApiLogging;
+import com.popcorn.demo.common.annotation.AuditLog;
+import com.popcorn.demo.common.annotation.RateLimit;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +56,26 @@ public class OrderEventController extends BaseController {
      * 특정 주문의 이벤트 스트림 조회
      */
     @GetMapping("/stream/{orderId}")
+    @RateLimit(
+        requests = 10,
+        window = 300,
+        keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+        errorMessage = "이벤트 스트림 조회 요청이 너무 많습니다."
+    )
+    @ApiLogging(
+        message = "이벤트 스트림 조회",
+        includeRequest = true,
+        includeResponse = false,
+        level = ApiLogging.LogLevel.WARN
+    )
+    @AuditLog(
+        action = "EVENT_STREAM_ACCESS",
+        resource = "ORDER_EVENT",
+        description = "주문 이벤트 스트림에 접근했습니다",
+        userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+        resourceIdExpression = "#orderId",
+        level = AuditLog.Level.WARN
+    )
     public ResponseEntity<BaseResponse<List<OrderEventStore.EventRecord>>> getEventStream(
             @PathVariable UUID orderId) {
 
@@ -143,6 +166,26 @@ public class OrderEventController extends BaseController {
      * 이벤트 재생
      */
     @PostMapping("/replay/{orderId}")
+    @RateLimit(
+        requests = 2,
+        window = 3600,
+        keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+        errorMessage = "⚠️ 이벤트 재생은 1시간에 2회만 허용됩니다."
+    )
+    @ApiLogging(
+        message = "⚠️ 이벤트 재생",
+        includeRequest = true,
+        includeResponse = true,
+        level = ApiLogging.LogLevel.ERROR
+    )
+    @AuditLog(
+        action = "EVENT_REPLAY",
+        resource = "ORDER_EVENT",
+        description = "⚠️ 위험: 주문 이벤트를 재생했습니다",
+        userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+        resourceIdExpression = "#orderId",
+        level = AuditLog.Level.ERROR
+    )
     public ResponseEntity<BaseResponse<List<BaseOrderEvent>>> replayEvents(@PathVariable UUID orderId) {
         log.info("🔄 이벤트 재생 요청 - 주문ID: {}", orderId);
 
@@ -249,6 +292,27 @@ public class OrderEventController extends BaseController {
      * 이벤트 스토어 정리 (오래된 이벤트 삭제)
      */
     @DeleteMapping("/store/cleanup")
+    @RateLimit(
+        requests = 1,
+        window = 86400,
+        keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+        errorMessage = "🚨 이벤트 스토어 정리는 하루에 1번만 허용됩니다."
+    )
+    @ApiLogging(
+        message = "🚨 이벤트 스토어 정리",
+        includeRequest = true,
+        includeResponse = true,
+        level = ApiLogging.LogLevel.ERROR
+    )
+    @AuditLog(
+        action = "EVENT_STORE_CLEANUP",
+        resource = "ORDER_EVENT",
+        description = "🚨 위험: 이벤트 스토어 데이터를 정리했습니다",
+        userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+        staticResourceId = "EVENT_STORE",
+        level = AuditLog.Level.ERROR,
+        includeRequestData = true
+    )
     public ResponseEntity<BaseResponse<String>> cleanupEventStore(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime beforeTime) {
 
@@ -272,6 +336,26 @@ public class OrderEventController extends BaseController {
      * 메트릭 리셋
      */
     @DeleteMapping("/metrics/reset")
+    @RateLimit(
+        requests = 3,
+        window = 3600,
+        keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+        errorMessage = "⚠️ 메트릭 리셋은 1시간에 3회만 허용됩니다."
+    )
+    @ApiLogging(
+        message = "⚠️ 메트릭 리셋",
+        includeRequest = true,
+        includeResponse = true,
+        level = ApiLogging.LogLevel.WARN
+    )
+    @AuditLog(
+        action = "METRICS_RESET",
+        resource = "ORDER_EVENT",
+        description = "⚠️ 이벤트 메트릭을 리셋했습니다",
+        userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+        staticResourceId = "EVENT_METRICS",
+        level = AuditLog.Level.WARN
+    )
     public ResponseEntity<BaseResponse<String>> resetMetrics() {
         log.warn("🔄 이벤트 메트릭 리셋 요청");
 

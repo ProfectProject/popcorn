@@ -98,7 +98,7 @@ class BaseOrderEventTest {
 		}
 
 		@Override
-		protected Map<String, Object> getEventPayload() {
+		public Map<String, Object> getEventPayload() {
 			return Map.of("simple", true);
 		}
 	}
@@ -109,7 +109,7 @@ class BaseOrderEventTest {
 		}
 
 		@Override
-		protected Map<String, Object> getEventPayload() {
+		public Map<String, Object> getEventPayload() {
 			return Map.of("payload", true);
 		}
 	}

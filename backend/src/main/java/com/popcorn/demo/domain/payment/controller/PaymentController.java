@@ -21,6 +21,13 @@ import com.popcorn.demo.domain.payment.dto.response.PaymentListResponse;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentQueryService;
 import com.popcorn.demo.domain.payment.service.PaymentQueryService.PaymentDetailResult;
+import com.popcorn.demo.common.annotation.ApiLogging;
+import com.popcorn.demo.common.annotation.AuditLog;
+import com.popcorn.demo.common.annotation.CacheResult;
+import com.popcorn.demo.common.annotation.Idempotent;
+import com.popcorn.demo.common.annotation.RateLimit;
+import com.popcorn.demo.common.annotation.RetryOnFailure;
+import com.popcorn.demo.common.annotation.ValidateRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -49,6 +56,30 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentListResponse.class))
 	)
 	@GetMapping("/orders/{orderId}/payments")
+	@CacheResult(
+		cacheName = "paymentsByOrderCache",
+		keyExpression = "#orderId",
+		ttlSeconds = 180,
+		condition = "#orderId != null"
+	)
+	@ApiLogging(
+		message = "주문별 결제 목록 조회",
+		includeRequest = true,
+		includeResponse = false,
+		level = ApiLogging.LogLevel.INFO
+	)
+	@RateLimit(
+		requests = 20,
+		window = 60,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "결제 조회 요청이 너무 많습니다."
+	)
+	@RetryOnFailure(
+		maxAttempts = 2,
+		backoffMillis = 300,
+		retryOn = {RuntimeException.class},
+		logRetryAttempts = false
+	)
 	public ResponseEntity<BaseResponse<PaymentListResponse>> getPaymentsByOrder(
 			@Parameter(description = "주문 ID", required = true, example = "40000000-0000-0000-0000-000000000004")
 			@PathVariable UUID orderId) {
@@ -70,6 +101,30 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentDetailResponse.class))
 	)
 	@GetMapping("/payments/{paymentId}")
+	@CacheResult(
+		cacheName = "paymentDetailCache",
+		keyExpression = "#paymentId",
+		ttlSeconds = 120,
+		condition = "#paymentId != null"
+	)
+	@ApiLogging(
+		message = "결제 상세 조회",
+		includeRequest = true,
+		includeResponse = false,
+		level = ApiLogging.LogLevel.INFO
+	)
+	@RateLimit(
+		requests = 30,
+		window = 60,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "결제 상세 조회 요청이 너무 많습니다."
+	)
+	@RetryOnFailure(
+		maxAttempts = 2,
+		backoffMillis = 300,
+		retryOn = {RuntimeException.class},
+		logRetryAttempts = false
+	)
 	public ResponseEntity<BaseResponse<PaymentDetailResponse>> getPayment(
 			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000001")
 			@PathVariable UUID paymentId) {
@@ -99,6 +154,50 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentDetailResponse.class))
 	)
 	@PatchMapping("/payments/{paymentId}/status")
+	@RateLimit(
+		requests = 5,
+		window = 60,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "🚨 결제 상태 변경은 분당 5회만 허용됩니다.",
+		algorithm = RateLimit.Algorithm.SLIDING_WINDOW
+	)
+	@ApiLogging(
+		message = "🔒 결제 상태 변경",
+		includeRequest = true,
+		includeResponse = true,
+		includeExecutionTime = true,
+		maskSensitiveData = true,
+		level = ApiLogging.LogLevel.WARN
+	)
+	@ValidateRequest(
+		validateNulls = true,
+		validateEmpty = true,
+		errorMessage = "결제 상태 변경 요청이 올바르지 않습니다.",
+		exceptionType = SecurityException.class
+	)
+	@AuditLog(
+		action = "PAYMENT_STATUS_CHANGE",
+		resource = "PAYMENT",
+		description = "🔒 중요: 결제 상태가 변경되었습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'system'",
+		resourceIdExpression = "#paymentId",
+		includeRequestData = true,
+		includeResponseData = true,
+		level = AuditLog.Level.WARN
+	)
+	@Idempotent(
+		keyExpression = "#paymentId + ':status_change:' + #request.status",
+		keyPrefix = "payment_status",
+		responseType = PaymentDetailResponse.class
+	)
+	@RetryOnFailure(
+		maxAttempts = 3,
+		backoffMillis = 500,
+		exponentialBackoff = true,
+		retryOn = {RuntimeException.class},
+		noRetryOn = {SecurityException.class, IllegalArgumentException.class},
+		logRetryAttempts = true
+	)
 	public ResponseEntity<BaseResponse<PaymentDetailResponse>> updatePaymentStatus(
 			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000003")
 			@PathVariable UUID paymentId,
@@ -144,6 +243,34 @@ public class PaymentController extends BaseController {
 	@Operation(summary = "결제 삭제(소프트 삭제)", description = "결제 기록을 소프트 삭제합니다.")
 	@ApiResponse(responseCode = "204", description = "결제 삭제 성공")
 	@DeleteMapping("/payments/{paymentId}")
+	@RateLimit(
+		requests = 3,
+		window = 3600,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "🚨 결제 삭제는 1시간에 3회만 허용됩니다.",
+		algorithm = RateLimit.Algorithm.TOKEN_BUCKET
+	)
+	@ApiLogging(
+		message = "🚨 결제 삭제",
+		includeRequest = true,
+		includeResponse = true,
+		includeExecutionTime = true,
+		level = ApiLogging.LogLevel.ERROR
+	)
+	@AuditLog(
+		action = "PAYMENT_DELETE",
+		resource = "PAYMENT",
+		description = "🚨 위험: 결제 기록이 삭제되었습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+		resourceIdExpression = "#paymentId",
+		includeRequestData = true,
+		level = AuditLog.Level.ERROR
+	)
+	@ValidateRequest(
+		validateNulls = true,
+		errorMessage = "결제 삭제 요청이 올바르지 않습니다.",
+		exceptionType = SecurityException.class
+	)
 	public ResponseEntity<Void> deletePayment(
 			@Parameter(description = "결제 ID", required = true, example = "70000000-0000-0000-0000-000000000003")
 			@PathVariable UUID paymentId) {

@@ -211,14 +211,14 @@ class OrderControllerTest extends OrderControllerTestBase {
 	}
 
 	@Test
-	@DisplayName("주문 상태 조회 실패 - 인증 없이 접근하면 NullPointerException")
+	@DisplayName("주문 상태 조회 실패 - 인증 없이 접근하면 403 Forbidden")
 	void getOrderStatusForStaff_missingRole() throws Exception {
 		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001001");
 
-		// Test without authentication - causes internal server error when trying to extract user info
+		// Test without authentication - should return 403 Forbidden
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/status/ops", orderId)
 						.contentType(MediaType.APPLICATION_JSON))
-				.andExpect(MockMvcResultMatchers.status().isInternalServerError());
+				.andExpect(MockMvcResultMatchers.status().isForbidden());
 	}
 
 	@Test

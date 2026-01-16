@@ -96,16 +96,23 @@ class OwnerPopupControllerIntegrationTest {
 		LocalDateTime now = LocalDateTime.now();
 		jdbcTemplate.update(
 				"insert into p_stores (store_id, user_id, store_name, status, reason, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by) "
-						+ "values (?, ?, ?, cast(? as store_status), null, null, null, ?, ?, ?, ?)",
+						+ "values (?, ?, ?, ?, null, null, null, ?, ?, ?, ?)",
 				storeId, ownerId, name, "ACTIVE", now, now, ownerId, ownerId);
 		return storeId;
 	}
 
 	private void ensureOwner(Long ownerId) {
 		LocalDateTime now = LocalDateTime.now();
+		Integer existing = jdbcTemplate.queryForObject(
+				"select count(*) from p_users where user_id = ?",
+				Integer.class,
+				ownerId);
+		if (existing != null && existing > 0) {
+			return;
+		}
 		jdbcTemplate.update(
 				"insert into p_users (user_id, email, password, name, role, is_active, created_at, updated_at) "
-						+ "values (?, ?, ?, ?, cast(? as user_role), true, ?, ?)",
+						+ "values (?, ?, ?, ?, ?, true, ?, ?)",
 				ownerId,
 				"owner_" + ownerId + "@test.com",
 				"password",
