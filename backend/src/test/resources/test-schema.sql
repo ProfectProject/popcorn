@@ -2,11 +2,7 @@
 -- This file creates tables for testing to match production PostgreSQL schema
 -- H2 doesn't fully support PostgreSQL domains, so we use VARCHAR with constraints
 
--- Create enum types for H2 (similar to PostgreSQL)
-CREATE TYPE IF NOT EXISTS popup_status AS ENUM ('DRAFT', 'REQUEST', 'APPROVED', 'OPEN', 'CLOSED', 'CANCELLED', 'HIDDEN');
-CREATE TYPE IF NOT EXISTS popup_category AS ENUM ('FOOD','IDOL','EXHIBITION','WORKSHOP','FASHION','BEAUTY','LIFESTYLE','ART','GAME','TECH','SPORTS','BOOK','PET','ETC');
-CREATE TYPE IF NOT EXISTS store_publish_status AS ENUM ('DRAFT', 'PENDING', 'ACTIVE', 'SUSPENDED', 'HIDDEN', 'CLOSED');
-CREATE TYPE IF NOT EXISTS order_status AS ENUM ('REQUESTED', 'ACCEPTED', 'REJECTED', 'RESERVED', 'PAYMENT_PENDING', 'PAID', 'COMPLETED', 'CANCELLED');
+-- H2 호환성을 위해 ENUM 타입 대신 varchar 사용
 
 -- Users table
 CREATE TABLE IF NOT EXISTS p_users (

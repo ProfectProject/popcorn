@@ -1,5 +1,6 @@
 package com.popcorn.demo.common.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
@@ -33,7 +34,7 @@ public class BlockingExecutorConfig {
 	 * 블로킹 작업을 안전하게 위임하기 위한 실행 유틸.
 	 */
 	@Bean
-	public BlockingExecutor blockingExecutor(AsyncTaskExecutor blockingTaskExecutor) {
+	public BlockingExecutor blockingExecutor(@Qualifier("blockingTaskExecutor") AsyncTaskExecutor blockingTaskExecutor) {
 		return new BlockingExecutor(blockingTaskExecutor);
 	}
 

@@ -175,7 +175,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			                )
 			        )
 			   )
-			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
+			   AND (:status IS NULL OR o.status = :status)
 			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			""", nativeQuery = true)
@@ -215,7 +215,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			                )
 			        )
 			   )
-			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
+			   AND (:status IS NULL OR o.status = :status)
 			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			 ORDER BY o.created_at DESC
@@ -253,7 +253,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			                AND og.goods_variant_id IS NOT NULL
 			        ))
 			   )
-			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
+			   AND (:status IS NULL OR o.status = :status)
 			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			""", nativeQuery = true)
@@ -306,7 +306,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			                AND og2.goods_variant_id IS NOT NULL
 			        ))
 			   )
-			   AND (:status IS NULL OR o.status = CAST(:status AS order_status))
+			   AND (:status IS NULL OR o.status = :status)
 			   AND (COALESCE(:fromDate, TIMESTAMP '1970-01-01 00:00:00') = TIMESTAMP '1970-01-01 00:00:00' OR o.created_at >= :fromDate)
 			   AND (COALESCE(:toDate, TIMESTAMP '9999-12-31 23:59:59') = TIMESTAMP '9999-12-31 23:59:59' OR o.created_at <= :toDate)
 			 GROUP BY o.order_id, o.order_no, o.status, o.total_price,

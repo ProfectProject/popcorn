@@ -8,6 +8,32 @@ spring:
     default: local
 
 ---
+# Test 환경 설정 (H2 데이터베이스 강제 사용)
+spring:
+  config:
+    activate:
+      on-profile: test
+  # H2 데이터베이스 설정
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=UUID;IGNORE_UNKNOWN_SETTINGS=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: STRING
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+  h2:
+    console:
+      enabled: true
+
+---
 # Local 환경 설정 (보안 설정 분리)
 spring:
   config:

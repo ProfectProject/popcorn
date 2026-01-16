@@ -1,9 +1,10 @@
 -- 권한 엣지 케이스 테스트용 사용자 데이터
 -- AuthorizationEdgeCaseTest에서 사용하는 JWT 토큰의 사용자 정보와 일치해야 함
 
--- 기존 테이블 클리어 (테스트 격리를 위해)
+-- 기존 테이블 클리어 (테스트 격리를 위해) - 외래키 순서 고려
 DELETE FROM p_order_goods;
 DELETE FROM p_orders;
+DELETE FROM p_popup_schedules;
 DELETE FROM p_popups;
 DELETE FROM p_stores;
 DELETE FROM p_users;

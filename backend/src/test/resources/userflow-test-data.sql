@@ -3,7 +3,7 @@
 
 -- 0. 기존 테스트 데이터 정리 (외래 키 제약조건 순서대로 삭제)
 -- 자식 테이블부터 부모 테이블 순서로 삭제
-DELETE FROM p_order_goods WHERE schedule_id = '00000000-0000-0000-0000-000000000201';
+DELETE FROM p_order_goods WHERE order_id IN (SELECT order_id FROM p_orders WHERE store_id = '00000000-0000-0000-0000-000000000001');
 DELETE FROM p_orders WHERE store_id = '00000000-0000-0000-0000-000000000001';
 DELETE FROM p_popup_schedules WHERE schedule_id = '00000000-0000-0000-0000-000000000201';
 DELETE FROM p_popups WHERE popup_id = '00000000-0000-0000-0000-000000000101';
