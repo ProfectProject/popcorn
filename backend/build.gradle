@@ -147,9 +147,9 @@ tasks.named('test') {
 //	dependsOn 'k6UltimateTest'
 //	dependsOn 'performanceTest'
 	// 로컬에서만 extremeComposeUp 실행
-	if (!System.getenv('CI')) {
-		finalizedBy tasks.named('extremeComposeUp')
-	}
+//	if (!System.getenv('CI')) {
+//		finalizedBy tasks.named('extremeComposeUp')
+//	}
 }
 
 tasks.named('jacocoTestReport') {
