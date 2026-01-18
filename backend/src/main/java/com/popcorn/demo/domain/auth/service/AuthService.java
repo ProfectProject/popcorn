@@ -18,6 +18,7 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    //private final RefreshTokenService refreshTokenService;
 
     public LoginResponse login(LoginRequest request) {
 
@@ -37,8 +38,14 @@ public class AuthService {
                 .getAuthority()
                 .replace("ROLE_", "");
 
-        String jwt = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, 60 * 60 * 1000L);
+        String jwt = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, 3 * 60 * 1000L);
+        //String refreshJwt = jwtUtil.createRefreshJWT(userId,customUserDetails.getUsername(), role, 2 * 60 * 1000L);
 
+        //refreshTokenService.saveRefreshToken(refreshJwt,request.getEmail() ,1000L * 60 * 60 * 24 * 7 ); // 7일
+
+        //RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        //return new LoginResponse(jwt,refreshJwt);
         return new LoginResponse(jwt);
     }
 }

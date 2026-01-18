@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  
+  cloud:
+    gateway:
+      routes:
+        - id: backend
+          uri: http://localhost:8081     # 모놀리식 backend
+          predicates:
+            - Path=/api/**               # /api 로 시작하면 backend로 라우팅
+          
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    reactor.netty.http.client: DEBUG

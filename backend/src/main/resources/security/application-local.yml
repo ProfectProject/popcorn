@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
   shutdown: immediate
   tomcat:
     uri-encoding: UTF-8
@@ -41,5 +41,6 @@ logging:
     org.springframework.web: DEBUG
     org.springframework.boot.web: DEBUG
     org.hibernate.SQL: DEBUG
+    org.springframework.security: DEBUG
 
 
