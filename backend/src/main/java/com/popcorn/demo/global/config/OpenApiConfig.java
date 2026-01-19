@@ -69,6 +69,7 @@ public class OpenApiConfig {
 					customerTags.add(new Tag().name("Auth").description("🔐 고객 인증"));
 					customerTags.add(new Tag().name("User").description("👤 회원가입 및 프로필"));
 					customerTags.add(new Tag().name("Popup").description("🎪 팝업 조회"));
+					customerTags.add(new Tag().name("Goods").description("📦 굿즈 조회"));
 					customerTags.add(new Tag().name("Order").description("📦 내 주문 관리"));
 					customerTags.add(new Tag().name("Payments").description("💳 결제 관리"));
 					customerTags.add(new Tag().name("QR").description("📱 QR 코드"));
@@ -207,4 +208,3 @@ public class OpenApiConfig {
 	}
 
 }
-

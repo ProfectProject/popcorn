@@ -24,6 +24,8 @@ import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 import com.popcorn.demo.domain.popup.repository.PopupQueryRepository;
+import com.popcorn.demo.domain.popup.repository.PopupScheduleQueryRepository;
+import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 
 class PopupQueryServiceTest {
@@ -32,7 +34,8 @@ class PopupQueryServiceTest {
 	@DisplayName("팝업 목록 조회 - 필드 매핑 및 페이징")
 	void getPopups_mapsFields() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
-		PopupQueryService service = new PopupQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryService service = new PopupQueryService(repository, scheduleRepository);
 
 		PopupListView view = new TestPopupView(
 				"00000000-0000-0000-0000-000000000101",
@@ -80,7 +83,8 @@ class PopupQueryServiceTest {
 	@DisplayName("팝업 목록 조회 - 전체 개수 비활성화 시 카운트 생략")
 	void getPopups_skipsCountWhenWithTotalFalse() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
-		PopupQueryService service = new PopupQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryService service = new PopupQueryService(repository, scheduleRepository);
 
 		PopupListView view = new TestPopupView(
 				"00000000-0000-0000-0000-000000000101",
@@ -119,7 +123,8 @@ class PopupQueryServiceTest {
 	@DisplayName("팝업 목록 조회 - 일정 정보가 없으면 null 반환")
 	void getPopups_returnsNullScheduleWhenEmpty() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
-		PopupQueryService service = new PopupQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryService service = new PopupQueryService(repository, scheduleRepository);
 
 		PopupListView view = new TestPopupView(
 				"00000000-0000-0000-0000-000000000101",
@@ -150,7 +155,8 @@ class PopupQueryServiceTest {
 	@DisplayName("팝업 상세 조회 - 없으면 예외")
 	void getPopupDetail_throwsWhenNotFound() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
-		PopupQueryService service = new PopupQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryService service = new PopupQueryService(repository, scheduleRepository);
 
 		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		when(repository.findPopupDetail(productId)).thenReturn(Optional.empty());
@@ -162,7 +168,8 @@ class PopupQueryServiceTest {
 	@DisplayName("팝업 상세 조회 - 정상 매핑")
 	void getPopupDetail_mapsFields() {
 		PopupQueryRepository repository = Mockito.mock(PopupQueryRepository.class);
-		PopupQueryService service = new PopupQueryService(repository);
+		PopupScheduleQueryRepository scheduleRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		PopupQueryService service = new PopupQueryService(repository, scheduleRepository);
 
 		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		PopupListView view = new TestPopupView(
@@ -179,6 +186,8 @@ class PopupQueryServiceTest {
 				LocalDateTime.of(2025, 1, 5, 18, 0)
 		);
 		when(repository.findPopupDetail(productId)).thenReturn(Optional.of(view));
+		when(scheduleRepository.findProductSessions(eq(productId), eq(null), eq(null)))
+				.thenReturn(List.<PopupScheduleView>of());
 
 		PopupDetailResponse response = service.getPopupDetail(PopupDetailQuery.of(productId));
 

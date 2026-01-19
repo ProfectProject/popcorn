@@ -11,6 +11,8 @@ import com.popcorn.demo.domain.goods.dto.GoodsStatusResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsStatusUpdateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsUpdateRequest;
 import com.popcorn.demo.domain.goods.service.GoodsService;
+import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
+import com.popcorn.demo.domain.users.entity.enums.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,6 +25,8 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -33,6 +37,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 
 @Validated
 @RestController
@@ -43,7 +48,7 @@ public class GoodsController extends BaseController {
     private final GoodsService goodsService;
 
     @GetMapping
-    @Operation(summary = "굿즈 목록 조회", description = "팝업에 등록된 굿즈 목록을 조회합니다.")
+    @Operation(summary = "오너 굿즈 목록 조회", description = "팝업에 등록된 굿즈 목록을 조회합니다.")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -76,9 +81,11 @@ public class GoodsController extends BaseController {
     })
     public ResponseEntity<BaseResponse<GoodsListResponse>> list(
             @Parameter(description = "팝업 ID", required = true)
-            @PathVariable UUID popupId
+            @PathVariable UUID popupId,
+            Authentication authentication
     ) {
-        return ok(goodsService.list(popupId));
+        Long ownerId = getCurrentOwnerId(authentication);
+        return ok(goodsService.list(ownerId, popupId));
     }
 
     @PostMapping
@@ -105,6 +112,7 @@ public class GoodsController extends BaseController {
     public ResponseEntity<BaseResponse<GoodsIdResponse>> create(
             @Parameter(description = "팝업 ID", required = true)
             @PathVariable UUID popupId,
+            Authentication authentication,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "굿즈 등록 요청",
                     required = true,
@@ -123,7 +131,8 @@ public class GoodsController extends BaseController {
             )
             @Valid @RequestBody GoodsCreateRequest request
     ) {
-        return ok(goodsService.create(popupId, request));
+        Long ownerId = getCurrentOwnerId(authentication);
+        return ok(goodsService.create(ownerId, popupId, request));
     }
 
     @GetMapping("/{goodsId}")
@@ -172,9 +181,11 @@ public class GoodsController extends BaseController {
             @Parameter(description = "팝업 ID", required = true)
             @PathVariable UUID popupId,
             @Parameter(description = "굿즈 ID", required = true)
-            @PathVariable UUID goodsId
+            @PathVariable UUID goodsId,
+            Authentication authentication
     ) {
-        return ok(goodsService.get(popupId, goodsId));
+        Long ownerId = getCurrentOwnerId(authentication);
+        return ok(goodsService.get(ownerId, popupId, goodsId));
     }
 
     @PutMapping("/{goodsId}")
@@ -217,6 +228,7 @@ public class GoodsController extends BaseController {
             @PathVariable UUID popupId,
             @Parameter(description = "굿즈 ID", required = true)
             @PathVariable UUID goodsId,
+            Authentication authentication,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "굿즈 수정 요청",
                     required = true,
@@ -233,7 +245,8 @@ public class GoodsController extends BaseController {
             )
             @Valid @RequestBody GoodsUpdateRequest request
     ) {
-        return ok(goodsService.update(popupId, goodsId, request));
+        Long ownerId = getCurrentOwnerId(authentication);
+        return ok(goodsService.update(ownerId, popupId, goodsId, request));
     }
 
     @PatchMapping("/{goodsId}/status")
@@ -277,6 +290,7 @@ public class GoodsController extends BaseController {
             @PathVariable UUID popupId,
             @Parameter(description = "굿즈 ID", required = true)
             @PathVariable UUID goodsId,
+            Authentication authentication,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "굿즈 상태 변경 요청",
                     required = true,
@@ -291,7 +305,8 @@ public class GoodsController extends BaseController {
             )
             @Valid @RequestBody GoodsStatusUpdateRequest request
     ) {
-        GoodsStatusResponse response = goodsService.updateStatus(popupId, goodsId, request);
+        Long ownerId = getCurrentOwnerId(authentication);
+        GoodsStatusResponse response = goodsService.updateStatus(ownerId, popupId, goodsId, request);
         return ResponseEntity.ok(
                 BaseResponse.of(
                         CommonResponseCode.SUCCESS.getCode(),
@@ -334,9 +349,64 @@ public class GoodsController extends BaseController {
             @Parameter(description = "팝업 ID", required = true)
             @PathVariable UUID popupId,
             @Parameter(description = "굿즈 ID", required = true)
-            @PathVariable UUID goodsId
+            @PathVariable UUID goodsId,
+            Authentication authentication
     ) {
-        goodsService.delete(popupId, goodsId);
+        Long ownerId = getCurrentOwnerId(authentication);
+        goodsService.delete(ownerId, popupId, goodsId);
         return ok(null);
+    }
+
+    private Long getCurrentOwnerId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw OwnerPopupException.unauthenticated();
+        }
+
+        Long userId = null;
+        String name = authentication.getName();
+        if (name != null) {
+            try {
+                userId = Long.parseLong(name);
+            } catch (NumberFormatException ignored) {
+                // Non-numeric name treated as CustomUserDetails.
+            }
+        }
+
+        Object principal = authentication.getPrincipal();
+        String roleValue = null;
+        if (principal instanceof CustomUserDetails userDetails) {
+            if (userId == null) {
+                userId = userDetails.getUserId();
+            }
+            roleValue = userDetails.getRole();
+        } else if (userId == null) {
+            throw OwnerPopupException.invalidPrincipal();
+        }
+
+        if (userId == null) {
+            throw OwnerPopupException.userIdRequired();
+        }
+
+        if (roleValue == null) {
+            roleValue = authentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .filter(auth -> auth != null && !auth.isBlank())
+                    .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
+                    .findFirst()
+                    .orElseThrow(OwnerPopupException::invalidRole);
+        }
+
+        UserRole role;
+        try {
+            role = UserRole.valueOf(roleValue);
+        } catch (Exception e) {
+            throw OwnerPopupException.invalidRole();
+        }
+
+        if (role != UserRole.OWNER) {
+            throw OwnerPopupException.notOwner();
+        }
+
+        return userId;
     }
 }
