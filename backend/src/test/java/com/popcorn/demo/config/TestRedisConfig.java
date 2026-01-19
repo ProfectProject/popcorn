@@ -90,5 +90,10 @@ public class TestRedisConfig {
         public void invalidateKey(String idempotencyKey) {
             log.debug("🗑️ Mock Cache 키 무효화: {} (테스트용 - 실제 작업 없음)", idempotencyKey);
         }
+
+        @Override
+        public void clearByPrefix(String keyPrefix) {
+            log.debug("🧹 Mock Cache 접두사 삭제: {} (테스트용 - 실제 작업 없음)", keyPrefix);
+        }
     }
 }

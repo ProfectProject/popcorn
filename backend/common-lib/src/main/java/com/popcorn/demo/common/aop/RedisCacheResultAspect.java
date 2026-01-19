@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.common.annotation.RedisCacheResult;
 import com.popcorn.demo.common.dto.BaseResponse;
 
@@ -38,6 +39,7 @@ public class RedisCacheResultAspect {
     private static final Logger log = LoggerFactory.getLogger(RedisCacheResultAspect.class);
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
     /**
@@ -46,6 +48,7 @@ public class RedisCacheResultAspect {
     @Around("@annotation(cacheResult)")
     public Object handleRedisCacheResult(ProceedingJoinPoint joinPoint, RedisCacheResult cacheResult) throws Throwable {
         boolean responseEntityReturn = isResponseEntityReturn(joinPoint);
+        Class<?> returnType = determineReturnType(joinPoint);
 
         // 캐시 키 생성
         String cacheKey = generateCacheKey(joinPoint, cacheResult);
@@ -68,7 +71,7 @@ public class RedisCacheResultAspect {
                 if (responseEntityReturn) {
                     return buildResponseEntityFromCache(cached);
                 }
-                return cached;
+                return convertCachedValue(cached, returnType);
             }
         } catch (DataAccessException e) {
             log.warn("Redis 연결 실패로 캐시 우회: key={}, error={}", cacheKey, e.getMessage());
@@ -274,6 +277,25 @@ public class RedisCacheResultAspect {
     private boolean isResponseEntityReturn(ProceedingJoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         return ResponseEntity.class.isAssignableFrom(signature.getReturnType());
+    }
+
+    private Class<?> determineReturnType(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        return signature.getReturnType();
+    }
+
+    private Object convertCachedValue(Object cached, Class<?> returnType) {
+        if (cached == null || returnType == Object.class || returnType.isInstance(cached)) {
+            return cached;
+        }
+
+        try {
+            return objectMapper.convertValue(cached, returnType);
+        } catch (IllegalArgumentException e) {
+            log.warn("Redis 캐시 타입 변환 실패: cachedType={}, returnType={}",
+                    cached.getClass().getSimpleName(), returnType.getSimpleName());
+            return cached;
+        }
     }
 
     private ResponseEntity<?> buildResponseEntityFromCache(Object cached) {

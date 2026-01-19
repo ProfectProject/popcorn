@@ -32,6 +32,7 @@ import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.demo.common.cache.IdempotencyService;
 import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,12 +54,21 @@ class PaymentCommandServiceTest {
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
 
+	@Mock
+	private IdempotencyService idempotencyService;
+
 	private PaymentCommandService paymentCommandService;
 
 	@BeforeEach
 	void setUp() {
 		paymentCommandService = new PaymentCommandService(
-				orderRepository, orderCommandService, paymentRepository, orderItemRepository, eventPublisher);
+				orderRepository,
+				orderCommandService,
+				paymentRepository,
+				orderItemRepository,
+				eventPublisher,
+				idempotencyService
+		);
 	}
 
 	@Test

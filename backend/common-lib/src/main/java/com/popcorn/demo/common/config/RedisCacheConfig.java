@@ -16,6 +16,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 
 @Configuration
 @Profile("!test")
@@ -30,10 +31,18 @@ public class RedisCacheConfig {
         RedisConnectionFactory connectionFactory,
         ObjectMapper objectMapper
     ) {
+        ObjectMapper redisObjectMapper = objectMapper.copy()
+            .activateDefaultTyping(
+                BasicPolymorphicTypeValidator.builder()
+                    .allowIfSubType(Object.class)
+                    .build(),
+                ObjectMapper.DefaultTyping.NON_FINAL
+            );
+
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
             .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
             .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-                new GenericJackson2JsonRedisSerializer(objectMapper)))
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper)))
             .disableCachingNullValues();
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();

@@ -30,6 +30,7 @@ import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelResponse;
 import com.popcorn.demo.domain.payment.event.PaymentSuccessEvent;
+import com.popcorn.demo.common.cache.IdempotencyService;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -52,6 +53,7 @@ public class TossPaymentService {
 	private final TossPaymentsClient tossPaymentsClient;
 	private final ObjectMapper objectMapper;
 	private final ApplicationEventPublisher eventPublisher;
+	private final IdempotencyService idempotencyService;
 
 	@Transactional(transactionManager = "jdbcTransactionManager", isolation = Isolation.READ_COMMITTED)
 	public TossPaymentConfirmResult confirmPayment(String paymentKey, String orderId, Integer amount) {
@@ -177,6 +179,8 @@ public class TossPaymentService {
 					rawPayload.length(),
 					approvedAt);
 
+			clearOrderIdempotencyCache(order);
+
 			return TossPaymentConfirmResult.builder()
 					.paymentId(saved.getId())
 					.paymentStatus(saved.getStatus())
@@ -194,6 +198,15 @@ public class TossPaymentService {
 					ex);
 			throw ex;
 		}
+	}
+
+	private void clearOrderIdempotencyCache(Order order) {
+		Long customerId = order.getCustomerId();
+		if (customerId == null) {
+			return;
+		}
+		String prefix = "order_creation:" + customerId + ":create_order:";
+		idempotencyService.clearByPrefix(prefix);
 	}
 
 	private void validateAmount(Payment payment, Integer amount) {

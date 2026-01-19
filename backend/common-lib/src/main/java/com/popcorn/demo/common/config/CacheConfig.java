@@ -14,12 +14,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.Cache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
+
+	private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);
 
 	// 📚 Common-Lib 기본 캐시 TTL 설정
 	private static final Duration ORDER_DETAIL_TTL = Duration.ofMinutes(5);
@@ -36,10 +43,18 @@ public class CacheConfig {
 		RedisConnectionFactory connectionFactory,
 		ObjectMapper objectMapper
 	) {
+		ObjectMapper redisObjectMapper = objectMapper.copy()
+			.activateDefaultTyping(
+				BasicPolymorphicTypeValidator.builder()
+					.allowIfSubType(Object.class)
+					.build(),
+				ObjectMapper.DefaultTyping.NON_FINAL
+			);
+
 		RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
 			.serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
 			.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-				new GenericJackson2JsonRedisSerializer(objectMapper)))
+				new GenericJackson2JsonRedisSerializer(redisObjectMapper)))
 			.disableCachingNullValues();
 
 		var cacheConfigs = Map.of(
@@ -57,5 +72,34 @@ public class CacheConfig {
 			.cacheDefaults(defaultConfig)
 			.withInitialCacheConfigurations(cacheConfigs)
 			.build();
+	}
+
+	@Bean
+	public CacheErrorHandler cacheErrorHandler() {
+		return new CacheErrorHandler() {
+			@Override
+			public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+				log.warn("Cache get error. cache={}, key={}, message={}",
+					cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+			}
+
+			@Override
+			public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+				log.warn("Cache put error. cache={}, key={}, message={}",
+					cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+			}
+
+			@Override
+			public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+				log.warn("Cache evict error. cache={}, key={}, message={}",
+					cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+			}
+
+			@Override
+			public void handleCacheClearError(RuntimeException exception, Cache cache) {
+				log.warn("Cache clear error. cache={}, message={}",
+					cache != null ? cache.getName() : "unknown", exception.getMessage());
+			}
+		};
 	}
 }

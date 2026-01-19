@@ -8,6 +8,7 @@ import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,6 +21,7 @@ public class OrderPaymentFacade {
 	private final PaymentCommandService paymentCommandService;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
+	@CircuitBreaker(name = "orderService", fallbackMethod = "createOrderWithPaymentFallback")
 	public OrderWithPaymentResult createOrderWithPayment(CreateOrderCommand command, String paymentMethod) {
 		CreateOrderResponse orderResponse = orderCommandService.createOrder(command);
 
@@ -43,6 +45,13 @@ public class OrderPaymentFacade {
 				.orderResponse(orderResponse)
 				.paymentResult(mockPaymentResult)
 				.build();
+	}
+
+	private OrderWithPaymentResult createOrderWithPaymentFallback(
+			CreateOrderCommand command,
+			String paymentMethod,
+			Throwable ex) {
+		throw new IllegalStateException("주문 서비스가 일시적으로 불안정합니다. 잠시 후 다시 시도해주세요.", ex);
 	}
 
 	private Long extractCustomerIdFromCommand(CreateOrderCommand command) {

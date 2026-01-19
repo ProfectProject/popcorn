@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.payment.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,14 @@ import com.popcorn.demo.domain.payment.entity.PaymentMethod;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentQueryService;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
+import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
+import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.payment.dto.response.PaymentCreateResponse;
+import com.popcorn.demo.domain.payment.entity.Payment;
+import com.popcorn.demo.domain.payment.exception.PaymentException;
 
 class PaymentControllerTest {
 
@@ -32,12 +41,31 @@ class PaymentControllerTest {
     @Mock
     private PaymentQueryService paymentQueryService;
 
+    @Mock
+    private PaymentTokenService paymentTokenService;
+
+    @Mock
+    private TossPaymentsProperties tossPaymentsProperties;
+
+    @Mock
+    private OrderRepository orderRepository;
+
+    @Mock
+    private JpaPaymentRepository paymentRepository;
+
     private PaymentController controller;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        controller = new PaymentController(paymentCommandService, paymentQueryService);
+        controller = new PaymentController(
+                paymentCommandService,
+                paymentQueryService,
+                paymentTokenService,
+                tossPaymentsProperties,
+                orderRepository,
+                paymentRepository
+        );
     }
 
     @Test
@@ -645,5 +673,112 @@ class PaymentControllerTest {
             // then
             assertThat(response.getBody().getData().getStatus()).isEqualTo(status.name());
         }
+    }
+
+    @Test
+    void retryPayment_withPaidLatest_throwsPaymentException() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        Order order = Order.builder()
+                .id(orderId)
+                .orderNo("O20250101-000001")
+                .customerId(10L)
+                .status(OrderStatus.PAYMENT_PENDING)
+                .totalAmount(10000)
+                .build();
+        Payment latest = Payment.builder()
+                .id(UUID.randomUUID())
+                .orderId(orderId)
+                .status(PaymentStatus.PAID)
+                .amount(10000)
+                .method(PaymentMethod.CARD)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId))
+                .thenReturn(List.of(latest));
+
+        // when / then
+        assertThatThrownBy(() -> controller.retryPayment(orderId))
+                .isInstanceOf(PaymentException.class);
+    }
+
+    @Test
+    void retryPayment_withReadyLatest_returnsExistingPaymentId() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        Order order = Order.builder()
+                .id(orderId)
+                .orderNo("O20250101-000002")
+                .customerId(42L)
+                .status(OrderStatus.PAYMENT_PENDING)
+                .totalAmount(25000)
+                .build();
+        Payment latest = Payment.builder()
+                .id(paymentId)
+                .orderId(orderId)
+                .status(PaymentStatus.READY)
+                .amount(25000)
+                .method(PaymentMethod.TRANSFER)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId))
+                .thenReturn(List.of(latest));
+        when(paymentTokenService.createPaymentToken(org.mockito.ArgumentMatchers.any()))
+                .thenReturn("token123");
+        when(tossPaymentsProperties.getSuccessUrl()).thenReturn("https://success.url");
+        when(tossPaymentsProperties.getFailUrl()).thenReturn("https://fail.url");
+        when(tossPaymentsProperties.getClientKey()).thenReturn("client-key");
+
+        // when
+        ResponseEntity<BaseResponse<PaymentCreateResponse>> response = controller.retryPayment(orderId);
+
+        // then
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        PaymentCreateResponse data = response.getBody().getData();
+        assertThat(data.getPaymentId()).isEqualTo(paymentId);
+        assertThat(data.getOrderId()).isEqualTo(orderId);
+        assertThat(data.getOrderNo()).isEqualTo("O20250101-000002");
+        assertThat(data.getAmount()).isEqualTo(25000);
+        assertThat(data.getCustomerKey()).isEqualTo("user_42@popcorn.demo");
+        assertThat(data.getSuccessUrl()).isEqualTo("https://success.url");
+        assertThat(data.getFailUrl()).isEqualTo("https://fail.url");
+        assertThat(data.getPaymentToken()).isEqualTo("token123");
+        assertThat(data.getClientKey()).isEqualTo("client-key");
+        assertThat(data.getReadyForPayment()).isTrue();
+    }
+
+    @Test
+    void retryPayment_withoutLatestPayment_usesGuestCustomerKey() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        Order order = Order.builder()
+                .id(orderId)
+                .orderNo("O20250101-000003")
+                .customerId(null)
+                .status(OrderStatus.PAYMENT_PENDING)
+                .totalAmount(15000)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId))
+                .thenReturn(List.of());
+        when(paymentTokenService.createPaymentToken(org.mockito.ArgumentMatchers.any()))
+                .thenReturn("token456");
+        when(tossPaymentsProperties.getSuccessUrl()).thenReturn("https://success.local");
+        when(tossPaymentsProperties.getFailUrl()).thenReturn("https://fail.local");
+        when(tossPaymentsProperties.getClientKey()).thenReturn("client-key-2");
+
+        // when
+        ResponseEntity<BaseResponse<PaymentCreateResponse>> response = controller.retryPayment(orderId);
+
+        // then
+        PaymentCreateResponse data = response.getBody().getData();
+        assertThat(data.getPaymentId()).isNull();
+        assertThat(data.getCustomerKey()).startsWith("guest_");
+        assertThat(data.getPaymentToken()).isEqualTo("token456");
+        assertThat(data.getReadyForPayment()).isTrue();
     }
 }
