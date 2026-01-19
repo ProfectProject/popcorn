@@ -6,11 +6,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import com.popcorn.demo.common.cache.IdempotencyCacheStats;
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.cache.IdempotentOperation;
-import com.popcorn.demo.common.cache.CaffeineIdempotencyCacheStats;
+import com.popcorn.demo.common.cache.RedisIdempotencyCacheStats;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +28,17 @@ import lombok.extern.slf4j.Slf4j;
 @Profile("test")
 @Slf4j
 public class TestRedisConfig {
+
+    @Bean(name = "redisCacheManager")
+    @Profile("test")
+    public CacheManager testRedisCacheManager() {
+        return new ConcurrentMapCacheManager(
+            "orderDetails",
+            "orderDetailsComplete",
+            "storeOrders",
+            "customerTimeline"
+        );
+    }
 
     @Bean
     @Primary
@@ -53,7 +66,7 @@ public class TestRedisConfig {
 
         @Override
         public IdempotencyCacheStats getCacheStats() {
-            return CaffeineIdempotencyCacheStats.builder()
+            return RedisIdempotencyCacheStats.builder()
                 .hitCount(0L)
                 .missCount(0L)
                 .hitRate(0.0)

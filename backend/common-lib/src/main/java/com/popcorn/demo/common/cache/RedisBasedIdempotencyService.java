@@ -223,6 +223,28 @@ public class RedisBasedIdempotencyService implements IdempotencyService {
 		}
 	}
 
+	@Override
+	public void clearByPrefix(String keyPrefix) {
+		if (keyPrefix == null || keyPrefix.isBlank()) {
+			return;
+		}
+		String responsePattern = RESPONSE_PREFIX + keyPrefix + "*";
+		String inProgressPattern = IN_PROGRESS_PREFIX + keyPrefix + "*";
+		try {
+			Set<String> responseKeys = redisTemplate.keys(responsePattern);
+			if (responseKeys != null && !responseKeys.isEmpty()) {
+				redisTemplate.delete(responseKeys);
+			}
+			Set<String> inProgressKeys = redisTemplate.keys(inProgressPattern);
+			if (inProgressKeys != null && !inProgressKeys.isEmpty()) {
+				redisTemplate.delete(inProgressKeys);
+			}
+			log.info("🧹 Redis 멱등성 캐시 접두사 삭제 - prefix={}", keyPrefix);
+		} catch (DataAccessException e) {
+			log.warn("Redis 접두사 삭제 실패: prefix={}, error={}", keyPrefix, e.getMessage());
+		}
+	}
+
 	private <T> String serializeResponse(T response) {
 		try {
 			return objectMapper.writeValueAsString(response);

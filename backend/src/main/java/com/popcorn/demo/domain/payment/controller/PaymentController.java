@@ -23,7 +23,7 @@ import com.popcorn.demo.domain.payment.service.PaymentQueryService;
 import com.popcorn.demo.domain.payment.service.PaymentQueryService.PaymentDetailResult;
 import com.popcorn.demo.common.annotation.ApiLogging;
 import com.popcorn.demo.common.annotation.AuditLog;
-import com.popcorn.demo.common.annotation.CacheResult;
+import com.popcorn.demo.common.annotation.RedisCacheResult;
 import com.popcorn.demo.common.annotation.Idempotent;
 import com.popcorn.demo.common.annotation.RateLimit;
 import com.popcorn.demo.common.annotation.RetryOnFailure;
@@ -56,7 +56,7 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentListResponse.class))
 	)
 	@GetMapping("/orders/{orderId}/payments")
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "paymentsByOrderCache",
 		keyExpression = "#orderId",
 		ttlSeconds = 180,
@@ -101,7 +101,7 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentDetailResponse.class))
 	)
 	@GetMapping("/payments/{paymentId}")
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "paymentDetailCache",
 		keyExpression = "#paymentId",
 		ttlSeconds = 120,
@@ -186,7 +186,7 @@ public class PaymentController extends BaseController {
 		level = AuditLog.Level.WARN
 	)
 	@Idempotent(
-		keyExpression = "#paymentId + ':status_change:' + #request.status",
+		keyExpression = "#paymentId + ':status_change:' + @idempotencyKeyGenerator.hash(#request)",
 		keyPrefix = "payment_status",
 		responseType = PaymentDetailResponse.class
 	)

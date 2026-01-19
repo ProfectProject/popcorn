@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.popcorn.demo.common.annotation.ApiLogging;
 import com.popcorn.demo.common.annotation.AuditLog;
-import com.popcorn.demo.common.annotation.CacheResult;
+import com.popcorn.demo.common.annotation.RedisCacheResult;
 import com.popcorn.demo.common.annotation.RateLimit;
 import com.popcorn.demo.common.annotation.RetryOnFailure;
 import com.popcorn.demo.common.annotation.ValidateRequest;
@@ -171,7 +171,7 @@ public class PaymentPageController extends BaseController {
 		includeResponseData = true,
 		level = AuditLog.Level.INFO
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "paymentTokenDecodeCache",
 		keyExpression = "T(java.util.Objects).hash(#token)",
 		ttlSeconds = 30,

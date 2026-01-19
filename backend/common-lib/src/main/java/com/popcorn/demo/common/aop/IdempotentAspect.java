@@ -94,7 +94,8 @@ public class IdempotentAspect implements BeanFactoryAware {
                     }
                 }
             },
-            (Class<Object>) responseType
+            (Class<Object>) responseType,
+            idempotent.ttlSeconds()
         );
 
         if (result.isFromCache()) {
@@ -228,7 +229,8 @@ public class IdempotentAspect implements BeanFactoryAware {
                     }
                 }
             },
-            (Class<Object>) responseType
+            (Class<Object>) responseType,
+            idempotent.ttlSeconds()
         );
 
         if (!result.isFromCache() && originalResponse[0] != null) {

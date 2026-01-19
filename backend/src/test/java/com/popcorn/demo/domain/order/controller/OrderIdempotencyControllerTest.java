@@ -11,7 +11,7 @@ import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 
 import com.popcorn.demo.common.cache.IdempotencyCacheStats;
-import com.popcorn.demo.common.cache.CaffeineIdempotencyCacheStats;
+import com.popcorn.demo.common.cache.RedisIdempotencyCacheStats;
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.dto.BaseResponse;
 
@@ -23,7 +23,7 @@ class OrderIdempotencyControllerTest {
 		IdempotencyService idempotencyService = Mockito.mock(IdempotencyService.class);
 		OrderIdempotencyController controller = new OrderIdempotencyController(idempotencyService);
 
-		IdempotencyCacheStats stats = CaffeineIdempotencyCacheStats.builder()
+		IdempotencyCacheStats stats = RedisIdempotencyCacheStats.builder()
 				.hitCount(10)
 				.missCount(2)
 				.hitRate(0.83)
@@ -103,7 +103,7 @@ class OrderIdempotencyControllerTest {
 		IdempotencyService idempotencyService = Mockito.mock(IdempotencyService.class);
 		OrderIdempotencyController controller = new OrderIdempotencyController(idempotencyService);
 
-		IdempotencyCacheStats stats = CaffeineIdempotencyCacheStats.builder()
+		IdempotencyCacheStats stats = RedisIdempotencyCacheStats.builder()
 				.hitCount(-1)
 				.missCount(0)
 				.hitRate(0.0)
