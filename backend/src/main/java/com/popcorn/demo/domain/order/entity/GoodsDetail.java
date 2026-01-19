@@ -39,7 +39,7 @@ public class GoodsDetail {
 
 		* 상품 변형 ID
 
-		* - p_goods_variants 테이블의 goods_id 참조
+		* - store.goods_variants 테이블의 goods_id 참조
 
 		* - 구매하려는 굿즈의 특정 변형 (사이즈, 색상, 옵션 등)
 

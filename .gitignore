@@ -50,6 +50,8 @@ out/
 # Environment variables
 .env
 backend/env
+backend/env.**
+
 
 # Local notes
 There

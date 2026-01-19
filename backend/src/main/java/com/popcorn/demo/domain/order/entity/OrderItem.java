@@ -22,12 +22,12 @@ import lombok.Setter;
 
 	* 주문 아이템 엔티티 (JPA)
 
-	* p_order_goods 테이블과 매핑
+	* "order".order_goods 테이블과 매핑
 
 	*/
 
 @Entity
-@Table(name = "p_order_goods")
+@Table(name = "order_goods", schema = "\"order\"")
 
 @Getter
 

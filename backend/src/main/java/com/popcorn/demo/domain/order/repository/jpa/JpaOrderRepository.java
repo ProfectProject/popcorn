@@ -19,7 +19,7 @@ public interface JpaOrderRepository extends JpaRepository<Order, UUID> {
 
 	List<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 
-	@Query(value = "SELECT * FROM p_orders WHERE user_id = :customerId ORDER BY created_at DESC LIMIT :limit OFFSET :offset",
+	@Query(value = "SELECT * FROM \"order\".orders WHERE user_id = :customerId ORDER BY created_at DESC LIMIT :limit OFFSET :offset",
 			nativeQuery = true)
 	List<Order> findByCustomerIdWithPaging(@Param("customerId") Long customerId,
 			@Param("offset") long offset,
@@ -31,10 +31,10 @@ public interface JpaOrderRepository extends JpaRepository<Order, UUID> {
 
 	List<Order> findByStatus(OrderStatus status);
 
-	@Query(value = "SELECT * FROM p_orders WHERE cancelable_until > :currentTime", nativeQuery = true)
+	@Query(value = "SELECT * FROM \"order\".orders WHERE cancelable_until > :currentTime", nativeQuery = true)
 	List<Order> findCancelableOrders(@Param("currentTime") LocalDateTime currentTime);
 
-	@Query(value = "SELECT * FROM p_orders WHERE cancelable_until <= :currentTime", nativeQuery = true)
+	@Query(value = "SELECT * FROM \"order\".orders WHERE cancelable_until <= :currentTime", nativeQuery = true)
 	List<Order> findExpiredCancelableOrders(@Param("currentTime") LocalDateTime currentTime);
 
 	long countByCustomerId(Long customerId);
@@ -43,14 +43,14 @@ public interface JpaOrderRepository extends JpaRepository<Order, UUID> {
 
 	long countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
 
-	@Query(value = "SELECT COALESCE(SUM(total_price), 0) FROM p_orders WHERE user_id = :customerId AND created_at BETWEEN :startDate AND :endDate",
+	@Query(value = "SELECT COALESCE(SUM(total_price), 0) FROM \"order\".orders WHERE user_id = :customerId AND created_at BETWEEN :startDate AND :endDate",
 			nativeQuery = true)
 	long sumTotalAmountByCustomerIdAndCreatedAtBetween(
 			@Param("customerId") Long customerId,
 			@Param("startDate") LocalDateTime startDate,
 			@Param("endDate") LocalDateTime endDate);
 
-	@Query(value = "SELECT order_id AS id, order_no AS orderNo, status AS status, total_price AS totalAmount, created_at AS createdAt FROM p_orders WHERE order_id = :orderId",
+	@Query(value = "SELECT order_id AS id, order_no AS orderNo, status AS status, total_price AS totalAmount, created_at AS createdAt FROM \"order\".orders WHERE order_id = :orderId",
 			nativeQuery = true)
 	OrderSummaryView findSummaryById(@Param("orderId") UUID orderId);
 
@@ -60,7 +60,7 @@ public interface JpaOrderRepository extends JpaRepository<Order, UUID> {
 		       status AS status,
 		       total_price AS totalAmount,
 		       created_at AS createdAt
-		FROM p_orders
+		FROM "order".orders
 		WHERE user_id = :customerId
 		ORDER BY created_at DESC
 		LIMIT :limit OFFSET :offset

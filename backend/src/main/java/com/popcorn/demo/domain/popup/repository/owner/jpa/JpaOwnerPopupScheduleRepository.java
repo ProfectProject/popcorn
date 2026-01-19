@@ -15,7 +15,7 @@ import com.popcorn.demo.domain.popup.repository.owner.view.OwnerPopupScheduleVie
 public interface JpaOwnerPopupScheduleRepository extends JpaRepository<PopupSchedule, UUID> {
 
 	@Modifying
-	@Query(value = "insert into p_popup_schedules "
+	@Query(value = "insert into store.popup_schedules "
 			+ "(schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, is_active, "
 			+ "created_at, updated_at, deleted_at, created_by, updated_by, deleted_by) "
 			+ "values (:scheduleId, :popupId, :startAt, :endAt, :price, :capacity, :remainingCapacity, :active, "
@@ -33,7 +33,7 @@ public interface JpaOwnerPopupScheduleRepository extends JpaRepository<PopupSche
 			@Param("updatedBy") Long updatedBy);
 
 	@Modifying
-	@Query(value = "update p_popup_schedules set "
+	@Query(value = "update store.popup_schedules set "
 			+ "start_at = coalesce(:startAt, start_at), "
 			+ "end_at = coalesce(:endAt, end_at), "
 			+ "price = coalesce(:price, price), "
@@ -53,7 +53,7 @@ public interface JpaOwnerPopupScheduleRepository extends JpaRepository<PopupSche
 			@Param("updatedBy") Long updatedBy);
 
 	@Modifying
-	@Query(value = "update p_popup_schedules set "
+	@Query(value = "update store.popup_schedules set "
 			+ "deleted_at = :now, deleted_by = :deletedBy, "
 			+ "updated_at = :now, updated_by = :deletedBy, "
 			+ "is_active = false "
@@ -64,7 +64,7 @@ public interface JpaOwnerPopupScheduleRepository extends JpaRepository<PopupSche
 			@Param("deletedBy") Long deletedBy);
 
 	@Modifying
-	@Query(value = "update p_popup_schedules set "
+	@Query(value = "update store.popup_schedules set "
 			+ "deleted_at = :now, deleted_by = :deletedBy, "
 			+ "updated_at = :now, updated_by = :deletedBy, "
 			+ "is_active = false "
@@ -74,7 +74,7 @@ public interface JpaOwnerPopupScheduleRepository extends JpaRepository<PopupSche
 			@Param("deletedBy") Long deletedBy);
 
 	@Modifying
-	@Query(value = "update p_popup_schedules set "
+	@Query(value = "update store.popup_schedules set "
 			+ "is_active = false, updated_at = :now, updated_by = :updatedBy "
 			+ "where popup_id = :popupId and is_active = true and deleted_at is null", nativeQuery = true)
 	int deactivateActiveSchedulesByPopup(@Param("popupId") UUID popupId,
