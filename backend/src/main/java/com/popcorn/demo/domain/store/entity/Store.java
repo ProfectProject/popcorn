@@ -10,9 +10,9 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-// store.stores에 매핑되는 스토어 애그리게이트 루트.
+// p_stores에 매핑되는 스토어 애그리게이트 루트.
 @Entity
-@Table(name = "stores", schema = "store")
+@Table(name = "p_stores")
 @Getter
 @Setter
 @NoArgsConstructor

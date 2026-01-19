@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "payment_cancel_failure_queue", schema = "payment")
+@Table(name = "p_payment_cancel_failure_queue")
 @Getter
 @Setter
 @Builder

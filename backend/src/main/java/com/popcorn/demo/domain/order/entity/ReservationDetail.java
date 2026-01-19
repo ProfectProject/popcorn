@@ -39,7 +39,7 @@ public class ReservationDetail {
 
 		* 세션 옵션 ID
 
-		* - store.popup_schedules 테이블의 schedule_id 참조
+		* - p_popup_schedules 테이블의 schedule_id 참조
 
 		* - 예약하려는 세션의 특정 옵션 (시간대, 가격대 등)
 

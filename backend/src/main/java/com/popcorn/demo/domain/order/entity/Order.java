@@ -34,7 +34,7 @@ import lombok.Setter;
 
 	*
 
-	* 매핑 테이블: "order".orders
+	* 매핑 테이블: p_orders
 
 	*
 
@@ -49,7 +49,7 @@ import lombok.Setter;
 	*/
 
 @Entity
-@Table(name = "orders", schema = "\"order\"")
+@Table(name = "p_orders")
 
 @Getter
 
@@ -144,7 +144,7 @@ public class Order extends BaseEntity {
 
 	// TODO: 주소 정보는 별도 테이블로 관리하거나 향후 스키마 확장 필요
 
-	// 현재 "order".orders 테이블에는 주소 필드가 없음
+	// 현재 p_orders 테이블에는 주소 필드가 없음
 
 
 

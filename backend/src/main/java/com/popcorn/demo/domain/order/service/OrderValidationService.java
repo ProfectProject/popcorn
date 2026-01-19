@@ -69,7 +69,7 @@ public class OrderValidationService {
 		}
 
 		try {
-			String sql = "SELECT store_id FROM store.popups WHERE popup_id = ? AND deleted_at IS NULL";
+			String sql = "SELECT store_id FROM p_popups WHERE popup_id = ? AND deleted_at IS NULL";
 			UUID storeId = jdbcTemplate.queryForObject(sql, UUID.class, popupId);
 			if (storeId == null) {
 				throw OrderNotFoundException.storeNotFound();
@@ -110,7 +110,7 @@ public class OrderValidationService {
 
 		try {
 			// 실제 데이터베이스에서 사용자 존재 여부 확인
-			String sql = "SELECT COUNT(*) FROM user_auth.users WHERE user_id = ? AND is_active = TRUE";
+			String sql = "SELECT COUNT(*) FROM p_users WHERE user_id = ? AND is_active = TRUE";
 			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId);
 			boolean isValidCustomer = count != null && count > 0;
 

@@ -56,7 +56,7 @@ public class InventoryService {
 		try {
 			String sql = """
 				SELECT stock
-				FROM store.goods_variants
+				FROM p_goods_variants
 				WHERE goods_id = ?
 				AND deleted_at IS NULL
 				AND is_active = true
@@ -81,7 +81,7 @@ public class InventoryService {
 		try {
 			String sql = """
 				SELECT remaining_capacity
-				FROM store.popup_schedules
+				FROM p_popup_schedules
 				WHERE schedule_id = ?
 				AND deleted_at IS NULL
 				AND is_active = true
@@ -120,7 +120,7 @@ public class InventoryService {
 
 			// 좌석 차감
 			String sql = """
-				UPDATE store.popup_schedules
+				UPDATE p_popup_schedules
 				SET remaining_capacity = remaining_capacity - ?,
 					updated_at = CURRENT_TIMESTAMP
 				WHERE schedule_id = ?
@@ -172,7 +172,7 @@ public class InventoryService {
 
 			// 재고 차감
 			String sql = """
-				UPDATE store.goods_variants
+				UPDATE p_goods_variants
 				SET stock = stock - ?,
 					updated_at = CURRENT_TIMESTAMP
 				WHERE goods_id = ?
@@ -224,7 +224,7 @@ public class InventoryService {
 	private void restoreReservationInventory(UUID scheduleId, Integer qty) {
 		try {
 			String sql = """
-				UPDATE store.popup_schedules
+				UPDATE p_popup_schedules
 				SET remaining_capacity = remaining_capacity + ?
 				WHERE schedule_id = ?
 				AND deleted_at IS NULL
@@ -241,7 +241,7 @@ public class InventoryService {
 	private void restoreGoodsInventory(UUID goodsVariantId, Integer qty) {
 		try {
 			String sql = """
-				UPDATE store.goods_variants
+				UPDATE p_goods_variants
 				SET stock = stock + ?
 				WHERE goods_id = ?
 				AND deleted_at IS NULL

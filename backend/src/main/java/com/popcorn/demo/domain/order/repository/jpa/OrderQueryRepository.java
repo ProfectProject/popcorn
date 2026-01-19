@@ -38,12 +38,12 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt,
 			       o.updated_at AS updatedAt
-			  FROM "order".orders o
-			  JOIN user_auth.users u ON u.user_id = o.user_id
-			  JOIN store.stores s ON s.store_id = o.store_id
-			  LEFT JOIN "order".order_goods og ON og.order_id = o.order_id AND og.deleted_at IS NULL
-			  LEFT JOIN store.popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			  LEFT JOIN store.goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
+			  FROM p_orders o
+			  JOIN p_users u ON u.user_id = o.user_id
+			  JOIN p_stores s ON s.store_id = o.store_id
+			  LEFT JOIN p_order_goods og ON og.order_id = o.order_id AND og.deleted_at IS NULL
+			  LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			  LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			 WHERE o.order_id = :orderId
 			   AND o.deleted_at IS NULL
 			 GROUP BY o.order_id, o.order_no, o.status, o.user_id, u.role, u.phone,
@@ -72,10 +72,10 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       p.title AS productTitle,
 			       p.category AS productCategory,
 			       p.status AS productStatus
-			  FROM "order".order_goods og
-			  LEFT JOIN store.popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			  LEFT JOIN store.goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
-			  LEFT JOIN store.popups p ON p.popup_id = COALESCE(ps.popup_id, gv.popup_id, :fallbackPopupId)
+			  FROM p_order_goods og
+			  LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			  LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
+			  LEFT JOIN p_popups p ON p.popup_id = COALESCE(ps.popup_id, gv.popup_id, :fallbackPopupId)
 			 WHERE og.order_id = :orderId
 			   AND og.deleted_at IS NULL
 			""", nativeQuery = true)
@@ -87,8 +87,8 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       ua.address2 AS address2,
 			       ua.addr_name AS receiverName,
 			       u.phone AS phone
-			  FROM user_auth.customer_addresses ua
-			  JOIN user_auth.users u ON u.user_id = ua.user_id
+			  FROM p_customer_addresses ua
+			  JOIN p_users u ON u.user_id = ua.user_id
 			 WHERE ua.user_id = :userId
 			   AND ua.is_default = TRUE
 			   AND ua.deleted_at IS NULL
@@ -103,7 +103,7 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       p.status AS status,
 			       p.amount AS amount,
 			       p.approved_at AS approvedAt
-			  FROM payment.payments p
+			  FROM p_payments p
 			 WHERE p.order_id = :orderId
 			   AND p.deleted_at IS NULL
 			 LIMIT 1
@@ -117,12 +117,12 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       p.status AS paymentStatus,
 			       o.cancelable_until AS cancelableUntil,
 			       COALESCE(h.changed_at, o.updated_at) AS updatedAt
-			  FROM "order".orders o
-			  LEFT JOIN payment.payments p ON p.order_id = o.order_id AND p.deleted_at IS NULL
-			  LEFT JOIN "order".order_status_histories h ON h.order_id = o.order_id
+			  FROM p_orders o
+			  LEFT JOIN p_payments p ON p.order_id = o.order_id AND p.deleted_at IS NULL
+			  LEFT JOIN p_order_status_histories h ON h.order_id = o.order_id
 			    AND h.changed_at = (
 			      SELECT MAX(h2.changed_at)
-			        FROM "order".order_status_histories h2
+			        FROM p_order_status_histories h2
 			       WHERE h2.order_id = o.order_id
 			    )
 			 WHERE o.deleted_at IS NULL
@@ -139,12 +139,12 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       p.status AS paymentStatus,
 			       o.cancelable_until AS cancelableUntil,
 			       COALESCE(h.changed_at, o.updated_at) AS updatedAt
-			  FROM "order".orders o
-			  LEFT JOIN payment.payments p ON p.order_id = o.order_id AND p.deleted_at IS NULL
-			  LEFT JOIN "order".order_status_histories h ON h.order_id = o.order_id
+			  FROM p_orders o
+			  LEFT JOIN p_payments p ON p.order_id = o.order_id AND p.deleted_at IS NULL
+			  LEFT JOIN p_order_status_histories h ON h.order_id = o.order_id
 			    AND h.changed_at = (
 			      SELECT MAX(h2.changed_at)
-			        FROM "order".order_status_histories h2
+			        FROM p_order_status_histories h2
 			       WHERE h2.order_id = o.order_id
 			    )
 			 WHERE o.deleted_at IS NULL
@@ -154,16 +154,16 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 
 	@Query(value = """
 			SELECT COUNT(1)
-			  FROM "order".orders o
+			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND (:storeId IS NULL OR o.store_id = :storeId)
 			   AND (
 			        (:popupId IS NULL AND :scheduleId IS NULL AND :orderType IS NULL)
 			        OR EXISTS (
 			             SELECT 1
-			               FROM "order".order_goods og
-			               LEFT JOIN store.popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			               LEFT JOIN store.goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
+			               FROM p_order_goods og
+			               LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			               LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			              WHERE og.order_id = o.order_id
 			                AND og.deleted_at IS NULL
 			                AND (:popupId IS NULL OR COALESCE(ps.popup_id, gv.popup_id) = :popupId)
@@ -194,16 +194,16 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       o.total_price AS totalAmount,
 			       o.cancelable_until AS cancelableUntil,
 			       o.created_at AS createdAt
-			  FROM "order".orders o
+			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND (:storeId IS NULL OR o.store_id = :storeId)
 			   AND (
 			        (:popupId IS NULL AND :scheduleId IS NULL AND :orderType IS NULL)
 			        OR EXISTS (
 			             SELECT 1
-			               FROM "order".order_goods og
-			               LEFT JOIN store.popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			               LEFT JOIN store.goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
+			               FROM p_order_goods og
+			               LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			               LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
 			              WHERE og.order_id = o.order_id
 			                AND og.deleted_at IS NULL
 			                AND (:popupId IS NULL OR COALESCE(ps.popup_id, gv.popup_id) = :popupId)
@@ -233,21 +233,21 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 
 	@Query(value = """
 			SELECT COUNT(1)
-			  FROM "order".orders o
+			  FROM p_orders o
 			 WHERE o.deleted_at IS NULL
 			   AND o.user_id = :customerId
 			   AND (
 			        :orderType IS NULL
 			        OR (:orderType = 'RESERVATION' AND EXISTS (
 			             SELECT 1
-			               FROM "order".order_goods og
+			               FROM p_order_goods og
 			              WHERE og.order_id = o.order_id
 			                AND og.deleted_at IS NULL
 			                AND og.schedule_id IS NOT NULL
 			        ))
 			        OR (:orderType = 'PURCHASE' AND EXISTS (
 			             SELECT 1
-			               FROM "order".order_goods og
+			               FROM p_order_goods og
 			              WHERE og.order_id = o.order_id
 			                AND og.deleted_at IS NULL
 			                AND og.goods_variant_id IS NOT NULL
@@ -282,25 +282,25 @@ public interface OrderQueryRepository extends Repository<Order, UUID> {
 			       NULL AS locationName,
 			       NULL AS locationAddress1,
 			       NULL AS locationAddress2
-			  FROM "order".orders o
-			  LEFT JOIN "order".order_goods og ON og.order_id = o.order_id AND og.deleted_at IS NULL
-			  LEFT JOIN store.popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
-			  LEFT JOIN store.goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
-			  LEFT JOIN store.popups p ON p.popup_id = COALESCE(ps.popup_id, gv.popup_id) AND p.deleted_at IS NULL
+			  FROM p_orders o
+			  LEFT JOIN p_order_goods og ON og.order_id = o.order_id AND og.deleted_at IS NULL
+			  LEFT JOIN p_popup_schedules ps ON ps.schedule_id = og.schedule_id AND ps.deleted_at IS NULL
+			  LEFT JOIN p_goods_variants gv ON gv.goods_id = og.goods_variant_id AND gv.deleted_at IS NULL
+			  LEFT JOIN p_popups p ON p.popup_id = COALESCE(ps.popup_id, gv.popup_id) AND p.deleted_at IS NULL
 			 WHERE o.deleted_at IS NULL
 			   AND o.user_id = :customerId
 			   AND (
 			        :orderType IS NULL
 			        OR (:orderType = 'RESERVATION' AND EXISTS (
 			             SELECT 1
-			               FROM "order".order_goods og2
+			               FROM p_order_goods og2
 			              WHERE og2.order_id = o.order_id
 			                AND og2.deleted_at IS NULL
 			                AND og2.schedule_id IS NOT NULL
 			        ))
 			        OR (:orderType = 'PURCHASE' AND EXISTS (
 			             SELECT 1
-			               FROM "order".order_goods og2
+			               FROM p_order_goods og2
 			              WHERE og2.order_id = o.order_id
 			                AND og2.deleted_at IS NULL
 			                AND og2.goods_variant_id IS NOT NULL

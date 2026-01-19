@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "order_status_histories", schema = "\"order\"")
+@Table(name = "p_order_status_histories")
 @Getter
 @Setter
 @NoArgsConstructor
