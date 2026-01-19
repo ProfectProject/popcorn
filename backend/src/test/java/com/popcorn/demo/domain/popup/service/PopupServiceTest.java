@@ -8,9 +8,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.springframework.context.ApplicationEventPublisher;
 
 import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
@@ -19,20 +17,17 @@ import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
-import com.popcorn.demo.domain.popup.event.PopupSearchEvent;
-import com.popcorn.demo.domain.popup.event.PopupViewedEvent;
 
 class PopupServiceTest {
 
 	@Test
-	@DisplayName("팝업 목록 조회 - 검증/정규화 후 이벤트 발행")
-	void getPopups_publishesSearchEvent() {
+	@DisplayName("팝업 목록 조회 - 검증/정규화 후 조회 서비스 호출")
+	void getPopups_callsQueryService() {
 		PopupQueryService queryService = Mockito.mock(PopupQueryService.class);
 		PopupScheduleQueryService sessionQueryService = Mockito.mock(PopupScheduleQueryService.class);
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
-		ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
 		PopupService service = new PopupService(
-				queryService, sessionQueryService, validationService, publisher);
+				queryService, sessionQueryService, validationService);
 
 		PopupListQuery request = PopupListQuery.builder()
 				.category(PopupCategory.FOOD)
@@ -57,20 +52,17 @@ class PopupServiceTest {
 		PopupListResponse result = service.getPopups(request);
 
 		assertEquals(3, result.getTotal());
-		ArgumentCaptor<PopupSearchEvent> captor = ArgumentCaptor.forClass(PopupSearchEvent.class);
-		verify(publisher).publishEvent(captor.capture());
-		assertEquals(3, captor.getValue().getTotal());
+		verify(queryService).getPopups(normalized);
 	}
 
 	@Test
-	@DisplayName("팝업 상세 조회 - 이벤트 발행")
-	void getPopupDetail_publishesViewedEvent() {
+	@DisplayName("팝업 상세 조회 - 조회 서비스 호출")
+	void getPopupDetail_callsQueryService() {
 		PopupQueryService queryService = Mockito.mock(PopupQueryService.class);
 		PopupScheduleQueryService sessionQueryService = Mockito.mock(PopupScheduleQueryService.class);
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
-		ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
 		PopupService service = new PopupService(
-				queryService, sessionQueryService, validationService, publisher);
+				queryService, sessionQueryService, validationService);
 
 		UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		PopupDetailQuery query = PopupDetailQuery.of(productId);
@@ -85,9 +77,7 @@ class PopupServiceTest {
 		PopupDetailResponse result = service.getPopupDetail(query);
 
 		assertEquals(productId, result.getId());
-		ArgumentCaptor<PopupViewedEvent> captor = ArgumentCaptor.forClass(PopupViewedEvent.class);
-		verify(publisher).publishEvent(captor.capture());
-		assertEquals(productId, captor.getValue().getPopupId());
+		verify(queryService).getPopupDetail(query);
 	}
 
 	@Test
@@ -96,9 +86,8 @@ class PopupServiceTest {
 		PopupQueryService queryService = Mockito.mock(PopupQueryService.class);
 		PopupScheduleQueryService sessionQueryService = Mockito.mock(PopupScheduleQueryService.class);
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
-		ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
 		PopupService service = new PopupService(
-				queryService, sessionQueryService, validationService, publisher);
+				queryService, sessionQueryService, validationService);
 
 		PopupScheduleListQuery query = PopupScheduleListQuery.builder()
 				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))

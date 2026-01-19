@@ -3,7 +3,6 @@ package com.popcorn.demo.domain.popup.controller;
 import java.util.List;
 import java.util.UUID;
 
-import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,8 +28,7 @@ public abstract class PopupControllerTestBase {
 		popupService = Mockito.mock(PopupService.class);
 		objectMapper = new CommonConfig().objectMapper();
 		mockMvc = MockMvcBuilders.standaloneSetup(
-						new PopupController(popupService),
-						new PopupScheduleController(popupService))
+						new PopupController(popupService))
 				.setControllerAdvice(new PopupExceptionHandler())
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
@@ -63,17 +61,4 @@ public abstract class PopupControllerTestBase {
 				.build();
 	}
 
-	protected PopupScheduleListResponse createSessionListResponse() {
-		return PopupScheduleListResponse.builder()
-				.items(List.of(PopupScheduleListResponse.ItemDto.builder()
-						.id(UUID.fromString("00000000-0000-0000-0000-000000000201"))
-						.startAt(java.time.LocalDateTime.of(2025, 1, 1, 10, 0))
-						.endAt(java.time.LocalDateTime.of(2025, 1, 5, 18, 0))
-						.price(12000)
-						.capacity(50)
-						.remainingCapacity(50)
-						.isActive(true)
-						.build()))
-				.build();
-	}
 }

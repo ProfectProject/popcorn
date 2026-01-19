@@ -1,6 +1,7 @@
 package com.popcorn.demo.domain.popup.service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.cache.annotation.Cacheable;
@@ -11,10 +12,13 @@ import com.popcorn.demo.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.demo.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
+import com.popcorn.demo.domain.popup.dto.query.response.PopupScheduleListResponse;
 import com.popcorn.demo.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.demo.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.demo.domain.popup.repository.PopupQueryRepository;
+import com.popcorn.demo.domain.popup.repository.PopupScheduleQueryRepository;
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
+import com.popcorn.demo.domain.popup.repository.view.PopupScheduleView;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class PopupQueryService {
 
 	private final PopupQueryRepository popupQueryRepository;
+	private final PopupScheduleQueryRepository popupScheduleQueryRepository;
 
 	private static final int DEFAULT_PAGE = 1;
 	private static final int DEFAULT_SIZE = 20;
@@ -94,6 +99,7 @@ public class PopupQueryService {
 				.addressDetail(view.getAddressDetail())
 				.eventStartAt(view.getEventStartAt())
 				.eventEndAt(view.getEventEndAt())
+				.schedules(fetchSchedules(query.getPopupId()))
 				.build();
 	}
 
@@ -107,5 +113,27 @@ public class PopupQueryService {
 
 	private PopupStatus toStatus(String value) {
 		return value == null ? null : PopupStatus.valueOf(value);
+	}
+
+	private List<PopupScheduleListResponse.ItemDto> fetchSchedules(UUID popupId) {
+		List<PopupScheduleView> views = popupScheduleQueryRepository.findProductSessions(popupId, null, null);
+		return views.stream()
+				.map(view -> {
+					UUID scheduleId = toUuid(view.getScheduleId());
+					if (scheduleId == null) {
+						return null;
+					}
+					return PopupScheduleListResponse.ItemDto.builder()
+							.id(scheduleId)
+							.startAt(view.getStartAt())
+							.endAt(view.getEndAt())
+							.price(view.getPrice())
+							.capacity(view.getCapacity())
+							.remainingCapacity(view.getRemainingCapacity())
+							.isActive(view.getIsActive())
+							.build();
+				})
+				.filter(Objects::nonNull)
+				.toList();
 	}
 }
