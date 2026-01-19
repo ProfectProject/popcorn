@@ -11,6 +11,7 @@ import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 
 import com.popcorn.demo.common.cache.IdempotencyCacheStats;
+import com.popcorn.demo.common.cache.CaffeineIdempotencyCacheStats;
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.dto.BaseResponse;
 
@@ -22,7 +23,7 @@ class OrderIdempotencyControllerTest {
 		IdempotencyService idempotencyService = Mockito.mock(IdempotencyService.class);
 		OrderIdempotencyController controller = new OrderIdempotencyController(idempotencyService);
 
-		IdempotencyCacheStats stats = IdempotencyCacheStats.builder()
+		IdempotencyCacheStats stats = CaffeineIdempotencyCacheStats.builder()
 				.hitCount(10)
 				.missCount(2)
 				.hitRate(0.83)
@@ -74,6 +75,50 @@ class OrderIdempotencyControllerTest {
 		Mockito.when(idempotencyService.getCacheStats()).thenThrow(new RuntimeException("fail"));
 
 		assertThatThrownBy(controller::getCacheStats)
+				.isInstanceOf(RuntimeException.class);
+	}
+
+	@Test
+	@DisplayName("Idempotency endpoints throw when services fail")
+	void idempotencyEndpointsThrowOnServiceErrors() {
+		IdempotencyService idempotencyService = Mockito.mock(IdempotencyService.class);
+		OrderIdempotencyController controller = new OrderIdempotencyController(idempotencyService);
+
+		Mockito.when(idempotencyService.getCacheStats()).thenThrow(new RuntimeException("fail"));
+		assertThatThrownBy(controller::getCacheStatsText)
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.doThrow(new RuntimeException("fail")).when(idempotencyService).clearCache();
+		assertThatThrownBy(controller::clearAllCache)
+				.isInstanceOf(RuntimeException.class);
+
+		Mockito.doThrow(new RuntimeException("fail")).when(idempotencyService).invalidateKey("bad-key");
+		assertThatThrownBy(() -> controller.invalidateKey("bad-key"))
+				.isInstanceOf(RuntimeException.class);
+	}
+
+	@Test
+	@DisplayName("Unhealthy cache stats cause health check failure")
+	void healthCheckRejectsUnhealthyStats() {
+		IdempotencyService idempotencyService = Mockito.mock(IdempotencyService.class);
+		OrderIdempotencyController controller = new OrderIdempotencyController(idempotencyService);
+
+		IdempotencyCacheStats stats = CaffeineIdempotencyCacheStats.builder()
+				.hitCount(-1)
+				.missCount(0)
+				.hitRate(0.0)
+				.totalLoadTime(0)
+				.evictionCount(0)
+				.cacheSize(0)
+				.inProgressRequestCount(0)
+				.newRequestCount(0)
+				.cacheHitCount(0)
+				.concurrentRequestCount(0)
+				.operationErrorCount(0)
+				.build();
+		when(idempotencyService.getCacheStats()).thenReturn(stats);
+
+		assertThatThrownBy(controller::healthCheck)
 				.isInstanceOf(RuntimeException.class);
 	}
 }

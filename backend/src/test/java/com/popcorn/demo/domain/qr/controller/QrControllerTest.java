@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;
 import com.popcorn.demo.domain.qr.service.QrCodeService;
-import com.popcorn.demo.global.config.CommonConfig;
+import com.popcorn.demo.common.config.CommonConfig;
 
 class QrControllerTest {
 

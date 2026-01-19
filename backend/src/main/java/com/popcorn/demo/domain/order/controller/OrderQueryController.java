@@ -23,6 +23,10 @@ import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
+import com.popcorn.demo.common.annotation.ApiLogging;
+import com.popcorn.demo.common.annotation.CacheResult;
+import com.popcorn.demo.common.annotation.RateLimit;
+import com.popcorn.demo.common.annotation.RetryOnFailure;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +47,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * - 내 주문 목록 조회
  * - 가게 주문 목록 조회
  */
-@Tag(name = "Order", description = "주문 관련 API")
+@Tag(name = "Order", description = "주문 관리 API")
 @RestController
 @ApiVersion("v1")
 @RequestMapping("/api/v1/orders")
@@ -84,6 +88,29 @@ public class OrderQueryController extends BaseController {
 	@ApiResponse(responseCode = "403", description = "권한 없음")
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@GetMapping("/{orderId}")
+	@CacheResult(
+		cacheName = "orderDetailCache",
+		keyExpression = "#orderId + ':' + #authentication.principal.userId",
+		ttlSeconds = 300,
+		condition = "#orderId != null"
+	)
+	@ApiLogging(
+		message = "주문 상세 조회",
+		includeRequest = true,
+		includeResponse = false,
+		level = ApiLogging.LogLevel.DEBUG
+	)
+	@RateLimit(
+		requests = 30,
+		window = 60,
+		keyExpression = "#authentication.principal.userId"
+	)
+	@RetryOnFailure(
+		maxAttempts = 2,
+		backoffMillis = 300,
+		retryOn = {RuntimeException.class},
+		logRetryAttempts = false
+	)
 	public ResponseEntity<BaseResponse<OrderDetailDto>> getOrderDetail(
 			@Parameter(
 					description = "주문 ID",
@@ -93,6 +120,9 @@ public class OrderQueryController extends BaseController {
 			@PathVariable UUID orderId,
 			Authentication authentication) {
 
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long userId = userDetails.getUserId();
 		String role = userDetails.getRole();
@@ -146,12 +176,32 @@ public class OrderQueryController extends BaseController {
 	)
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@GetMapping("/{orderId}/status")
+	@CacheResult(
+		cacheName = "orderStatusCache",
+		keyExpression = "#orderId + ':' + #authentication.principal.userId",
+		ttlSeconds = 30,
+		condition = "#orderId != null"
+	)
+	@ApiLogging(
+		message = "주문 상태 조회",
+		includeRequest = true,
+		includeResponse = false,
+		level = ApiLogging.LogLevel.DEBUG
+	)
+	@RateLimit(
+		requests = 100,
+		window = 60,
+		keyExpression = "#authentication.principal.userId"
+	)
 	public ResponseEntity<BaseResponse<OrderStatusDto>> getOrderStatus(
 			@Parameter(description = "주문 ID", required = true,
 					example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId,
 			Authentication authentication) {
 
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long customerId = userDetails.getUserId();
 
@@ -171,12 +221,30 @@ public class OrderQueryController extends BaseController {
 	@ApiResponse(responseCode = "403", description = "권한 없음")
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@GetMapping("/{orderId}/status/ops")
+	@ApiLogging(
+		message = "관리자 주문 상태 조회",
+		includeRequest = true,
+		includeResponse = false
+	)
+	@CacheResult(
+		cacheName = "orderStatusStaffCache",
+		keyExpression = "#orderId + ':staff'",
+		ttlSeconds = 60
+	)
+	@RateLimit(
+		requests = 50,
+		window = 60,
+		keyExpression = "#authentication.principal.userId"
+	)
 	public ResponseEntity<BaseResponse<OrderStatusDto>> getOrderStatusForStaff(
 			@Parameter(description = "주문 ID", required = true,
 					example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId,
 			Authentication authentication) {
 
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long userId = userDetails.getUserId();
 		String role = userDetails.getRole();
@@ -196,6 +264,21 @@ public class OrderQueryController extends BaseController {
 	)
 	@ApiResponse(responseCode = "403", description = "권한 없음")
 	@GetMapping("/status/ops")
+	@ApiLogging(
+		message = "가게 주문 상태 목록 조회",
+		includeRequest = true,
+		includeResponse = false
+	)
+	@CacheResult(
+		cacheName = "storeOrderListCache",
+		keyExpression = "#storeId + ':' + #popupId + ':' + #status + ':' + #page",
+		ttlSeconds = 120
+	)
+	@RateLimit(
+		requests = 20,
+		window = 60,
+		keyExpression = "#authentication.principal.userId"
+	)
 	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrderStatusesForStaff(
 			@Parameter(description = "스토어 ID",
 					example = "00000000-0000-0000-0000-000000000001")
@@ -263,6 +346,21 @@ public class OrderQueryController extends BaseController {
 			content = @Content(schema = @Schema(implementation = StoreOrderReservationListResponse.class))
 	)
 	@GetMapping("/store")
+	@ApiLogging(
+		message = "가게 주문 목록 조회",
+		includeRequest = true,
+		includeResponse = false
+	)
+	@CacheResult(
+		cacheName = "storeOrderCache",
+		keyExpression = "#storeId + ':' + #popupId + ':' + #status + ':' + #page + ':' + #size",
+		ttlSeconds = 180
+	)
+	@RateLimit(
+		requests = 30,
+		window = 60,
+		keyExpression = "#authentication != null ? #authentication.principal.userId : 'anonymous'"
+	)
 	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getStoreOrders(
 			@Parameter(description = "스토어 ID",
 					example = "00000000-0000-0000-0000-000000000001")
@@ -304,6 +402,21 @@ public class OrderQueryController extends BaseController {
 			description = "OWNER/MANAGER가 팝업별 예약형 주문 목록을 조회합니다."
 	)
 	@GetMapping("/popup/{popupId}/reservations")
+	@ApiLogging(
+		message = "팝업 예약 주문 목록 조회",
+		includeRequest = true,
+		includeResponse = false
+	)
+	@CacheResult(
+		cacheName = "popupReservationCache",
+		keyExpression = "#popupId + ':reservations:' + #status + ':' + #page",
+		ttlSeconds = 240
+	)
+	@RateLimit(
+		requests = 25,
+		window = 60,
+		keyExpression = "#authentication != null ? #authentication.principal.userId : 'anonymous'"
+	)
 	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getPopupReservationOrders(
 			@Parameter(description = "상품 ID", example = "00000000-0000-0000-0000-000000000101")
 			@PathVariable UUID popupId,
@@ -336,6 +449,21 @@ public class OrderQueryController extends BaseController {
 			description = "OWNER/MANAGER가 팝업별 구매형 주문 목록을 조회합니다."
 	)
 	@GetMapping("/popup/{popupId}/purchases")
+	@ApiLogging(
+		message = "팝업 구매 주문 목록 조회",
+		includeRequest = true,
+		includeResponse = false
+	)
+	@CacheResult(
+		cacheName = "popupPurchaseCache",
+		keyExpression = "#popupId + ':purchases:' + #status + ':' + #page",
+		ttlSeconds = 240
+	)
+	@RateLimit(
+		requests = 25,
+		window = 60,
+		keyExpression = "#authentication != null ? #authentication.principal.userId : 'anonymous'"
+	)
 	public ResponseEntity<BaseResponse<StoreOrderReservationListResponse>> getPopupPurchaseOrders(
 			@Parameter(description = "상품 ID", example = "00000000-0000-0000-0000-000000000101")
 			@PathVariable UUID popupId,
@@ -394,6 +522,29 @@ public class OrderQueryController extends BaseController {
 			content = @Content(schema = @Schema(implementation = MyOrderTimelineResponse.class))
 	)
 	@GetMapping("/me")
+	@ApiLogging(
+		message = "내 주문 목록 조회",
+		includeRequest = true,
+		includeResponse = false,
+		level = ApiLogging.LogLevel.DEBUG
+	)
+	@CacheResult(
+		cacheName = "myOrdersCache",
+		keyExpression = "#authentication.principal.userId + ':' + #orderType + ':' + #status + ':' + #page",
+		ttlSeconds = 120,
+		condition = "#authentication.principal.userId != null"
+	)
+	@RateLimit(
+		requests = 50,
+		window = 60,
+		keyExpression = "#authentication.principal.userId"
+	)
+	@RetryOnFailure(
+		maxAttempts = 2,
+		backoffMillis = 500,
+		retryOn = {RuntimeException.class},
+		logRetryAttempts = false
+	)
 	public ResponseEntity<BaseResponse<MyOrderTimelineResponse>> getMyOrders(
 			@Parameter(description = "주문 타입 (ALL/RESERVATION/PURCHASE)")
 			@RequestParam(required = false, defaultValue = "ALL") String orderType,
@@ -412,6 +563,9 @@ public class OrderQueryController extends BaseController {
 			Authentication authentication) {
 
 		// JWT에서 현재 인증된 사용자 정보 추출
+		if (authentication == null || authentication.getPrincipal() == null) {
+			throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("인증 정보가 필요합니다.");
+		}
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		Long customerId = userDetails.getUserId();
 

@@ -217,7 +217,7 @@ public class OrderEventStore {
         // 기본 이벤트 객체 생성 (실제 구현에서는 타입별로 완전한 객체 복원)
         return new BaseOrderEvent(record.getOrderId(), record.getEventType(), record.getUserId()) {
             @Override
-            protected Map<String, Object> getEventPayload() {
+            public Map<String, Object> getEventPayload() {
                 return Map.of("reconstructed", true);
             }
         };

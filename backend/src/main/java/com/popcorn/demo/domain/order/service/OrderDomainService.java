@@ -46,6 +46,7 @@ public class OrderDomainService {
 				new java.util.EnumMap<>(OrderStatus.class);
 		transitions.put(OrderStatus.REQUESTED, java.util.EnumSet.of(
 				OrderStatus.ACCEPTED,
+				OrderStatus.PAYMENT_PENDING,
 				OrderStatus.RESERVED,
 				OrderStatus.REJECTED,
 				OrderStatus.CANCELLED
@@ -64,7 +65,8 @@ public class OrderDomainService {
 				OrderStatus.CANCELLED
 		));
 		transitions.put(OrderStatus.PAID, java.util.EnumSet.of(
-				OrderStatus.COMPLETED
+				OrderStatus.COMPLETED,
+				OrderStatus.CANCELLED  // 5분 이내 결제 취소 허용
 		));
 		transitions.put(OrderStatus.REJECTED, java.util.EnumSet.noneOf(OrderStatus.class));
 		transitions.put(OrderStatus.CANCELLED, java.util.EnumSet.noneOf(OrderStatus.class));
@@ -211,10 +213,10 @@ public class OrderDomainService {
 		LocalDateTime now = LocalDateTime.now();
 
 		// 주문 타입별 취소 가능 시간을 계산합니다.
-		// 예약형은 비교적 여유를 주고, 구매형은 짧게 설정합니다.
+		// 결제 완료 후 5분 이내에만 취소 가능하도록 설정합니다.
 		return switch (orderType) {
-			case RESERVATION -> now.plusDays(1); // 예약형: 1일 후까지 취소 가능
-			case PURCHASE -> now.plusHours(1); // 구매형: 1시간 후까지 취소 가능
+			case RESERVATION -> now.plusMinutes(5); // 예약형: 5분 후까지 취소 가능
+			case PURCHASE -> now.plusMinutes(5); // 구매형: 5분 후까지 취소 가능
 		};
 
 	}

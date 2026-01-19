@@ -17,7 +17,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 /**
 	* OrderDomainService 단위 테스트
@@ -109,12 +109,12 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("취소 가능 시간 계산 - 예약형은 1일 후")
-	void calculateCancelableUntil_Reservation_Returns1DayLater() {
+	@DisplayName("취소 가능 시간 계산 - 예약형은 5분 후")
+	void calculateCancelableUntil_Reservation_Returns5MinutesLater() {
 		// given
 		OrderType orderType = OrderType.RESERVATION;
-		LocalDateTime before = LocalDateTime.now().plusDays(1).minusMinutes(1);
-		LocalDateTime after = LocalDateTime.now().plusDays(1).plusMinutes(1);
+		LocalDateTime before = LocalDateTime.now().plusMinutes(5).minusSeconds(30);
+		LocalDateTime after = LocalDateTime.now().plusMinutes(5).plusSeconds(30);
 
 		// when
 		LocalDateTime cancelableUntil = orderDomainService.calculateCancelableUntil(orderType);
@@ -124,12 +124,12 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
-	@DisplayName("취소 가능 시간 계산 - 구매형은 1시간 후")
-	void calculateCancelableUntil_Purchase_Returns1HourLater() {
+	@DisplayName("취소 가능 시간 계산 - 구매형은 5분 후")
+	void calculateCancelableUntil_Purchase_Returns5MinutesLater() {
 		// given
 		OrderType orderType = OrderType.PURCHASE;
-		LocalDateTime before = LocalDateTime.now().plusHours(1).minusMinutes(1);
-		LocalDateTime after = LocalDateTime.now().plusHours(1).plusMinutes(1);
+		LocalDateTime before = LocalDateTime.now().plusMinutes(5).minusSeconds(30);
+		LocalDateTime after = LocalDateTime.now().plusMinutes(5).plusSeconds(30);
 
 		// when
 		LocalDateTime cancelableUntil = orderDomainService.calculateCancelableUntil(orderType);
@@ -201,6 +201,20 @@ class OrderDomainServiceTest {
 	}
 
 	@Test
+	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 가능")
+	void canChangeStatus_RequestedToPending_ReturnsTrue() {
+		// given
+		OrderStatus currentStatus = OrderStatus.REQUESTED;
+		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
+
+		// when
+		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
+
+		// then
+		assertThat(canChange).isTrue();
+	}
+
+	@Test
 	@DisplayName("주문 상태 변경 가능 검증 - ACCEPTED에서 RESERVED로 변경 가능")
 	void canChangeStatus_OwnerAcceptedToConfirmed_ReturnsTrue() {
 		// given
@@ -226,20 +240,6 @@ class OrderDomainServiceTest {
 
 		// then
 		assertThat(canChange).isTrue();
-	}
-
-	@Test
-	@DisplayName("주문 상태 변경 가능 검증 - REQUESTED에서 PAYMENT_PENDING로 변경 불가")
-	void canChangeStatus_RequestedToReady_ReturnsFalse() {
-		// given
-		OrderStatus currentStatus = OrderStatus.REQUESTED;
-		OrderStatus newStatus = OrderStatus.PAYMENT_PENDING;
-
-		// when
-		boolean canChange = orderDomainService.canChangeStatus(currentStatus, newStatus);
-
-		// then
-		assertThat(canChange).isFalse();
 	}
 
 	@Test

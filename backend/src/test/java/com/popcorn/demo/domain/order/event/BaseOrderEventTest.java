@@ -39,13 +39,77 @@ class BaseOrderEventTest {
 		assertThat(exception.getMessage()).isEqualTo("message");
 	}
 
+	@Test
+	@DisplayName("Event created without metadata works correctly")
+	void eventWithoutMetadata() {
+		UUID orderId = UUID.randomUUID();
+		TestEvent event = new TestEvent(orderId, 1001L, null);
+
+		assertThat(event.hasMetadata("nonexistent")).isFalse();
+		assertThat(event.getMetadata("nonexistent", String.class)).isNull();
+		assertThat(event.getMetadata()).isEmpty();
+	}
+
+	@Test
+	@DisplayName("Metadata type casting returns null for wrong type")
+	void metadataTypeCasting() {
+		UUID orderId = UUID.randomUUID();
+		TestEvent event = new TestEvent(orderId, 1001L, Map.of("number", 123, "text", "hello"));
+
+		assertThat(event.getMetadata("number", Integer.class)).isEqualTo(123);
+		assertThat(event.getMetadata("number", String.class)).isNull(); // Wrong type
+		assertThat(event.getMetadata("text", String.class)).isEqualTo("hello");
+		assertThat(event.getMetadata("text", Integer.class)).isNull(); // Wrong type
+	}
+
+	@Test
+	@DisplayName("Event context builder pattern works correctly")
+	void eventContextBuilder() {
+		UUID eventId = UUID.randomUUID();
+		UUID correlationId = UUID.randomUUID();
+
+		BaseOrderEvent.EventContext context = BaseOrderEvent.EventContext.builder()
+				.eventId(eventId)
+				.correlationId(correlationId)
+				.timestamp(java.time.LocalDateTime.now())
+				.version("2.0")
+				.build();
+
+		assertThat(context.getEventId()).isEqualTo(eventId);
+		assertThat(context.getCorrelationId()).isEqualTo(correlationId);
+		assertThat(context.getVersion()).isEqualTo("2.0");
+	}
+
+	@Test
+	@DisplayName("Event created with simplified constructor works")
+	void eventWithSimplifiedConstructor() {
+		UUID orderId = UUID.randomUUID();
+		SimpleTestEvent event = new SimpleTestEvent(orderId, 1001L);
+
+		assertThat(event.getOrderId()).isEqualTo(orderId);
+		assertThat(event.getUserId()).isEqualTo(1001L);
+		assertThat(event.getEventType()).isEqualTo("simple_test");
+		assertThat(event.getMetadata()).isEmpty();
+	}
+
+	private static final class SimpleTestEvent extends BaseOrderEvent {
+		SimpleTestEvent(UUID orderId, Long userId) {
+			super(orderId, "simple_test", userId);
+		}
+
+		@Override
+		public Map<String, Object> getEventPayload() {
+			return Map.of("simple", true);
+		}
+	}
+
 	private static final class TestEvent extends BaseOrderEvent {
 		TestEvent(UUID orderId, Long userId, Map<String, Object> metadata) {
 			super(orderId, "order_test", userId, metadata);
 		}
 
 		@Override
-		protected Map<String, Object> getEventPayload() {
+		public Map<String, Object> getEventPayload() {
 			return Map.of("payload", true);
 		}
 	}

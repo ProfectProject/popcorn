@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.demo.domain.popup.dto.query.response.PopupListResponse;
 import com.popcorn.demo.domain.popup.service.PopupService;
-import com.popcorn.demo.global.config.CommonConfig;
+import com.popcorn.demo.common.config.CommonConfig;
 
 public abstract class PopupControllerTestBase {
 

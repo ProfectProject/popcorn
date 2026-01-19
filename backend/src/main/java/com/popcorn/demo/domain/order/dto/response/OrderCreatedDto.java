@@ -26,7 +26,16 @@ import lombok.Setter;
 		"totalAmount",
 		"cancelableUntil",
 		"createdAt",
-		"items"
+		"items",
+		"paymentId",
+		"paymentAmount",
+		"checkoutUrl",
+		"customerKey",
+		"successUrl",
+		"failUrl",
+		"clientKey",
+		"paymentKey",
+		"readyForPayment"
 })
 public class OrderCreatedDto {
 
@@ -47,6 +56,17 @@ public class OrderCreatedDto {
 	private LocalDateTime cancelableUntil;
 	private LocalDateTime createdAt;
 	private List<OrderItemDto> items;
+	private UUID paymentId;
+	private Integer paymentAmount;
+	private String checkoutUrl;
+	private String customerKey;
+	private String successUrl;
+	private String failUrl;
+
+	// 🎯 프론트엔드 토스 결제위젯용 추가 필드
+	private String clientKey;      // 토스 클라이언트 키
+	private String paymentKey;     // 토스 결제키
+	private Boolean readyForPayment; // 즉시 결제 가능 여부
 
 	@Getter
 	@Setter

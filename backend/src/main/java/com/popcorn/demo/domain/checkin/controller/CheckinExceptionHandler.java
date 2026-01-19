@@ -11,7 +11,7 @@ import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.common.dto.CommonResponseCode;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 import lombok.extern.slf4j.Slf4j;
 

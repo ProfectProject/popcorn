@@ -1,0 +1,127 @@
+package com.popcorn.demo.domain.payment.controller;
+
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
+
+@WebMvcTest(PaymentPageController.class)
+class PaymentPageControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private PaymentTokenService paymentTokenService;
+
+    @MockBean
+    private TossPaymentsProperties tossPaymentsProperties;
+
+    @Test
+    void redirectToPaymentPageRedirectsWithValidToken() throws Exception {
+        // Given
+        String token = "valid.jwt.token";
+        when(paymentTokenService.isValidToken(token)).thenReturn(true);
+        when(tossPaymentsProperties.getCheckoutUrl()).thenReturn("https://checkout.tosspayments.com");
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/checkout")
+                        .param("token", token))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location",
+                    org.hamcrest.CoreMatchers.containsString("https://checkout.tosspayments.com")))
+                .andExpect(header().string("Location",
+                    org.hamcrest.CoreMatchers.containsString("token=" + token)));
+    }
+
+    @Test
+    void redirectToPaymentPageRejectInvalidToken() throws Exception {
+        // Given
+        String invalidToken = "invalid.jwt.token";
+        when(paymentTokenService.isValidToken(invalidToken)).thenReturn(false);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/checkout")
+                        .param("token", invalidToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void decodePaymentTokenReturnsPaymentInfo() throws Exception {
+        // Given
+        String token = "valid.jwt.token";
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        PaymentTokenService.PaymentTokenInfo tokenInfo = PaymentTokenService.PaymentTokenInfo.builder()
+                .orderId(orderId)
+                .orderNo("ORDER-123")
+                .amount(10000)
+                .customerKey("customer-456")
+                .paymentId(paymentId)
+                .build();
+
+        when(paymentTokenService.parsePaymentToken(token)).thenReturn(tokenInfo);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/decode")
+                        .param("token", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.orderId").value(orderId.toString()))
+                .andExpect(jsonPath("$.data.orderNo").value("ORDER-123"))
+                .andExpect(jsonPath("$.data.amount").value(10000))
+                .andExpect(jsonPath("$.data.customerKey").value("customer-456"))
+                .andExpect(jsonPath("$.data.paymentId").value(paymentId.toString()));
+    }
+
+    @Test
+    void decodePaymentTokenReturnsBadRequestForInvalidToken() throws Exception {
+        // Given
+        String invalidToken = "invalid.jwt.token";
+        when(paymentTokenService.parsePaymentToken(invalidToken))
+                .thenThrow(new IllegalArgumentException("Invalid token"));
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/decode")
+                        .param("token", invalidToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void redirectToPaymentPageWithEmptyToken() throws Exception {
+        // Given
+        String emptyToken = "";
+        when(paymentTokenService.isValidToken(emptyToken)).thenReturn(false);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/checkout")
+                        .param("token", emptyToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void decodePaymentTokenWithMalformedToken() throws Exception {
+        // Given
+        String malformedToken = "malformed-token";
+        when(paymentTokenService.parsePaymentToken(malformedToken))
+                .thenThrow(new IllegalArgumentException("Malformed token"));
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/decode")
+                        .param("token", malformedToken))
+                .andExpect(status().isBadRequest());
+    }
+}

@@ -1,0 +1,6 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.popcorn.demo.config.TestRedisConfig,\
+  com.popcorn.demo.config.TestSecurityConfig
+
+org.springframework.test.context.TestExecutionListener=\
+  org.springframework.test.context.support.DependencyInjectionTestExecutionListener

@@ -32,7 +32,7 @@ import com.popcorn.demo.common.entity.BaseEntity;
 @Table(name = "p_customer_addresses")
 @Getter
 @Setter
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
 public class UserAddress extends BaseEntity {
 
     @Id

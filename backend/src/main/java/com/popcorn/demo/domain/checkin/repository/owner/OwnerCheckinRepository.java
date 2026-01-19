@@ -18,7 +18,7 @@ public class OwnerCheckinRepository {
 
 	private final JdbcTemplate jdbcTemplate;
 
-	public List<CheckinRow> findByPopupId(UUID popupId, Long ownerId) {
+	public List<CheckinRow> findByPopupId(UUID popupId, Long ownerId, int limit) {
 		return jdbcTemplate.query(
 				"""
 				SELECT DISTINCT c.checkin_id, c.order_id, c.order_qr_code_id, c.created_at, c.created_by, q.qr_code
@@ -32,7 +32,8 @@ public class OwnerCheckinRepository {
 				JOIN p_stores s ON s.store_id = p.store_id AND s.deleted_at IS NULL
 				WHERE p.popup_id = ?
 				  AND s.user_id = ?
-				ORDER BY c.created_at DESC
+				ORDER BY c.created_at DESC, c.checkin_id DESC
+				LIMIT ?
 				""",
 				(rs, rowNum) -> new CheckinRow(
 						UUID.fromString(rs.getString("checkin_id")),
@@ -43,11 +44,12 @@ public class OwnerCheckinRepository {
 						(Long) rs.getObject("created_by")
 				),
 				popupId,
-				ownerId
+				ownerId,
+				limit
 		);
 	}
 
-	public List<CheckinRow> findByScheduleId(UUID popupId, UUID scheduleId, Long ownerId) {
+	public List<CheckinRow> findByScheduleId(UUID popupId, UUID scheduleId, Long ownerId, int limit) {
 		return jdbcTemplate.query(
 				"""
 				SELECT DISTINCT c.checkin_id, c.order_id, c.order_qr_code_id, c.created_at, c.created_by, q.qr_code
@@ -61,7 +63,8 @@ public class OwnerCheckinRepository {
 				WHERE ps.schedule_id = ?
 				  AND p.popup_id = ?
 				  AND s.user_id = ?
-				ORDER BY c.created_at DESC
+				ORDER BY c.created_at DESC, c.checkin_id DESC
+				LIMIT ?
 				""",
 				(rs, rowNum) -> new CheckinRow(
 						UUID.fromString(rs.getString("checkin_id")),
@@ -73,7 +76,8 @@ public class OwnerCheckinRepository {
 				),
 				scheduleId,
 				popupId,
-				ownerId
+				ownerId,
+				limit
 		);
 	}
 

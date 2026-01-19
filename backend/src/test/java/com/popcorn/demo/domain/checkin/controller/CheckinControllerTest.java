@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.domain.checkin.dto.response.CheckinDetailResponse;
 import com.popcorn.demo.domain.checkin.dto.response.CheckinListResponse;
 import com.popcorn.demo.domain.checkin.service.CheckinService;
-import com.popcorn.demo.global.config.CommonConfig;
+import com.popcorn.demo.common.config.CommonConfig;
 
 class CheckinControllerTest {
 
@@ -53,7 +53,7 @@ class CheckinControllerTest {
 				.items(List.of(item))
 				.build();
 
-		Mockito.when(checkinService.getCheckins()).thenReturn(response);
+		Mockito.when(checkinService.getCheckins(50)).thenReturn(response);
 
 		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins"))
 				.andExpect(MockMvcResultMatchers.status().isOk())

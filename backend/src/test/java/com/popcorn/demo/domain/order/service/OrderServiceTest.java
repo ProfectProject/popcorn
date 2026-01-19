@@ -37,7 +37,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
 import com.popcorn.demo.domain.order.repository.view.OrderDetailView;

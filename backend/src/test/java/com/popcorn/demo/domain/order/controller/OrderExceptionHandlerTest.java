@@ -14,12 +14,14 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.dto.BaseError;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
-import com.popcorn.demo.global.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 class OrderExceptionHandlerTest {
 
@@ -96,7 +98,7 @@ class OrderExceptionHandlerTest {
 
 	@Test
 	@DisplayName("기타 예외를 처리한다")
-	void handlesGeneralException() {
+	void handlesGeneralException() throws HttpRequestMethodNotSupportedException, NoResourceFoundException {
 		OrderExceptionHandler handler = new OrderExceptionHandler();
 		ResponseEntity<BaseResponse<BaseError>> response =
 				handler.handleGeneralException(new RuntimeException("boom"));

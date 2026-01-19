@@ -8,6 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,33 +34,33 @@ public class OwnerCheckinController extends BaseController {
 
 	private final OwnerCheckinService ownerCheckinService;
 
-	@Operation(
-			summary = "오너 체크인 목록 조회",
-			description = "팝업별 체크인 기록을 조회합니다."
-	)
+	@Operation(summary = "오너 체크인 목록 조회", description = "팝업별 체크인 기록을 조회합니다.")
 	@GetMapping("/{popupId}/checkins")
 	public ResponseEntity<BaseResponse<OwnerCheckinListResponse>> getCheckinsByPopup(
 			Authentication authentication,
-			@Parameter(description = "팝업 ID", example = "90000000-0000-0000-0000-000000000001")
-			@PathVariable UUID popupId) {
+			@Parameter(description = "팝업 ID", example = "90000000-0000-0000-0000-000000000001") @PathVariable UUID popupId,
+			@Parameter(description = "조회 개수", example = "50") @RequestParam(defaultValue = "50") int size) {
 		Long ownerId = getCurrentOwnerId(authentication);
-		OwnerCheckinListResponse response = ownerCheckinService.getCheckinsByPopup(ownerId, popupId);
+		OwnerCheckinListResponse response = ownerCheckinService.getCheckinsByPopup(
+				ownerId,
+				popupId,
+				normalizeLimit(size));
 		return ok(response);
 	}
 
-	@Operation(
-			summary = "오너 체크인 목록 조회(스케줄)",
-			description = "팝업 스케줄별 체크인 기록을 조회합니다."
-	)
+	@Operation(summary = "오너 체크인 목록 조회(스케줄)", description = "팝업 스케줄별 체크인 기록을 조회합니다.")
 	@GetMapping("/{popupId}/schedules/{scheduleId}/checkins")
 	public ResponseEntity<BaseResponse<OwnerCheckinListResponse>> getCheckinsBySchedule(
 			Authentication authentication,
-			@Parameter(description = "팝업 ID", example = "90000000-0000-0000-0000-000000000001")
-			@PathVariable UUID popupId,
-			@Parameter(description = "스케줄 ID", example = "90000000-0000-0000-0000-000000000011")
-			@PathVariable UUID scheduleId) {
+			@Parameter(description = "팝업 ID", example = "90000000-0000-0000-0000-000000000001") @PathVariable UUID popupId,
+			@Parameter(description = "스케줄 ID", example = "90000000-0000-0000-0000-000000000011") @PathVariable UUID scheduleId,
+			@Parameter(description = "조회 개수", example = "50") @RequestParam(defaultValue = "50") int size) {
 		Long ownerId = getCurrentOwnerId(authentication);
-		OwnerCheckinListResponse response = ownerCheckinService.getCheckinsBySchedule(ownerId, popupId, scheduleId);
+		OwnerCheckinListResponse response = ownerCheckinService.getCheckinsBySchedule(
+				ownerId,
+				popupId,
+				scheduleId,
+				normalizeLimit(size));
 		return ok(response);
 	}
 
@@ -115,5 +116,12 @@ public class OwnerCheckinController extends BaseController {
 		}
 
 		return userId;
+	}
+
+	private int normalizeLimit(int size) {
+		if (size < 1) {
+			return 1;
+		}
+		return Math.min(size, 200);
 	}
 }

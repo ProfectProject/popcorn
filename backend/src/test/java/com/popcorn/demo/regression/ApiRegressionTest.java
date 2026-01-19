@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - 에러 응답 일관성
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "security-test"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 @Sql(scripts = {"classpath:sql/test-schema.sql", "classpath:userflow-test-data.sql"}, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -62,8 +62,8 @@ class ApiRegressionTest {
                 .apply(springSecurity())
                 .build();
 
-        // 테스트용 JWT 토큰 생성
-        testToken = jwtUtil.createJwt(1001L, "test@test.com", "CUSTOMER", 3600000L);
+        // 테스트용 JWT 토큰 생성 (auto-generated user ID 1 사용)
+        testToken = jwtUtil.createJwt(1L, "testuser@popcorn.com", "CUSTOMER", 3600000L);
     }
 
     // ========================= API 응답 형식 일관성 =========================

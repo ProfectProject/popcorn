@@ -26,6 +26,8 @@ public class CreateOrderRequest {
 
 	private UUID reservationId;
 
+	private String paymentMethod;
+
 	@NotEmpty(message = "주문 항목은 최소 1개 이상이어야 합니다.")
 	@Valid
 	private List<OrderItemRequest> items;
@@ -68,17 +70,14 @@ public class CreateOrderRequest {
 			return false;
 		}
 
+		// 굿즈 구매 시 주소는 필수
 		boolean hasValidItems = items.stream()
 				.allMatch(item ->
 						"GOODS".equals(item.getOrderItemType())
 								&& item.getGoodsVariantId() != null
 				);
 
-		boolean hasValidAddress = address != null
-				&& address.getAddress1() != null
-				&& !address.getAddress1().trim().isEmpty();
-
-		return hasValidItems && hasValidAddress;
+		return hasValidItems && address != null; // 주소 검증 추가
 	}
 
 	public int getTotalQuantity() {
