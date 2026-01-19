@@ -8,83 +8,111 @@ import com.popcorn.demo.domain.goods.dto.GoodsStatusResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsStatusUpdateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsUpdateRequest;
 import com.popcorn.demo.domain.goods.entity.GoodsVariant;
+import com.popcorn.demo.domain.goods.event.GoodsCreatedEvent;
+import com.popcorn.demo.domain.goods.event.GoodsDeletedEvent;
+import com.popcorn.demo.domain.goods.event.GoodsStatusUpdatedEvent;
+import com.popcorn.demo.domain.goods.event.GoodsUpdatedEvent;
 import com.popcorn.demo.domain.goods.exception.GoodsNotFoundException;
 import com.popcorn.demo.domain.goods.repository.GoodsVariantRepository;
+import com.popcorn.demo.domain.popup.exception.PopupException;
+import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupRepository;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 @RequiredArgsConstructor
 public class GoodsService {
-    // TODO(ops-bc): goods bounded context 경계/공통 모듈 정의 (GoodsStatus, GoodsId, 공통 응답/에러 규격).
-    // TODO(ops-event): GoodsCreated/Updated/Deleted/StatusChanged 이벤트 클래스 추가.
-    // TODO(ops-event): 재고/상태 변경 시 이벤트 발행하고 주문 가능 여부/알림/통계 리스너 분리.
+
     private final GoodsVariantRepository goodsVariantRepository;
+    private final OwnerPopupRepository ownerPopupRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
-    public GoodsListResponse list(UUID popupId) {
-        boolean ownerView = isOwnerOrManager();
+    public GoodsListResponse list(Long ownerId, UUID popupId) {
+        requireOwnedPopup(ownerId, popupId);
         List<GoodsItemResponse> items = goodsVariantRepository
                 .findAllByPopupIdAndDeletedAtIsNullOrderByCreatedAtDesc(popupId)
                 .stream()
-                .map(goods -> ownerView ? GoodsItemResponse.fromOwner(goods) : GoodsItemResponse.fromUser(goods))
+                .map(GoodsItemResponse::fromOwner)
+                .collect(Collectors.toList());
+        return new GoodsListResponse(items);
+    }
+
+    @Transactional(readOnly = true)
+    public GoodsListResponse listForUser(UUID popupId) {
+        List<GoodsItemResponse> items = goodsVariantRepository
+                .findAllByPopupIdAndIsActiveTrueAndDeletedAtIsNullOrderByCreatedAtDesc(popupId)
+                .stream()
+                .map(GoodsItemResponse::fromUser)
                 .collect(Collectors.toList());
         return new GoodsListResponse(items);
     }
 
     @Transactional
-    public GoodsIdResponse create(UUID popupId, GoodsCreateRequest request) {
+    public GoodsIdResponse create(Long ownerId, UUID popupId, GoodsCreateRequest request) {
+        requireOwnedPopup(ownerId, popupId);
+        String stockUnit = request.getStockUnit().trim();
+        String goodsName = request.getGoodsName().trim();
         boolean isActive = Boolean.TRUE.equals(request.getIsActive());
         GoodsVariant goods = GoodsVariant.create(
                 popupId,
-                request.getStockUnit(),
-                request.getGoodsName(),
+                stockUnit,
+                goodsName,
                 request.getGoodsPrice(),
                 request.getStock(),
                 isActive
         );
         goodsVariantRepository.save(goods);
+        eventPublisher.publishEvent(new GoodsCreatedEvent(ownerId, goods));
         return new GoodsIdResponse(goods.getId());
     }
 
     @Transactional(readOnly = true)
-    public GoodsItemResponse get(UUID popupId, UUID goodsId) {
+    public GoodsItemResponse get(Long ownerId, UUID popupId, UUID goodsId) {
+        requireOwnedPopup(ownerId, popupId);
         GoodsVariant goods = getGoods(popupId, goodsId);
-        return isOwnerOrManager() ? GoodsItemResponse.fromOwner(goods) : GoodsItemResponse.fromUser(goods);
+        return GoodsItemResponse.fromOwner(goods);
     }
 
     @Transactional
-    public GoodsIdResponse update(UUID popupId, UUID goodsId, GoodsUpdateRequest request) {
+    public GoodsIdResponse update(Long ownerId, UUID popupId, UUID goodsId, GoodsUpdateRequest request) {
+        requireOwnedPopup(ownerId, popupId);
+        String goodsName = request.getGoodsName().trim();
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.update(
-                request.getGoodsName(),
+                goodsName,
                 request.getGoodsPrice(),
                 request.getStock()
         );
+        eventPublisher.publishEvent(new GoodsUpdatedEvent(ownerId, goods));
         return new GoodsIdResponse(goods.getId());
     }
 
     @Transactional
     public GoodsStatusResponse updateStatus(
+            Long ownerId,
             UUID popupId,
             UUID goodsId,
             GoodsStatusUpdateRequest request
     ) {
+        requireOwnedPopup(ownerId, popupId);
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.updateStatus(request.getIsActive());
+        eventPublisher.publishEvent(new GoodsStatusUpdatedEvent(ownerId, goods));
         return new GoodsStatusResponse(goods.getId(), goods.isActive());
     }
 
     @Transactional
-    public void delete(UUID popupId, UUID goodsId) {
+    public void delete(Long ownerId, UUID popupId, UUID goodsId) {
+        requireOwnedPopup(ownerId, popupId);
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.softDelete();
+        eventPublisher.publishEvent(new GoodsDeletedEvent(ownerId, goods));
     }
 
     private GoodsVariant getGoods(UUID popupId, UUID goodsId) {
@@ -93,13 +121,8 @@ public class GoodsService {
                 .orElseThrow(GoodsNotFoundException::new);
     }
 
-    private boolean isOwnerOrManager() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getAuthorities() == null) {
-            return false;
-        }
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
-                        || "ROLE_MANAGER".equals(authority.getAuthority()));
+    private void requireOwnedPopup(Long ownerId, UUID popupId) {
+        ownerPopupRepository.findOwnedPopup(popupId, ownerId)
+                .orElseThrow(PopupException::popupNotFound);
     }
 }

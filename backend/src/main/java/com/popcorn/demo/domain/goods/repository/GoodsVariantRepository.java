@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface GoodsVariantRepository extends JpaRepository<GoodsVariant, UUID> {
     List<GoodsVariant> findAllByPopupIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID popupId);
+    List<GoodsVariant> findAllByPopupIdAndIsActiveTrueAndDeletedAtIsNullOrderByCreatedAtDesc(UUID popupId);
 
     Optional<GoodsVariant> findByIdAndPopupIdAndDeletedAtIsNull(UUID id, UUID popupId);
 }

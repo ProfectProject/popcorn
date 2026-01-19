@@ -34,9 +34,4 @@ public class StoreEventHandler {
 				event.getOwnerId(), event.getStore().getId());
 	}
 
-	@EventListener
-	public void handleGetByOwner(StoreGetByOwnerId event) {
-		log.info("📄 스토어 목록 조회 이벤트 - ownerId: {}, count: {}",
-				event.getOwnerId(), event.getStores() != null ? event.getStores().size() : 0);
-	}
 }

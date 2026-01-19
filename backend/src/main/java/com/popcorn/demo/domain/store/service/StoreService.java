@@ -13,7 +13,6 @@ import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
 import com.popcorn.demo.domain.store.event.StoreCreatedEvent;
 import com.popcorn.demo.domain.store.event.StoreDeletedEvent;
-import com.popcorn.demo.domain.store.event.StoreGetByOwnerId;
 import com.popcorn.demo.domain.store.event.StoreStatusUpdatedEvent;
 import com.popcorn.demo.domain.store.event.StoreUpdatedEvent;
 import com.popcorn.demo.domain.store.exception.StoreException;
@@ -77,9 +76,6 @@ public class StoreService {
 
         if (stores == null) {
             stores = List.of();
-        }
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new StoreGetByOwnerId(ownerId, stores));
         }
         
         log.info("[STORES_FOUND] count={}", stores.size());
