@@ -18,3 +18,4 @@ rootProject.name = 'popcorn'
 
 // 📚 Common-Lib 모듈을 멀티모듈 프로젝트로 포함
 include 'common-lib'
+project(':common-lib').projectDir = file('../common-lib')
