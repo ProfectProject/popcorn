@@ -8,17 +8,22 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.popcorn.demo.common.annotation.Idempotent;
 import com.popcorn.demo.common.cache.IdempotencyService;
 import com.popcorn.demo.common.cache.IdempotentOperation;
+import com.popcorn.demo.common.dto.BaseResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,12 +37,13 @@ import lombok.RequiredArgsConstructor;
 @Component
 @Order(1) // 다른 AOP보다 먼저 실행
 @RequiredArgsConstructor
-public class IdempotentAspect {
+public class IdempotentAspect implements BeanFactoryAware {
 
     private static final Logger log = LoggerFactory.getLogger(IdempotentAspect.class);
 
     private final IdempotencyService idempotencyService;
     private final ExpressionParser expressionParser = new SpelExpressionParser();
+    private BeanFactory beanFactory;
 
     /**
      * @Idempotent 어노테이션이 적용된 메서드를 인터셉트합니다.
@@ -58,7 +64,17 @@ public class IdempotentAspect {
 
         log.debug("멱등성 처리 시작: key={}, method={}", idempotencyKey, joinPoint.getSignature());
 
-        // IdempotencyService를 통한 멱등성 처리
+        if (ResponseEntity.class.isAssignableFrom(responseType)) {
+            log.debug("ResponseEntity 반환 타입은 기본 캐시 처리에서 제외: {}", joinPoint.getSignature());
+            return joinPoint.proceed();
+        }
+
+        Class<?> returnType = determineReturnType(joinPoint);
+        if (ResponseEntity.class.isAssignableFrom(returnType)) {
+            return handleResponseEntity(joinPoint, idempotent, idempotencyKey, responseType);
+        }
+
+        // IdempotencyService를 통한 멱등성 처리 (일반 타입)
         @SuppressWarnings("unchecked")
         IdempotencyService.IdempotencyResult<Object> result = idempotencyService.processRequest(
             idempotencyKey,
@@ -120,7 +136,10 @@ public class IdempotentAspect {
      * SpEL 표현식을 평가합니다.
      */
     private String evaluateSpelExpression(ProceedingJoinPoint joinPoint, String expression) {
-        EvaluationContext context = new StandardEvaluationContext();
+        StandardEvaluationContext context = new StandardEvaluationContext();
+        if (beanFactory != null) {
+            context.setBeanResolver(new BeanFactoryResolver(beanFactory));
+        }
 
         // 메서드 파라미터를 컨텍스트에 추가
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -166,5 +185,65 @@ public class IdempotentAspect {
         }
 
         return returnType;
+    }
+
+    private Class<?> determineReturnType(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        return signature.getReturnType();
+    }
+
+    private Object handleResponseEntity(
+        ProceedingJoinPoint joinPoint,
+        Idempotent idempotent,
+        String idempotencyKey,
+        Class<?> responseType
+    ) throws Throwable {
+        final ResponseEntity<?>[] originalResponse = new ResponseEntity<?>[1];
+
+        @SuppressWarnings("unchecked")
+        IdempotencyService.IdempotencyResult<Object> result = idempotencyService.processRequest(
+            idempotencyKey,
+            new IdempotentOperation<Object>() {
+                @Override
+                public Object execute() throws Exception {
+                    try {
+                        Object response = joinPoint.proceed();
+                        if (response instanceof ResponseEntity<?> responseEntity) {
+                            originalResponse[0] = responseEntity;
+                            Object body = responseEntity.getBody();
+                            if (body instanceof BaseResponse<?> baseResponse) {
+                                return baseResponse.getData();
+                            }
+                            return body;
+                        }
+                        return response;
+                    } catch (Throwable e) {
+                        if (e instanceof RuntimeException) {
+                            throw (RuntimeException) e;
+                        }
+                        if (e instanceof Exception) {
+                            throw (Exception) e;
+                        }
+                        throw new RuntimeException("Method execution failed", e);
+                    }
+                }
+            },
+            (Class<Object>) responseType
+        );
+
+        if (!result.isFromCache() && originalResponse[0] != null) {
+            return originalResponse[0];
+        }
+
+        Object cachedBody = result.getResult();
+        if (cachedBody instanceof BaseResponse<?>) {
+            return ResponseEntity.ok(cachedBody);
+        }
+        return ResponseEntity.ok(BaseResponse.success(cachedBody));
+    }
+
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
     }
 }
