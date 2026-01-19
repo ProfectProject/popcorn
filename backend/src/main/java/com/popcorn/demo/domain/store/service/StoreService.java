@@ -59,7 +59,9 @@ public class StoreService {
         
         Store savedStore = storeRepository.save(createStoreEntity(ownerId, trimmedName));
 
-        eventPublisher.publishEvent(new StoreCreatedEvent(ownerId, savedStore));
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreCreatedEvent(ownerId, savedStore));
+        }
         
         log.info("[STORE_CREATED] storeId={}", savedStore.getId());
         return mapToDto(savedStore);
@@ -76,7 +78,9 @@ public class StoreService {
         if (stores == null) {
             stores = List.of();
         }
-        eventPublisher.publishEvent(new StoreGetByOwnerId(ownerId, stores));
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreGetByOwnerId(ownerId, stores));
+        }
         
         log.info("[STORES_FOUND] count={}", stores.size());
         return stores.stream()
@@ -133,7 +137,9 @@ public class StoreService {
         
         Store updatedStore = storeRepository.save(store);
 
-        eventPublisher.publishEvent(new StoreUpdatedEvent(userId, updatedStore));
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreUpdatedEvent(userId, updatedStore));
+        }
         
         log.info("[STORE_UPDATED] storeId={}", updatedStore.getId());
         return mapToUpdatedDto(updatedStore);
@@ -159,7 +165,9 @@ public class StoreService {
         store.delete(userId);
         Store deletedStore = storeRepository.save(store);
 
-        eventPublisher.publishEvent(new StoreDeletedEvent(userId, deletedStore));
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreDeletedEvent(userId, deletedStore));
+        }
         
         log.info("[STORE_DELETED] storeId={}", storeId);
         return mapToDeletedDto(deletedStore);
@@ -187,7 +195,9 @@ public class StoreService {
         
         Store updatedStore = storeRepository.save(store);
 
-        eventPublisher.publishEvent(new StoreStatusUpdatedEvent(userId, updatedStore));
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreStatusUpdatedEvent(userId, updatedStore));
+        }
         
         log.info("[STORE_STATUS_UPDATED] storeId={}, status={}", updatedStore.getId(), updatedStore.getPublishStatus());
         return mapToStatusUpdatedDto(updatedStore);
