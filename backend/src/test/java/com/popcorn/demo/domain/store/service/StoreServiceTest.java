@@ -180,7 +180,7 @@ class StoreServiceTest {
     void 내_스토어_목록_조회_성공() {
         List<Store> storeList = Arrays.asList(activeStore, draftStore);
 
-        when(storeRepository.findAllByOwnerId(userId1)).thenReturn(storeList);
+        when(storeRepository.findAllByOwnerIdAndDeletedAtIsNull(userId1)).thenReturn(storeList);
 
         List<StoreListDto> result = storeService.getStoresByOwnerId(userId1);
 
@@ -196,7 +196,6 @@ class StoreServiceTest {
     @Test
     @DisplayName("내 스토어 목록 조회 성공 - 빈 목록")
     void 내_스토어_목록_조회_성공_빈목록() {
-        when(storeRepository.findAllByOwnerId(userId1)).thenReturn(Collections.emptyList());
         when(storeRepository.findAllByOwnerIdAndDeletedAtIsNull(userId1)).thenReturn(Collections.emptyList());
 
         List<StoreListDto> result = storeService.getStoresByOwnerId(userId1);
@@ -218,7 +217,7 @@ class StoreServiceTest {
                 .build();
         deletedStore.delete(userId1); // 소프트 삭제 수행
 
-        when(storeRepository.findAllByOwnerId(userId1)).thenReturn(Arrays.asList(activeStore, deletedStore));
+        when(storeRepository.findAllByOwnerIdAndDeletedAtIsNull(userId1)).thenReturn(Arrays.asList(activeStore, deletedStore));
 
         List<StoreListDto> result = storeService.getStoresByOwnerId(userId1);
 

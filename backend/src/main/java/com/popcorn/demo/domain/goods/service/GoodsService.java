@@ -22,6 +22,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @Service
 @RequiredArgsConstructor
 public class GoodsService {
+    // TODO(ops-bc): goods bounded context 경계/공통 모듈 정의 (GoodsStatus, GoodsId, 공통 응답/에러 규격).
+    // TODO(ops-event): GoodsCreated/Updated/Deleted/StatusChanged 이벤트 클래스 추가.
+    // TODO(ops-event): 재고/상태 변경 시 이벤트 발행하고 주문 가능 여부/알림/통계 리스너 분리.
     private final GoodsVariantRepository goodsVariantRepository;
 
     @Transactional(readOnly = true)

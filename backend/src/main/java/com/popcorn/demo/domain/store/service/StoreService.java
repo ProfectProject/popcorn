@@ -11,10 +11,17 @@ import com.popcorn.demo.domain.store.dto.StoreDeletedDto;
 import com.popcorn.demo.domain.store.dto.StoreStatusUpdatedDto;
 import com.popcorn.demo.domain.store.entity.Store;
 import com.popcorn.demo.domain.store.entity.StorePublishStatus;
+import com.popcorn.demo.domain.store.event.StoreCreatedEvent;
+import com.popcorn.demo.domain.store.event.StoreDeletedEvent;
+import com.popcorn.demo.domain.store.event.StoreGetByOwnerId;
+import com.popcorn.demo.domain.store.event.StoreStatusUpdatedEvent;
+import com.popcorn.demo.domain.store.event.StoreUpdatedEvent;
 import com.popcorn.demo.domain.store.exception.StoreException;
 import com.popcorn.demo.domain.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +32,10 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class StoreService {
+    // TODO(ops-bc): store bounded context 경계/공통 모듈 정의 (StoreStatus, StoreId, 공통 응답/에러 규격).
+    // TODO(ops-event): StoreCreated/Updated/Deleted/StatusChanged 이벤트 클래스 추가.
+    // TODO(ops-event): create/update/delete/status 변경 후 ApplicationEventPublisher로 이벤트 발행.
+    // TODO(ops-event): 이벤트 리스너에서 캐시/검색 인덱스/알림 동기화 처리.
 
     private static final int MAX_STORES_PER_OWNER = 10;
     private static final int MAX_STORE_NAME_LENGTH = 100;
@@ -32,6 +43,9 @@ public class StoreService {
     private static final String INVALID_CHARS = "<>\"'&;";
 
     private final StoreRepository storeRepository;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public StoreCreatedDto createStore(Long ownerId, CreateStoreRequest request) {
@@ -44,6 +58,10 @@ public class StoreService {
         checkStoreLimit(ownerId);
         
         Store savedStore = storeRepository.save(createStoreEntity(ownerId, trimmedName));
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreCreatedEvent(ownerId, savedStore));
+        }
         
         log.info("[STORE_CREATED] storeId={}", savedStore.getId());
         return mapToDto(savedStore);
@@ -55,12 +73,13 @@ public class StoreService {
 
         validateOwnerId(ownerId);
 
-        List<Store> stores = storeRepository.findAllByOwnerId(ownerId);
-        if (stores == null || stores.isEmpty()) {
-            stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(ownerId);
-        }
+        List<Store> stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(ownerId);
+
         if (stores == null) {
             stores = List.of();
+        }
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreGetByOwnerId(ownerId, stores));
         }
         
         log.info("[STORES_FOUND] count={}", stores.size());
@@ -117,6 +136,10 @@ public class StoreService {
         store.setUpdatedBy(userId);
         
         Store updatedStore = storeRepository.save(store);
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreUpdatedEvent(userId, updatedStore));
+        }
         
         log.info("[STORE_UPDATED] storeId={}", updatedStore.getId());
         return mapToUpdatedDto(updatedStore);
@@ -141,6 +164,10 @@ public class StoreService {
         
         store.delete(userId);
         Store deletedStore = storeRepository.save(store);
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreDeletedEvent(userId, deletedStore));
+        }
         
         log.info("[STORE_DELETED] storeId={}", storeId);
         return mapToDeletedDto(deletedStore);
@@ -167,6 +194,10 @@ public class StoreService {
         store.setUpdatedBy(userId);
         
         Store updatedStore = storeRepository.save(store);
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new StoreStatusUpdatedEvent(userId, updatedStore));
+        }
         
         log.info("[STORE_STATUS_UPDATED] storeId={}, status={}", updatedStore.getId(), updatedStore.getPublishStatus());
         return mapToStatusUpdatedDto(updatedStore);
