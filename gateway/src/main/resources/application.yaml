@@ -12,8 +12,19 @@ spring:
           uri: http://localhost:8081     # 모놀리식 backend
           predicates:
             - Path=/api/**               # /api 로 시작하면 backend로 라우팅
-          
+  webflux:
+    base-path: /
 
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Customer API
+        url: /openapi/customer
+      - name: Manager API
+        url: /openapi/manager
+      - name: Admin API
+        url: /openapi/admin
+        
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
