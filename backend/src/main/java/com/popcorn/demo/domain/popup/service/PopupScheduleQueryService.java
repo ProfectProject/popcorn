@@ -23,6 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class PopupScheduleQueryService {
+	// TODO(ops-bc): popupschedule bounded context 경계/공통 모듈 정의 (ScheduleStatus, ScheduleId, 공통 응답/에러 규격).
+	// TODO(ops-event): PopupScheduleCreated/Updated/StatusChanged 이벤트 클래스 추가.
+	// TODO(ops-event): 스케줄 생성/변경 시 이벤트 발행하고 캐시 갱신/예약 가능 여부 반영 리스너 분리.
 
 	private final PopupScheduleQueryRepository popupScheduleQueryRepository;
 	private final PopupQueryRepository popupQueryRepository;

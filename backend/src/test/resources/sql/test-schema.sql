@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS p_payments (
 CREATE TABLE IF NOT EXISTS p_order_status_histories (
     order_status_id UUID NOT NULL PRIMARY KEY,
     order_id        UUID NOT NULL,
-    from_status     varchar(20) NOT NULL,
+    from_status     varchar(20),
     to_status       varchar(20) NOT NULL,
     reason          varchar(255),
     changed_at      timestamp NOT NULL,
