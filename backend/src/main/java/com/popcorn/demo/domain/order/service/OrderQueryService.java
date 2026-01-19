@@ -54,7 +54,11 @@ public class OrderQueryService {
 	/**
 	 * 점주용 주문 예약 목록 조회 (캐싱 적용)
 	 */
-	@Cacheable(value = "storeOrders", key = "#storeId + '_' + #popupId + '_' + #scheduleId + '_' + #orderType + '_' + #status")
+	@Cacheable(
+		value = "storeOrders",
+		key = "#storeId + '_' + #popupId + '_' + #scheduleId + '_' + #orderType + '_' + #status",
+		cacheManager = "redisCacheManager"
+	)
 	public StoreOrderReservationListResponse getStoreOrderReservations(
 			UUID storeId,
 			UUID popupId,
@@ -122,7 +126,11 @@ public class OrderQueryService {
 	/**
 	 * 고객용 주문 타임라인 조회 (캐싱 적용)
 	 */
-	@Cacheable(value = "customerTimeline", key = "#customerId + '_' + #type + '_' + #search")
+	@Cacheable(
+		value = "customerTimeline",
+		key = "#customerId + '_' + #type + '_' + #search",
+		cacheManager = "redisCacheManager"
+	)
 	public MyOrderTimelineResponse getMyOrderTimeline(
 			Long customerId,
 			String type,
@@ -236,7 +244,11 @@ public class OrderQueryService {
 	/**
 	 * 주문 상세 조회 (캐싱 적용)
 	 */
-	@Cacheable(value = "orderDetails", key = "#orderId")
+	@Cacheable(
+		value = "orderDetails",
+		key = "#orderId",
+		cacheManager = "redisCacheManager"
+	)
 	public OrderDetailDto getOrderDetail(UUID orderId, Long requesterId, String requesterType) {
 		log.info("📋 주문 상세 조회 - 주문ID: {}, 요청자: {} ({})", orderId, requesterId, requesterType);
 
@@ -263,7 +275,11 @@ public class OrderQueryService {
 	 * - 배치 쿼리로 N+1 문제 해결
 	 * - 병렬 처리로 성능 향상
 	 */
-	@Cacheable(value = "orderDetailsComplete", key = "#orderId")
+	@Cacheable(
+		value = "orderDetailsComplete",
+		key = "#orderId",
+		cacheManager = "redisCacheManager"
+	)
 	public OrderDetailDto getCompleteOrderDetail(UUID orderId, Long requesterId, String requesterType) {
 		log.info("📦 주문 완전 상세 조회 - 주문ID: {}, 요청자: {} ({})", orderId, requesterId, requesterType);
 

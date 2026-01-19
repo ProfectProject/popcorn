@@ -1,20 +1,32 @@
 package com.popcorn.demo.common.config;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Map;
 
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.caffeine.CaffeineCache;
-import org.springframework.cache.support.SimpleCacheManager;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.Cache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
+
+	private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);
 
 	// 📚 Common-Lib 기본 캐시 TTL 설정
 	private static final Duration ORDER_DETAIL_TTL = Duration.ofMinutes(5);
@@ -26,25 +38,68 @@ public class CacheConfig {
 	private static final Duration POPUP_OPTION_TTL = Duration.ofMinutes(3);
 
 	@Bean
-	public CacheManager cacheManager() {
-		SimpleCacheManager cacheManager = new SimpleCacheManager();
-		cacheManager.setCaches(List.of(
-				buildCache("orderDetails", ORDER_DETAIL_TTL),
-				buildCache("orderDetailsComplete", ORDER_DETAIL_TTL),
-				buildCache("storeOrders", ORDER_LIST_TTL),
-				buildCache("customerTimeline", CUSTOMER_TIMELINE_TTL),
-				buildCache("popupList", POPUP_LIST_TTL),
-				buildCache("popupDetail", POPUP_DETAIL_TTL),
-				buildCache("popupSessions", POPUP_SESSION_TTL),
-				buildCache("popupOptions", POPUP_OPTION_TTL)
-		));
-		return cacheManager;
+	@Primary
+	public CacheManager cacheManager(
+		RedisConnectionFactory connectionFactory,
+		ObjectMapper objectMapper
+	) {
+		ObjectMapper redisObjectMapper = objectMapper.copy()
+			.activateDefaultTyping(
+				BasicPolymorphicTypeValidator.builder()
+					.allowIfSubType(Object.class)
+					.build(),
+				ObjectMapper.DefaultTyping.NON_FINAL
+			);
+
+		RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+			.serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+			.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+				new GenericJackson2JsonRedisSerializer(redisObjectMapper)))
+			.disableCachingNullValues();
+
+		var cacheConfigs = Map.of(
+			"orderDetails", defaultConfig.entryTtl(ORDER_DETAIL_TTL),
+			"orderDetailsComplete", defaultConfig.entryTtl(ORDER_DETAIL_TTL),
+			"storeOrders", defaultConfig.entryTtl(ORDER_LIST_TTL),
+			"customerTimeline", defaultConfig.entryTtl(CUSTOMER_TIMELINE_TTL),
+			"popupList", defaultConfig.entryTtl(POPUP_LIST_TTL),
+			"popupDetail", defaultConfig.entryTtl(POPUP_DETAIL_TTL),
+			"popupSessions", defaultConfig.entryTtl(POPUP_SESSION_TTL),
+			"popupOptions", defaultConfig.entryTtl(POPUP_OPTION_TTL)
+		);
+
+		return RedisCacheManager.builder(connectionFactory)
+			.cacheDefaults(defaultConfig)
+			.withInitialCacheConfigurations(cacheConfigs)
+			.build();
 	}
 
-	private CaffeineCache buildCache(String name, Duration ttl) {
-		return new CaffeineCache(name, Caffeine.newBuilder()
-				.expireAfterWrite(ttl)
-				.recordStats()
-				.build());
+	@Bean
+	public CacheErrorHandler cacheErrorHandler() {
+		return new CacheErrorHandler() {
+			@Override
+			public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+				log.warn("Cache get error. cache={}, key={}, message={}",
+					cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+			}
+
+			@Override
+			public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+				log.warn("Cache put error. cache={}, key={}, message={}",
+					cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+			}
+
+			@Override
+			public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+				log.warn("Cache evict error. cache={}, key={}, message={}",
+					cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+			}
+
+			@Override
+			public void handleCacheClearError(RuntimeException exception, Cache cache) {
+				log.warn("Cache clear error. cache={}, message={}",
+					cache != null ? cache.getName() : "unknown", exception.getMessage());
+			}
+		};
 	}
 }

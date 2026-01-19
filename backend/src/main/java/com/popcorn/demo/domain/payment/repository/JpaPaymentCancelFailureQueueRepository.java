@@ -27,6 +27,17 @@ public interface JpaPaymentCancelFailureQueueRepository extends JpaRepository<Pa
 	List<PaymentCancelFailureQueue> findRetriableQueues(@Param("now") LocalDateTime now);
 
 	/**
+	 * 재시도 가능한 실패 큐 존재 여부 확인
+	 */
+	@Query("""
+		SELECT COUNT(q) FROM PaymentCancelFailureQueue q
+		WHERE q.status = 'PENDING'
+		  AND q.attemptCount < q.maxAttempts
+		  AND (q.nextRetryAt IS NULL OR q.nextRetryAt <= :now)
+		""")
+	long countRetriableQueues(@Param("now") LocalDateTime now);
+
+	/**
 	 * 특정 주문의 대기 중인 큐가 있는지 확인
 	 */
 	boolean existsByOrderIdAndStatusIn(UUID orderId, List<PaymentCancelFailureQueue.QueueStatus> statuses);

@@ -46,6 +46,7 @@ import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelResponse;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.event.PaymentSuccessEvent;
+import com.popcorn.demo.common.cache.IdempotencyService;
 import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +74,9 @@ class TossPaymentServiceTest {
 	@Mock
 	private TossPaymentsClient tossPaymentsClient;
 
+	@Mock
+	private IdempotencyService idempotencyService;
+
 	private TossPaymentService tossPaymentService;
 
 	@BeforeEach
@@ -85,7 +89,8 @@ class TossPaymentServiceTest {
 				orderItemRepository,
 				tossPaymentsClient,
 				new ObjectMapper(),
-				eventPublisher);
+				eventPublisher,
+				idempotencyService);
 	}
 
 	@Test

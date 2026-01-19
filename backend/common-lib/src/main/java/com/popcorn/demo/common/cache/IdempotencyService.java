@@ -29,6 +29,25 @@ public interface IdempotencyService {
     );
 
     /**
+     * 멱등성을 보장하며 요청을 처리합니다 (TTL 지정)
+     *
+     * @param idempotencyKey 멱등성 키
+     * @param operation 실행할 작업
+     * @param responseType 응답 타입 클래스
+     * @param ttlSeconds 캐시 TTL (초), 0 이하이면 기본값 사용
+     * @param <T> 응답 타입
+     * @return 멱등성 처리 결과
+     */
+    default <T> IdempotencyResult<T> processRequest(
+        String idempotencyKey,
+        IdempotentOperation<T> operation,
+        Class<T> responseType,
+        int ttlSeconds
+    ) {
+        return processRequest(idempotencyKey, operation, responseType);
+    }
+
+    /**
      * 캐시 통계 정보를 조회합니다
      *
      * @return 캐시 통계
@@ -46,6 +65,15 @@ public interface IdempotencyService {
      * @param idempotencyKey 무효화할 멱등성 키
      */
     void invalidateKey(String idempotencyKey);
+
+    /**
+     * 특정 키 접두사로 시작하는 캐시를 삭제합니다.
+     *
+     * @param keyPrefix 삭제할 멱등성 키 접두사
+     */
+    default void clearByPrefix(String keyPrefix) {
+        throw new UnsupportedOperationException("clearByPrefix not implemented");
+    }
 
     /**
      * 멱등성 처리 결과

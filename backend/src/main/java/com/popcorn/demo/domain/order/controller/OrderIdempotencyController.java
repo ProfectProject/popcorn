@@ -197,6 +197,44 @@ public class OrderIdempotencyController extends BaseController {
 	}
 
 	/**
+	 * 특정 접두사로 시작하는 멱등성 캐시 삭제 (관리자용)
+	 *
+	 * @param keyPrefix 삭제할 멱등성 키 접두사
+	 */
+	@DeleteMapping("/cache/prefix/{keyPrefix}")
+	@ApiLogging(
+		message = "⚠️ 접두사 캐시 삭제",
+		includeRequest = true,
+		includeResponse = true,
+		level = ApiLogging.LogLevel.WARN
+	)
+	@AuditLog(
+		action = "CACHE_PREFIX_DELETE",
+		resource = "IDEMPOTENCY_CACHE",
+		description = "⚠️ 멱등성 캐시 접두사를 삭제했습니다",
+		userIdExpression = "T(org.springframework.security.core.context.SecurityContextHolder).context.authentication?.principal?.userId ?: 'anonymous'",
+		resourceIdExpression = "#keyPrefix",
+		level = AuditLog.Level.WARN,
+		includeRequestData = true
+	)
+	public ResponseEntity<BaseResponse<String>> clearByPrefix(@PathVariable String keyPrefix) {
+		log.warn("🗑️ 멱등성 캐시 접두사 삭제 요청 - prefix: {}", keyPrefix);
+
+		if (keyPrefix == null || keyPrefix.trim().isEmpty()) {
+			throw new IllegalArgumentException("올바른 멱등성 키 접두사를 입력해주세요");
+		}
+
+		try {
+			idempotencyService.clearByPrefix(keyPrefix);
+			String message = String.format("멱등성 접두사 '%s'의 캐시가 성공적으로 삭제되었습니다", keyPrefix);
+			return ok(message);
+		} catch (Exception e) {
+			log.error("❌ 접두사 캐시 삭제 실패 - prefix: {}", keyPrefix, e);
+			throw new RuntimeException("접두사 캐시 삭제 중 오류가 발생했습니다", e);
+		}
+	}
+
+	/**
 	 * 헬스체크 엔드포인트
 	 *
 	 * 멱등성 서비스 상태 확인

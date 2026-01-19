@@ -15,7 +15,7 @@ import com.popcorn.demo.domain.qr.event.QrCheckinRequestedEvent;
 import com.popcorn.demo.domain.qr.exception.QrException;
 import com.popcorn.demo.domain.qr.repository.QrCodeRepository;
 import com.popcorn.demo.domain.qr.repository.QrCodeRow;
-import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
+import com.popcorn.demo.domain.qr.checkin.repository.CheckinRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -94,7 +94,7 @@ public class QrCodeService {
 		ensurePaid(orderStatus);
 		ensureReservationOrder(row.orderId());
 
-		java.util.Optional<com.popcorn.demo.domain.checkin.repository.CheckinRow> existing =
+		java.util.Optional<com.popcorn.demo.domain.qr.checkin.repository.CheckinRow> existing =
 				checkinRepository.findLatestByOrderQrCodeId(row.qrId());
 		if (existing.isPresent()) {
 			return QrVerifyResponse.builder()

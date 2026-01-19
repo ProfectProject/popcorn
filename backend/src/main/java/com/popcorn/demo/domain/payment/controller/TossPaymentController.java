@@ -111,7 +111,7 @@ public class TossPaymentController extends BaseController {
 		level = AuditLog.Level.ERROR
 	)
 	@Idempotent(
-		keyExpression = "#request.orderId + ':toss_confirm:' + #request.paymentKey",
+		keyExpression = "#request.orderId + ':toss_confirm:' + @idempotencyKeyGenerator.hash(#request)",
 		keyPrefix = "payment_confirm",
 		responseType = TossPaymentConfirmResponse.class
 	)

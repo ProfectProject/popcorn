@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,9 +22,19 @@ import com.popcorn.demo.domain.payment.dto.response.PaymentListResponse;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentQueryService;
 import com.popcorn.demo.domain.payment.service.PaymentQueryService.PaymentDetailResult;
+import com.popcorn.demo.domain.payment.service.PaymentTokenService;
+import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
+import com.popcorn.demo.domain.order.entity.Order;
+import com.popcorn.demo.domain.order.exception.OrderNotFoundException;
+import com.popcorn.demo.domain.order.repository.OrderRepository;
+import com.popcorn.demo.domain.payment.entity.Payment;
+import com.popcorn.demo.domain.payment.entity.PaymentStatus;
+import com.popcorn.demo.domain.payment.exception.PaymentException;
+import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
+import com.popcorn.demo.domain.payment.dto.response.PaymentCreateResponse;
 import com.popcorn.demo.common.annotation.ApiLogging;
 import com.popcorn.demo.common.annotation.AuditLog;
-import com.popcorn.demo.common.annotation.CacheResult;
+import com.popcorn.demo.common.annotation.RedisCacheResult;
 import com.popcorn.demo.common.annotation.Idempotent;
 import com.popcorn.demo.common.annotation.RateLimit;
 import com.popcorn.demo.common.annotation.RetryOnFailure;
@@ -48,6 +59,10 @@ public class PaymentController extends BaseController {
 
 	private final PaymentCommandService paymentCommandService;
 	private final PaymentQueryService paymentQueryService;
+	private final PaymentTokenService paymentTokenService;
+	private final TossPaymentsProperties tossPaymentsProperties;
+	private final OrderRepository orderRepository;
+	private final JpaPaymentRepository paymentRepository;
 
 	@Operation(summary = "결제 조회(주문 기준)", description = "주문 기준으로 결제 기록을 조회합니다.")
 	@ApiResponse(
@@ -56,7 +71,7 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentListResponse.class))
 	)
 	@GetMapping("/orders/{orderId}/payments")
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "paymentsByOrderCache",
 		keyExpression = "#orderId",
 		ttlSeconds = 180,
@@ -101,7 +116,7 @@ public class PaymentController extends BaseController {
 			content = @Content(schema = @Schema(implementation = PaymentDetailResponse.class))
 	)
 	@GetMapping("/payments/{paymentId}")
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "paymentDetailCache",
 		keyExpression = "#paymentId",
 		ttlSeconds = 120,
@@ -130,6 +145,56 @@ public class PaymentController extends BaseController {
 			@PathVariable UUID paymentId) {
 		PaymentDetailResult result = paymentQueryService.getPayment(paymentId);
 		return ok(toDetailResponse(result));
+	}
+
+	@Operation(summary = "결제 재시도", description = "결제 실패/취소 주문에 대해 결제 토큰을 재발급합니다.")
+	@ApiResponse(
+			responseCode = "200",
+			description = "결제 재시도 토큰 발급 성공",
+			content = @Content(schema = @Schema(implementation = PaymentCreateResponse.class))
+	)
+	@ApiResponse(responseCode = "400", description = "결제 재시도 불가")
+	@ApiResponse(responseCode = "404", description = "주문 없음")
+	@PostMapping("/orders/{orderId}/payments/retry")
+	@Idempotent(
+		keyExpression = "#orderId + ':retry_payment:' + @idempotencyKeyGenerator.hash(#orderId)",
+		keyPrefix = "payment_retry",
+		ttlSeconds = 300,
+		responseType = PaymentCreateResponse.class
+	)
+	@ApiLogging(
+		message = "결제 재시도",
+		includeRequest = true,
+		includeResponse = true,
+		level = ApiLogging.LogLevel.INFO
+	)
+	@RateLimit(
+		requests = 10,
+		window = 60,
+		keyExpression = "T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getRequest().getRemoteAddr()",
+		errorMessage = "결제 재시도 요청이 너무 많습니다."
+	)
+	public ResponseEntity<BaseResponse<PaymentCreateResponse>> retryPayment(
+			@Parameter(description = "주문 ID", required = true, example = "40000000-0000-0000-0000-000000000004")
+			@PathVariable UUID orderId) {
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(OrderNotFoundException::orderNotFound);
+
+		Payment latestPayment = paymentRepository
+				.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
+				.stream()
+				.findFirst()
+				.orElse(null);
+
+		if (latestPayment != null && latestPayment.getStatus() == PaymentStatus.PAID) {
+			throw PaymentException.paymentAlreadyExists();
+		}
+
+		if (latestPayment != null && latestPayment.getStatus() == PaymentStatus.READY) {
+			return ok(buildRetryResponse(order, latestPayment.getId()));
+		}
+
+		return ok(buildRetryResponse(order, null));
 	}
 
 	@Operation(
@@ -186,7 +251,7 @@ public class PaymentController extends BaseController {
 		level = AuditLog.Level.WARN
 	)
 	@Idempotent(
-		keyExpression = "#paymentId + ':status_change:' + #request.status",
+		keyExpression = "#paymentId + ':status_change:' + @idempotencyKeyGenerator.hash(#request)",
 		keyPrefix = "payment_status",
 		responseType = PaymentDetailResponse.class
 	)
@@ -329,5 +394,42 @@ public class PaymentController extends BaseController {
 				.approvedAt(result.getApprovedAt())
 				.createdAt(result.getCreatedAt())
 				.build();
+	}
+
+	private PaymentCreateResponse buildRetryResponse(Order order, UUID paymentId) {
+		String customerKey = generateValidCustomerKey(order.getCustomerId());
+		String paymentToken = paymentTokenService.createPaymentToken(
+				PaymentTokenService.PaymentTokenInfo.builder()
+						.orderId(order.getId())
+						.orderNo(order.getOrderNo())
+						.amount(order.getTotalAmount())
+						.customerKey(customerKey)
+						.paymentId(paymentId)
+						.successUrl(tossPaymentsProperties.getSuccessUrl())
+						.failUrl(tossPaymentsProperties.getFailUrl())
+						.build());
+
+		return PaymentCreateResponse.builder()
+				.paymentId(paymentId)
+				.status(PaymentStatus.READY.name())
+				.orderStatus(order.getStatus().name())
+				.orderId(order.getId())
+				.orderNo(order.getOrderNo())
+				.amount(order.getTotalAmount())
+				.customerKey(customerKey)
+				.successUrl(tossPaymentsProperties.getSuccessUrl())
+				.failUrl(tossPaymentsProperties.getFailUrl())
+				.paymentToken(paymentToken)
+				.clientKey(tossPaymentsProperties.getClientKey())
+				.paymentKey(null)
+				.readyForPayment(true)
+				.build();
+	}
+
+	private String generateValidCustomerKey(Long userId) {
+		if (userId == null) {
+			return String.format("guest_%d@popcorn.demo", System.currentTimeMillis() % 1000000);
+		}
+		return String.format("user_%d@popcorn.demo", userId);
 	}
 }

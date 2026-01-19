@@ -27,6 +27,7 @@ import com.popcorn.demo.domain.payment.event.PaymentCreatedEvent;
 import com.popcorn.demo.domain.payment.event.PaymentFailedEvent;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
+import com.popcorn.demo.common.cache.IdempotencyService;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -43,6 +44,7 @@ public class PaymentCommandService {
 	private final JpaPaymentRepository paymentRepository;
 	private final JpaOrderItemRepository orderItemRepository;
 	private final ApplicationEventPublisher eventPublisher;
+	private final IdempotencyService idempotencyService;
 
 	@Transactional(transactionManager = "jdbcTransactionManager")
 	public PaymentCreationResult createPayment(UUID orderId, String method, Integer amount, String rawPayload) {
@@ -280,6 +282,7 @@ public class PaymentCommandService {
 					order.getCustomerId(),
 					finalApprovedAt
 			));
+			clearOrderIdempotencyCache(order);
 		}
 
 		return PaymentDetailResult.builder()
@@ -375,6 +378,15 @@ public class PaymentCommandService {
 				.updatedAt(saved.getUpdatedAt())
 				.orderStatus(orderStatus)
 				.build();
+	}
+
+	private void clearOrderIdempotencyCache(Order order) {
+		Long customerId = order.getCustomerId();
+		if (customerId == null) {
+			return;
+		}
+		String prefix = "order_creation:" + customerId + ":create_order:";
+		idempotencyService.clearByPrefix(prefix);
 	}
 
 	private OrderStatus resolvePaymentOrderStatus(UUID orderId) {

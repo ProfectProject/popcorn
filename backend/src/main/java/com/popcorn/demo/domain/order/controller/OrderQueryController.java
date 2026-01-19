@@ -24,7 +24,7 @@ import com.popcorn.demo.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
 import com.popcorn.demo.common.annotation.ApiLogging;
-import com.popcorn.demo.common.annotation.CacheResult;
+import com.popcorn.demo.common.annotation.RedisCacheResult;
 import com.popcorn.demo.common.annotation.RateLimit;
 import com.popcorn.demo.common.annotation.RetryOnFailure;
 
@@ -88,7 +88,7 @@ public class OrderQueryController extends BaseController {
 	@ApiResponse(responseCode = "403", description = "권한 없음")
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@GetMapping("/{orderId}")
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "orderDetailCache",
 		keyExpression = "#orderId + ':' + #authentication.principal.userId",
 		ttlSeconds = 300,
@@ -176,7 +176,7 @@ public class OrderQueryController extends BaseController {
 	)
 	@ApiResponse(responseCode = "404", description = "주문 없음")
 	@GetMapping("/{orderId}/status")
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "orderStatusCache",
 		keyExpression = "#orderId + ':' + #authentication.principal.userId",
 		ttlSeconds = 30,
@@ -226,7 +226,7 @@ public class OrderQueryController extends BaseController {
 		includeRequest = true,
 		includeResponse = false
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "orderStatusStaffCache",
 		keyExpression = "#orderId + ':staff'",
 		ttlSeconds = 60
@@ -269,7 +269,7 @@ public class OrderQueryController extends BaseController {
 		includeRequest = true,
 		includeResponse = false
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "storeOrderListCache",
 		keyExpression = "#storeId + ':' + #popupId + ':' + #status + ':' + #page",
 		ttlSeconds = 120
@@ -351,7 +351,7 @@ public class OrderQueryController extends BaseController {
 		includeRequest = true,
 		includeResponse = false
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "storeOrderCache",
 		keyExpression = "#storeId + ':' + #popupId + ':' + #status + ':' + #page + ':' + #size",
 		ttlSeconds = 180
@@ -407,7 +407,7 @@ public class OrderQueryController extends BaseController {
 		includeRequest = true,
 		includeResponse = false
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "popupReservationCache",
 		keyExpression = "#popupId + ':reservations:' + #status + ':' + #page",
 		ttlSeconds = 240
@@ -454,7 +454,7 @@ public class OrderQueryController extends BaseController {
 		includeRequest = true,
 		includeResponse = false
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "popupPurchaseCache",
 		keyExpression = "#popupId + ':purchases:' + #status + ':' + #page",
 		ttlSeconds = 240
@@ -528,7 +528,7 @@ public class OrderQueryController extends BaseController {
 		includeResponse = false,
 		level = ApiLogging.LogLevel.DEBUG
 	)
-	@CacheResult(
+	@RedisCacheResult(
 		cacheName = "myOrdersCache",
 		keyExpression = "#authentication.principal.userId + ':' + #orderType + ':' + #status + ':' + #page",
 		ttlSeconds = 120,

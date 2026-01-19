@@ -2,6 +2,10 @@
 spring:
   application:
     name: popcorn-demo
+  data:
+    redis:
+      repositories:
+        enabled: false
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
   profiles:
@@ -13,6 +17,9 @@ spring:
   config:
     activate:
       on-profile: test
+redis:
+  idempotency:
+    clear-on-startup: true
   # H2 데이터베이스 설정
   datasource:
     url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=UUID;IGNORE_UNKNOWN_SETTINGS=TRUE
@@ -40,6 +47,9 @@ spring:
     import: classpath:security/application-local.yml,optional:file:.env[.properties]
     activate:
       on-profile: local
+redis:
+  idempotency:
+    clear-on-startup: true
 
   # Flyway 설정 (Local)
   flyway:

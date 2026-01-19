@@ -36,6 +36,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
 	// 필수 라이브러리 의존성 (api로 노출)
 	api 'org.springframework:spring-context'
@@ -74,6 +75,28 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework:spring-test'
 	testRuntimeOnly 'com.h2database:h2'
+}
+
+// 테스트/로컬 실행에서 클래스 디렉토리를 직접 사용 (JAR 스캔 오류 회피)
+configurations {
+	classesElements {
+		canBeConsumed = true
+		canBeResolved = false
+		attributes {
+			attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+			attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+			attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+		}
+	}
+}
+
+artifacts {
+	sourceSets.main.output.classesDirs.each { classesDir ->
+		classesElements(classesDir)
+	}
+	if (sourceSets.main.output.resourcesDir != null) {
+		classesElements(sourceSets.main.output.resourcesDir)
+	}
 }
 
 // 라이브러리 JAR 생성 설정

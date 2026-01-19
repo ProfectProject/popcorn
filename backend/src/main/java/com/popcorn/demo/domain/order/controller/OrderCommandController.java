@@ -172,7 +172,7 @@ private final PaymentTokenService paymentTokenService;
 		excludeParams = {"request.paymentMethod"}
 	)
 	@Idempotent(
-		keyExpression = "#authentication.principal.userId + ':create_order:' + T(java.time.LocalDate).now() + ':' + #request.popupId",
+		keyExpression = "#authentication.principal.userId + ':create_order:' + @idempotencyKeyGenerator.hash(#request)",
 		keyPrefix = "order_creation",
 		responseType = OrderCreatedDto.class
 	)

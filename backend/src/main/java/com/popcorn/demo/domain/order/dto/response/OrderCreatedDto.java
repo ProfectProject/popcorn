@@ -47,6 +47,11 @@ public class OrderCreatedDto {
 		return id;
 	}
 
+	@JsonProperty("orderId")
+	public void setOrderId(UUID id) {
+		this.id = id;
+	}
+
 	private String orderNo;
 	private String orderType;
 	private String status;
