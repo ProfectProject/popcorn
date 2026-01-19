@@ -27,6 +27,9 @@ public class PaymentCancelRetryScheduler {
 	@Scheduled(cron = "0 * * * * *") // 매분 0초에 실행
 	public void processRetryQueue() {
 		try {
+			if (!paymentCancelFailureService.hasRetriableQueues()) {
+				return;
+			}
 			log.debug("🔄 결제 취소 재시도 큐 처리 시작");
 			paymentCancelFailureService.processRetriableQueues();
 		} catch (Exception ex) {

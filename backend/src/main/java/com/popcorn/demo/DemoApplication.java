@@ -5,9 +5,8 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories; 
 
-@SpringBootApplication 
-@ComponentScan(basePackages = "com.popcorn.demo") 
-@EnableJpaRepositories(basePackages = "com.popcorn.demo") 
+@SpringBootApplication
+@EnableJpaRepositories(basePackages = "com.popcorn.demo")
 @EntityScan(basePackages = "com.popcorn.demo") 
 public class DemoApplication 
 { 

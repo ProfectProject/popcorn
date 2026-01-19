@@ -18,8 +18,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
-import com.popcorn.demo.domain.checkin.repository.CheckinRow;
+import com.popcorn.demo.domain.qr.checkin.repository.CheckinRepository;
+import com.popcorn.demo.domain.qr.checkin.repository.CheckinRow;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 import com.popcorn.demo.domain.qr.dto.response.QrVerifyResponse;

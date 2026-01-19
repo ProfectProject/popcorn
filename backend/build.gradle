@@ -607,9 +607,20 @@ tasks.named('check') {
 
 // ========================= 빌드 종속성 설정 =========================
 tasks.named('build') {
-	dependsOn 'checkstyleMain'  // 가벼운 checkstyle 적용 (ignoreFailures = true)
+	dependsOn ':common-lib:build'  // common-lib를 먼저 빌드
+	dependsOn 'checkstyleMain'     // 가벼운 checkstyle 적용 (ignoreFailures = true)
 	// checkstyleTest 제거 - 테스트 코드에는 스타일 체크 불필요
 	dependsOn 'testQualityCheck'
+}
+
+// 부트 실행 시에도 common-lib 먼저 빌드
+tasks.named('bootRun') {
+	dependsOn ':common-lib:build'
+}
+
+// JAR 생성 시에도 common-lib 먼저 빌드
+tasks.named('bootJar') {
+	dependsOn ':common-lib:build'
 }
 
 springBoot {

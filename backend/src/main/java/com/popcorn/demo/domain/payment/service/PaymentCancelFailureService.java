@@ -93,6 +93,14 @@ public class PaymentCancelFailureService {
 		}
 	}
 
+	/**
+	 * 재시도 가능한 실패 큐 존재 여부 확인 (스케줄러용)
+	 */
+	@Transactional(readOnly = true)
+	public boolean hasRetriableQueues() {
+		return failureQueueRepository.countRetriableQueues(LocalDateTime.now()) > 0;
+	}
+
 	private void retryPaymentCancel(PaymentCancelFailureQueue queue) {
 		log.info("🔁 결제 취소 재시도 시작 - QueueID: {}, 시도횟수: {}/{}",
 				queue.getId(), queue.getAttemptCount() + 1, queue.getMaxAttempts());

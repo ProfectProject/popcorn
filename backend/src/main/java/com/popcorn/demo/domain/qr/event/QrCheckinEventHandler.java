@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.domain.checkin.repository.CheckinRepository;
+import com.popcorn.demo.domain.qr.checkin.repository.CheckinRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -45,7 +45,7 @@ public class QrCheckinEventHandler {
 			// - 로그 기록
 
 			// 체크인 완료 이벤트 발행 (실제 체크인 ID는 DB에서 조회)
-			java.util.Optional<com.popcorn.demo.domain.checkin.repository.CheckinRow> checkinRow =
+			java.util.Optional<com.popcorn.demo.domain.qr.checkin.repository.CheckinRow> checkinRow =
 					checkinRepository.findLatestByOrderQrCodeId(event.getQrId());
 
 			if (checkinRow.isPresent()) {
