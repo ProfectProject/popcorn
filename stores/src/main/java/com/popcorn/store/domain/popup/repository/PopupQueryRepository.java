@@ -25,8 +25,8 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 			       p.address_detail AS addressDetail,
 			       MIN(ps.start_at) AS eventStartAt,
 			       MAX(ps.end_at) AS eventEndAt
-			  FROM p_popups p
-			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
+			  FROM popups p
+			  LEFT JOIN popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
 			   AND (:category IS NULL OR CAST(p.category AS VARCHAR) = :category)
 			   AND (:keyword IS NULL OR UPPER(p.title) LIKE UPPER(CONCAT('%', :keyword, '%')) OR UPPER(p.description) LIKE UPPER(CONCAT('%', :keyword, '%')))
@@ -45,7 +45,7 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 
 	@Query(value = """
 			SELECT COUNT(1)
-			  FROM p_popups p
+			  FROM popups p
 			 WHERE p.deleted_at IS NULL
 			   AND (:category IS NULL OR CAST(p.category AS VARCHAR) = :category)
 			   AND (:keyword IS NULL OR UPPER(p.title) LIKE UPPER(CONCAT('%', :keyword, '%')) OR UPPER(p.description) LIKE UPPER(CONCAT('%', :keyword, '%')))
@@ -68,8 +68,8 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 			       p.address_detail AS addressDetail,
 			       MIN(ps.start_at) AS eventStartAt,
 			       MAX(ps.end_at) AS eventEndAt
-			  FROM p_popups p
-			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
+			  FROM popups p
+			  LEFT JOIN popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
 			   AND p.popup_id = :popupId
 			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status,
@@ -89,8 +89,8 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 			       p.address_detail AS addressDetail,
 			       MIN(ps.start_at) AS eventStartAt,
 			       MAX(ps.end_at) AS eventEndAt
-			  FROM p_popups p
-			  LEFT JOIN p_popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
+			  FROM popups p
+			  LEFT JOIN popup_schedules ps ON ps.popup_id = p.popup_id AND ps.deleted_at IS NULL
 			 WHERE p.deleted_at IS NULL
 			   AND p.status = :status
 			 GROUP BY p.popup_id, p.store_id, p.title, p.description, p.category, p.status,
@@ -104,7 +104,7 @@ public interface PopupQueryRepository extends Repository<Popup, UUID> {
 
 	@Query(value = """
 			SELECT COUNT(1)
-			  FROM p_popups p
+			  FROM popups p
 			 WHERE p.deleted_at IS NULL
 			   AND p.status = :status
 			""", nativeQuery = true)

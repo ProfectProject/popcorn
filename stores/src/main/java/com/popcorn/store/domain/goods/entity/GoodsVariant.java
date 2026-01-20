@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "p_goods_variants")
+@Table(name = "goods_variants")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class GoodsVariant extends BaseEntity {
     @Id

@@ -1,4 +1,4 @@
-package com.popcorn.store.domain.store.controller;
+package com.popcorn.store.domain.store.controller.owner;
 
 import com.popcorn.store.domain.store.exception.StoreException;
 import com.popcorn.store.domain.users.entity.enums.UserRole;

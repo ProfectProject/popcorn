@@ -17,7 +17,7 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "p_popups")
+@Table(name = "popups")
 @Setter
 public class Popup extends BaseEntity {
 

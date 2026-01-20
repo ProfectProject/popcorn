@@ -23,7 +23,7 @@ public interface PopupScheduleQueryRepository extends Repository<PopupSchedule, 
 			       ps.remaining_capacity AS remainingCapacity,
 				   ps.reservation_capacity AS reservationCapacity,
 			       ps.is_active AS isActive
-			  FROM p_popup_schedules ps
+			  FROM popup_schedules ps
 			 WHERE ps.deleted_at IS NULL
 			   AND ps.popup_id = :popupId
 			   AND (CAST(:from AS TIMESTAMP) IS NULL OR ps.start_at >= CAST(:from AS TIMESTAMP))

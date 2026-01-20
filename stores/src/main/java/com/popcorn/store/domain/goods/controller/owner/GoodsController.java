@@ -1,4 +1,4 @@
-package com.popcorn.store.domain.goods.controller;
+package com.popcorn.store.domain.goods.controller.owner;
 
 import com.popcorn.common.controller.BaseController;
 import com.popcorn.common.dto.BaseResponse;
