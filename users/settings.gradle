@@ -1,0 +1,4 @@
+rootProject.name = 'users'
+
+include 'common-lib'
+project(':common-lib').projectDir = file('../common-lib')

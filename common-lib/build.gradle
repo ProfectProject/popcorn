@@ -1,10 +1,13 @@
-// ========================= 📚 Common-Lib 라이브러리 모듈 =========================
 plugins {
 	id 'java-library'
 	id 'maven-publish'
 	id 'jacoco'
 	id 'org.springframework.boot' version '3.5.9' apply false
 	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+repositories {
+    mavenCentral()
 }
 
 // Java 호환성 설정
