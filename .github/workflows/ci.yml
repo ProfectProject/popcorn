@@ -42,12 +42,27 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x backend/gradlew
+      - name: Grant execute permission for gradlew (root)
+        run: chmod +x gradlew
 
-      - name: Build & Test
-        run: ./gradlew clean build
-        working-directory: ./backend
+      - name: CheckIns Test & Coverage Verification
+        run: ./gradlew :checkIns:test :checkIns:jacocoTestReport :checkIns:jacocoTestCoverageVerification
+
+      - name: Upload checkIns Coverage Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkIns-coverage-report
+          path: checkIns/build/reports/jacoco/test/html/
+          retention-days: 7
+
+      - name: Upload checkIns Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkIns-test-results
+          path: checkIns/build/reports/tests/test/
+          retention-days: 7
 
   deploy:
     runs-on: ubuntu-latest

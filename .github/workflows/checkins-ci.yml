@@ -1,0 +1,156 @@
+name: CheckIns CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'checkIns/**'
+      - 'common-lib/**'
+      - '.github/workflows/checkins-ci.yml'
+      - 'gradle/**'
+      - '*.gradle'
+      - 'gradle.properties'
+
+jobs:
+  test-checkins:
+    runs-on: ubuntu-latest
+    name: CheckIns Module Test & Coverage
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: popcorn_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: test123
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: popcorn_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d popcorn_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build common-lib
+        run: ./gradlew :common-lib:build -x test
+
+      - name: Run CheckIns Tests
+        run: ./gradlew :checkIns:test --info
+
+      - name: Generate Coverage Report
+        run: ./gradlew :checkIns:jacocoTestReport
+
+      - name: Verify Coverage (80% minimum)
+        run: ./gradlew :checkIns:jacocoTestCoverageVerification
+
+      - name: Upload Coverage to Codecov (optional)
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./checkIns/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: checkins
+          name: codecov-checkins
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload CheckIns Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkins-test-results
+          path: |
+            checkIns/build/reports/tests/test/
+            checkIns/build/test-results/test/
+          retention-days: 7
+
+      - name: Upload CheckIns Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkins-coverage-report
+          path: checkIns/build/reports/jacoco/test/html/
+          retention-days: 7
+
+      - name: Comment PR with Coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const indexPath = 'checkIns/build/reports/jacoco/test/html/index.html';
+              if (fs.existsSync(indexPath)) {
+                const indexContent = fs.readFileSync(indexPath, 'utf8');
+                const match = indexContent.match(/Total.*?(\d+)%/);
+                if (match) {
+                  const coverage = match[1];
+                  github.rest.issues.createComment({
+                    issue_number: context.issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: `## CheckIns Module Coverage Report 📊\n\n**Coverage: ${coverage}%** ${coverage >= 80 ? '✅' : '❌'}\n\n${coverage >= 80 ? 'Great! Coverage meets the 80% target.' : 'Coverage below 80% target.'}`
+                  });
+                }
+              }
+            } catch (error) {
+              console.log('Could not post coverage comment:', error);
+            }
+
+  build-checkins:
+    runs-on: ubuntu-latest
+    needs: test-checkins
+    name: CheckIns Module Build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build CheckIns Module
+        run: ./gradlew :checkIns:build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkins-build
+          path: checkIns/build/libs/
+          retention-days: 7
