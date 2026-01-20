@@ -1,5 +1,5 @@
 -- 0) user_auth
-SET ROLE user_auth_migrator;
+CREATE SCHEMA IF NOT EXISTS user_auth;
 
 DO $$ BEGIN
   CREATE TYPE user_auth.user_role AS ENUM ('CUSTOMER','OWNER','MANAGER');

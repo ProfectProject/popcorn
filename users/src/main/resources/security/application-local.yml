@@ -28,9 +28,9 @@ spring:
 
   flyway:
     enabled: true
-    url: jdbc:postgresql://localhost:5430/pocorn_db #jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user:  user_auth_migrator #${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
-    password: user123 #${USER_AUTH_FLYWAY_PASSWORD:user123}
+    url: jdbc:postgresql://localhost:5430/pocorn_db
+    user: user_auth_migrator
+    password: user123
     schemas: user_auth
     locations: classpath:db/migration/schema
     baseline-on-migrate: true
@@ -39,7 +39,7 @@ spring:
     
 
 jwt:
-  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==
   expiration: 3600000
 
 logging:
@@ -49,4 +49,3 @@ logging:
     org.springframework.boot.web: DEBUG
     org.hibernate.SQL: DEBUG
     org.springframework.security: DEBUG
-
