@@ -7,6 +7,7 @@ import com.popcorn.store.domain.goods.exception.GoodsException;
 import com.popcorn.store.domain.goods.repository.GoodsReservationRepository;
 import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GoodsService {
 
 
@@ -34,12 +36,14 @@ public class GoodsService {
 
     @Transactional
     public GoodsStockResponse reservationGoods(UUID popupId, UUID goodsId, int quantity){
+        log.info("[GOODS_RESERVE] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
         if (quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
 
         GoodsStockResponse response = goodsReservationRepository.reserveStock(goodsId, quantity);
         if (response == null) {
+            log.warn("[GOODS_RESERVE_FAILED] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
             throw GoodsException.insufficientStock();
         }
         return response;
@@ -47,12 +51,14 @@ public class GoodsService {
 
     @Transactional
     public GoodsStockResponse cancelReservationGoods(UUID popupId, UUID goodsId, int quantity) {
+        log.info("[GOODS_RESERVE_CANCEL] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
         if (quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
 
         GoodsStockResponse response = goodsReservationRepository.cancelStock(goodsId, quantity);
         if (response == null) {
+            log.warn("[GOODS_RESERVE_CANCEL_FAILED] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
             throw GoodsException.insufficientStock();
         }
         return response;
@@ -60,12 +66,14 @@ public class GoodsService {
 
     @Transactional
     public GoodsStockResponse failReservationGoods(UUID popupId, UUID goodsId, int quantity) {
+        log.info("[GOODS_RESERVE_FAIL] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
         if (quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
 
         GoodsStockResponse response = goodsReservationRepository.failStock(goodsId, quantity);
         if (response == null) {
+            log.warn("[GOODS_RESERVE_FAIL_FAILED] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
             throw GoodsException.insufficientStock();
         }
         return response;
@@ -73,12 +81,14 @@ public class GoodsService {
 
     @Transactional
     public GoodsStockResponse completeReservationGoods(UUID popupId, UUID goodsId, int quantity) {
+        log.info("[GOODS_RESERVE_COMPLETE] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
         if (quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
 
         GoodsStockResponse response = goodsReservationRepository.completeStock(goodsId, quantity);
         if (response == null) {
+            log.warn("[GOODS_RESERVE_COMPLETE_FAILED] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
             throw GoodsException.insufficientStock();
         }
         return response;

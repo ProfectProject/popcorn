@@ -21,11 +21,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GoodsOwnerService {
 
     private final GoodsVariantRepository goodsVariantRepository;
@@ -34,6 +36,7 @@ public class GoodsOwnerService {
 
     @Transactional(readOnly = true)
     public GoodsListResponse list(Long ownerId, UUID popupId) {
+        log.info("[GOODS_OWNER_LIST] ownerId={}, popupId={}", ownerId, popupId);
         requireOwnedPopup(ownerId, popupId);
         List<GoodsItemResponse> items = goodsVariantRepository
                 .findAllByPopupIdAndDeletedAtIsNullOrderByCreatedAtDesc(popupId)
@@ -45,6 +48,7 @@ public class GoodsOwnerService {
 
     @Transactional
     public GoodsIdResponse create(Long ownerId, UUID popupId, GoodsCreateRequest request) {
+        log.info("[GOODS_OWNER_CREATE] ownerId={}, popupId={}, name={}", ownerId, popupId, request.getGoodsName());
         requireOwnedPopup(ownerId, popupId);
         String stockUnit = request.getStockUnit().trim();
         String goodsName = request.getGoodsName().trim();
@@ -64,6 +68,7 @@ public class GoodsOwnerService {
 
     @Transactional(readOnly = true)
     public GoodsItemResponse get(Long ownerId, UUID popupId, UUID goodsId) {
+        log.info("[GOODS_OWNER_GET] ownerId={}, popupId={}, goodsId={}", ownerId, popupId, goodsId);
         requireOwnedPopup(ownerId, popupId);
         GoodsVariant goods = getGoods(popupId, goodsId);
         return GoodsItemResponse.fromOwner(goods);
@@ -71,6 +76,7 @@ public class GoodsOwnerService {
 
     @Transactional
     public GoodsIdResponse update(Long ownerId, UUID popupId, UUID goodsId, GoodsUpdateRequest request) {
+        log.info("[GOODS_OWNER_UPDATE] ownerId={}, popupId={}, goodsId={}", ownerId, popupId, goodsId);
         requireOwnedPopup(ownerId, popupId);
         String goodsName = request.getGoodsName().trim();
         GoodsVariant goods = getGoods(popupId, goodsId);
@@ -90,6 +96,8 @@ public class GoodsOwnerService {
             UUID goodsId,
             GoodsStatusUpdateRequest request
     ) {
+        log.info("[GOODS_OWNER_STATUS] ownerId={}, popupId={}, goodsId={}, active={}",
+                ownerId, popupId, goodsId, request.getIsActive());
         requireOwnedPopup(ownerId, popupId);
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.updateStatus(request.getIsActive());
@@ -99,6 +107,7 @@ public class GoodsOwnerService {
 
     @Transactional
     public void delete(Long ownerId, UUID popupId, UUID goodsId) {
+        log.info("[GOODS_OWNER_DELETE] ownerId={}, popupId={}, goodsId={}", ownerId, popupId, goodsId);
         requireOwnedPopup(ownerId, popupId);
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.softDelete();

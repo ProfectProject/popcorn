@@ -66,6 +66,28 @@ public class GoodsQueryController extends BaseController {
 
     @PostMapping("/{goodsId}/reservation")
     @Operation(summary = "굿즈 재고 예약", description = "굿즈 재고를 예약합니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "예약 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = GoodsStockResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "code": 200,
+                                      "message": "요청이 성공했습니다.",
+                                      "data": {
+                                        "goodsId": "00000000-0000-0000-0000-000000000401",
+                                        "stock": 99,
+                                        "reservationStock": 1
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "409", description = "재고 부족")
+    })
     public ResponseEntity<BaseResponse<GoodsStockResponse>> reserveGoods(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
@@ -80,6 +102,15 @@ public class GoodsQueryController extends BaseController {
 
     @PostMapping("/{goodsId}/reservation/cancel")
     @Operation(summary = "굿즈 예약 취소", description = "굿즈 예약을 취소합니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "취소 성공",
+                    content = @Content(schema = @Schema(implementation = GoodsStockResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "409", description = "예약 수량 부족")
+    })
     public ResponseEntity<BaseResponse<GoodsStockResponse>> cancelGoodsReservation(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
@@ -94,6 +125,15 @@ public class GoodsQueryController extends BaseController {
 
     @PostMapping("/{goodsId}/reservation/fail")
     @Operation(summary = "굿즈 예약 실패 처리", description = "예약 실패 시 재고를 복구합니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "실패 처리 성공",
+                    content = @Content(schema = @Schema(implementation = GoodsStockResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "409", description = "예약 수량 부족")
+    })
     public ResponseEntity<BaseResponse<GoodsStockResponse>> failGoodsReservation(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
@@ -108,6 +148,15 @@ public class GoodsQueryController extends BaseController {
 
     @PostMapping("/{goodsId}/reservation/complete")
     @Operation(summary = "굿즈 예약 완료", description = "예약 완료 후 재고를 확정합니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "완료 성공",
+                    content = @Content(schema = @Schema(implementation = GoodsStockResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "409", description = "예약 수량 부족")
+    })
     public ResponseEntity<BaseResponse<GoodsStockResponse>> completeGoodsReservation(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,

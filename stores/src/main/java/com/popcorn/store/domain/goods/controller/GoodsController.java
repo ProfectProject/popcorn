@@ -2,7 +2,6 @@ package com.popcorn.store.domain.goods.controller;
 
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.store.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.store.domain.goods.dto.GoodsIdResponse;
 import com.popcorn.store.domain.goods.dto.GoodsItemResponse;
@@ -11,7 +10,6 @@ import com.popcorn.store.domain.goods.dto.GoodsStatusResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStatusUpdateRequest;
 import com.popcorn.store.domain.goods.dto.GoodsUpdateRequest;
 import com.popcorn.store.domain.goods.service.GoodsOwnerService;
-import com.popcorn.store.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.store.domain.users.entity.enums.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

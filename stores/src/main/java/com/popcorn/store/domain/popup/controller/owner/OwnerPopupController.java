@@ -21,6 +21,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,6 +35,7 @@ import java.util.UUID;
 
 @Tag(name = "OwnerPopupController", description = "사장님 팝업 관리 API")
 @RestController
+@Validated
 @RequestMapping("/api/stores/v1/owner/stores")
 public class OwnerPopupController {
 
@@ -72,8 +76,10 @@ public class OwnerPopupController {
     public ResponseEntity<BaseResponse<List<PopupListDto>>> getPopupList(
             Authentication authentication,
             @Parameter(description = "스토어 ID", required = true) @RequestParam UUID storeId,
-            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1") @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @Parameter(description = "페이지 크기", example = "10")
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
             @Parameter(description = "카테고리 필터") @RequestParam(required = false) String category
     ) {
         Long userId = getCurrentOwnerId(authentication);

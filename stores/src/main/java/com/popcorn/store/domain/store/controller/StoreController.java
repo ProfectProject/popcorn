@@ -85,6 +85,12 @@ public class StoreController extends BaseController {
 
 
     @Operation(summary = "가게 상세 조회", description = "특정 가게의 상세 정보를 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공",
+                content = @Content(schema = @Schema(implementation = StoreDetailDto.class))),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
+        @ApiResponse(responseCode = "404", description = "스토어 없음")
+    })
     @GetMapping("/{storeId}")
     public ResponseEntity<BaseResponse<StoreDetailDto>> getStoreDetail(Authentication authentication,
             @PathVariable UUID storeId) {
@@ -95,6 +101,14 @@ public class StoreController extends BaseController {
 
 
     @Operation(summary = "가게 정보 수정", description = "가게의 기본 정보를 수정합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "수정 성공",
+                content = @Content(schema = @Schema(implementation = StoreUpdatedDto.class))),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
+        @ApiResponse(responseCode = "404", description = "스토어 없음"),
+        @ApiResponse(responseCode = "409", description = "중복된 스토어 이름")
+    })
     @PutMapping("/{storeId}")
     public ResponseEntity<BaseResponse<StoreUpdatedDto>> updateStore(
             Authentication authentication,
@@ -107,6 +121,12 @@ public class StoreController extends BaseController {
 
 
     @Operation(summary = "가게 삭제", description = "가게를 삭제합니다 (Soft Delete).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "삭제 성공",
+                content = @Content(schema = @Schema(implementation = StoreDeletedDto.class))),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
+        @ApiResponse(responseCode = "404", description = "스토어 없음")
+    })
     @DeleteMapping("/{storeId}")
     public ResponseEntity<BaseResponse<StoreDeletedDto>> deleteStore(
             Authentication authentication,
@@ -118,6 +138,13 @@ public class StoreController extends BaseController {
     }
 
     @Operation(summary = "가게 상태 변경", description = "가게의 발행 상태를 변경합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "상태 변경 성공",
+                content = @Content(schema = @Schema(implementation = StoreStatusUpdatedDto.class))),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
+        @ApiResponse(responseCode = "404", description = "스토어 없음")
+    })
     @PatchMapping("/{storeId}/status")
     public ResponseEntity<BaseResponse<StoreStatusUpdatedDto>> updateStoreStatus(
             Authentication authentication,
