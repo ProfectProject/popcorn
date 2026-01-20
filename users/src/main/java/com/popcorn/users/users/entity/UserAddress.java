@@ -29,7 +29,7 @@ import org.hibernate.annotations.UuidGenerator;
 import com.popcorn.demo.common.entity.BaseEntity;
 
 @Entity
-@Table(name = "p_customer_addresses")
+@Table(name = "customer_addresses", schema = "user_auth")
 @Getter
 @Setter
 @EqualsAndHashCode(callSuper = false)

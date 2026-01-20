@@ -8,16 +8,18 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:1234}
+    url: jdbc:postgresql://localhost:5430/pocorn_db
+    username: user_auth_app
+    password: 1234
     driver-class-name: org.postgresql.Driver
+
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     properties:
       hibernate:
+        default_schema: user_auth
         type:
           preferred_enum_jdbc_type: NAMED_ENUM
 
@@ -26,10 +28,15 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration/schema,classpath:db/migration/seed
+    url: jdbc:postgresql://localhost:5430/pocorn_db #jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    user:  user_auth_migrator #${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
+    password: user123 #${USER_AUTH_FLYWAY_PASSWORD:user123}
+    schemas: user_auth
+    locations: classpath:db/migration/schema
     baseline-on-migrate: true
     validate-on-migrate: true
     clean-disabled: false
+    
 
 jwt:
   secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}

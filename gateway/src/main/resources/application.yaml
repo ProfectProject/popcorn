@@ -11,7 +11,11 @@ spring:
         - id: backend
           uri: http://localhost:8081     # 모놀리식 backend
           predicates:
-            - Path=/api/**               # /api 로 시작하면 backend로 라우팅
+            - Path=/api/v1/**               # /api 로 시작하면 backend로 라우팅
+        - id: user-service
+          uri: http://localhost:8082     # 모놀리식 backend
+          predicates:
+            - Path=/api/users/**               # /api 로 시작하면 backend로 라우팅
   webflux:
     base-path: /
 

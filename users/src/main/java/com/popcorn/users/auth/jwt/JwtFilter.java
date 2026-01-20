@@ -28,8 +28,7 @@ public class JwtFilter extends OncePerRequestFilter {
 		String path = request.getServletPath();
         // 로그인, 회원가입 요청은 필터 제외
         if (path.startsWith("/api/v1/users/signup") ||
-            path.startsWith("/api/v1/auth/signup") ||
-            path.startsWith("/api/v1/auth/login")  ||
+            path.startsWith("/api/users/v1/auth/login")  ||
             path.startsWith("/api/auth/login") )  {
             filterChain.doFilter(request, response);
             return;

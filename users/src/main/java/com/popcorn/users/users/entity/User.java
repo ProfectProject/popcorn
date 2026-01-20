@@ -17,7 +17,8 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(
-    name = "p_users",
+    name = "users",
+    schema = "user_auth",
     indexes = {
         @Index(name = "idx_users_email", columnList = "email")
     }
