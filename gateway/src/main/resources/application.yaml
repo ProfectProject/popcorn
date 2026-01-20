@@ -8,7 +8,7 @@ spring:
     gateway:
       routes:
         - id: checkIns
-          uri: http://localhost:8082     # checkIns 모듈
+          uri: http://localhost:8086     # checkIns 모듈
           predicates:
             - Path=/api/v*/qr/**,/api/v*/checkin/**,/api/v*/checkins/**  # QR/체크인 관련 요청은 checkIns로
         - id: backend
