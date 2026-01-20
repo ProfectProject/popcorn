@@ -1,0 +1,56 @@
+server:
+  port: 8082
+  shutdown: immediate
+  tomcat:
+    uri-encoding: UTF-8
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+      url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+      username: ${STORE_DB_USERNAME:store_app}
+      password: ${STORE_DB_PASSWORD:store123}
+      driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM
+
+  cache:
+    type: simple
+
+  flyway:
+    enabled: true
+    user: ${STORE_FLYWAY_USERNAME:store_migrator}
+    password: ${STORE_FLYWAY_PASSWORD:store123}
+    default-schema: store
+    schemas: store
+    locations: classpath:db/migration/schema,classpath:db/migration/seed
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: false
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  expiration: 3600000
+
+logging:
+  level:
+    com.popcorn.store: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.boot.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.security: DEBUG
+
+toss:
+  payments:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
+    checkout-url: ${TOSS_PAYMENTS_CHECKOUT_URL:http://localhost:3000/payments}
+    success-url: ${TOSS_PAYMENTS_SUCCESS_URL:http://localhost:3000/payments/success}
+    fail-url: ${TOSS_PAYMENTS_FAIL_URL:http://localhost:3000/payments/fail}

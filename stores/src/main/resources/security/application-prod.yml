@@ -1,0 +1,43 @@
+server:
+  port: 8082
+  shutdown: immediate
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: VARCHAR
+
+  flyway:
+    url: ${DATABASE_URL}
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    default-schema: public
+    schemas: public
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItcHJvZHVjdGlvbi1lbnZpcm9ubWVudC1vbmx5LWRvbm90LXVzZS1pbi1kZXZlbG9wbWVudA==}
+  expiration: 3600000
+
+toss:
+  payments:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
+    checkout-url: ${TOSS_PAYMENTS_CHECKOUT_URL}
+    success-url: ${TOSS_PAYMENTS_SUCCESS_URL}
+    fail-url: ${TOSS_PAYMENTS_FAIL_URL}
