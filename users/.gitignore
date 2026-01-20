@@ -36,3 +36,6 @@ out/
 ### VS Code ###
 .vscode/
 .env.**
+
+V0__roles_and_privileges.sql
+scripts/
