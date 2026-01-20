@@ -186,11 +186,7 @@ public class AuditLogAspect {
      */
     private boolean shouldLogAudit(AuditLog auditLog, AuditContext context) {
         // 성공 시에만 로깅하는 설정이고 실패한 경우
-        if (auditLog.onSuccessOnly() && !context.isSuccess()) {
-            return false;
-        }
-
-        return true;
+        return !auditLog.onSuccessOnly() || context.isSuccess();
     }
 
     /**

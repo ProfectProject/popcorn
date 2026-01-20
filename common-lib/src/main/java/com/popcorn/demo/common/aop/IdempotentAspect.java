@@ -1,7 +1,5 @@
 package com.popcorn.demo.common.aop;
 
-import java.lang.reflect.Method;
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -12,7 +10,6 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.core.annotation.Order;
-import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
@@ -98,14 +95,14 @@ public class IdempotentAspect implements BeanFactoryAware {
             idempotent.ttlSeconds()
         );
 
-        if (result.isFromCache()) {
+        if (result.fromCache()) {
             log.debug("멱등성 캐시 히트: key={}, originalTime={}",
-                     idempotencyKey, result.getOriginalExecutionTime());
+                     idempotencyKey, result.originalExecutionTime());
         } else {
             log.debug("멱등성 새 실행 완료: key={}", idempotencyKey);
         }
 
-        return result.getResult();
+        return result.result();
     }
 
     /**
@@ -233,11 +230,11 @@ public class IdempotentAspect implements BeanFactoryAware {
             idempotent.ttlSeconds()
         );
 
-        if (!result.isFromCache() && originalResponse[0] != null) {
+        if (!result.fromCache() && originalResponse[0] != null) {
             return originalResponse[0];
         }
 
-        Object cachedBody = result.getResult();
+        Object cachedBody = result.result();
         if (cachedBody instanceof BaseResponse<?>) {
             return ResponseEntity.ok(cachedBody);
         }

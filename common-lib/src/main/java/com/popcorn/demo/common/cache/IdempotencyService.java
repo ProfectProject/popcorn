@@ -79,9 +79,9 @@ public interface IdempotencyService {
      * 멱등성 처리 결과
      */
     interface IdempotencyResult<T> {
-        T getResult();
-        boolean isFromCache();
-        LocalDateTime getOriginalExecutionTime();
+        T result();
+        boolean fromCache();
+        LocalDateTime originalExecutionTime();
 
         static <T> IdempotencyResult<T> newExecution(T result) {
             return new DefaultIdempotencyResult<>(result, false, LocalDateTime.now());
@@ -93,33 +93,10 @@ public interface IdempotencyService {
     }
 
     /**
-     * 기본 멱등성 결과 구현체
-     */
-    class DefaultIdempotencyResult<T> implements IdempotencyResult<T> {
-        private final T result;
-        private final boolean fromCache;
-        private final LocalDateTime originalExecutionTime;
-
-        public DefaultIdempotencyResult(T result, boolean fromCache, LocalDateTime originalExecutionTime) {
-            this.result = result;
-            this.fromCache = fromCache;
-            this.originalExecutionTime = originalExecutionTime;
-        }
-
-        @Override
-        public T getResult() {
-            return result;
-        }
-
-        @Override
-        public boolean isFromCache() {
-            return fromCache;
-        }
-
-        @Override
-        public LocalDateTime getOriginalExecutionTime() {
-            return originalExecutionTime;
-        }
+         * 기본 멱등성 결과 구현체
+         */
+        record DefaultIdempotencyResult<T>(T result, boolean fromCache,
+                                           LocalDateTime originalExecutionTime) implements IdempotencyResult<T> {
     }
 
     /**

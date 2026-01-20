@@ -27,8 +27,8 @@ class IdempotencyServiceTest {
                 () -> "ok",
                 String.class);
 
-        assertThat(result.isFromCache()).isFalse();
-        assertThat(result.getResult()).isEqualTo("ok");
+        assertThat(result.fromCache()).isFalse();
+        assertThat(result.result()).isEqualTo("ok");
     }
 
     @Test
@@ -48,9 +48,9 @@ class IdempotencyServiceTest {
                 },
                 String.class);
 
-        assertThat(first.isFromCache()).isFalse();
-        assertThat(second.isFromCache()).isTrue();
-        assertThat(second.getResult()).isEqualTo(first.getResult());
+        assertThat(first.fromCache()).isFalse();
+        assertThat(second.fromCache()).isTrue();
+        assertThat(second.result()).isEqualTo(first.result());
     }
 
     @Test
@@ -77,7 +77,7 @@ class IdempotencyServiceTest {
                 () -> "ok",
                 String.class);
 
-        assertThat(result.getResult()).isEqualTo("ok");
+        assertThat(result.result()).isEqualTo("ok");
     }
 
     @Test

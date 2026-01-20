@@ -99,8 +99,8 @@ public class RedisBasedIdempotencyService implements IdempotencyService {
 				metrics.recordCacheHit();
 
 				IdempotencyRecord cachedRecord = deserializeRecord(cachedRecordJson);
-				T cachedResult = deserializeResponse(cachedRecord.getResponseData(), responseType);
-				return IdempotencyResult.cachedExecution(cachedResult, cachedRecord.getCompletedAt());
+				T cachedResult = deserializeResponse(cachedRecord.responseData(), responseType);
+				return IdempotencyResult.cachedExecution(cachedResult, cachedRecord.completedAt());
 			}
 		} catch (DataAccessException e) {
 			log.warn("Redis 연결 실패로 캐시 우회: key={}, error={}", idempotencyKey, e.getMessage());
@@ -304,25 +304,19 @@ public class RedisBasedIdempotencyService implements IdempotencyService {
 		return (double) metrics.getCacheHitCount() / totalRequests;
 	}
 
-	private static class IdempotencyRecord {
-		private final String key;
-		private final String responseData;
-		private final LocalDateTime completedAt;
+	private record IdempotencyRecord(String key, String responseData, LocalDateTime completedAt) {
+			@JsonCreator
+			private IdempotencyRecord(
+					@JsonProperty("key") String key,
+					@JsonProperty("responseData") String responseData,
+					@JsonProperty("completedAt") LocalDateTime completedAt
+			) {
+				this.key = key;
+				this.responseData = responseData;
+				this.completedAt = completedAt;
+			}
 
-		@JsonCreator
-		public IdempotencyRecord(
-				@JsonProperty("key") String key,
-				@JsonProperty("responseData") String responseData,
-				@JsonProperty("completedAt") LocalDateTime completedAt
-		) {
-			this.key = key;
-			this.responseData = responseData;
-			this.completedAt = completedAt;
-		}
 
-		public String getKey() { return key; }
-		public String getResponseData() { return responseData; }
-		public LocalDateTime getCompletedAt() { return completedAt; }
 	}
 
 	private static class IdempotencyMetrics {

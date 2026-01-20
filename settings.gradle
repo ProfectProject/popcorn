@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'popcorn-msa'
+
+// 모든 모듈 포함
+include 'common-lib'
+include 'backend'
+include 'checkIns'
+include 'gateway'
+
+// 각 모듈의 위치 지정
+project(':common-lib').projectDir = file('common-lib')
+project(':backend').projectDir = file('backend')
+project(':checkIns').projectDir = file('checkIns')
+project(':gateway').projectDir = file('gateway')

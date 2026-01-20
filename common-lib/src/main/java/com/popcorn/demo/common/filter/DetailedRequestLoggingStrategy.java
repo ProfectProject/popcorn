@@ -50,7 +50,7 @@ public class DetailedRequestLoggingStrategy implements RequestLoggingStrategy {
                 String headerValue = request.getHeader(headerName);
                 headers.append(headerName).append(": ").append(headerValue).append("; ");
             }
-            log.debug("Request headers: {}", headers.toString());
+            log.debug("Request headers: {}", headers);
         }
     }
 

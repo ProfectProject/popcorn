@@ -68,7 +68,7 @@ public class CacheResultAspect {
         // 캐시에서 조회
         CacheWrapper cachedWrapper = cache.getIfPresent(cacheKey);
         if (cachedWrapper != null && !cachedWrapper.isExpired()) {
-            Object cachedResult = cachedWrapper.getValue();
+            Object cachedResult = cachedWrapper.value();
 
             // null 캐싱이 비활성화되어 있고 결과가 null인 경우 캐시 미사용
             if (!cacheResult.cacheNull() && cachedResult == null) {
@@ -291,24 +291,15 @@ public class CacheResultAspect {
 
     /**
      * 캐시 값을 감싸는 래퍼 클래스
+     *
+     * @param expireTime -1이면 만료시간 없음
      */
-    private static class CacheWrapper {
-        private final Object value;
-        private final long expireTime; // -1이면 만료시간 없음
-
-        CacheWrapper(Object value, long expireTime) {
-            this.value = value;
-            this.expireTime = expireTime;
-        }
-
-        Object getValue() {
-            return value;
-        }
+        private record CacheWrapper(Object value, long expireTime) {
 
         boolean isExpired() {
-            return expireTime > 0 && System.currentTimeMillis() > expireTime;
+                return expireTime > 0 && System.currentTimeMillis() > expireTime;
+            }
         }
-    }
 
     /**
      * 널 Authentication 객체에 대한 안전한 래퍼
