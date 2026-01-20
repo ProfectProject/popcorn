@@ -1,6 +1,6 @@
 package com.popcorn.store.domain.goods.exception;
 
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.exception.BaseException;
 import com.popcorn.store.domain.goods.dto.GoodsResponseCode;
 
 public class GoodsException extends BaseException {

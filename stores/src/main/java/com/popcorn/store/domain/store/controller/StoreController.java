@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.store.domain.store.dto.CreateStoreRequest;
 import com.popcorn.store.domain.store.dto.StoreCreatedDto;
 import com.popcorn.store.domain.store.dto.StoreDeletedDto;
@@ -163,6 +163,9 @@ public class StoreController extends BaseController {
 
         Long userId = null;
         Object principal = authentication.getPrincipal();
+        if (principal == null) {
+            throw StoreException.invalidPrincipal();
+        }
         if (principal instanceof Long principalId) {
             userId = principalId;
         }

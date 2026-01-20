@@ -2,7 +2,7 @@ package com.popcorn.store.domain.popup.entity;
 
 import java.util.UUID;
 
-import com.popcorn.demo.common.entity.BaseEntity;
+import com.popcorn.common.entity.BaseEntity;
 import com.popcorn.store.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.store.domain.popup.entity.enums.PopupStatus;
 

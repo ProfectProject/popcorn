@@ -1,6 +1,6 @@
 package com.popcorn.store.domain.popup.controller.owner;
 
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.store.domain.popup.dto.owner.request.CreatePopupRequest;
 import com.popcorn.store.domain.popup.dto.owner.request.UpdatePopupRequest;
 import com.popcorn.store.domain.popup.dto.owner.request.UpdatePopupStatusRequest;
@@ -165,6 +165,9 @@ public class OwnerPopupController {
 
         Long userId = null;
         Object principal = authentication.getPrincipal();
+        if (principal == null) {
+            throw OwnerPopupException.invalidPrincipal();
+        }
         if (principal instanceof Long principalId) {
             userId = principalId;
         }

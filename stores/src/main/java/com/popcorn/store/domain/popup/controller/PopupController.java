@@ -7,9 +7,9 @@ import com.popcorn.store.domain.popup.exception.PopupException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.versioning.ApiVersion;
 import com.popcorn.store.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.store.domain.popup.dto.query.PopupListQuery;
 import com.popcorn.store.domain.popup.dto.query.response.PopupDetailResponse;

@@ -4,7 +4,7 @@ import lombok.Getter;
 
 // 스토어 도메인 전용 응답 코드.
 @Getter
-public enum StoreResponseCode implements com.popcorn.demo.common.dto.ResponseCode {
+public enum StoreResponseCode implements com.popcorn.common.dto.ResponseCode {
 
     EMPTY_NAME(2000, 400, "이름이 비어있습니다."),
     

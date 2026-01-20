@@ -1,7 +1,7 @@
 package com.popcorn.store.domain.popup.exception.owner;
 
 import com.popcorn.store.domain.popup.dto.owner.OwnerPopupResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.exception.BaseException;
 
 public class OwnerPopupException extends BaseException {
 

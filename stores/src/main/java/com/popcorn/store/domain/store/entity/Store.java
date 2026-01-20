@@ -1,6 +1,6 @@
 package com.popcorn.store.domain.store.entity;
 
-import com.popcorn.demo.common.entity.BaseEntity;
+import com.popcorn.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

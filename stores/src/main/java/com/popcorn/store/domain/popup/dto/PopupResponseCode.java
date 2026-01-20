@@ -1,6 +1,6 @@
 package com.popcorn.store.domain.popup.dto;
 
-import com.popcorn.demo.common.dto.ResponseCode;
+import com.popcorn.common.dto.ResponseCode;
 
 import lombok.Getter;
 

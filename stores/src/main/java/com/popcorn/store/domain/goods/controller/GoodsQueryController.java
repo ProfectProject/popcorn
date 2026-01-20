@@ -1,7 +1,7 @@
 package com.popcorn.store.domain.goods.controller;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.store.domain.goods.dto.GoodsListResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStockResponse;
 import com.popcorn.store.domain.goods.exception.GoodsException;

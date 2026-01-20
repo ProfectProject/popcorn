@@ -1,7 +1,7 @@
 package com.popcorn.store.domain.popup.exception;
 
 import com.popcorn.store.domain.popup.dto.PopupResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.exception.BaseException;
 
 public class PopupException extends BaseException {
 
