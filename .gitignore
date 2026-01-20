@@ -49,8 +49,11 @@ out/
 
 # Environment variables
 .env
+.env.*
+.env.qr
 backend/env
 backend/env.**
+checkIns/.env*
 
 
 # Local notes
