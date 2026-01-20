@@ -16,8 +16,8 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_URLS = List.of(
-            "/api/v1/auth/login",
-            "/api/v1/users/signup"
+            "/api/users/v1/auth/login",
+            "/api/users/v1/users/signup"
     );
 
     private final JwtUtil jwtUtils;

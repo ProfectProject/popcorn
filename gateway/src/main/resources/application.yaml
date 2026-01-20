@@ -22,12 +22,8 @@ spring:
 springdoc:
   swagger-ui:
     urls:
-      - name: Customer API
-        url: /openapi/customer
-      - name: Manager API
-        url: /openapi/manager
-      - name: Admin API
-        url: /openapi/admin
+      - name: user-service
+        url: http://localhost:8082/v3/api-docs
         
 logging:
   level:

@@ -78,6 +78,6 @@ frontend/.pnpm-debug.log*
 k6
 
 # 마이그레이션 파일
-V0__roles_and_privileges.sql
-scripts/
+/V0__roles_and_privileges.sql
+/scripts/
 
