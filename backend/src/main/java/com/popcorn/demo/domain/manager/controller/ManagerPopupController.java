@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.popup.dto.manager.OrderCancelRequest;
 import com.popcorn.demo.domain.popup.dto.manager.OrderCancelResponse;
 import com.popcorn.demo.domain.popup.dto.manager.OrderDetailResponse;

@@ -1,10 +1,13 @@
-// ========================= 📚 Common-Lib 라이브러리 모듈 =========================
 plugins {
 	id 'java-library'
 	id 'maven-publish'
 	id 'jacoco'
 	id 'org.springframework.boot' version '3.5.9' apply false
 	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+repositories {
+    mavenCentral()
 }
 
 // Java 호환성 설정
@@ -165,20 +168,23 @@ tasks.named('jacocoTestReport') {
 }
 
 tasks.named('test') {
-	enabled = false // 테스트 비활성화
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport
 }
 
 // 코드 커버리지 검증 (라이브러리는 80% 목표)
-//jacocoTestCoverageVerification {
-//	dependsOn test
-//	violationRules {
-//		rule {
-//			limit {
-//				minimum = 0.80
-//			}
-//		}
-//	}
-//}
+jacocoTestCoverageVerification {
+	dependsOn test
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.80 // 80% 커버리지 요구
+			}
+		}
+	}
+}
 
 tasks.named('check') {
 	dependsOn jacocoTestCoverageVerification

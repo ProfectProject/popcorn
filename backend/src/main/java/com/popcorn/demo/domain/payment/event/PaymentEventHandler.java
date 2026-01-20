@@ -14,7 +14,8 @@ import com.popcorn.demo.domain.inventory.service.InventoryService;
 import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 import com.popcorn.demo.domain.payment.service.PaymentCancelFailureService;
-import com.popcorn.demo.domain.qr.service.QrCodeService;
+// QR 관련 import 제거됨 - checkIns 모듈로 이동
+// import com.popcorn.demo.domain.qr.service.QrCodeService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,7 +31,8 @@ public class PaymentEventHandler {
 	private static final Logger log = LoggerFactory.getLogger(PaymentEventHandler.class);
 
 	private final InventoryService inventoryService;
-	private final QrCodeService qrCodeService;
+	// QrCodeService 의존성 제거됨 - checkIns 모듈로 이동
+	// private final QrCodeService qrCodeService;
 	private final JpaOrderItemRepository orderItemRepository;
 	private final PaymentCancelFailureService paymentCancelFailureService;
 
@@ -86,8 +88,9 @@ public class PaymentEventHandler {
 				return;
 			}
 
-			qrCodeService.issue(event.getOrderId());
-			log.info("✅  QR 발급 완료 - orderNo: {}", event.getOrderNo());
+			// QR 발급 기능이 checkIns 모듈로 이동됨
+			// qrCodeService.issue(event.getOrderId());
+			log.info("ℹ️ QR 발급 기능이 checkIns 모듈로 이동됨 - orderNo: {}", event.getOrderNo());
 
 		} catch (Exception e) {
 			log.error(" QR 발급 실패 - orderNo: {}", event.getOrderNo(), e);
@@ -147,8 +150,9 @@ public class PaymentEventHandler {
 			// 2. QR 코드 생성 (예약 주문인 경우만)
 			if ("RESERVATION".equals(event.getOrderType())) {
 				try {
-					qrCodeService.issue(event.getOrderId());
-					log.info("📱 QR 코드 생성 완료 - 주문ID: {}", event.getOrderId());
+					// QR 발급 기능이 checkIns 모듈로 이동됨
+					// qrCodeService.issue(event.getOrderId());
+					log.info("ℹ️ QR 코드 생성 기능이 checkIns 모듈로 이동됨 - 주문ID: {}", event.getOrderId());
 				} catch (Exception e) {
 					log.error("QR 코드 생성 실패 - 주문ID: {}", event.getOrderId(), e);
 				}

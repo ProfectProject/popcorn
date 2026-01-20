@@ -123,7 +123,7 @@ export default function() {
 
       if (!orderSuccess) {
         paymentErrors.add(1);
-        return; // 주문 생성 실패시 결제 단계 건너뛰기
+         // 주문 생성 실패시 결제 단계 건너뛰기
       }
     });
 

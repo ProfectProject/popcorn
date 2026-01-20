@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.manager.service.UserManagerService;
 import com.popcorn.demo.domain.users.dto.manager.OwnerApproveResponse;
 import com.popcorn.demo.domain.users.dto.manager.OwnerForceStopRequest;

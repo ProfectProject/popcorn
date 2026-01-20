@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.order.event.BaseOrderEvent;
 import com.popcorn.demo.domain.order.event.OrderCancelledEvent;
 import com.popcorn.demo.domain.order.event.OrderEventMetrics;

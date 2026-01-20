@@ -14,7 +14,7 @@ import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;

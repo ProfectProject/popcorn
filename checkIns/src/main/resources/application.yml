@@ -1,0 +1,59 @@
+server:
+  port: ${SERVER_PORT:8086}
+  shutdown: immediate
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  application:
+    name: checkIns
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    username: ${QR_DB_USERNAME:qr_app}
+    password: ${QR_DB_PASSWORD:qr123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    show-sql: ${JPA_SHOW_SQL:true}
+    hibernate:
+      ddl-auto: ${JPA_HIBERNATE_DDL_AUTO:none}
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/schema
+    baseline-on-migrate: true
+    validate-on-migrate: false
+    out-of-order: true
+    clean-disabled: false
+    placeholders:
+      QR_MIGRATOR_PASSWORD: ${QR_FLYWAY_PASSWORD:qr321}
+      QR_APP_PASSWORD: ${QR_DB_PASSWORD:qr123}
+
+app:
+  version: ${APP_VERSION:0.0.1-SNAPSHOT}
+
+springdoc:
+  api-docs:
+    path: ${SWAGGER_API_DOCS_PATH:/v3/api-docs}
+  swagger-ui:
+    path: ${SWAGGER_UI_PATH:/swagger-ui.html}
+    operations-sorter: alpha
+    tags-sorter: alpha
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.popcorn.checkIns: ${LOG_LEVEL_CHECKINS:DEBUG}
+    org.springframework.web: ${LOG_LEVEL_SPRING_WEB:DEBUG}
+    org.springframework.boot.web: ${LOG_LEVEL_SPRING_WEB:DEBUG}
+    org.hibernate.SQL: ${LOG_LEVEL_HIBERNATE_SQL:DEBUG}

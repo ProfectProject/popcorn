@@ -1,6 +1,6 @@
 package com.popcorn.demo.domain.popup.controller.owner;
 
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.popup.dto.owner.request.CreatePopupRequest;
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupRequest;
 import com.popcorn.demo.domain.popup.dto.owner.request.UpdatePopupStatusRequest;

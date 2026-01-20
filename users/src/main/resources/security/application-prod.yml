@@ -1,0 +1,52 @@
+server:
+  port: 8082
+  shutdown: immediate
+  tomcat:
+    uri-encoding: UTF-8
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${USER_AUTH_DB_USERNAME}
+    password: ${USER_AUTH_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: user_auth
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM
+
+  cache:
+    type: simple
+
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    user:  ${USER_AUTH_FLYWAY_USERNAME}
+    password: ${USER_AUTH_FLYWAY_PASSWORD}
+    schemas: user_auth
+    locations: classpath:db/migration/schema
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: false
+    
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 3600000
+
+logging:
+  level:
+    com.popcorn.demo: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.boot.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.security: DEBUG
+

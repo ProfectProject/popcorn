@@ -18,8 +18,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
-import com.popcorn.demo.common.dto.BaseError;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseError;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 import com.popcorn.demo.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.demo.domain.store.exception.StoreException;

@@ -1,7 +1,7 @@
 package com.popcorn.demo.domain.goods.controller;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsListResponse;
 import com.popcorn.demo.domain.goods.service.GoodsService;
 import io.swagger.v3.oas.annotations.Operation;
