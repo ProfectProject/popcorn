@@ -200,6 +200,7 @@ class QrCodeServiceTest {
 		);
 
 		when(qrCodeRepository.findLatestByOrderId(orderId)).thenReturn(Optional.of(row));
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("PAID"));
 
 		QrCodeResponse response = qrCodeService.get(orderId);
 

@@ -119,6 +119,29 @@ class OwnerCheckinRepositoryTest {
 			ORDER_ID, "O20240101-000003", 1001L, STORE_ID, "PAID", 10000, now, now
 		);
 
+		// 스케줄 생성 (popup_schedules)
+		UUID scheduleId = UUID.randomUUID();
+		jdbcTemplate.update(
+			"INSERT INTO p_popup_schedules (schedule_id, popup_id, start_at, end_at, price, capacity, remaining_capacity, created_at, updated_at) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			scheduleId, POPUP_ID, now, now.plusHours(2), 5000, 10, 8, now, now
+		);
+
+		// 상품 변형 생성 (goods_variants)
+		UUID goodsVariantId = UUID.randomUUID();
+		jdbcTemplate.update(
+			"INSERT INTO p_goods_variants (goods_id, popup_id, goods_name, goods_price, stock, created_at, updated_at) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?)",
+			goodsVariantId, POPUP_ID, "테스트 상품", 5000, 10, now, now
+		);
+
+		// 주문 상품 생성 (order_goods)
+		jdbcTemplate.update(
+			"INSERT INTO p_order_goods (order_goods_id, order_id, goods_variant_id, schedule_id, qty, unit_price, price, created_at, updated_at) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			UUID.randomUUID(), ORDER_ID, goodsVariantId, scheduleId, 2, 5000, 10000, now, now
+		);
+
 		// QR 코드 생성
 		jdbcTemplate.update(
 			"INSERT INTO p_order_qr_codes (qr_id, order_id, qr_code, expires_at, created_at, created_by) " +

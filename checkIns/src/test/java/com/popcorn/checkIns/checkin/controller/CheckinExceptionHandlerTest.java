@@ -1,4 +1,4 @@
-package com.popcorn.checkIns.controller;
+package com.popcorn.checkIns.checkin.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -17,35 +17,35 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import com.popcorn.checkIns.dto.QrResponseCode;
-import com.popcorn.checkIns.exception.QrException;
+import com.popcorn.checkIns.checkin.dto.owner.OwnerCheckinResponseCode;
+import com.popcorn.checkIns.checkin.exception.owner.OwnerCheckinException;
 import com.popcorn.common.dto.BaseError;
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.common.dto.CommonResponseCode;
 
-@DisplayName("QR 예외 핸들러 테스트")
-class QrExceptionHandlerTest {
+@DisplayName("체크인 예외 핸들러 테스트")
+class CheckinExceptionHandlerTest {
 
-	private QrExceptionHandler exceptionHandler;
+	private CheckinExceptionHandler exceptionHandler;
 
 	@BeforeEach
 	void setUp() {
-		exceptionHandler = new QrExceptionHandler();
+		exceptionHandler = new CheckinExceptionHandler();
 	}
 
 	@Test
 	@DisplayName("BaseException 처리")
 	void handleBaseException_returnsCorrectResponse() {
 		// Given
-		QrException exception = QrException.qrNotFound();
+		OwnerCheckinException exception = OwnerCheckinException.unauthenticated();
 
 		// When
 		ResponseEntity<BaseResponse<BaseError>> response = exceptionHandler.handleBaseException(exception);
 
 		// Then
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 		assertThat(response.getBody()).isNotNull();
-		assertThat(response.getBody().getCode()).isEqualTo(QrResponseCode.QR_NOT_FOUND.getCode());
+		assertThat(response.getBody().getCode()).isEqualTo(OwnerCheckinResponseCode.UNAUTHENTICATED.getCode());
 		assertThat(response.getBody().getData().getMessage()).isNotBlank();
 	}
 
@@ -54,7 +54,7 @@ class QrExceptionHandlerTest {
 	void handleValidationException_returnsValidationError() {
 		// Given
 		BindingResult bindingResult = mock(BindingResult.class);
-		FieldError fieldError = new FieldError("qrVerifyRequest", "qrCode", "qrCode는 필수입니다.");
+		FieldError fieldError = new FieldError("checkinRequest", "popupId", "popupId는 필수입니다.");
 		when(bindingResult.getFieldErrors()).thenReturn(Arrays.asList(fieldError));
 
 		MethodArgumentNotValidException exception = new MethodArgumentNotValidException(null, bindingResult);
@@ -66,7 +66,6 @@ class QrExceptionHandlerTest {
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(response.getBody()).isNotNull();
 		assertThat(response.getBody().getCode()).isEqualTo(CommonResponseCode.INVALID_REQUEST.getCode());
-		// 실제로는 BaseController의 error 메서드가 CommonResponseCode의 메시지를 사용함
 		assertThat(response.getBody().getData().getMessage()).contains("잘못된 요청입니다");
 	}
 

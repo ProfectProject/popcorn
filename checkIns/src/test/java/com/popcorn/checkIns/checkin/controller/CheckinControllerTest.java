@@ -137,4 +137,104 @@ class CheckinControllerTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.count").value(0));
 	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - size 경계값 테스트 (0)")
+	void getCheckins_withSizeZero() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		// size=0이면 normalizeLimit에서 1로 정규화됨
+		Mockito.when(checkinService.getCheckins(1)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "0"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200));
+	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - size 음수 테스트")
+	void getCheckins_withNegativeSize() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		// size=-1이면 normalizeLimit에서 1로 정규화됨
+		Mockito.when(checkinService.getCheckins(1)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "-1"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200));
+	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - size 최댓값 초과 테스트")
+	void getCheckins_withSizeExceedsMax() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		// size=300이면 normalizeLimit에서 200으로 정규화됨
+		Mockito.when(checkinService.getCheckins(200)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "300"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200));
+	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - size 경계값 테스트 (1)")
+	void getCheckins_withSizeOne() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		Mockito.when(checkinService.getCheckins(1)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "1"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200));
+	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - size 경계값 테스트 (200)")
+	void getCheckins_withSizeTwoHundred() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		Mockito.when(checkinService.getCheckins(200)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "200"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200));
+	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - size 경계값 테스트 (201)")
+	void getCheckins_withSizeTwoHundredOne() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		// size=201이면 normalizeLimit에서 200으로 정규화됨
+		Mockito.when(checkinService.getCheckins(200)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "201"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200));
+	}
 }
