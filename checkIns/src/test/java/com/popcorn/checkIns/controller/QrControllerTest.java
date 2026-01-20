@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.checkIns.dto.response.QrCodeResponse;
 import com.popcorn.checkIns.dto.response.QrVerifyResponse;
+import com.popcorn.checkIns.exception.QrException;
 import com.popcorn.checkIns.service.QrCodeService;
 import com.popcorn.common.config.CommonConfig;
 
@@ -123,5 +124,63 @@ class QrControllerTest {
 						.content(requestJson))
 				.andExpect(MockMvcResultMatchers.status().isBadRequest())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(400));
+	}
+
+	@Test
+	@DisplayName("QR 발급 실패 - QR 코드 발급 예외")
+	void issueQr_fail_exception() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001004");
+		when(qrCodeService.issue(orderId)).thenThrow(QrException.orderNotFound());
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/qr/v1/orders/{orderId}", orderId))
+				.andExpect(MockMvcResultMatchers.status().isNotFound())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(2002));
+	}
+
+	@Test
+	@DisplayName("QR 조회 실패 - QR 코드를 찾을 수 없음")
+	void getQr_fail_notFound() throws Exception {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001005");
+		when(qrCodeService.get(orderId)).thenThrow(QrException.qrNotFound());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/qr/v1/orders/{orderId}", orderId))
+				.andExpect(MockMvcResultMatchers.status().isNotFound())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(2000));
+	}
+
+	@Test
+	@DisplayName("QR 검증 실패 - 유효하지 않은 QR 코드")
+	void verifyQr_fail_invalid() throws Exception {
+		when(qrCodeService.verify(any())).thenThrow(QrException.qrNotFound());
+
+		String requestJson = """
+				{
+					"qrCode": "invalid-qr-code"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/qr/v1/verify")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestJson))
+				.andExpect(MockMvcResultMatchers.status().isNotFound())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(2000));
+	}
+
+	@Test
+	@DisplayName("QR 검증 실패 - 서버 에러")
+	void verifyQr_fail_serverError() throws Exception {
+		when(qrCodeService.verify(any())).thenThrow(new RuntimeException("예상치 못한 오류"));
+
+		String requestJson = """
+				{
+					"qrCode": "test-qr-code"
+				}
+				""";
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/qr/v1/verify")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestJson))
+				.andExpect(MockMvcResultMatchers.status().isInternalServerError())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(500));
 	}
 }

@@ -15,8 +15,10 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.checkIns.checkin.controller.CheckinExceptionHandler;
 import com.popcorn.checkIns.checkin.dto.response.CheckinDetailResponse;
 import com.popcorn.checkIns.checkin.dto.response.CheckinListResponse;
+import com.popcorn.checkIns.checkin.exception.CheckinException;
 import com.popcorn.checkIns.checkin.service.CheckinService;
 import com.popcorn.common.config.CommonConfig;
 
@@ -88,5 +90,51 @@ class CheckinControllerTest {
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderQrCodeId").value(qrId.toString()))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.qrCode").value("qr-detail-001"));
+	}
+
+	// @Test
+	// @DisplayName("체크인 상세 조회 실패 - 체크인을 찾을 수 없음")
+	// void getCheckin_fail_notFound() throws Exception {
+	//	UUID checkinId = UUID.fromString("90000000-0000-0000-0000-000000000999");
+	//	Mockito.when(checkinService.getCheckin(checkinId))
+	//			.thenThrow(CheckinException.notFound());
+	//
+	//	mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins/{checkinId}", checkinId))
+	//			.andExpect(MockMvcResultMatchers.status().isNotFound())
+	//			.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(2100));
+	// }
+
+	@Test
+	@DisplayName("체크인 목록 조회 - 빈 목록")
+	void getCheckins_emptyList() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		Mockito.when(checkinService.getCheckins(50)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.count").value(0))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.items").isEmpty());
+	}
+
+	@Test
+	@DisplayName("체크인 목록 조회 - 파라미터 테스트")
+	void getCheckins_withParams() throws Exception {
+		CheckinListResponse response = CheckinListResponse.builder()
+				.count(0)
+				.items(List.of())
+				.build();
+
+		Mockito.when(checkinService.getCheckins(100)).thenReturn(response);
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/checkins")
+						.param("size", "100"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.data.count").value(0));
 	}
 }

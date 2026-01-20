@@ -152,4 +152,117 @@ class QrCodeServiceTest {
 		assertThat(response.getCheckinId()).isEqualTo(checkinId);
 		verify(checkinRepository, never()).insert(any(), any(), any(), any());
 	}
+
+	@Test
+	@DisplayName("주문을 찾을 수 없으면 QR 발급 실패")
+	void issue_throws_whenOrderNotFound() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000999999");
+
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> qrCodeService.issue(orderId))
+				.isInstanceOf(QrException.class);
+	}
+
+	@Test
+	@DisplayName("만료된 QR 코드는 재발급됨")
+	void issue_createsNewQr_whenExpired() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001006");
+		LocalDateTime now = LocalDateTime.now();
+		QrCodeRow expiredRow = new QrCodeRow(
+				UUID.randomUUID(),
+				orderId,
+				"qr-expired-001",
+				now.minusMinutes(1), // 만료됨
+				now.minusMinutes(10)
+		);
+
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("PAID"));
+		when(qrCodeRepository.findLatestByOrderId(orderId)).thenReturn(Optional.of(expiredRow));
+
+		QrCodeResponse response = qrCodeService.issue(orderId);
+
+		assertThat(response.getQrCode()).isNotEqualTo("qr-expired-001");
+		verify(qrCodeRepository).insert(any(QrCodeRow.class));
+	}
+
+	@Test
+	@DisplayName("QR 조회 - 주문 ID로 성공")
+	void get_success_withOrderId() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001007");
+		LocalDateTime now = LocalDateTime.now();
+		QrCodeRow row = new QrCodeRow(
+				UUID.randomUUID(),
+				orderId,
+				"qr-get-001",
+				now.plusMinutes(5),
+				now.minusMinutes(1)
+		);
+
+		when(qrCodeRepository.findLatestByOrderId(orderId)).thenReturn(Optional.of(row));
+
+		QrCodeResponse response = qrCodeService.get(orderId);
+
+		assertThat(response.getOrderId()).isEqualTo(orderId);
+		assertThat(response.getQrCode()).isEqualTo("qr-get-001");
+	}
+
+	@Test
+	@DisplayName("QR 조회 실패 - QR 코드를 찾을 수 없음")
+	void get_throws_whenQrNotFound() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000999998");
+
+		when(qrCodeRepository.findLatestByOrderId(orderId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> qrCodeService.get(orderId))
+				.isInstanceOf(QrException.class);
+	}
+
+	@Test
+	@DisplayName("QR 검증 실패 - QR 코드를 찾을 수 없음")
+	void verify_throws_whenQrCodeNotFound() {
+		when(qrCodeRepository.findLatestByQrCode("invalid-qr-code")).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> qrCodeService.verify("invalid-qr-code"))
+				.isInstanceOf(QrException.class);
+	}
+
+	@Test
+	@DisplayName("QR 검증 실패 - QR 코드 만료됨")
+	void verify_throws_whenQrExpired() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001008");
+		LocalDateTime now = LocalDateTime.now();
+		QrCodeRow expiredRow = new QrCodeRow(
+				UUID.randomUUID(),
+				orderId,
+				"qr-expired-verify",
+				now.minusMinutes(1), // 만료됨
+				now.minusMinutes(10)
+		);
+
+		when(qrCodeRepository.findLatestByQrCode("qr-expired-verify")).thenReturn(Optional.of(expiredRow));
+
+		assertThatThrownBy(() -> qrCodeService.verify("qr-expired-verify"))
+				.isInstanceOf(QrException.class);
+	}
+
+	@Test
+	@DisplayName("QR 검증 실패 - 주문 상태가 PAID가 아님")
+	void verify_throws_whenOrderNotPaid() {
+		UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001009");
+		LocalDateTime now = LocalDateTime.now();
+		QrCodeRow row = new QrCodeRow(
+				UUID.randomUUID(),
+				orderId,
+				"qr-not-paid-verify",
+				now.plusMinutes(5),
+				now.minusMinutes(1)
+		);
+
+		when(qrCodeRepository.findLatestByQrCode("qr-not-paid-verify")).thenReturn(Optional.of(row));
+		when(qrCodeRepository.findOrderStatus(orderId)).thenReturn(Optional.of("CANCELLED"));
+
+		assertThatThrownBy(() -> qrCodeService.verify("qr-not-paid-verify"))
+				.isInstanceOf(QrException.class);
+	}
 }

@@ -4,7 +4,7 @@ server:
 spring:
   application:
     name: gateway
-   cloud:
+  cloud:
     gateway:
       routes:
         - id: checkIns
