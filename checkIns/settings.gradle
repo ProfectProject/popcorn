@@ -1,2 +1,6 @@
-// 이 모듈은 이제 최상위 멀티모듈 프로젝트에 의해 관리됩니다.
 // checkIns 모듈 단독 실행을 위해서만 이 파일을 유지합니다.
+
+rootProject.name = 'checkIns'
+
+include 'common-lib'
+project(':common-lib').projectDir = file('../common-lib')

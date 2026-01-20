@@ -11,6 +11,9 @@ spring:
     import: classpath:security/application-local.yml
     activate:
       on-profile: local
+  docker:
+    compose:
+      enabled: false
 
 ---
 

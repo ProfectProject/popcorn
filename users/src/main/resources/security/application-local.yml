@@ -8,7 +8,7 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:postgresql://localhost:5430/pocorn_db
+    url: jdbc:postgresql://localhost:5430/popcorn_db
     username: user_auth_app
     password: 1234
     driver-class-name: org.postgresql.Driver
@@ -28,7 +28,7 @@ spring:
 
   flyway:
     enabled: true
-    url: jdbc:postgresql://localhost:5430/pocorn_db
+    url: jdbc:postgresql://localhost:5430/popcorn_db
     user: user_auth_migrator
     password: user123
     schemas: user_auth
