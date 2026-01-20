@@ -1,6 +1,9 @@
 spring:
   application:
     name: demo
+  docker:
+    compose:
+      enabled: false
 
 ---
 

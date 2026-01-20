@@ -3,6 +3,9 @@ spring:
     name: checkIns
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  docker:
+    compose:
+      enabled: false
 
 ---
 
