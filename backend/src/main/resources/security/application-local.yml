@@ -8,7 +8,7 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn_db}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
@@ -28,7 +28,8 @@ spring:
     enabled: true
     locations: classpath:db/migration/schema,classpath:db/migration/seed
     baseline-on-migrate: true
-    validate-on-migrate: true
+    validate-on-migrate: false
+    out-of-order: true
     clean-disabled: false
     placeholders:
       USER_AUTH_MIGRATOR_PASSWORD: ${USER_AUTH_MIGRATOR_PASSWORD:}

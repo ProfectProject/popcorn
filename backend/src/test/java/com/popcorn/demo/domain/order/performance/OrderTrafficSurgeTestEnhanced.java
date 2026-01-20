@@ -97,7 +97,7 @@ class OrderTrafficSurgeTestEnhanced {
                     UUID popupId = invocation.getArgument(2);
                     OrderType orderType = invocation.getArgument(3);
                     @SuppressWarnings("unchecked")
-                    List<OrderItem> items = (List<OrderItem>) invocation.getArgument(4);
+                    List<OrderItem> items = invocation.getArgument(4);
 
                     int totalAmount = items.stream().mapToInt(OrderItem::getLineAmount).sum();
                     Order order = Order.builder()

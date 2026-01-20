@@ -1,5 +1,12 @@
 -- payment schema cancel failure queue table
 RESET ROLE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'payment_migrator') THEN
+    CREATE ROLE payment_migrator LOGIN PASSWORD '${PAYMENT_MIGRATOR_PASSWORD}';
+  END IF;
+END $$;
+
+CREATE SCHEMA IF NOT EXISTS payment AUTHORIZATION payment_migrator;
 SET ROLE payment_migrator;
 
 DO $$ BEGIN

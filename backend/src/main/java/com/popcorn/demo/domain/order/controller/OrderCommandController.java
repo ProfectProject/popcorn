@@ -167,7 +167,7 @@ private final PaymentTokenService paymentTokenService;
 		resource = "ORDER",
 		description = "새로운 주문이 생성되었습니다",
 		userIdExpression = "#authentication.principal.userId",
-		resourceIdExpression = "#result.body.data.orderId",
+		resourceIdExpression = "#result?.body?.data?.orderId",
 		includeRequestData = true,
 		excludeParams = {"request.paymentMethod"}
 	)

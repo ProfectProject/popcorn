@@ -7,7 +7,6 @@ import java.util.Iterator;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
@@ -111,20 +110,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     }
 
     // 로그인 실패 응답 DTO
-    private static class LoginErrorResponse {
-        private final int code;
-        private final String message;
-        private final String detail;
-
-        public LoginErrorResponse(int code, String message, String detail) {
-            this.code = code;
-            this.message = message;
-            this.detail = detail;
-        }
-
-        public int getCode() { return code; }
-        public String getMessage() { return message; }
-        public String getDetail() { return detail; }
+        private record LoginErrorResponse(int code, String message, String detail) {
     }
     
 }
