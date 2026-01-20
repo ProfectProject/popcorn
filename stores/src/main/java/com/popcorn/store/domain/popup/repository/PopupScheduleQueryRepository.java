@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -20,6 +21,7 @@ public interface PopupScheduleQueryRepository extends Repository<PopupSchedule, 
 			       ps.price AS price,
 			       ps.capacity AS capacity,
 			       ps.remaining_capacity AS remainingCapacity,
+				   ps.reservation_capacity AS reservationCapacity,
 			       ps.is_active AS isActive
 			  FROM p_popup_schedules ps
 			 WHERE ps.deleted_at IS NULL

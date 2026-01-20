@@ -89,5 +89,5 @@ public interface JpaOwnerPopupScheduleRepository extends JpaRepository<PopupSche
 
 	@Query("select (count(s) > 0) from PopupSchedule s "
 			+ "where s.id = :scheduleId and s.popupId = :popupId and s.deletedAt is null")
-	boolean existsSchedule(@Param("scheduleId") UUID scheduleId, @Param("popupId") UUID popupId);
+	boolean existsSchedule(@Param("scheduleId") UUID scheduleId, @Param("popupId") UUID popupId);;
 }

@@ -1,5 +1,5 @@
 server:
-  port: 8082
+  port: 8083
   shutdown: immediate
 spring:
   config:
@@ -39,10 +39,3 @@ jwt:
   secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQtZW52aXJvbm1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
 
-toss:
-  payments:
-    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
-    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
-    checkout-url: ${TOSS_PAYMENTS_CHECKOUT_URL}
-    success-url: ${TOSS_PAYMENTS_SUCCESS_URL}
-    fail-url: ${TOSS_PAYMENTS_FAIL_URL}

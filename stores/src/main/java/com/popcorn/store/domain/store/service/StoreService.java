@@ -11,7 +11,6 @@ import com.popcorn.store.domain.store.dto.StoreDeletedDto;
 import com.popcorn.store.domain.store.dto.StoreStatusUpdatedDto;
 import com.popcorn.store.domain.store.entity.Store;
 import com.popcorn.store.domain.store.entity.StorePublishStatus;
-import com.popcorn.store.domain.store.event.StoreCreatedEvent;
 import com.popcorn.store.domain.store.event.StoreDeletedEvent;
 import com.popcorn.store.domain.store.event.StoreStatusUpdatedEvent;
 import com.popcorn.store.domain.store.event.StoreUpdatedEvent;
@@ -31,10 +30,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class StoreService {
-    // TODO(ops-bc): store bounded context 경계/공통 모듈 정의 (StoreStatus, StoreId, 공통 응답/에러 규격).
-    // TODO(ops-event): StoreCreated/Updated/Deleted/StatusChanged 이벤트 클래스 추가.
-    // TODO(ops-event): create/update/delete/status 변경 후 ApplicationEventPublisher로 이벤트 발행.
-    // TODO(ops-event): 이벤트 리스너에서 캐시/검색 인덱스/알림 동기화 처리.
 
     private static final int MAX_STORES_PER_OWNER = 10;
     private static final int MAX_STORE_NAME_LENGTH = 100;
@@ -57,10 +52,6 @@ public class StoreService {
         checkStoreLimit(ownerId);
         
         Store savedStore = storeRepository.save(createStoreEntity(ownerId, trimmedName));
-
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new StoreCreatedEvent(ownerId, savedStore));
-        }
         
         log.info("[STORE_CREATED] storeId={}", savedStore.getId());
         return mapToDto(savedStore);
@@ -193,6 +184,7 @@ public class StoreService {
 
         if (eventPublisher != null) {
             eventPublisher.publishEvent(new StoreStatusUpdatedEvent(userId, updatedStore));
+            log.info("[EVENT_PUBLISHED] StoreStatusUpdatedEvent for storeId={}", updatedStore.getId());
         }
         
         log.info("[STORE_STATUS_UPDATED] storeId={}, status={}", updatedStore.getId(), updatedStore.getPublishStatus());

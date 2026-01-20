@@ -2,12 +2,10 @@ package com.popcorn.store.domain.popup.controller;
 
 import java.util.UUID;
 
+import com.popcorn.store.domain.popup.dto.query.response.PopupScheduleCapacity;
+import com.popcorn.store.domain.popup.exception.PopupException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
@@ -27,12 +25,13 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @Tag(name = "Popup", description = "팝업 관리 API")
 @ApiVersion("v1")
-@RequestMapping("/api/v1/popups")
+@RequestMapping("/api/stores/v1/popups")
 @RequiredArgsConstructor
 public class PopupController extends BaseController {
 
@@ -185,4 +184,104 @@ public class PopupController extends BaseController {
 		PopupDetailResponse response = popupService.getPopupDetail(PopupDetailQuery.of(popupId));
 		return ok(response);
 	}
+
+	@PostMapping("/{popupId}/popupschedule/{scheduleId}/reservation")
+	@Operation(summary = "팝업 스케줄 예약", description = "스케줄 예약 가능 수량을 확인하고 예약을 생성합니다.")
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "예약 성공",
+					content = @Content(schema = @Schema(implementation = PopupScheduleCapacity.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청"),
+			@ApiResponse(responseCode = "409", description = "예약 가능 수량 부족")
+	})
+	public ResponseEntity<BaseResponse<PopupScheduleCapacity>>  reservationPopupSchedule(
+			@PathVariable UUID popupId,
+			@PathVariable UUID scheduleId,
+			@RequestParam Integer quantity
+		){
+			if (quantity == null) {
+				throw PopupException.isNullQuantity();
+			}
+			if (quantity <= 0){
+				throw PopupException.isNotPositiveQuantity();
+			}
+
+			PopupScheduleCapacity response = popupService.reservationPopupSchedule(popupId, scheduleId, quantity);
+
+			return ok(response);
+	}
+
+	@PostMapping("/{popupId}/popupschedule/{scheduleId}/cancel")
+	@Operation(summary = "팝업 스케줄 예약 취소", description = "예약된 수량을 취소하고 수용량을 복구합니다.")
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "취소 성공",
+					content = @Content(schema = @Schema(implementation = PopupScheduleCapacity.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청"),
+			@ApiResponse(responseCode = "409", description = "예약 수량 부족")
+	})
+	public ResponseEntity<BaseResponse<PopupScheduleCapacity>>  cancelPopupScheduleReservation(
+			@PathVariable UUID popupId,
+			@PathVariable UUID scheduleId,
+			@RequestParam Integer quantity
+		){
+			if (quantity == null) {
+				throw PopupException.isNullQuantity();
+			}
+			if (quantity <= 0){
+				throw PopupException.isNotPositiveQuantity();
+			}
+
+			PopupScheduleCapacity response = popupService.cancelPopupScheduleReservation(scheduleId, quantity);
+
+			return ok(response);
+	}
+
+	@PostMapping("/{popupId}/popupschedule/{scheduleId}/fail")
+	@Operation(summary = "팝업 스케줄 예약 실패 처리", description = "예약 실패 시 예약 수량을 되돌립니다.")
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "실패 처리 성공",
+					content = @Content(schema = @Schema(implementation = PopupScheduleCapacity.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청"),
+			@ApiResponse(responseCode = "409", description = "예약 수량 부족")
+	})
+	public ResponseEntity<BaseResponse<PopupScheduleCapacity>> failPopupScheduleReservation(
+			@PathVariable UUID popupId,
+			@PathVariable UUID scheduleId,
+			@RequestParam Integer quantity
+	) {
+		if (quantity == null) {
+			throw PopupException.isNullQuantity();
+		}
+		if (quantity <= 0) {
+			throw PopupException.isNotPositiveQuantity();
+		}
+
+		PopupScheduleCapacity response = popupService.failPopupScheduleReservation(scheduleId, quantity);
+		return ok(response);
+	}
+
+	@PostMapping("/{popupId}/popupschedule/{scheduleId}/complete")
+	@Operation(summary = "팝업 스케줄 예약 완료", description = "예약 완료 시 남은 수용량을 차감합니다.")
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "완료 성공",
+					content = @Content(schema = @Schema(implementation = PopupScheduleCapacity.class))),
+			@ApiResponse(responseCode = "400", description = "잘못된 요청"),
+			@ApiResponse(responseCode = "409", description = "예약 수량 부족")
+	})
+	public ResponseEntity<BaseResponse<PopupScheduleCapacity>>  completePopupScheduleReservation(
+			@PathVariable UUID popupId,
+			@PathVariable UUID scheduleId,
+			@RequestParam Integer quantity
+		){
+			if (quantity == null) {
+				throw PopupException.isNullQuantity();
+			}
+			if (quantity <= 0){
+				throw PopupException.isNotPositiveQuantity();
+			}
+
+			PopupScheduleCapacity response = popupService.completePopupScheduleReservation(scheduleId, quantity);
+
+			return ok(response);
+	}
+
 }

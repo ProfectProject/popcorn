@@ -3,6 +3,8 @@ package com.popcorn.store.domain.goods.controller;
 import com.popcorn.demo.common.controller.BaseController;
 import com.popcorn.demo.common.dto.BaseResponse;
 import com.popcorn.store.domain.goods.dto.GoodsListResponse;
+import com.popcorn.store.domain.goods.dto.GoodsStockResponse;
+import com.popcorn.store.domain.goods.exception.GoodsException;
 import com.popcorn.store.domain.goods.service.GoodsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,14 +18,16 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Goods", description = "굿즈 관리 API")
-@RequestMapping("/api/v1/popups/{popupId}/goods")
+@RequestMapping("/api/stores/v1/popups/{popupId}/goods")
 public class GoodsQueryController extends BaseController {
     private final GoodsService goodsService;
 
@@ -58,5 +62,61 @@ public class GoodsQueryController extends BaseController {
             @PathVariable UUID popupId
     ) {
         return ok(goodsService.listForUser(popupId));
+    }
+
+    @PostMapping("/{goodsId}/reservation")
+    @Operation(summary = "굿즈 재고 예약", description = "굿즈 재고를 예약합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> reserveGoods(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        GoodsStockResponse response = goodsService.reservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
+    @PostMapping("/{goodsId}/reservation/cancel")
+    @Operation(summary = "굿즈 예약 취소", description = "굿즈 예약을 취소합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> cancelGoodsReservation(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        GoodsStockResponse response = goodsService.cancelReservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
+    @PostMapping("/{goodsId}/reservation/fail")
+    @Operation(summary = "굿즈 예약 실패 처리", description = "예약 실패 시 재고를 복구합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> failGoodsReservation(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        GoodsStockResponse response = goodsService.failReservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
+    @PostMapping("/{goodsId}/reservation/complete")
+    @Operation(summary = "굿즈 예약 완료", description = "예약 완료 후 재고를 확정합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> completeGoodsReservation(
+            @PathVariable UUID popupId,
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        GoodsStockResponse response = goodsService.completeReservationGoods(popupId, goodsId, quantity);
+        return ok(response);
     }
 }

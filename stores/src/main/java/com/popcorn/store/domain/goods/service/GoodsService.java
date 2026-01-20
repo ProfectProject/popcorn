@@ -1,47 +1,26 @@
 package com.popcorn.store.domain.goods.service;
 
-import com.popcorn.store.domain.goods.dto.GoodsCreateRequest;
-import com.popcorn.store.domain.goods.dto.GoodsIdResponse;
 import com.popcorn.store.domain.goods.dto.GoodsItemResponse;
 import com.popcorn.store.domain.goods.dto.GoodsListResponse;
-import com.popcorn.store.domain.goods.dto.GoodsStatusResponse;
-import com.popcorn.store.domain.goods.dto.GoodsStatusUpdateRequest;
-import com.popcorn.store.domain.goods.dto.GoodsUpdateRequest;
-import com.popcorn.store.domain.goods.entity.GoodsVariant;
-import com.popcorn.store.domain.goods.event.GoodsCreatedEvent;
-import com.popcorn.store.domain.goods.event.GoodsDeletedEvent;
-import com.popcorn.store.domain.goods.event.GoodsStatusUpdatedEvent;
-import com.popcorn.store.domain.goods.event.GoodsUpdatedEvent;
-import com.popcorn.store.domain.goods.exception.GoodsNotFoundException;
+import com.popcorn.store.domain.goods.dto.GoodsStockResponse;
+import com.popcorn.store.domain.goods.exception.GoodsException;
+import com.popcorn.store.domain.goods.repository.GoodsReservationRepository;
 import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
-import com.popcorn.store.domain.popup.exception.PopupException;
-import com.popcorn.store.domain.popup.repository.owner.OwnerPopupRepository;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class GoodsService {
 
-    private final GoodsVariantRepository goodsVariantRepository;
-    private final OwnerPopupRepository ownerPopupRepository;
-    private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional(readOnly = true)
-    public GoodsListResponse list(Long ownerId, UUID popupId) {
-        requireOwnedPopup(ownerId, popupId);
-        List<GoodsItemResponse> items = goodsVariantRepository
-                .findAllByPopupIdAndDeletedAtIsNullOrderByCreatedAtDesc(popupId)
-                .stream()
-                .map(GoodsItemResponse::fromOwner)
-                .collect(Collectors.toList());
-        return new GoodsListResponse(items);
-    }
+    private final GoodsVariantRepository goodsVariantRepository;
+    private final GoodsReservationRepository goodsReservationRepository;
 
     @Transactional(readOnly = true)
     public GoodsListResponse listForUser(UUID popupId) {
@@ -54,75 +33,54 @@ public class GoodsService {
     }
 
     @Transactional
-    public GoodsIdResponse create(Long ownerId, UUID popupId, GoodsCreateRequest request) {
-        requireOwnedPopup(ownerId, popupId);
-        String stockUnit = request.getStockUnit().trim();
-        String goodsName = request.getGoodsName().trim();
-        boolean isActive = Boolean.TRUE.equals(request.getIsActive());
-        GoodsVariant goods = GoodsVariant.create(
-                popupId,
-                stockUnit,
-                goodsName,
-                request.getGoodsPrice(),
-                request.getStock(),
-                isActive
-        );
-        goodsVariantRepository.save(goods);
-        eventPublisher.publishEvent(new GoodsCreatedEvent(ownerId, goods));
-        return new GoodsIdResponse(goods.getId());
-    }
+    public GoodsStockResponse reservationGoods(UUID popupId, UUID goodsId, int quantity){
+        if (quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
 
-    @Transactional(readOnly = true)
-    public GoodsItemResponse get(Long ownerId, UUID popupId, UUID goodsId) {
-        requireOwnedPopup(ownerId, popupId);
-        GoodsVariant goods = getGoods(popupId, goodsId);
-        return GoodsItemResponse.fromOwner(goods);
+        GoodsStockResponse response = goodsReservationRepository.reserveStock(goodsId, quantity);
+        if (response == null) {
+            throw GoodsException.insufficientStock();
+        }
+        return response;
     }
 
     @Transactional
-    public GoodsIdResponse update(Long ownerId, UUID popupId, UUID goodsId, GoodsUpdateRequest request) {
-        requireOwnedPopup(ownerId, popupId);
-        String goodsName = request.getGoodsName().trim();
-        GoodsVariant goods = getGoods(popupId, goodsId);
-        goods.update(
-                goodsName,
-                request.getGoodsPrice(),
-                request.getStock()
-        );
-        eventPublisher.publishEvent(new GoodsUpdatedEvent(ownerId, goods));
-        return new GoodsIdResponse(goods.getId());
+    public GoodsStockResponse cancelReservationGoods(UUID popupId, UUID goodsId, int quantity) {
+        if (quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+
+        GoodsStockResponse response = goodsReservationRepository.cancelStock(goodsId, quantity);
+        if (response == null) {
+            throw GoodsException.insufficientStock();
+        }
+        return response;
     }
 
     @Transactional
-    public GoodsStatusResponse updateStatus(
-            Long ownerId,
-            UUID popupId,
-            UUID goodsId,
-            GoodsStatusUpdateRequest request
-    ) {
-        requireOwnedPopup(ownerId, popupId);
-        GoodsVariant goods = getGoods(popupId, goodsId);
-        goods.updateStatus(request.getIsActive());
-        eventPublisher.publishEvent(new GoodsStatusUpdatedEvent(ownerId, goods));
-        return new GoodsStatusResponse(goods.getId(), goods.isActive());
+    public GoodsStockResponse failReservationGoods(UUID popupId, UUID goodsId, int quantity) {
+        if (quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+
+        GoodsStockResponse response = goodsReservationRepository.failStock(goodsId, quantity);
+        if (response == null) {
+            throw GoodsException.insufficientStock();
+        }
+        return response;
     }
 
     @Transactional
-    public void delete(Long ownerId, UUID popupId, UUID goodsId) {
-        requireOwnedPopup(ownerId, popupId);
-        GoodsVariant goods = getGoods(popupId, goodsId);
-        goods.softDelete();
-        eventPublisher.publishEvent(new GoodsDeletedEvent(ownerId, goods));
-    }
+    public GoodsStockResponse completeReservationGoods(UUID popupId, UUID goodsId, int quantity) {
+        if (quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
 
-    private GoodsVariant getGoods(UUID popupId, UUID goodsId) {
-        return goodsVariantRepository
-                .findByIdAndPopupIdAndDeletedAtIsNull(goodsId, popupId)
-                .orElseThrow(GoodsNotFoundException::new);
-    }
-
-    private void requireOwnedPopup(Long ownerId, UUID popupId) {
-        ownerPopupRepository.findOwnedPopup(popupId, ownerId)
-                .orElseThrow(PopupException::popupNotFound);
+        GoodsStockResponse response = goodsReservationRepository.completeStock(goodsId, quantity);
+        if (response == null) {
+            throw GoodsException.insufficientStock();
+        }
+        return response;
     }
 }

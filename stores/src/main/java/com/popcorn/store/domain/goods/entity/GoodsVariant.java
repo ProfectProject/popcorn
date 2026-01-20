@@ -38,6 +38,9 @@ public class GoodsVariant extends BaseEntity {
     @Column(name = "stock", nullable = false)
     private int stock;
 
+    @Column(name = "reservation_stock")
+    private int reservationStock;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 

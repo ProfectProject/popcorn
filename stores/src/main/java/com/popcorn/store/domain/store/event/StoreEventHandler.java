@@ -11,12 +11,6 @@ public class StoreEventHandler {
 	private static final Logger log = LoggerFactory.getLogger(StoreEventHandler.class);
 
 	@EventListener
-	public void handleCreated(StoreCreatedEvent event) {
-		log.info("🏬 스토어 생성 이벤트 - ownerId: {}, storeId: {}, status: {}",
-				event.getOwnerId(), event.getStore().getId(), event.getStore().getPublishStatus());
-	}
-
-	@EventListener
 	public void handleUpdated(StoreUpdatedEvent event) {
 		log.info("🛠️ 스토어 수정 이벤트 - ownerId: {}, storeId: {}, name: {}",
 				event.getOwnerId(), event.getStore().getId(), event.getStore().getName());

@@ -10,7 +10,7 @@ import com.popcorn.store.domain.goods.dto.GoodsListResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStatusResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStatusUpdateRequest;
 import com.popcorn.store.domain.goods.dto.GoodsUpdateRequest;
-import com.popcorn.store.domain.goods.service.GoodsService;
+import com.popcorn.store.domain.goods.service.GoodsOwnerService;
 import com.popcorn.store.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.store.domain.users.entity.enums.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,9 +42,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Goods", description = "굿즈 관리 API")
-@RequestMapping("/api/v1/owner/popups/{popupId}/goods")
+@RequestMapping("/api/stores/v1/owner/popups/{popupId}/goods")
 public class GoodsController extends BaseController {
-    private final GoodsService goodsService;
+    private final GoodsOwnerService goodsOwnerService;
 
     @GetMapping
     @Operation(summary = "오너 굿즈 목록 조회", description = "팝업에 등록된 굿즈 목록을 조회합니다.")
@@ -84,7 +84,7 @@ public class GoodsController extends BaseController {
             Authentication authentication
     ) {
         Long ownerId = getCurrentOwnerId(authentication);
-        return ok(goodsService.list(ownerId, popupId));
+        return ok(goodsOwnerService.list(ownerId, popupId));
     }
 
     @PostMapping
@@ -131,7 +131,7 @@ public class GoodsController extends BaseController {
             @Valid @RequestBody GoodsCreateRequest request
     ) {
         Long ownerId = getCurrentOwnerId(authentication);
-        return ok(goodsService.create(ownerId, popupId, request));
+        return ok(goodsOwnerService.create(ownerId, popupId, request));
     }
 
     @GetMapping("/{goodsId}")
@@ -184,7 +184,7 @@ public class GoodsController extends BaseController {
             Authentication authentication
     ) {
         Long ownerId = getCurrentOwnerId(authentication);
-        return ok(goodsService.get(ownerId, popupId, goodsId));
+        return ok(goodsOwnerService.get(ownerId, popupId, goodsId));
     }
 
     @PutMapping("/{goodsId}")
@@ -245,7 +245,7 @@ public class GoodsController extends BaseController {
             @Valid @RequestBody GoodsUpdateRequest request
     ) {
         Long ownerId = getCurrentOwnerId(authentication);
-        return ok(goodsService.update(ownerId, popupId, goodsId, request));
+        return ok(goodsOwnerService.update(ownerId, popupId, goodsId, request));
     }
 
     @PatchMapping("/{goodsId}/status")
@@ -305,7 +305,7 @@ public class GoodsController extends BaseController {
             @Valid @RequestBody GoodsStatusUpdateRequest request
     ) {
         Long ownerId = getCurrentOwnerId(authentication);
-        GoodsStatusResponse response = goodsService.updateStatus(ownerId, popupId, goodsId, request);
+        GoodsStatusResponse response = goodsOwnerService.updateStatus(ownerId, popupId, goodsId, request);
         return ResponseEntity.ok(
                 BaseResponse.of(
                         CommonResponseCode.SUCCESS.getCode(),
@@ -352,7 +352,7 @@ public class GoodsController extends BaseController {
             Authentication authentication
     ) {
         Long ownerId = getCurrentOwnerId(authentication);
-        goodsService.delete(ownerId, popupId, goodsId);
+        goodsOwnerService.delete(ownerId, popupId, goodsId);
         return ok(null);
     }
 

@@ -32,7 +32,7 @@ import java.util.UUID;
 
 @Tag(name = "OwnerPopupController", description = "사장님 팝업 관리 API")
 @RestController
-@RequestMapping("/api/v1/owner/stores")
+@RequestMapping("/api/stores/v1/owner/stores")
 public class OwnerPopupController {
 
     private final OwnerPopupService popupService;

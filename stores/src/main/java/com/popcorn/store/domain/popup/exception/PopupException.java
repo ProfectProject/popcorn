@@ -12,4 +12,16 @@ public class PopupException extends BaseException {
 	public static PopupException popupNotFound() {
 		return new PopupException(PopupResponseCode.POPUP_NOT_FOUND);
 	}
+
+	public static PopupException isNullQuantity(){
+		return new PopupException(PopupResponseCode.Quantity_is_Null);
+	}
+
+	public static PopupException isNotPositiveQuantity(){
+		return new PopupException(PopupResponseCode.Positive_Quantity);
+	}
+
+	public static PopupException insufficientReservationCapacity() {
+		return new PopupException(PopupResponseCode.INSUFFICIENT_RESERVATION_CAPACITY);
+	}
 }

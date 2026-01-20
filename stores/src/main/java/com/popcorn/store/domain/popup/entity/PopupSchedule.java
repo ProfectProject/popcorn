@@ -42,6 +42,9 @@ public class PopupSchedule extends BaseEntity {
 	@Column(name = "remaining_capacity")
 	private Integer remainingCapacity;
 
+	@Column(name = "reservation_capacity")
+	private Integer reservationCapacity;
+
 	@Column(name = "is_active")
 	private boolean active;
 
