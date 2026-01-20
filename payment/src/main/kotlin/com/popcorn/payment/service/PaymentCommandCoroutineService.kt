@@ -1,0 +1,225 @@
+package com.popcorn.payment.service
+
+import com.popcorn.payment.config.CoroutineTransactionManager
+import com.popcorn.payment.config.TransactionalOperation
+import com.popcorn.payment.entity.Payment
+import com.popcorn.payment.entity.PaymentMethod
+import com.popcorn.payment.entity.PaymentStatus
+import com.popcorn.payment.exception.PaymentException
+import com.popcorn.payment.repository.PaymentRepository
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import java.time.LocalDateTime
+import java.util.*
+
+/**
+ * 결제 명령 처리 서비스 (코루틴 버전)
+ *
+ * 🔄 JPA + 코루틴 전략:
+ * - 기존 JPA Repository를 그대로 사용
+ * - withContext(Dispatchers.IO)로 블로킹 작업 격리
+ * - 코루틴 컨텍스트에서 안전한 트랜잭션 관리
+ *
+ * 💡 왜 withContext(Dispatchers.IO)?
+ * - JPA는 JDBC 기반의 블로킹 I/O
+ * - 별도 스레드 풀에서 실행하여 메인 이벤트 루프 보호
+ * - 메인 코루틴 컨텍스트를 블로킹하지 않음
+ */
+@Service
+class PaymentCommandCoroutineService(
+    private val transactionManager: CoroutineTransactionManager,
+    private val paymentRepository: PaymentRepository
+) {
+
+    private val log = LoggerFactory.getLogger(PaymentCommandCoroutineService::class.java)
+
+    /**
+     * 새로운 결제 기록 생성
+     *
+     * 🎯 코루틴 최적화:
+     * - DB 작업은 IO 스레드에서 실행
+     * - 트랜잭션 경계 명시적 관리
+     * - 결제 정보 검증 로직 포함
+     *
+     * 💾 저장 정보:
+     * - 주문 ID 연결
+     * - 결제 수단 (CARD, TRANSFER, VIRTUAL_ACCOUNT 등)
+     * - 결제 금액
+     * - 생성 시간
+     * - 승인 시간
+     * - 결제 수단 정보
+     *
+     * 🔒 트랜잭션 관리:
+     * - @Transactional이 클래스 레벨에 적용되어 자동 관리
+     * - 코루틴에서도 동일한 트랜잭션 컨텍스트 유지
+     */
+    @TransactionalOperation
+    suspend fun createPayment(
+        orderId: UUID,
+        paymentMethod: String,
+        amount: Int,
+        rawPayload: String
+    ): PaymentCreationResult {
+
+        log.info("💳 새 결제 기록 생성: orderId={}, method={}, amount={}원", orderId, paymentMethod, amount)
+
+        // 입력 값 검증
+        validatePaymentCreation(orderId, paymentMethod, amount)
+
+        return transactionManager.executeInTransactionSuspend {
+            // Payment 엔티티 생성
+            val payment = Payment.create(
+                orderId = orderId,
+                paymentMethod = PaymentMethod.valueOf(paymentMethod),
+                amount = amount,
+                rawPayload = rawPayload
+            )
+
+            // 데이터베이스 저장
+            val savedPayment = paymentRepository.save(payment)
+
+            log.info("✅ 결제 기록 생성 완료: paymentId={}, status={}",
+                savedPayment.id, savedPayment.status)
+
+            PaymentCreationResult(
+                paymentId = savedPayment.id,
+                status = savedPayment.status.name,
+                amount = savedPayment.amount,
+                createdAt = savedPayment.createdAt
+            )
+        }
+    }
+
+    /**
+     * 결제 상태 업데이트
+     *
+     * @param paymentId 결제 ID
+     * @param status 새로운 상태
+     * @param approvedAt 승인 시간 (선택)
+     * @param rawPayload 토스 응답 데이터 (선택)
+     */
+    @TransactionalOperation
+    suspend fun updatePaymentStatus(
+        paymentId: UUID,
+        status: String,
+        approvedAt: LocalDateTime? = null,
+        rawPayload: String? = null
+    ): PaymentDetailResult {
+
+        log.info("🔄 결제 상태 업데이트: paymentId={}, status={}", paymentId, status)
+
+        return transactionManager.executeInTransactionSuspend {
+            // 결제 정보 조회
+            val payment = paymentRepository.findById(paymentId)
+                .orElseThrow { PaymentException.paymentNotFound() }
+
+            // 상태 업데이트
+            payment.updateStatus(PaymentStatus.valueOf(status), approvedAt)
+
+            // rawPayload 업데이트 (있는 경우)
+            if (rawPayload != null) {
+                payment.rawPayload = rawPayload
+            }
+
+            // 저장
+            val savedPayment = paymentRepository.save(payment)
+
+            log.info("✅ 결제 상태 업데이트 완료: paymentId={}, newStatus={}",
+                savedPayment.id, savedPayment.status)
+
+            PaymentDetailResult(
+                paymentId = savedPayment.id,
+                orderId = savedPayment.orderId,
+                status = savedPayment.status.name,
+                amount = savedPayment.amount,
+                approvedAt = savedPayment.approvedAt,
+                rawPayload = savedPayment.rawPayload
+            )
+        }
+    }
+
+    /**
+     * PaymentKey로 기존 결제 조회
+     *
+     * @param paymentKey 토스 결제 키
+     * @return 기존 결제 목록
+     */
+    suspend fun findByPaymentKey(paymentKey: String): List<PaymentDetailResult> {
+        return transactionManager.executeInReadOnlyTransactionSuspend {
+            paymentRepository.findByPaymentKeyInRawPayload(paymentKey)
+                .map { payment ->
+                    PaymentDetailResult(
+                        paymentId = payment.id,
+                        orderId = payment.orderId,
+                        status = payment.status.name,
+                        amount = payment.amount,
+                        approvedAt = payment.approvedAt,
+                        rawPayload = payment.rawPayload
+                    )
+                }
+        }
+    }
+
+    /**
+     * 주문 ID로 가장 최신 결제 조회
+     *
+     * @param orderId 주문 ID
+     * @return 최신 결제 정보
+     */
+    suspend fun getLatestPaymentByOrderId(orderId: UUID): PaymentDetailResult {
+        return transactionManager.executeInReadOnlyTransactionSuspend {
+            val payment = paymentRepository.findFirstByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
+                ?: throw PaymentException.paymentNotFound()
+
+            PaymentDetailResult(
+                paymentId = payment.id,
+                orderId = payment.orderId,
+                status = payment.status.name,
+                amount = payment.amount,
+                approvedAt = payment.approvedAt,
+                rawPayload = payment.rawPayload
+            )
+        }
+    }
+
+    /**
+     * 결제 생성 입력값 검증
+     */
+    private fun validatePaymentCreation(orderId: UUID, paymentMethod: String, amount: Int) {
+        if (amount <= 0) {
+            throw PaymentException.invalidRequest("결제 금액은 0보다 커야 합니다: $amount")
+        }
+
+        if (paymentMethod.isBlank()) {
+            throw PaymentException.invalidRequest("결제 수단이 필요합니다")
+        }
+
+        // 추가 검증 로직
+        val validMethods = setOf("CARD", "TRANSFER", "VIRTUAL_ACCOUNT", "MOBILE_PHONE")
+        if (paymentMethod !in validMethods) {
+            throw PaymentException.invalidRequest("지원하지 않는 결제 수단입니다: $paymentMethod")
+        }
+    }
+}
+
+/**
+ * 결제 생성 결과 DTO
+ */
+data class PaymentCreationResult(
+    val paymentId: UUID,
+    val status: String,
+    val amount: Int,
+    val createdAt: LocalDateTime
+)
+
+/**
+ * 결제 상세 정보 DTO
+ */
+data class PaymentDetailResult(
+    val paymentId: UUID,
+    val orderId: UUID? = null,
+    val status: String,
+    val amount: Int,
+    val approvedAt: LocalDateTime?,
+    val rawPayload: String?
+)

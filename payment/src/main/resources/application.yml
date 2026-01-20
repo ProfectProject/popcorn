@@ -1,0 +1,231 @@
+spring:
+  application:
+    name: payment-service
+
+  # WebFlux 설정
+  webflux:
+    # 메모리 버퍼 크기 제한 (보안 강화)
+    multipart:
+      max-in-memory-size: 1MB
+
+  # 데이터베이스 설정
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    driver-class-name: org.postgresql.Driver
+    username: ${PAYMENT_DB_USERNAME:payment_app}
+    password: ${PAYMENT_DB_PASSWORD:payment123}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 10000
+      max-lifetime: 600000
+
+  # Redis 설정
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 5
+          min-idle: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: false
+    show-sql: false
+
+  # Flyway 설정
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    user: ${PAYMENT_DB_USERNAME:payment_app}
+    password: ${PAYMENT_DB_PASSWORD:payment123}
+
+# 토스페이먼츠 API 설정
+payment:
+  toss:
+    base-url: https://api.tosspayments.com
+    secret-key: ${TOSS_SECRET_KEY:test_sk_dummy_key}
+    client-key: ${TOSS_CLIENT_KEY:test_ck_dummy_key}
+    timeout:
+      connect: PT3S
+      read: PT5S
+      write: PT3S
+
+# Resilience4j 설정
+resilience4j:
+  circuitbreaker:
+    instances:
+      tossPaymentApi:
+        # Circuit Breaker 기본 설정
+        failure-rate-threshold: 50                      # 실패율 50% 임계값
+        slow-call-rate-threshold: 50                    # 느린 호출 50% 임계값
+        slow-call-duration-threshold: PT3S              # 3초 이상이면 느린 호출
+        minimum-number-of-calls: 10                     # 최소 호출 수
+        sliding-window-size: 20                         # 슬라이딩 윈도우 크기
+        sliding-window-type: COUNT_BASED                # 개수 기반 윈도우
+        wait-duration-in-open-state: PT30S              # Open 상태 대기 시간
+        permitted-number-of-calls-in-half-open-state: 5 # Half-Open 상태 허용 호출 수
+        automatic-transition-from-open-to-half-open-enabled: true
+        # 기록할 예외들
+        record-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - java.util.concurrent.TimeoutException
+        # 무시할 예외들
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
+  retry:
+    instances:
+      tossPaymentApi:
+        # Retry 설정
+        max-attempts: 3                                 # 최대 재시도 횟수
+        wait-duration: PT1S                             # 기본 대기 시간
+        exponential-backoff-multiplier: 2               # 지수 백오프 배율
+        enable-exponential-backoff: true                # 지수 백오프 활성화
+        # 재시도할 예외들
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException$InternalServerError
+          - org.springframework.web.reactive.function.client.WebClientResponseException$BadGateway
+          - org.springframework.web.reactive.function.client.WebClientResponseException$ServiceUnavailable
+          - org.springframework.web.reactive.function.client.WebClientResponseException$GatewayTimeout
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - java.util.concurrent.TimeoutException
+
+  timelimiter:
+    instances:
+      tossPaymentApi:
+        # Time Limiter 설정
+        timeout-duration: PT5S                         # 5초 타임아웃
+        cancel-running-future: true                     # 실행 중인 Future 취소
+
+# 로깅 설정
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.popcorn.payment: ${LOG_LEVEL_PAYMENT:INFO}
+    org.springframework.web.reactive: WARN
+    io.github.resilience4j: INFO
+    org.springframework.transaction: WARN
+    org.springframework.orm.jpa: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# 관리/모니터링 엔드포인트
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers,retries,timelimiters
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    retries:
+      enabled: true
+    timelimiters:
+      enabled: true
+
+# 서버 설정
+server:
+  port: ${SERVER_PORT:8085}
+  error:
+    include-message: always
+    include-binding-errors: always
+  max-http-header-size: 8KB
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# 애플리케이션별 설정
+app:
+  async:
+    core-pool-size: 5
+    max-pool-size: 20
+    queue-capacity: 500
+    thread-name-prefix: payment-async-
+
+  # 보안 설정
+  security:
+    allowed-origins: http://localhost:3000,http://localhost:8080
+    max-request-size: 10MB
+
+---
+# 프로덕션 프로파일
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # 프로덕션 데이터베이스 설정
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 600000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        show_sql: false
+
+# 프로덕션용 Resilience4j 설정 (더 엄격)
+resilience4j:
+  circuitbreaker:
+    instances:
+      tossPaymentApi:
+        failure-rate-threshold: 30                      # 더 낮은 실패율 임계값
+        minimum-number-of-calls: 20                     # 더 많은 최소 호출 수
+        wait-duration-in-open-state: PT60S              # 더 긴 대기 시간
+
+# 프로덕션 로깅 (더 간결)
+logging:
+  level:
+    root: WARN
+    com.popcorn.payment: INFO
+    io.github.resilience4j: WARN
+
+---
+# 개발 프로파일
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# 개발용 로깅 (더 상세)
+logging:
+  level:
+    com.popcorn.payment: DEBUG
+    org.springframework.web.reactive: DEBUG
+    io.github.resilience4j: DEBUG
