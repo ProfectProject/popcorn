@@ -33,11 +33,6 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 			MDC.put(TRACE_ID_KEY, traceId);
 		}
 
-		try {
-			filterChain.doFilter(request, response);
-		} finally {
-			// 테스트에서 filter 처리 후에도 traceId 접근을 기대하므로 제거하지 않음
-			// 실제 운영 환경에서는 요청이 완전히 끝날 때 다른 곳에서 정리되어야 함
-		}
-	}
+        filterChain.doFilter(request, response);
+    }
 }

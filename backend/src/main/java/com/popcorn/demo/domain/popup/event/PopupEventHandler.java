@@ -13,25 +13,25 @@ public class PopupEventHandler {
 	@EventListener
 	public void handleCreated(PopupCreatedEvent event) {
 		log.info("🧾 팝업 생성 이벤트 - ownerId: {}, popupId: {}, storeId: {}",
-				event.getOwnerId(), event.getPopup().getId(), event.getPopup().getStoreId());
+				event.ownerId(), event.popup().getId(), event.popup().getStoreId());
 	}
 
 	@EventListener
 	public void handleUpdated(PopupUpdatedEvent event) {
 		log.info("🛠️ 팝업 수정 이벤트 - ownerId: {}, popupId: {}, title: {}",
-				event.getOwnerId(), event.getPopup().getId(), event.getPopup().getTitle());
+				event.ownerId(), event.popup().getId(), event.popup().getTitle());
 	}
 
 	@EventListener
 	public void handleStatusUpdated(PopupStatusUpdatedEvent event) {
 		log.info("📢 팝업 상태 변경 이벤트 - ownerId: {}, popupId: {}, status: {}",
-				event.getOwnerId(), event.getPopup().getId(), event.getPopup().getStatus());
+				event.ownerId(), event.popup().getId(), event.popup().getStatus());
 	}
 
 	@EventListener
 	public void handleDeleted(PopupDeletedEvent event) {
 		log.info("🗑️ 팝업 삭제 이벤트 - ownerId: {}, popupId: {}, storeId: {}",
-				event.getOwnerId(), event.getPopup().getId(), event.getPopup().getStoreId());
+				event.ownerId(), event.popup().getId(), event.popup().getStoreId());
 	}
 
 	@EventListener

@@ -1,8 +1,8 @@
 package com.popcorn.demo.domain.goods.controller;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.goods.dto.GoodsCreateRequest;
 import com.popcorn.demo.domain.goods.dto.GoodsIdResponse;
 import com.popcorn.demo.domain.goods.dto.GoodsItemResponse;

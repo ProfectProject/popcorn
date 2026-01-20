@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.BadCredentialsException;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseError;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseError;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.dto.CommonResponseCode;
 
 import java.util.HashMap;
 import java.util.Map;

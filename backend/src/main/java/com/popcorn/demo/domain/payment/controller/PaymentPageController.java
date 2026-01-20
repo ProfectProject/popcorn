@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 
@@ -23,12 +23,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 
-import com.popcorn.demo.common.annotation.ApiLogging;
-import com.popcorn.demo.common.annotation.AuditLog;
-import com.popcorn.demo.common.annotation.RedisCacheResult;
-import com.popcorn.demo.common.annotation.RateLimit;
-import com.popcorn.demo.common.annotation.RetryOnFailure;
-import com.popcorn.demo.common.annotation.ValidateRequest;
+import com.popcorn.common.annotation.ApiLogging;
+import com.popcorn.common.annotation.AuditLog;
+import com.popcorn.common.annotation.RedisCacheResult;
+import com.popcorn.common.annotation.RateLimit;
+import com.popcorn.common.annotation.RetryOnFailure;
+import com.popcorn.common.annotation.ValidateRequest;
 
 @RestController
 @ApiVersion("v1")

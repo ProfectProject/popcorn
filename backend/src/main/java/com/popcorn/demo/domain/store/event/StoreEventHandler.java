@@ -13,25 +13,25 @@ public class StoreEventHandler {
 	@EventListener
 	public void handleCreated(StoreCreatedEvent event) {
 		log.info("🏬 스토어 생성 이벤트 - ownerId: {}, storeId: {}, status: {}",
-				event.getOwnerId(), event.getStore().getId(), event.getStore().getPublishStatus());
+				event.ownerId(), event.store().getId(), event.store().getPublishStatus());
 	}
 
 	@EventListener
 	public void handleUpdated(StoreUpdatedEvent event) {
 		log.info("🛠️ 스토어 수정 이벤트 - ownerId: {}, storeId: {}, name: {}",
-				event.getOwnerId(), event.getStore().getId(), event.getStore().getName());
+				event.ownerId(), event.store().getId(), event.store().getName());
 	}
 
 	@EventListener
 	public void handleStatusUpdated(StoreStatusUpdatedEvent event) {
 		log.info("📢 스토어 상태 변경 이벤트 - ownerId: {}, storeId: {}, status: {}",
-				event.getOwnerId(), event.getStore().getId(), event.getStore().getPublishStatus());
+				event.ownerId(), event.store().getId(), event.store().getPublishStatus());
 	}
 
 	@EventListener
 	public void handleDeleted(StoreDeletedEvent event) {
 		log.info("🗑️ 스토어 삭제 이벤트 - ownerId: {}, storeId: {}",
-				event.getOwnerId(), event.getStore().getId());
+				event.ownerId(), event.store().getId());
 	}
 
 }

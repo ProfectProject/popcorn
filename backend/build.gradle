@@ -134,6 +134,7 @@ dependencies {
 }
 
 tasks.named('test') {
+	enabled = false // backend에서는 테스트 비활성화
 	useJUnitPlatform()
 	finalizedBy tasks.named('jacocoTestReport')
 

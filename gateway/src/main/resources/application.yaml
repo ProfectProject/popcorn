@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: gateway
-  
   cloud:
     gateway:
       routes:
+        - id: checkIns
+          uri: http://localhost:8086     # checkIns 모듈
+          predicates:
+            - Path=/api/qr/**  # QR 관련 요청은 checkIns로
         - id: backend
           uri: http://localhost:8081     # 모놀리식 backend
           predicates:
@@ -18,6 +21,9 @@ spring:
             - Path=/api/users/**               # /api 로 시작하면 backend로 라우팅
   webflux:
     base-path: /
+
+jwt:
+  secret: bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=
 
 springdoc:
   swagger-ui:

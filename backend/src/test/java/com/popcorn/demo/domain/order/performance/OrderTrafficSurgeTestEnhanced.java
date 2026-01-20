@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.popcorn.demo.common.cache.IdempotencyService;
+import com.popcorn.common.cache.IdempotencyService;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand.OrderItemCommand;
 import com.popcorn.demo.domain.order.entity.Order;
@@ -97,7 +97,7 @@ class OrderTrafficSurgeTestEnhanced {
                     UUID popupId = invocation.getArgument(2);
                     OrderType orderType = invocation.getArgument(3);
                     @SuppressWarnings("unchecked")
-                    List<OrderItem> items = (List<OrderItem>) invocation.getArgument(4);
+                    List<OrderItem> items = invocation.getArgument(4);
 
                     int totalAmount = items.stream().mapToInt(OrderItem::getLineAmount).sum();
                     Order order = Order.builder()

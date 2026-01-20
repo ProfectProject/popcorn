@@ -11,8 +11,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.ResponseEntity;
 
-import com.popcorn.demo.common.cache.IdempotencyService;
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.cache.IdempotencyService;
+import com.popcorn.common.dto.BaseResponse;
 
 class PaymentIdempotencyControllerTest {
 
