@@ -32,7 +32,7 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
         log.info("🔍 스케줄 가격 조회 시작 - ID: {}", sessionOptionId);
 
         // 먼저 해당 스케줄이 존재하는지 확인
-        String existsQuery = "SELECT COUNT(*) FROM store.popup_schedules WHERE schedule_id = ?";
+        String existsQuery = "SELECT COUNT(*) FROM p_popup_schedules WHERE schedule_id = ?";
         try {
             Integer count = jdbcTemplate.queryForObject(existsQuery, Integer.class, sessionOptionId);
             log.info("📊 스케줄 존재 여부 확인 - ID: {}, 존재 개수: {}", sessionOptionId, count);
@@ -46,7 +46,7 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
         }
 
         return findPrice(
-                "SELECT price FROM store.popup_schedules WHERE schedule_id = ? AND deleted_at IS NULL",
+                "SELECT price FROM p_popup_schedules WHERE schedule_id = ? AND deleted_at IS NULL",
                 sessionOptionId,
                 "price",
                 "스케줄"
@@ -62,7 +62,7 @@ public class OrderItemPriceServiceImpl implements OrderItemPriceService {
 
         log.debug("굿즈 변형 가격 조회 - ID: {}", goodsVariantId);
         return findPrice(
-                "SELECT goods_price FROM store.goods_variants WHERE goods_id = ? AND deleted_at IS NULL",
+                "SELECT goods_price FROM p_goods_variants WHERE goods_id = ? AND deleted_at IS NULL",
                 goodsVariantId,
                 "goods_price",
                 "굿즈 변형"
