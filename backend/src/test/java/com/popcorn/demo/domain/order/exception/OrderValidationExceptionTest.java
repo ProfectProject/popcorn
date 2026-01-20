@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 
 class OrderValidationExceptionTest {

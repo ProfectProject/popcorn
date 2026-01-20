@@ -31,7 +31,7 @@ import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelResponse;
 import com.popcorn.demo.domain.payment.event.PaymentSuccessEvent;
-import com.popcorn.demo.common.cache.IdempotencyService;
+import com.popcorn.common.cache.IdempotencyService;
 
 import lombok.Builder;
 import lombok.Getter;

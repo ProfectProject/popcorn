@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.popcorn.demo.common.event.BaseEvent;
+import com.popcorn.common.event.BaseEvent;
 
 import lombok.Getter;
 

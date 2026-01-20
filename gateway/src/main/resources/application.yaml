@@ -4,13 +4,13 @@ server:
 spring:
   application:
     name: gateway
-  cloud:
+   cloud:
     gateway:
       routes:
         - id: checkIns
           uri: http://localhost:8086     # checkIns 모듈
           predicates:
-            - Path=/api/v*/qr/**,/api/v*/checkin/**,/api/v*/checkins/**  # QR/체크인 관련 요청은 checkIns로
+            - Path=/api/qr/**  # QR 관련 요청은 checkIns로
         - id: backend
           uri: http://localhost:8081     # 모놀리식 backend
           predicates:

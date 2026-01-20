@@ -1,7 +1,7 @@
 package com.popcorn.checkIns.exception;
 
 import com.popcorn.checkIns.dto.QrResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.exception.BaseException;
 
 public class QrException extends BaseException {
 

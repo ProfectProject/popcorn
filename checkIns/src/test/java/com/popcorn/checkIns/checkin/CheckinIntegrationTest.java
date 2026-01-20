@@ -77,6 +77,7 @@ class CheckinIntegrationTest {
 
 	@Test
 	@DisplayName("체크인 상세 조회 통합 테스트")
+	@WithMockUser(roles = "OWNER")
 	void getCheckin_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000022");
 		UUID qrId = UUID.fromString("80000000-0000-0000-0000-000000000022");

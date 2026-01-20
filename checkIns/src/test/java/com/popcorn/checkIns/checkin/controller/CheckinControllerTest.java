@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.checkIns.checkin.dto.response.CheckinDetailResponse;
 import com.popcorn.checkIns.checkin.dto.response.CheckinListResponse;
 import com.popcorn.checkIns.checkin.service.CheckinService;
-import com.popcorn.demo.common.config.CommonConfig;
+import com.popcorn.common.config.CommonConfig;
 
 class CheckinControllerTest {
 

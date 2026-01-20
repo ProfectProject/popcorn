@@ -7,10 +7,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.popcorn.demo.common.dto.BaseError;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.dto.CommonResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.dto.BaseError;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.dto.CommonResponseCode;
+import com.popcorn.common.exception.BaseException;
 
 import lombok.extern.slf4j.Slf4j;
 

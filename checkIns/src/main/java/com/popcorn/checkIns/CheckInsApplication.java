@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.popcorn.checkIns", "com.popcorn.demo.common"})
+@ComponentScan(basePackages = {"com.popcorn.checkIns", "com.popcorn.common"})
 public class CheckInsApplication {
 
     public static void main(String[] args) {

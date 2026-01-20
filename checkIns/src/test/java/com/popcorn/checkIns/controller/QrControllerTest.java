@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.checkIns.dto.response.QrCodeResponse;
 import com.popcorn.checkIns.dto.response.QrVerifyResponse;
 import com.popcorn.checkIns.service.QrCodeService;
-import com.popcorn.demo.common.config.CommonConfig;
+import com.popcorn.common.config.CommonConfig;
 
 class QrControllerTest {
 
@@ -52,7 +52,7 @@ class QrControllerTest {
 
 		when(qrCodeService.issue(orderId)).thenReturn(response);
 
-		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/orders/{orderId}/qr", orderId))
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/qr/v1/orders/{orderId}", orderId))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
@@ -71,7 +71,7 @@ class QrControllerTest {
 
 		when(qrCodeService.get(orderId)).thenReturn(response);
 
-		mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/orders/{orderId}/qr", orderId))
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/qr/v1/orders/{orderId}", orderId))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.code").value(200))
 				.andExpect(MockMvcResultMatchers.jsonPath("$.data.orderId").value(orderId.toString()))
@@ -99,7 +99,7 @@ class QrControllerTest {
 				}
 				""";
 
-		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/qr/verify")
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/qr/v1/verify")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestJson))
 				.andExpect(MockMvcResultMatchers.status().isOk())
@@ -118,7 +118,7 @@ class QrControllerTest {
 				}
 				""";
 
-		mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/qr/verify")
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/qr/v1/verify")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(requestJson))
 				.andExpect(MockMvcResultMatchers.status().isBadRequest())

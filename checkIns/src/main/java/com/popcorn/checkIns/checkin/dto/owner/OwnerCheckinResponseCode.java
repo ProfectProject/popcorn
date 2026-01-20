@@ -1,6 +1,6 @@
 package com.popcorn.checkIns.checkin.dto.owner;
 
-import com.popcorn.demo.common.dto.ResponseCode;
+import com.popcorn.common.dto.ResponseCode;
 
 import lombok.Getter;
 

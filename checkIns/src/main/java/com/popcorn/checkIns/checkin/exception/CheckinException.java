@@ -1,7 +1,7 @@
 package com.popcorn.checkIns.checkin.exception;
 
 import com.popcorn.checkIns.checkin.dto.CheckinResponseCode;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.exception.BaseException;
 
 public class CheckinException extends BaseException {
 

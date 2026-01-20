@@ -13,7 +13,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.ResponseEntity;
 
-import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;
 

@@ -2,7 +2,7 @@ package com.popcorn.checkIns.dto;
 
 import lombok.Getter;
 
-import com.popcorn.demo.common.dto.ResponseCode;
+import com.popcorn.common.dto.ResponseCode;
 
 /**
  * QR 도메인 전용 응답 코드

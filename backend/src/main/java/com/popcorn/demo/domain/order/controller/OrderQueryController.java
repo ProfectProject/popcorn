@@ -12,21 +12,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.popcorn.demo.common.controller.BaseController;
+import com.popcorn.common.controller.BaseController;
 import com.popcorn.demo.domain.auth.dto.CustomUserDetails;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
 import com.popcorn.demo.domain.order.dto.response.OrderDetailDto;
 import com.popcorn.demo.domain.order.dto.response.OrderStatusDto;
 import com.popcorn.demo.domain.order.dto.response.StoreOrderReservationListResponse;
 import com.popcorn.demo.domain.order.service.OrderQueryService;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.exception.OrderValidationException;
-import com.popcorn.demo.common.annotation.ApiLogging;
-import com.popcorn.demo.common.annotation.RedisCacheResult;
-import com.popcorn.demo.common.annotation.RateLimit;
-import com.popcorn.demo.common.annotation.RetryOnFailure;
+import com.popcorn.common.annotation.ApiLogging;
+import com.popcorn.common.annotation.RedisCacheResult;
+import com.popcorn.common.annotation.RateLimit;
+import com.popcorn.common.annotation.RetryOnFailure;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

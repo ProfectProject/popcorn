@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.versioning.ApiVersion;
 import com.popcorn.checkIns.dto.request.QrVerifyRequest;
 import com.popcorn.checkIns.dto.response.QrCodeResponse;
 import com.popcorn.checkIns.dto.response.QrVerifyResponse;
@@ -30,7 +30,7 @@ import jakarta.validation.Valid;
 @RestController
 @Tag(name = "QR", description = "QR 코드 관리 API")
 @ApiVersion("v1")
-@RequestMapping("/api/v1")
+@RequestMapping("/api/qr/v1")
 @RequiredArgsConstructor
 @Validated
 public class QrController extends BaseController {
@@ -41,7 +41,7 @@ public class QrController extends BaseController {
 			summary = "QR 발급",
 			description = "PAID 상태의 주문에 대해 QR 코드를 발급합니다."
 	)
-	@PostMapping("/orders/{orderId}/qr")
+	@PostMapping("/orders/{orderId}")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> issueQr(
 			@Parameter(description = "주문 ID", example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId) {
@@ -53,7 +53,7 @@ public class QrController extends BaseController {
 			summary = "QR 조회",
 			description = "PAID 상태의 주문에 연결된 QR 코드를 조회합니다."
 	)
-	@GetMapping("/orders/{orderId}/qr")
+	@GetMapping("/orders/{orderId}")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> getQr(
 			@Parameter(description = "주문 ID", example = "00000000-0000-0000-0000-000000001001")
 			@PathVariable UUID orderId) {
@@ -65,7 +65,7 @@ public class QrController extends BaseController {
 			summary = "QR 검증",
 			description = "스캐너 전용 QR 코드 검증 API입니다."
 	)
-	@PostMapping("/qr/verify")
+	@PostMapping("/verify")
 	public ResponseEntity<BaseResponse<QrVerifyResponse>> verifyQr(
 			@Valid @RequestBody QrVerifyRequest request) {
 		QrVerifyResponse response = qrCodeService.verify(request.getQrCode());

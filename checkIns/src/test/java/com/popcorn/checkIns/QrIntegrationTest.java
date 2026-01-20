@@ -9,17 +9,26 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.popcorn.demo.common.BaseIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
 @Sql(scripts = "classpath:sql/test-schema.sql")
-class QrIntegrationTest extends BaseIntegrationTest {
+class QrIntegrationTest {
+
+	@Autowired
+	private MockMvc mockMvc;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -51,12 +60,13 @@ class QrIntegrationTest extends BaseIntegrationTest {
 
 	@Test
 	@DisplayName("QR 발급 통합 테스트")
+	@WithMockUser(roles = "CUSTOMER")
 	void issueQr_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000010");
 		insertOrder(orderId, USER_ID, STORE_ID, "PAID");
 		insertReservationItem(orderId, POPUP_ID);
 
-		mockMvc.perform(post("/api/v1/orders/{orderId}/qr", orderId))
+		mockMvc.perform(post("/api/qr/v1/orders/{orderId}", orderId))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.orderId").value(orderId.toString()))
@@ -73,7 +83,7 @@ class QrIntegrationTest extends BaseIntegrationTest {
 		insertReservationItem(orderId, POPUP_ID);
 		insertQr(qrId, orderId, "qr-get-001", LocalDateTime.now().plusMinutes(5));
 
-		mockMvc.perform(get("/api/v1/orders/{orderId}/qr", orderId))
+		mockMvc.perform(get("/api/qr/v1/orders/{orderId}", orderId))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value(200))
 				.andExpect(jsonPath("$.data.orderId").value(orderId.toString()))
@@ -82,6 +92,7 @@ class QrIntegrationTest extends BaseIntegrationTest {
 
 	@Test
 	@DisplayName("QR 검증 시 체크인 생성 통합 테스트")
+	@WithMockUser(roles = "CUSTOMER")
 	void verifyQr_createsCheckin_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000012");
 		UUID qrId = UUID.fromString("80000000-0000-0000-0000-000000000012");
@@ -95,7 +106,7 @@ class QrIntegrationTest extends BaseIntegrationTest {
 				}
 				""";
 
-		mockMvc.perform(post("/api/v1/qr/verify")
+		mockMvc.perform(post("/api/qr/v1/verify")
 						.contentType("application/json")
 						.content(requestJson))
 				.andExpect(status().isOk())
@@ -106,6 +117,7 @@ class QrIntegrationTest extends BaseIntegrationTest {
 
 	@Test
 	@DisplayName("QR 검증 중복 호출 시 체크인 중복 생성 방지")
+	@WithMockUser(roles = "CUSTOMER")
 	void verifyQr_reusesCheckin_integration() throws Exception {
 		UUID orderId = UUID.fromString("40000000-0000-0000-0000-000000000013");
 		UUID qrId = UUID.fromString("80000000-0000-0000-0000-000000000013");
@@ -119,12 +131,12 @@ class QrIntegrationTest extends BaseIntegrationTest {
 				}
 				""";
 
-		mockMvc.perform(post("/api/v1/qr/verify")
+		mockMvc.perform(post("/api/qr/v1/verify")
 						.contentType("application/json")
 						.content(requestJson))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/v1/qr/verify")
+		mockMvc.perform(post("/api/qr/v1/verify")
 						.contentType("application/json")
 						.content(requestJson))
 				.andExpect(status().isOk());
