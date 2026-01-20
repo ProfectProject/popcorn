@@ -1,0 +1,67 @@
+server:
+  port: ${SERVER_PORT:8086}
+  shutdown: graceful
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${QR_DB_USERNAME}
+    password: ${QR_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/schema
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    out-of-order: false
+    clean-disabled: true
+    placeholders:
+      QR_MIGRATOR_PASSWORD: ${QR_FLYWAY_PASSWORD}
+      QR_APP_PASSWORD: ${QR_DB_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.popcorn.checkIns: INFO
+    org.springframework: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: ${LOG_FILE_PATH:/app/logs/checkIns.log}

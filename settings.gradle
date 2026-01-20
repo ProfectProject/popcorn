@@ -21,9 +21,11 @@ include 'common-lib'
 include 'backend'
 include 'checkIns'
 include 'gateway'
+include 'users'
 
 // 각 모듈의 위치 지정
 project(':common-lib').projectDir = file('common-lib')
 project(':backend').projectDir = file('backend')
 project(':checkIns').projectDir = file('checkIns')
 project(':gateway').projectDir = file('gateway')
+project(':users').projectDir = file('users')

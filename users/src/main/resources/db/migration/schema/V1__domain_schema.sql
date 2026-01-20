@@ -1,5 +1,5 @@
--- 0) user_auth
-SET ROLE user_auth_migrator;
+-- Users 모듈 전용 스키마
+-- 사용자 인증 및 주소 관리 도메인
 
 DO $$ BEGIN
   CREATE TYPE user_auth.user_role AS ENUM ('CUSTOMER','OWNER','MANAGER');
