@@ -72,7 +72,7 @@ class TossPaymentCoroutineServiceTest {
         coEvery { orderQueryService.updateOrderStatus(any(), any(), any()) } returns mockOrder.copy(status = "PAID")
         coEvery { transactionManager.executeInTransactionSuspend<Any>(any()) } answers {
             val block = firstArg<suspend () -> Any>()
-            block()
+            runBlocking { block() }
         }
 
         // When
@@ -152,7 +152,7 @@ class TossPaymentCoroutineServiceTest {
         coEvery { orderQueryService.getOrder(any()) } returns mockOrder
         coEvery { transactionManager.executeInReadOnlyTransactionSuspend<Any>(any()) } answers {
             val block = firstArg<suspend () -> Any>()
-            block()
+            runBlocking { block() }
         }
 
         // When

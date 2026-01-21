@@ -1,0 +1,96 @@
+server:
+  port: 8085
+
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  # 데이터베이스 설정 (로컬 환경용)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    driver-class-name: org.postgresql.Driver
+    username: ${PAYMENT_DB_USERNAME:payment_app}
+    password: ${PAYMENT_DB_PASSWORD:payment123}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 300000
+      connection-timeout: 10000
+      max-lifetime: 600000
+
+  # JPA 설정 (로컬 환경)
+  jpa:
+    hibernate:
+      ddl-auto: update  # 로컬에서는 update 사용
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+  # Flyway 설정 (로컬 환경)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/payment
+    baseline-on-migrate: true
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    user: ${PAYMENT_FLYWAY_USERNAME:payment_migrator}
+    password: ${PAYMENT_FLYWAY_PASSWORD:payment321}
+    schemas: payment  # Payment 서비스 전용 스키마 사용
+    default-schema: payment
+
+  # Redis 설정 (로컬 환경)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 2  # Payment 서비스 전용 DB
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+
+  # DevTools 활성화
+  devtools:
+    restart:
+      enabled: true
+
+# 로깅 설정 (로컬 환경용)
+logging:
+  level:
+    com.popcorn.payment: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG
+
+# Toss Payments 설정 (로컬/개발용)
+toss:
+  payments:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
+    client-key: ${TOSS_PAYMENTS_CLIENT_KEY:}
+    test-mode: ${TOSS_PAYMENTS_TEST_MODE:true}  # 로컬에서는 테스트 모드
+
+# 마이크로서비스 통신 설정 (로컬용)
+microservices:
+  order:
+    base-url: http://localhost:8084
+    timeout: 30s
+  gateway:
+    base-url: http://localhost:8080
+
+# Payment 서비스 비즈니스 설정 (로컬용)
+payment:
+  webhook:
+    timeout: 60000  # 로컬에서는 긴 타임아웃
+  validation:
+    max-amount: 1000000  # 로컬에서는 더 큰 금액 허용
+  notification:
+    enabled: true
+    retry-count: 3

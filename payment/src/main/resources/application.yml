@@ -1,231 +1,184 @@
+# Payment Service 기본 설정
+# 프로필별 상세 설정은 security/ 폴더 참조
+
+server:
+  port: 8085
+
 spring:
   application:
     name: payment-service
 
-  # WebFlux 설정
-  webflux:
-    # 메모리 버퍼 크기 제한 (보안 강화)
-    multipart:
-      max-in-memory-size: 1MB
+  # 기본 프로필 설정
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
 
-  # 데이터베이스 설정
+  # 설정 파일 import
+  config:
+    import:
+      - classpath:security/application-${spring.profiles.active}.yml
+
+  # 기본 데이터베이스 설정 (프로필별로 오버라이드 가능)
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    driver-class-name: org.postgresql.Driver
     username: ${PAYMENT_DB_USERNAME:payment_app}
     password: ${PAYMENT_DB_PASSWORD:payment123}
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 300000
-      connection-timeout: 10000
-      max-lifetime: 600000
+    driver-class-name: org.postgresql.Driver
 
-  # Redis 설정
+  # 기본 JPA 설정 (프로필별로 오버라이드 가능)
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}  # 기본값은 validate
+    show-sql: ${JPA_SHOW_SQL:true}        # 기본값은 true (개발용)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${JPA_FORMAT_SQL:true}  # 기본값은 true (개발용)
+
+  # 기본 Flyway 설정
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE:true}
+    locations: classpath:db/migration/payment
+
+  # Docker Compose 자동 실행 비활성화 (개발 편의성)
+  docker:
+    compose:
+      enabled: ${DOCKER_COMPOSE_AUTO:false}  # Docker 자동 실행 끄기
+
+  # Redis 설정 (결제 세션 캐싱용)
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      timeout: 3000ms
-      lettuce:
+      password: ${REDIS_PASSWORD:}  # Redis 패스워드 (필요시 설정)
+      timeout: 2000ms
+      database: 2  # Payment 서비스 전용 DB (0은 backend, 1은 order, 2는 payment)
+      connection-timeout: 2000ms
+      jedis:
         pool:
-          max-active: 20
-          max-idle: 5
-          min-idle: 1
+          max-active: 15
+          max-idle: 10
+          min-idle: 3
+          max-wait: 3000ms
 
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        format_sql: true
-        show_sql: false
-    show-sql: false
+  # 캐시 설정
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 5분 TTL (결제 세션은 짧게)
+      cache-null-values: false
 
-  # Flyway 설정
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    user: ${PAYMENT_DB_USERNAME:payment_app}
-    password: ${PAYMENT_DB_PASSWORD:payment123}
-
-# 토스페이먼츠 API 설정
-payment:
-  toss:
-    base-url: https://api.tosspayments.com
-    secret-key: ${TOSS_SECRET_KEY:test_sk_dummy_key}
-    client-key: ${TOSS_CLIENT_KEY:test_ck_dummy_key}
-    timeout:
-      connect: PT3S
-      read: PT5S
-      write: PT3S
-
-# Resilience4j 설정
-resilience4j:
-  circuitbreaker:
-    instances:
-      tossPaymentApi:
-        # Circuit Breaker 기본 설정
-        failure-rate-threshold: 50                      # 실패율 50% 임계값
-        slow-call-rate-threshold: 50                    # 느린 호출 50% 임계값
-        slow-call-duration-threshold: PT3S              # 3초 이상이면 느린 호출
-        minimum-number-of-calls: 10                     # 최소 호출 수
-        sliding-window-size: 20                         # 슬라이딩 윈도우 크기
-        sliding-window-type: COUNT_BASED                # 개수 기반 윈도우
-        wait-duration-in-open-state: PT30S              # Open 상태 대기 시간
-        permitted-number-of-calls-in-half-open-state: 5 # Half-Open 상태 허용 호출 수
-        automatic-transition-from-open-to-half-open-enabled: true
-        # 기록할 예외들
-        record-exceptions:
-          - org.springframework.web.reactive.function.client.WebClientResponseException
-          - java.net.SocketTimeoutException
-          - java.net.ConnectException
-          - java.util.concurrent.TimeoutException
-        # 무시할 예외들
-        ignore-exceptions:
-          - java.lang.IllegalArgumentException
-
-  retry:
-    instances:
-      tossPaymentApi:
-        # Retry 설정
-        max-attempts: 3                                 # 최대 재시도 횟수
-        wait-duration: PT1S                             # 기본 대기 시간
-        exponential-backoff-multiplier: 2               # 지수 백오프 배율
-        enable-exponential-backoff: true                # 지수 백오프 활성화
-        # 재시도할 예외들
-        retry-exceptions:
-          - org.springframework.web.reactive.function.client.WebClientResponseException$InternalServerError
-          - org.springframework.web.reactive.function.client.WebClientResponseException$BadGateway
-          - org.springframework.web.reactive.function.client.WebClientResponseException$ServiceUnavailable
-          - org.springframework.web.reactive.function.client.WebClientResponseException$GatewayTimeout
-          - java.net.SocketTimeoutException
-          - java.net.ConnectException
-          - java.util.concurrent.TimeoutException
-
-  timelimiter:
-    instances:
-      tossPaymentApi:
-        # Time Limiter 설정
-        timeout-duration: PT5S                         # 5초 타임아웃
-        cancel-running-future: true                     # 실행 중인 Future 취소
-
-# 로깅 설정
+# 기본 로깅 설정 (프로필별로 오버라이드 가능)
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    com.popcorn.payment: ${LOG_LEVEL_PAYMENT:INFO}
-    org.springframework.web.reactive: WARN
-    io.github.resilience4j: INFO
-    org.springframework.transaction: WARN
-    org.springframework.orm.jpa: WARN
-    org.hibernate: WARN
+    com.popcorn.payment: ${LOG_LEVEL_PAYMENT:DEBUG}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_BINDER:TRACE}
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
-# 관리/모니터링 엔드포인트
+# 관리용 엔드포인트 (모니터링)
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,circuitbreakers,retries,timelimiters
+        include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: when-authorized
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-  health:
-    circuitbreakers:
-      enabled: true
-    ratelimiters:
-      enabled: true
-    retries:
-      enabled: true
-    timelimiters:
-      enabled: true
+      show-details: always
 
-# 서버 설정
-server:
-  port: ${SERVER_PORT:8085}
-  error:
-    include-message: always
-    include-binding-errors: always
-  max-http-header-size: 8KB
-  compression:
-    enabled: true
-    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+# OpenAPI 문서 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
-# 애플리케이션별 설정
-app:
-  async:
-    core-pool-size: 5
-    max-pool-size: 20
-    queue-capacity: 500
-    thread-name-prefix: payment-async-
+# 애플리케이션 정보
+info:
+  app:
+    name: Payment Service
+    description: 결제 관리 마이크로서비스
+    version: 1.0.0
 
-  # 보안 설정
-  security:
-    allowed-origins: http://localhost:3000,http://localhost:8080
-    max-request-size: 10MB
-
----
-# 프로덕션 프로파일
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-  # 프로덕션 데이터베이스 설정
-  datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
-      idle-timeout: 600000
-      connection-timeout: 30000
-      max-lifetime: 1800000
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        show_sql: false
-
-# 프로덕션용 Resilience4j 설정 (더 엄격)
+# Resilience4j 설정 (Circuit Breaker, Retry, Rate Limiter)
 resilience4j:
   circuitbreaker:
     instances:
-      tossPaymentApi:
-        failure-rate-threshold: 30                      # 더 낮은 실패율 임계값
-        minimum-number-of-calls: 20                     # 더 많은 최소 호출 수
-        wait-duration-in-open-state: PT60S              # 더 긴 대기 시간
+      orderService:
+        failure-rate-threshold: 60
+        minimum-number-of-calls: 5
+        sliding-window-size: 15
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      tossPayments:
+        failure-rate-threshold: 70  # 외부 결제 API는 더 관대하게
+        minimum-number-of-calls: 3
+        sliding-window-size: 10
+        wait-duration-in-open-state: 15s
+      default:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        sliding-window-size: 10
+        wait-duration-in-open-state: 5s
+  retry:
+    instances:
+      orderService:
+        max-attempts: 3
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+      tossPayments:
+        max-attempts: 2  # 결제 API는 재시도 적게
+        wait-duration: 3s
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+  ratelimiter:
+    instances:
+      orderService:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 1s
+      tossPayments:
+        limit-for-period: 50  # 외부 결제 API 호출 제한
+        limit-refresh-period: 1s
+        timeout-duration: 2s
 
-# 프로덕션 로깅 (더 간결)
-logging:
-  level:
-    root: WARN
-    com.popcorn.payment: INFO
-    io.github.resilience4j: WARN
+# 마이크로서비스 간 통신 설정
+microservices:
+  order:
+    base-url: ${ORDER_SERVICE_URL:http://localhost:8084}
+    timeout: 30s
+  gateway:
+    base-url: ${GATEWAY_URL:http://localhost:8080}
+    timeout: 10s
 
----
-# 개발 프로파일
-spring:
-  config:
-    activate:
-      on-profile: dev
+# Toss Payments 설정 (환경별로 오버라이드)
+toss:
+  payments:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:}
+    client-key: ${TOSS_PAYMENTS_CLIENT_KEY:}
+    test-mode: ${TOSS_PAYMENTS_TEST_MODE:true}  # 기본값은 테스트 모드
 
-# 개발용 로깅 (더 상세)
-logging:
-  level:
-    com.popcorn.payment: DEBUG
-    org.springframework.web.reactive: DEBUG
-    io.github.resilience4j: DEBUG
+# 커스텀 Payment 설정
+payment:
+  # Toss Payments 설정 (코루틴 클라이언트용)
+  toss:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY:test_secret_key}
+    client-key: ${TOSS_PAYMENTS_CLIENT_KEY:test_client_key}
+  # 결제 관련 비즈니스 설정
+  webhook:
+    timeout: ${PAYMENT_WEBHOOK_TIMEOUT:30000}  # 웹훅 타임아웃 (30초)
+  validation:
+    max-amount: ${PAYMENT_MAX_AMOUNT:500000}  # 최대 결제 금액 (50만원)
+  notification:
+    enabled: ${PAYMENT_NOTIFICATION_ENABLED:true}  # 알림 활성화
+    retry-count: ${PAYMENT_NOTIFICATION_RETRY:3}   # 알림 재시도 횟수
+    timeout: 5000  # 알림 타임아웃 5초
+  qr:
+    enabled: true  # QR 코드 생성 활성화
+    expiration-minutes: 10  # QR 코드 만료 시간 (10분)
