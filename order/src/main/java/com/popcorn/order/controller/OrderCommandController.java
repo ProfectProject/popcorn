@@ -115,22 +115,20 @@ public class OrderCommandController {
                 examples = {
                     @io.swagger.v3.oas.annotations.media.ExampleObject(
                         name = "1. 예약형 주문",
-                        summary = "팝업 체험 예약 (2명, 오후 2시 세션)",
-                        description = "팝업스토어 체험 예약만 하는 경우",
+                        summary = "팝업 체험 예약 (2명, 10시-18시 세션)",
+                        description = "팝업스토어 체험 예약만 하는 경우 (실제 테스트 데이터)",
                         value = """
                             {
-                              "userId": 1001,
                               "orderType": "RESERVATION",
-                              "popupId": "550e8400-e29b-41d4-a716-446655440001",
-                              "reservationId": "660f9500-f30c-52e5-b827-557766551002",
+                              "popupId": "00000000-0000-0000-0000-000000000101",
+                              "reservationId": "00000000-0000-0000-0000-000000000201",
                               "paymentMethod": "CARD",
                               "items": [
                                 {
                                   "orderItemType": "RESERVATION",
                                   "qty": 2,
-                                  "unitPrice": 25000,
-                                  "sessionId": "770g0600-g41d-63f6-c938-668877662003",
-                                  "optionId": "880h1700-h52e-74g7-d049-779988773004"
+                                  "unitPrice": 15000,
+                                  "sessionId": "00000000-0000-0000-0000-000000000201"
                                 }
                               ]
                             }
@@ -138,26 +136,19 @@ public class OrderCommandController {
                     ),
                     @io.swagger.v3.oas.annotations.media.ExampleObject(
                         name = "2. 굿즈 주문",
-                        summary = "팝업 굿즈 구매 (티셔츠 2벌, 스티커 5개)",
-                        description = "팝업스토어 굿즈만 구매하는 경우",
+                        summary = "Sample Goods 구매 (3개)",
+                        description = "팝업스토어 굿즈만 구매하는 경우 (실제 테스트 데이터)",
                         value = """
                             {
-                              "userId": 1002,
                               "orderType": "GOODS",
-                              "popupId": "550e8400-e29b-41d4-a716-446655440001",
+                              "popupId": "00000000-0000-0000-0000-000000000101",
                               "paymentMethod": "CARD",
                               "items": [
                                 {
                                   "orderItemType": "GOODS",
-                                  "qty": 2,
-                                  "unitPrice": 35000,
-                                  "goodsVariantId": "990i2800-i63f-85h8-e15a-88aa99884005"
-                                },
-                                {
-                                  "orderItemType": "GOODS",
-                                  "qty": 5,
-                                  "unitPrice": 3000,
-                                  "goodsVariantId": "aa1j3900-j74g-96i9-f26b-99bb00995006"
+                                  "qty": 3,
+                                  "unitPrice": 5000,
+                                  "goodsVariantId": "00000000-0000-0000-0000-000000000301"
                                 }
                               ]
                             }
@@ -165,28 +156,26 @@ public class OrderCommandController {
                     ),
                     @io.swagger.v3.oas.annotations.media.ExampleObject(
                         name = "3. 혼합형 주문",
-                        summary = "예약 + 굿즈 함께 주문 (체험 1명 + 티셔츠 1벌)",
-                        description = "팝업 체험 예약과 굿즈를 함께 주문하는 경우",
+                        summary = "예약 + 굿즈 함께 주문 (체험 1명 + Sample Goods 2개)",
+                        description = "팝업 체험 예약과 굿즈를 함께 주문하는 경우 (실제 테스트 데이터)",
                         value = """
                             {
-                              "userId": 1003,
                               "orderType": "MIXED",
-                              "popupId": "550e8400-e29b-41d4-a716-446655440001",
-                              "reservationId": "660f9500-f30c-52e5-b827-557766551002",
+                              "popupId": "00000000-0000-0000-0000-000000000101",
+                              "reservationId": "00000000-0000-0000-0000-000000000201",
                               "paymentMethod": "CARD",
                               "items": [
                                 {
                                   "orderItemType": "RESERVATION",
                                   "qty": 1,
-                                  "unitPrice": 25000,
-                                  "sessionId": "770g0600-g41d-63f6-c938-668877662003",
-                                  "optionId": "880h1700-h52e-74g7-d049-779988773004"
+                                  "unitPrice": 15000,
+                                  "sessionId": "00000000-0000-0000-0000-000000000201"
                                 },
                                 {
                                   "orderItemType": "GOODS",
-                                  "qty": 1,
-                                  "unitPrice": 35000,
-                                  "goodsVariantId": "990i2800-i63f-85h8-e15a-88aa99884005"
+                                  "qty": 2,
+                                  "unitPrice": 5000,
+                                  "goodsVariantId": "00000000-0000-0000-0000-000000000301"
                                 }
                               ]
                             }
@@ -443,6 +432,31 @@ public class OrderCommandController {
 
             return ResponseEntity.status(OrderResponseCode.ORDER_STATUS_UPDATE_FAILED.getHttpStatus())
                     .body(errorResponse);
+        }
+    }
+
+    /**
+     * JWT 토큰에서 사용자 ID 추출
+     *
+     * @param authentication Spring Security Authentication 객체
+     * @return 사용자 ID
+     */
+    private Long extractUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new IllegalArgumentException("인증 정보가 없습니다.");
+        }
+
+        // TODO: 실제 JWT 구현에 맞게 수정 필요
+        // 예: CustomUserDetails, JwtAuthenticationToken 등
+        try {
+            // 임시로 name에서 userId 추출 (실제로는 principal에서 추출)
+            String userIdStr = authentication.getName();
+            return Long.parseLong(userIdStr);
+        } catch (NumberFormatException e) {
+            // principal이 CustomUserDetails 타입인 경우
+            // CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            // return userDetails.getUserId();
+            throw new IllegalArgumentException("유효하지 않은 사용자 정보입니다.", e);
         }
     }
 

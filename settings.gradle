@@ -21,8 +21,8 @@ include 'common-lib'
 include 'backend'
 include 'checkIns'
 include 'gateway'
+include 'stores'
 include 'users'
-include 'payment'
 include 'order'
 
 // 각 모듈의 위치 지정
@@ -30,6 +30,7 @@ project(':common-lib').projectDir = file('common-lib')
 project(':backend').projectDir = file('backend')
 project(':checkIns').projectDir = file('checkIns')
 project(':gateway').projectDir = file('gateway')
+project(':stores').projectDir = file('stores')
 project(':users').projectDir = file('users')
-project(':payment').projectDir = file('payment')
 project(':order').projectDir = file('order')
+project(':payment').projectDir = file('payment')
