@@ -2,8 +2,8 @@ package com.popcorn.payment.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.popcorn.payment.client.TossPaymentsCoroutineClient
+import com.popcorn.common.cache.CoroutineIdempotencyService
 import com.popcorn.payment.config.CoroutineTransactionManager
-import com.popcorn.payment.dto.TossPaymentConfirmRequest
 import com.popcorn.payment.dto.TossPaymentConfirmResponse
 import com.popcorn.payment.exception.PaymentException
 import io.mockk.*
@@ -20,6 +20,7 @@ class TossPaymentCoroutineServiceTest {
     private val transactionManager = mockk<CoroutineTransactionManager>()
     private val paymentCommandService = mockk<PaymentCommandCoroutineService>()
     private val orderQueryService = mockk<OrderQueryCoroutineService>()
+    private val idempotencyService = mockk<CoroutineIdempotencyService>()
     private val objectMapper = ObjectMapper()
 
     private val service = TossPaymentCoroutineService(
@@ -27,6 +28,7 @@ class TossPaymentCoroutineServiceTest {
         transactionManager,
         paymentCommandService,
         orderQueryService,
+        idempotencyService,
         objectMapper
     )
 
@@ -67,11 +69,15 @@ class TossPaymentCoroutineServiceTest {
         coEvery { orderQueryService.getOrder(any()) } returns mockOrder
         coEvery { paymentCommandService.findByPaymentKey(any()) } returns emptyList()
         coEvery { tossClient.confirm(any()) } returns mockTossResponse
-        coEvery { paymentCommandService.createPayment(any(), any(), any(), any()) } returns mockPaymentResult
-        coEvery { paymentCommandService.updatePaymentStatus(any(), any(), any(), any()) } returns mockk()
+        coEvery { paymentCommandService.createPaymentBlocking(any(), any(), any(), any(), any()) } returns mockPaymentResult
+        coEvery { paymentCommandService.updatePaymentStatusBlocking(any(), any(), any(), any()) } returns mockk()
         coEvery { orderQueryService.updateOrderStatus(any(), any(), any()) } returns mockOrder.copy(status = "PAID")
         coEvery { transactionManager.executeInTransactionSuspend<Any>(any()) } answers {
             val block = firstArg<suspend () -> Any>()
+            runBlocking { block() }
+        }
+        coEvery { idempotencyService.execute<Any>(any(), any()) } answers {
+            val block = secondArg<suspend () -> Any>()
             runBlocking { block() }
         }
 
@@ -82,7 +88,7 @@ class TossPaymentCoroutineServiceTest {
         assertEquals("PAID", result.paymentStatus)
         assertEquals(amount, result.amount)
         coVerify { tossClient.confirm(any()) }
-        coVerify { paymentCommandService.createPayment(any(), any(), any(), any()) }
+        coVerify { paymentCommandService.createPaymentBlocking(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -115,6 +121,10 @@ class TossPaymentCoroutineServiceTest {
         coEvery { orderQueryService.getOrder(any()) } returns mockOrder
         coEvery { paymentCommandService.findByPaymentKey(any()) } returns emptyList()
         coEvery { tossClient.confirm(any()) } returns mockTossResponse
+        coEvery { idempotencyService.execute<Any>(any(), any()) } answers {
+            val block = secondArg<suspend () -> Any>()
+            runBlocking { block() }
+        }
 
         // When & Then
         assertThrows<PaymentException.AmountMismatch> {
@@ -150,8 +160,8 @@ class TossPaymentCoroutineServiceTest {
 
         coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns listOf(existingPayment)
         coEvery { orderQueryService.getOrder(any()) } returns mockOrder
-        coEvery { transactionManager.executeInReadOnlyTransactionSuspend<Any>(any()) } answers {
-            val block = firstArg<suspend () -> Any>()
+        coEvery { idempotencyService.execute<Any>(any(), any()) } answers {
+            val block = secondArg<suspend () -> Any>()
             runBlocking { block() }
         }
 

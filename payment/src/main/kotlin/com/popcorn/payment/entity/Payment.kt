@@ -25,6 +25,7 @@ import java.util.*
     name = "payments",
     indexes = [
         Index(name = "idx_payment_order_id", columnList = "order_id"),
+        Index(name = "idx_payment_payment_key", columnList = "payment_key"),
         Index(name = "idx_payment_status", columnList = "status"),
         Index(name = "idx_payment_approved_at", columnList = "approved_at"),
         Index(name = "idx_payment_created_at", columnList = "created_at")
@@ -38,6 +39,9 @@ class Payment {
 
     @Column(name = "order_id", nullable = false)
     var orderId: UUID = UUID.randomUUID()
+
+    @Column(name = "payment_key", length = 200, unique = true)
+    var paymentKey: String? = null
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false, length = 20)
@@ -75,12 +79,14 @@ class Payment {
             orderId: UUID,
             paymentMethod: PaymentMethod,
             amount: Int,
+            paymentKey: String? = null,
             rawPayload: String? = null
         ): Payment {
             return Payment().apply {
                 this.orderId = orderId
                 this.paymentMethod = paymentMethod
                 this.amount = amount
+                this.paymentKey = paymentKey
                 this.status = PaymentStatus.READY
                 this.rawPayload = rawPayload
             }

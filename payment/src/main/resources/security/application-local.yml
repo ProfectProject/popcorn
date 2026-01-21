@@ -28,6 +28,7 @@ spring:
         format_sql: true
         show_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: payment  # Payment 서비스 전용 스키마
     show-sql: true
 
   # Flyway 설정 (로컬 환경)

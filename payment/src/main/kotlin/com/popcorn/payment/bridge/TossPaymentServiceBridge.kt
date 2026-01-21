@@ -1,7 +1,5 @@
 package com.popcorn.payment.bridge
 
-import com.popcorn.payment.service.TossPaymentConfirmResult
-import com.popcorn.payment.service.TossPaymentCancelResult
 import com.popcorn.payment.service.TossPaymentCoroutineService
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory

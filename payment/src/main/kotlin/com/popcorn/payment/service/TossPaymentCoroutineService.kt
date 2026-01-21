@@ -2,15 +2,13 @@ package com.popcorn.payment.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.popcorn.payment.client.TossPaymentsCoroutineClient
+import com.popcorn.common.cache.CoroutineIdempotencyService
 import com.popcorn.payment.config.CoroutineTransactionManager
 import com.popcorn.payment.dto.TossPaymentCancelRequest
 import com.popcorn.payment.dto.TossPaymentConfirmRequest
-import com.popcorn.payment.dto.TossPaymentConfirmResponse
 import com.popcorn.payment.exception.PaymentException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -27,6 +25,7 @@ class TossPaymentCoroutineService(
     private val transactionManager: CoroutineTransactionManager,
     private val paymentCommandService: PaymentCommandCoroutineService,
     private val orderQueryService: OrderQueryCoroutineService,
+    private val idempotencyService: CoroutineIdempotencyService,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -39,87 +38,96 @@ class TossPaymentCoroutineService(
         paymentKey: String,
         orderId: String,
         amount: Int
-    ): TossPaymentConfirmResult = coroutineScope {
+    ): TossPaymentConfirmResult = idempotencyService.execute(
+        "payment:confirm:$paymentKey:$orderId"
+    ) {
+        coroutineScope {
 
-        log.info("토스 결제 승인 요청 시작: orderId={}, paymentKey={}, amount={}", orderId, paymentKey, amount)
+            log.info("토스 결제 승인 요청 시작: orderId={}, paymentKey={}, amount={}", orderId, paymentKey, amount)
 
-
-        try {
-            val idempotencyCheckDeferred = async {
-                checkIdempotency(paymentKey, orderId)
-            }
-            val orderDeferred = async {
-                orderQueryService.getOrder(UUID.fromString(orderId))
-            }
-
-            val existingPayment = idempotencyCheckDeferred.await()
-            if (existingPayment != null) {
-                log.info("이미 처리된 결제: paymentId={}", existingPayment.paymentId)
-                return@coroutineScope existingPayment
-            }
-
-            val order = orderDeferred.await()
-
-            log.info("토스 결제 승인 API 호출: paymentKey={}", paymentKey)
-            val tossResponse = tossClient.confirm(
-                TossPaymentConfirmRequest(
-                    paymentKey = paymentKey,
-                    orderId = orderId,
-                    amount = amount
-                )
-            )
-
-            validateAmount(tossResponse.totalAmount, amount)
-            val approvedAt = parseApprovedAt(tossResponse.approvedAt)
-            val rawPayload = serializeResponse(tossResponse)
-
-            log.info("결제 기록 생성 및 주문 상태 업데이트")
-
-            val paymentResult = paymentCommandService.createPayment(
-                orderId = order.id,
-                paymentMethod = "CARD",
-                amount = amount,
-                rawPayload = rawPayload
-            )
-
-            paymentCommandService.updatePaymentStatus(
-                paymentId = paymentResult.paymentId,
-                status = "PAID",
-                approvedAt = approvedAt,
-                rawPayload = rawPayload
-            )
-
-            val updatedOrder = orderQueryService.updateOrderStatus(
-                orderId = order.id,
-                status = "PAID",
-                reason = "결제 승인"
-            )
-
-            val result = TossPaymentConfirmResult(
-                paymentId = paymentResult.paymentId,
-                paymentStatus = "PAID",
-                orderStatus = updatedOrder.status,
-                orderId = order.id,
-                orderNo = order.orderNo,
-                amount = amount,
-                approvedAt = approvedAt
-            )
 
             try {
-                log.info("결제 성공 이벤트 발행 완료")
+                val idempotencyCheckDeferred = async {
+                    checkIdempotency(paymentKey)
+                }
+                val orderDeferred = async {
+                    orderQueryService.getOrder(UUID.fromString(orderId))
+                }
+
+                val existingPayment = idempotencyCheckDeferred.await()
+                if (existingPayment != null) {
+                    log.info("이미 처리된 결제: paymentId={}", existingPayment.paymentId)
+                    return@coroutineScope existingPayment
+                }
+
+                val order = orderDeferred.await()
+
+                log.info("토스 결제 승인 API 호출: paymentKey={}", paymentKey)
+                val tossResponse = tossClient.confirm(
+                    TossPaymentConfirmRequest(
+                        paymentKey = paymentKey,
+                        orderId = orderId,
+                        amount = amount
+                    )
+                )
+
+                validateAmount(tossResponse.totalAmount, amount)
+                val approvedAt = parseApprovedAt(tossResponse.approvedAt)
+                val rawPayload = serializeResponse(tossResponse)
+
+                log.info("결제 기록 생성 및 주문 상태 업데이트")
+
+                val paymentResult = transactionManager.executeInTransactionSuspend {
+                    val createdPayment = paymentCommandService.createPaymentBlocking(
+                        orderId = order.id,
+                        paymentMethod = "CARD",
+                        amount = amount,
+                        paymentKey = paymentKey,
+                        rawPayload = rawPayload
+                    )
+
+                    paymentCommandService.updatePaymentStatusBlocking(
+                        paymentId = createdPayment.paymentId,
+                        status = "PAID",
+                        approvedAt = approvedAt,
+                        rawPayload = rawPayload
+                    )
+
+                    createdPayment
+                }
+
+                val updatedOrder = orderQueryService.updateOrderStatus(
+                    orderId = order.id,
+                    status = "PAID",
+                    reason = "결제 승인"
+                )
+
+                val result = TossPaymentConfirmResult(
+                    paymentId = paymentResult.paymentId,
+                    paymentStatus = "PAID",
+                    orderStatus = updatedOrder.status,
+                    orderId = order.id,
+                    orderNo = order.orderNo,
+                    amount = amount,
+                    approvedAt = approvedAt
+                )
+
+                try {
+                    log.info("결제 성공 이벤트 발행 완료")
+                } catch (e: Exception) {
+                    log.error("결제 성공 이벤트 발행 실패 - 결제는 성공 처리: error={}", e.message, e)
+                }
+
+                log.info("토스 결제 승인 완료: paymentId={}, orderNo={}, amount={}원",
+                    result.paymentId, result.orderNo, result.amount)
+
+
+                result
+
             } catch (e: Exception) {
-                log.error("결제 성공 이벤트 발행 실패 - 결제는 성공 처리: error={}", e.message, e)
+                log.error("결제 승인 실패: paymentKey={}, orderId={}, error={}", paymentKey, orderId, e.message, e)
+                throw e
             }
-
-            log.info("토스 결제 승인 완료: paymentId={}, orderNo={}, amount={}원",
-                result.paymentId, result.orderNo, result.amount)
-
-
-            result
-
-        } catch (e: Exception) {
-            log.error("결제 승인 실패: paymentKey={}, orderId={}, error={}", paymentKey, orderId, e.message, e)
-            throw e
         }
     }
 
@@ -139,13 +147,15 @@ class TossPaymentCoroutineService(
 
         // Step 1: 주문 및 결제 정보 조회
         val order = orderQueryService.getOrder(orderId)
+        log.debug("주문 확인 완료: orderId={}, orderNo={}, status={}", order.id, order.orderNo, order.status)
         val payment = paymentCommandService.getLatestPaymentByOrderId(orderId)
 
         if (payment.status != "PAID") {
             throw PaymentException.invalidStatusTransition("결제 완료 상태가 아닙니다: ${payment.status}")
         }
 
-        val paymentKey = extractPaymentKeyFromRawPayload(payment.rawPayload)
+        val paymentKey = payment.paymentKey
+            ?: extractPaymentKeyFromRawPayload(payment.rawPayload)
             ?: throw PaymentException.invalidRequest("결제 키를 찾을 수 없습니다")
 
         // Step 2: 토스 결제 취소 API 호출
@@ -185,8 +195,7 @@ class TossPaymentCoroutineService(
      * @return 기존 결제 정보 또는 null
      */
     private suspend fun checkIdempotency(
-        paymentKey: String,
-        orderId: String
+        paymentKey: String
     ): TossPaymentConfirmResult? {
 
         // PaymentKey로 기존 결제 조회
@@ -243,7 +252,7 @@ class TossPaymentCoroutineService(
 
         return try {
             val node = objectMapper.readTree(rawPayload)
-            node.get("paymentKey")?.asText()
+            node["paymentKey"]?.asText()
         } catch (e: Exception) {
             log.warn("결제 키 추출 실패: rawPayload={}", rawPayload, e)
             null

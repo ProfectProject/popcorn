@@ -6,7 +6,7 @@ import org.springframework.boot.runApplication
 import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.transaction.annotation.EnableTransactionManagement
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = ["com.popcorn"])
 @EnableAsync
 @EnableTransactionManagement
 @ConfigurationPropertiesScan("com.popcorn.payment.config")

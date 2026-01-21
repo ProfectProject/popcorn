@@ -60,19 +60,11 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
 
     /**
      * 결제 키(PaymentKey)로 결제 조회
-     * rawPayload에서 paymentKey를 검색하여 조회
      *
      * @param paymentKey 토스페이먼츠 결제 키
      * @return 결제 목록
      */
-    @Query("""
-        SELECT p FROM Payment p
-        WHERE p.rawPayload IS NOT NULL
-        AND p.rawPayload LIKE %:paymentKey%
-        AND p.deletedAt IS NULL
-        ORDER BY p.createdAt DESC
-    """)
-    fun findByPaymentKeyInRawPayload(@Param("paymentKey") paymentKey: String): List<Payment>
+    fun findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey: String): List<Payment>
 
     /**
      * 승인 완료된 결제 중 특정 금액으로 조회

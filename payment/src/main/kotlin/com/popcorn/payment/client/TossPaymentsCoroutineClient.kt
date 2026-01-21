@@ -106,20 +106,25 @@ class TossPaymentsCoroutineClient(
         log.debug("🎯 Toss Payment API 호출 - 결제 취소: {}", paymentKey)
 
         return try {
-            webClient
-                .post()
-                .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
-                .headers { headers ->
-                    headers.contentType = MediaType.APPLICATION_JSON
-                    headers.set(HttpHeaders.AUTHORIZATION, buildAuthorizationHeader())
-                }
-                .bodyValue(request)
-                .retrieve()
-                .awaitBody<TossPaymentCancelResponse>()
-                .also { response ->
-                    log.info("✅ 토스 결제 취소 성공: paymentKey={}, status={}, cancelAmount={}",
-                        paymentKey, response.status, request.cancelAmount ?: response.totalAmount)
-                }
+            executeResilient(
+                circuitBreaker = circuitBreaker,
+                retry = retry,
+                timeLimiter = timeLimiter
+            ) {
+                webClient
+                    .post()
+                    .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                    .headers { headers ->
+                        headers.contentType = MediaType.APPLICATION_JSON
+                        headers.set(HttpHeaders.AUTHORIZATION, buildAuthorizationHeader())
+                    }
+                    .bodyValue(request)
+                    .retrieve()
+                    .awaitBody<TossPaymentCancelResponse>()
+            }.also { response ->
+                log.info("✅ 토스 결제 취소 성공: paymentKey={}, status={}, cancelAmount={}",
+                    paymentKey, response.status, request.cancelAmount ?: response.totalAmount)
+            }
         } catch (ex: WebClientResponseException) {
             log.error("❌ 토스 결제 취소 실패 - HTTP 에러: paymentKey={}, status={}, error={}",
                 paymentKey, ex.statusCode, ex.responseBodyAsString, ex)
@@ -141,17 +146,22 @@ class TossPaymentsCoroutineClient(
         log.debug("🔍 Toss Payment API 호출 - 결제 조회: {}", paymentKey)
 
         return try {
-            webClient
-                .get()
-                .uri("/v1/payments/{paymentKey}", paymentKey)
-                .headers { headers ->
-                    headers.set(HttpHeaders.AUTHORIZATION, buildAuthorizationHeader())
-                }
-                .retrieve()
-                .awaitBody<TossPaymentConfirmResponse>()
-                .also { response ->
-                    log.debug("✅ 토스 결제 조회 성공: paymentKey={}, status={}", paymentKey, response.status)
-                }
+            executeResilient(
+                circuitBreaker = circuitBreaker,
+                retry = retry,
+                timeLimiter = timeLimiter
+            ) {
+                webClient
+                    .get()
+                    .uri("/v1/payments/{paymentKey}", paymentKey)
+                    .headers { headers ->
+                        headers.set(HttpHeaders.AUTHORIZATION, buildAuthorizationHeader())
+                    }
+                    .retrieve()
+                    .awaitBody<TossPaymentConfirmResponse>()
+            }.also { response ->
+                log.debug("✅ 토스 결제 조회 성공: paymentKey={}, status={}", paymentKey, response.status)
+            }
         } catch (ex: WebClientResponseException) {
             log.error("❌ 토스 결제 조회 실패 - HTTP 에러: paymentKey={}, status={}, error={}",
                 paymentKey, ex.statusCode, ex.responseBodyAsString, ex)

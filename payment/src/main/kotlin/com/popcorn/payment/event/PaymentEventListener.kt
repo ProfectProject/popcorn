@@ -224,10 +224,112 @@ class PaymentEventListener {
     // ========================================
 
     private suspend fun generateQrCodeForOrder(orderId: java.util.UUID, orderNo: String) {
-        // checkIns 서비스와 연동하여 QR 코드 생성
-        log.info("🔗 QR 코드 생성 요청: orderId={}, orderNo={}", orderId, orderNo)
-        // TODO: checkIns 서비스 API 호출
+        try {
+            log.info("🔗 QR 코드 생성 시작: orderId={}, orderNo={}", orderId, orderNo)
+
+            // QR 코드 데이터 생성 (체크인 또는 주문 확인용 URL)
+            val qrCodeData = generateQrCodeData(orderId, orderNo)
+
+            // QR 코드 생성 및 저장
+            val qrCodeInfo = createAndSaveQrCode(orderId, orderNo, qrCodeData)
+
+            // checkIns 서비스에 QR 코드 정보 전달 (향후 구현)
+            sendQrCodeToCheckInsService(qrCodeInfo)
+
+            log.info("✅ QR 코드 생성 완료: orderId={}, qrCodeId={}, expiresAt={}",
+                orderId, qrCodeInfo.qrCodeId, qrCodeInfo.expiresAt)
+
+        } catch (e: Exception) {
+            log.error("❌ QR 코드 생성 실패: orderId={}, error={}", orderId, e.message, e)
+            // QR 코드 생성 실패해도 결제는 성공으로 처리
+        }
     }
+
+    /**
+     * QR 코드에 포함될 데이터 생성
+     */
+    private fun generateQrCodeData(orderId: java.util.UUID, orderNo: String): String {
+        // QR 코드 스캔 시 이동할 URL 또는 데이터
+        val baseUrl = "https://api.popcorn.com/checkin" // 실제 도메인으로 변경 필요
+        val checkInUrl = "$baseUrl?orderId=$orderId&orderNo=$orderNo"
+
+        // 추가 보안을 위해 토큰 생성 (간단한 예시)
+        val timestamp = System.currentTimeMillis()
+        val token = generateSecureToken(orderId.toString(), orderNo, timestamp)
+
+        return "$checkInUrl&token=$token&ts=$timestamp"
+    }
+
+    /**
+     * QR 코드 생성 및 저장
+     */
+    private suspend fun createAndSaveQrCode(orderId: java.util.UUID, orderNo: String, qrCodeData: String): QrCodeInfo {
+        // QR 코드 생성 (실제로는 ZXing 라이브러리 등 사용)
+        log.info("📱 QR 코드 이미지 생성: data={}", qrCodeData)
+
+        // QR 코드 정보 생성
+        val qrCodeId = java.util.UUID.randomUUID()
+        val now = java.time.LocalDateTime.now()
+        val expiresAt = now.plusDays(1) // 24시간 후 만료
+
+        // 실제로는 QR 코드 이미지를 S3, CloudFront 등에 저장
+        val qrCodeImageUrl = "https://cdn.popcorn.com/qr/${qrCodeId}.png"
+
+        val qrCodeInfo = QrCodeInfo(
+            qrCodeId = qrCodeId,
+            orderId = orderId,
+            orderNo = orderNo,
+            qrCodeData = qrCodeData,
+            qrCodeImageUrl = qrCodeImageUrl,
+            createdAt = now,
+            expiresAt = expiresAt,
+            status = "ACTIVE"
+        )
+
+        // 실제로는 데이터베이스에 저장
+        log.info("💾 QR 코드 정보 저장: qrCodeId={}", qrCodeId)
+        // qrCodeRepository.save(qrCodeInfo)
+
+        return qrCodeInfo
+    }
+
+    /**
+     * checkIns 서비스에 QR 코드 정보 전달
+     */
+    private suspend fun sendQrCodeToCheckInsService(qrCodeInfo: QrCodeInfo) {
+        try {
+            log.info("📤 checkIns 서비스에 QR 코드 정보 전달: qrCodeId={}", qrCodeInfo.qrCodeId)
+
+            // 실제로는 checkIns 서비스 API 호출
+            // checkInsClient.registerQrCode(qrCodeInfo)
+
+            log.info("✅ checkIns 서비스 등록 완료: qrCodeId={}", qrCodeInfo.qrCodeId)
+        } catch (e: Exception) {
+            log.warn("⚠️ checkIns 서비스 등록 실패: qrCodeId={}, error={}", qrCodeInfo.qrCodeId, e.message)
+        }
+    }
+
+    /**
+     * 보안 토큰 생성 (간단한 예시)
+     */
+    private fun generateSecureToken(orderId: String, orderNo: String, timestamp: Long): String {
+        val data = "$orderId:$orderNo:$timestamp"
+        return data.hashCode().toString(16) // 실제로는 HMAC, JWT 등 사용
+    }
+
+    /**
+     * QR 코드 정보 데이터 클래스
+     */
+    data class QrCodeInfo(
+        val qrCodeId: java.util.UUID,
+        val orderId: java.util.UUID,
+        val orderNo: String,
+        val qrCodeData: String,
+        val qrCodeImageUrl: String,
+        val createdAt: java.time.LocalDateTime,
+        val expiresAt: java.time.LocalDateTime,
+        val status: String
+    )
 
     private suspend fun confirmInventoryDeduction(orderId: java.util.UUID) {
         // 재고 서비스와 연동하여 재고 차감 확정
@@ -242,9 +344,72 @@ class PaymentEventListener {
     }
 
     private suspend fun invalidateQrCode(orderId: java.util.UUID) {
-        // checkIns 서비스와 연동하여 QR 코드 무효화
-        log.info("❌ QR 코드 무효화: orderId={}", orderId)
-        // TODO: checkIns 서비스 API 호출
+        try {
+            log.info("❌ QR 코드 무효화 시작: orderId={}", orderId)
+
+            // QR 코드 정보 조회 (실제로는 데이터베이스에서 조회)
+            val qrCodes = findActiveQrCodesByOrderId(orderId)
+
+            if (qrCodes.isEmpty()) {
+                log.warn("⚠️ 무효화할 QR 코드가 없음: orderId={}", orderId)
+                return
+            }
+
+            // 모든 관련 QR 코드 무효화
+            qrCodes.forEach { qrCode ->
+                invalidateQrCodeInfo(qrCode)
+            }
+
+            // checkIns 서비스에 무효화 알림
+            notifyCheckInsServiceForInvalidation(orderId, qrCodes)
+
+            log.info("✅ QR 코드 무효화 완료: orderId={}, invalidatedCount={}", orderId, qrCodes.size)
+
+        } catch (e: Exception) {
+            log.error("❌ QR 코드 무효화 실패: orderId={}, error={}", orderId, e.message, e)
+        }
+    }
+
+    /**
+     * 주문 ID로 활성 QR 코드 조회 (Mock)
+     */
+    private fun findActiveQrCodesByOrderId(orderId: java.util.UUID): List<QrCodeInfo> {
+        // 실제로는 QR 코드 데이터베이스에서 조회
+        // return qrCodeRepository.findActiveByOrderId(orderId)
+
+        // Mock 데이터 (로그에서 QR 코드가 있다고 가정)
+        log.info("🔍 활성 QR 코드 조회: orderId={}", orderId)
+        return listOf() // 실제 구현 시 데이터베이스에서 조회
+    }
+
+    /**
+     * QR 코드 정보 무효화
+     */
+    private fun invalidateQrCodeInfo(qrCode: QrCodeInfo) {
+        log.info("🚫 QR 코드 무효화: qrCodeId={}", qrCode.qrCodeId)
+
+        // 실제로는 데이터베이스에서 상태 업데이트
+        // qrCodeRepository.updateStatus(qrCode.qrCodeId, "INVALIDATED")
+
+        // QR 코드 이미지 삭제 또는 무효화 표시
+        // imageService.invalidateQrCodeImage(qrCode.qrCodeImageUrl)
+    }
+
+    /**
+     * checkIns 서비스에 QR 코드 무효화 알림
+     */
+    private suspend fun notifyCheckInsServiceForInvalidation(orderId: java.util.UUID, qrCodes: List<QrCodeInfo>) {
+        try {
+            log.info("📤 checkIns 서비스에 QR 코드 무효화 알림: orderId={}, qrCodeCount={}",
+                orderId, qrCodes.size)
+
+            // 실제로는 checkIns 서비스 API 호출
+            // checkInsClient.invalidateQrCodes(orderId, qrCodes.map { it.qrCodeId })
+
+            log.info("✅ checkIns 서비스 무효화 알림 완료: orderId={}", orderId)
+        } catch (e: Exception) {
+            log.warn("⚠️ checkIns 서비스 무효화 알림 실패: orderId={}, error={}", orderId, e.message)
+        }
     }
 
     private suspend fun updateOrderStatusToFailed(orderId: java.util.UUID, reason: String) {

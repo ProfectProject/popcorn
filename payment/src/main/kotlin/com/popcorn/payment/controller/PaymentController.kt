@@ -6,8 +6,6 @@ import com.popcorn.payment.service.TossPaymentCoroutineService
 import com.popcorn.payment.service.PaymentCommandCoroutineService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -33,6 +31,7 @@ class PaymentController(
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentController::class.java)
+    private val genericErrorMessage = "시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
 
     /**
      * 토스페이먼츠 결제 승인
@@ -84,7 +83,7 @@ class PaymentController(
         } catch (e: Exception) {
             log.error("❌ 결제 승인 중 예외 발생: paymentKey={}", request.paymentKey, e)
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요."))
+                .body(ApiResponse.error(genericErrorMessage))
         }
     }
 
@@ -127,7 +126,7 @@ class PaymentController(
         } catch (e: Exception) {
             log.error("❌ 결제 취소 중 예외 발생: paymentId={}", paymentId, e)
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요."))
+                .body(ApiResponse.error(genericErrorMessage))
         }
     }
 
@@ -147,6 +146,7 @@ class PaymentController(
                 orderId = request.orderId,
                 paymentMethod = request.paymentMethod,
                 amount = request.amount,
+                paymentKey = null,
                 rawPayload = ""
             )
 
@@ -171,7 +171,7 @@ class PaymentController(
         } catch (e: Exception) {
             log.error("❌ 결제 생성 중 예외 발생: orderId={}", request.orderId, e)
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요."))
+                .body(ApiResponse.error(genericErrorMessage))
         }
     }
 
@@ -210,7 +210,7 @@ class PaymentController(
         } catch (e: Exception) {
             log.error("❌ 결제 조회 중 예외 발생: paymentId={}", paymentId, e)
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요."))
+                .body(ApiResponse.error(genericErrorMessage))
         }
     }
 

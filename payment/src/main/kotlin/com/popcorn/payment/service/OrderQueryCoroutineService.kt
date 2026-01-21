@@ -1,10 +1,15 @@
 package com.popcorn.payment.service
 
-import com.popcorn.payment.config.CoroutineTransactionManager
 import com.popcorn.payment.config.ReadOnlyOperation
 import com.popcorn.payment.exception.PaymentException
+import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientResponseException
+import org.springframework.web.reactive.function.client.awaitBody
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
@@ -23,8 +28,11 @@ import java.util.*
  */
 @Service
 class OrderQueryCoroutineService(
-    private val transactionManager: CoroutineTransactionManager,
-    // private val orderRepository: JpaOrderRepository  // 실제 구현 시 추가
+    private val webClient: WebClient,
+    @param:Value("\${microservices.order.base-url}")
+    private val orderServiceBaseUrl: String,
+    @param:Value("\${microservices.order.timeout:30s}")
+    private val orderServiceTimeout: Duration
 ) {
 
     private val log = LoggerFactory.getLogger(OrderQueryCoroutineService::class.java)
@@ -44,59 +52,34 @@ class OrderQueryCoroutineService(
     suspend fun getOrder(orderId: UUID): OrderInfo {
         log.debug("🔍 주문 조회: orderId={}", orderId)
 
-        return transactionManager.executeInReadOnlyTransactionSuspend {
-            // 실제 구현에서는 JPA Repository 사용
-            // val order = orderRepository.findById(orderId)
-            //     .orElseThrow { PaymentException.invalidRequest("주문을 찾을 수 없습니다: $orderId") }
+        return try {
+            val response = withTimeout(orderServiceTimeout.toMillis()) {
+                webClient
+                    .get()
+                    .uri("$orderServiceBaseUrl/api/orders/v1/$orderId")
+                    .retrieve()
+                    .awaitBody<ApiResponse<OrderDetailApiResponse>>()
+            }
 
-            // OrderInfo(
-            //     id = order.id,
-            //     orderNo = order.orderNo,
-            //     customerId = order.customerId,
-            //     totalAmount = order.totalAmount,
-            //     status = order.status.name,
-            //     orderType = order.orderType.name,
-            //     createdAt = order.createdAt
-            // )
+            val data = response.data
+                ?: throw PaymentException.invalidRequest("주문을 찾을 수 없습니다: $orderId")
 
-            // 임시 데이터 반환
             OrderInfo(
-                id = orderId,
-                orderNo = "ORDER-${orderId.toString().substring(0, 8).uppercase()}",
-                customerId = 1L,
-                totalAmount = 10000,
-                status = "PENDING",
-                orderType = "PURCHASE",
-                createdAt = LocalDateTime.now()
+                id = data.orderId,
+                orderNo = data.orderNo,
+                customerId = data.customerId,
+                totalAmount = data.totalAmount,
+                status = data.status,
+                orderType = data.orderType,
+                createdAt = data.createdAt
             )
-        }
-    }
-
-    /**
-     * 주문 번호로 주문 정보 조회 (백워드 호환성)
-     *
-     * @param orderNo 주문 번호
-     * @return 주문 정보
-     */
-    @ReadOnlyOperation
-    suspend fun getOrderByOrderNo(orderNo: String): OrderInfo {
-        log.debug("🔍 주문 번호로 조회: orderNo={}", orderNo)
-
-        return transactionManager.executeInReadOnlyTransactionSuspend {
-            // 실제 구현에서는 JPA Repository 사용
-            // val order = orderRepository.findByOrderNo(orderNo)
-            //     .orElseThrow { PaymentException.invalidRequest("주문을 찾을 수 없습니다: $orderNo") }
-
-            // 임시 데이터 반환
-            OrderInfo(
-                id = UUID.randomUUID(),
-                orderNo = orderNo,
-                customerId = 1L,
-                totalAmount = 10000,
-                status = "PENDING",
-                orderType = "PURCHASE",
-                createdAt = LocalDateTime.now()
-            )
+        } catch (e: WebClientResponseException) {
+            log.error("주문 조회 실패: orderId={}, status={}, error={}",
+                orderId, e.statusCode, e.responseBodyAsString, e)
+            throw PaymentException.externalApiError("주문 조회 실패: ${e.message}")
+        } catch (e: Exception) {
+            log.error("주문 조회 실패: orderId={}, error={}", orderId, e.message, e)
+            throw PaymentException.externalApiError("주문 조회 실패: ${e.message}")
         }
     }
 
@@ -115,85 +98,32 @@ class OrderQueryCoroutineService(
     ): OrderInfo {
         log.info("🔄 주문 상태 업데이트: orderId={}, status={}, reason={}", orderId, status, reason)
 
-        return transactionManager.executeInTransactionSuspend {
-            // 실제 구현에서는 JPA Repository 사용
-            // val order = orderRepository.findById(orderId)
-            //     .orElseThrow { PaymentException.invalidRequest("주문을 찾을 수 없습니다: $orderId") }
+        return try {
+            withTimeout(orderServiceTimeout.toMillis()) {
+                webClient
+                    .patch()
+                    .uri { uriBuilder ->
+                        uriBuilder
+                            .path("$orderServiceBaseUrl/api/orders/v1/$orderId/status")
+                            .queryParam("status", status)
+                            .queryParam("reason", reason)
+                            .build()
+                    }
+                    .retrieve()
+                    .awaitBody<ApiResponse<Unit>>()
+            }
 
-            // 상태 전환 검증
-            // validateStatusTransition(order.status, OrderStatus.valueOf(status))
-
-            // order.setStatus(OrderStatus.valueOf(status))
-            // order.setUpdatedAt(LocalDateTime.now())
-
-            // val savedOrder = orderRepository.save(order)
-
-            // 임시 데이터 반환
-            OrderInfo(
-                id = orderId,
-                orderNo = "ORDER-${orderId.toString().substring(0, 8).uppercase()}",
-                customerId = 1L,
-                totalAmount = 10000,
-                status = status,
-                orderType = "PURCHASE",
-                createdAt = LocalDateTime.now()
-            )
+            getOrder(orderId)
+        } catch (e: WebClientResponseException) {
+            log.error("주문 상태 업데이트 실패: orderId={}, status={}, error={}",
+                orderId, status, e.responseBodyAsString, e)
+            throw PaymentException.externalApiError("주문 상태 업데이트 실패: ${e.message}")
+        } catch (e: Exception) {
+            log.error("주문 상태 업데이트 실패: orderId={}, status={}, error={}", orderId, status, e.message, e)
+            throw PaymentException.externalApiError("주문 상태 업데이트 실패: ${e.message}")
         }
     }
 
-    /**
-     * 고객 ID로 주문 목록 조회
-     *
-     * @param customerId 고객 ID
-     * @param limit 조회 개수 제한
-     * @return 주문 목록
-     */
-    @ReadOnlyOperation
-    suspend fun getOrdersByCustomerId(
-        customerId: Long,
-        limit: Int = 20
-    ): List<OrderInfo> {
-        log.debug("🔍 고객 주문 목록 조회: customerId={}, limit={}", customerId, limit)
-
-        return transactionManager.executeInReadOnlyTransactionSuspend {
-            // 실제 구현에서는 JPA Repository 사용
-            // orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId, PageRequest.of(0, limit))
-            //     .map { order ->
-            //         OrderInfo(
-            //             id = order.id,
-            //             orderNo = order.orderNo,
-            //             customerId = order.customerId,
-            //             totalAmount = order.totalAmount,
-            //             status = order.status.name,
-            //             orderType = order.orderType.name,
-            //             createdAt = order.createdAt
-            //         )
-            //     }
-
-            // 임시 빈 리스트 반환
-            emptyList()
-        }
-    }
-
-    /**
-     * 주문 상태 전환 검증
-     * 유효하지 않은 상태 전환 방지
-     */
-    private fun validateStatusTransition(currentStatus: String, newStatus: String) {
-        val validTransitions = mapOf(
-            "PENDING" to setOf("PAID", "CANCELLED"),
-            "PAID" to setOf("COMPLETED", "CANCELLED"),
-            "COMPLETED" to setOf("CANCELLED"),
-            "CANCELLED" to emptySet<String>()
-        )
-
-        val allowedStatuses = validTransitions[currentStatus] ?: emptySet()
-        if (newStatus !in allowedStatuses) {
-            throw PaymentException.invalidStatusTransition(
-                "유효하지 않은 주문 상태 전환: $currentStatus -> $newStatus"
-            )
-        }
-    }
 }
 
 /**
@@ -209,20 +139,32 @@ data class OrderInfo(
     val createdAt: LocalDateTime
 )
 
-/**
- * 주문 상태 열거형
- */
-enum class OrderStatus {
-    PENDING,      // 주문 생성
-    PAID,         // 결제 완료
-    COMPLETED,    // 주문 완료
-    CANCELLED     // 주문 취소
-}
+data class ApiResponse<T>(
+    val code: Int? = null,
+    val message: String? = null,
+    val data: T? = null
+)
 
-/**
- * 주문 타입 열거형
- */
-enum class OrderType {
-    PURCHASE,     // 일반 구매
-    RESERVATION   // 예약
-}
+data class PageResponse<T>(
+    val content: List<T> = emptyList()
+)
+
+data class OrderDetailApiResponse(
+    val orderId: UUID,
+    val orderNo: String,
+    val customerId: Long,
+    val orderType: String,
+    val status: String,
+    val totalAmount: Int,
+    val createdAt: LocalDateTime
+)
+
+data class OrderSummaryApiResponse(
+    val orderId: UUID,
+    val orderNo: String,
+    val customerId: Long,
+    val orderType: String,
+    val status: String,
+    val totalAmount: Int,
+    val createdAt: LocalDateTime
+)

@@ -58,36 +58,57 @@ class PaymentCommandCoroutineService(
         orderId: UUID,
         paymentMethod: String,
         amount: Int,
+        paymentKey: String? = null,
         rawPayload: String
     ): PaymentCreationResult {
+        return transactionManager.executeInTransactionSuspend {
+            createPaymentBlocking(orderId, paymentMethod, amount, paymentKey, rawPayload)
+        }
+    }
 
+    internal fun createPaymentBlocking(
+        orderId: UUID,
+        paymentMethod: String,
+        amount: Int,
+        paymentKey: String? = null,
+        rawPayload: String
+    ): PaymentCreationResult {
         log.info("💳 새 결제 기록 생성: orderId={}, method={}, amount={}원", orderId, paymentMethod, amount)
 
         // 입력 값 검증
-        validatePaymentCreation(orderId, paymentMethod, amount)
+        validatePaymentCreation(paymentMethod, amount)
 
-        return transactionManager.executeInTransactionSuspend {
-            // Payment 엔티티 생성
-            val payment = Payment.create(
-                orderId = orderId,
-                paymentMethod = PaymentMethod.valueOf(paymentMethod),
-                amount = amount,
-                rawPayload = rawPayload
-            )
+        // Payment 엔티티 생성
+        val payment = Payment.create(
+            orderId = orderId,
+            paymentMethod = PaymentMethod.valueOf(paymentMethod),
+            amount = amount,
+            paymentKey = paymentKey,
+            rawPayload = rawPayload
+        )
 
-            // 데이터베이스 저장
-            val savedPayment = paymentRepository.save(payment)
-
-            log.info("✅ 결제 기록 생성 완료: paymentId={}, status={}",
-                savedPayment.id, savedPayment.status)
-
-            PaymentCreationResult(
-                paymentId = savedPayment.id,
-                status = savedPayment.status.name,
-                amount = savedPayment.amount,
-                createdAt = savedPayment.createdAt
-            )
+        // 데이터베이스 저장 (멱등성 키 중복 시 기존 결제 반환)
+        val savedPayment = try {
+            paymentRepository.save(payment)
+        } catch (e: org.springframework.dao.DataIntegrityViolationException) {
+            if (paymentKey.isNullOrBlank()) {
+                throw e
+            }
+            paymentRepository
+                .findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey)
+                .firstOrNull()
+                ?: throw e
         }
+
+        log.info("✅ 결제 기록 생성 완료: paymentId={}, status={}",
+            savedPayment.id, savedPayment.status)
+
+        return PaymentCreationResult(
+            paymentId = savedPayment.id,
+            status = savedPayment.status.name,
+            amount = savedPayment.amount,
+            createdAt = savedPayment.createdAt
+        )
     }
 
     /**
@@ -105,37 +126,46 @@ class PaymentCommandCoroutineService(
         approvedAt: LocalDateTime? = null,
         rawPayload: String? = null
     ): PaymentDetailResult {
+        return transactionManager.executeInTransactionSuspend {
+            updatePaymentStatusBlocking(paymentId, status, approvedAt, rawPayload)
+        }
+    }
 
+    internal fun updatePaymentStatusBlocking(
+        paymentId: UUID,
+        status: String,
+        approvedAt: LocalDateTime? = null,
+        rawPayload: String? = null
+    ): PaymentDetailResult {
         log.info("🔄 결제 상태 업데이트: paymentId={}, status={}", paymentId, status)
 
-        return transactionManager.executeInTransactionSuspend {
-            // 결제 정보 조회
-            val payment = paymentRepository.findById(paymentId)
-                .orElseThrow { PaymentException.paymentNotFound() }
+        // 결제 정보 조회
+        val payment = paymentRepository.findById(paymentId)
+            .orElseThrow { PaymentException.paymentNotFound() }
 
-            // 상태 업데이트
-            payment.updateStatus(PaymentStatus.valueOf(status), approvedAt)
+        // 상태 업데이트
+        payment.updateStatus(PaymentStatus.valueOf(status), approvedAt)
 
-            // rawPayload 업데이트 (있는 경우)
-            if (rawPayload != null) {
-                payment.rawPayload = rawPayload
-            }
-
-            // 저장
-            val savedPayment = paymentRepository.save(payment)
-
-            log.info("✅ 결제 상태 업데이트 완료: paymentId={}, newStatus={}",
-                savedPayment.id, savedPayment.status)
-
-            PaymentDetailResult(
-                paymentId = savedPayment.id,
-                orderId = savedPayment.orderId,
-                status = savedPayment.status.name,
-                amount = savedPayment.amount,
-                approvedAt = savedPayment.approvedAt,
-                rawPayload = savedPayment.rawPayload
-            )
+        // rawPayload 업데이트 (있는 경우)
+        if (rawPayload != null) {
+            payment.rawPayload = rawPayload
         }
+
+        // 저장
+        val savedPayment = paymentRepository.save(payment)
+
+        log.info("✅ 결제 상태 업데이트 완료: paymentId={}, newStatus={}",
+            savedPayment.id, savedPayment.status)
+
+        return PaymentDetailResult(
+            paymentId = savedPayment.id,
+            orderId = savedPayment.orderId,
+            paymentKey = savedPayment.paymentKey,
+            status = savedPayment.status.name,
+            amount = savedPayment.amount,
+            approvedAt = savedPayment.approvedAt,
+            rawPayload = savedPayment.rawPayload
+        )
     }
 
     /**
@@ -146,11 +176,12 @@ class PaymentCommandCoroutineService(
      */
     suspend fun findByPaymentKey(paymentKey: String): List<PaymentDetailResult> {
         return transactionManager.executeInReadOnlyTransactionSuspend {
-            paymentRepository.findByPaymentKeyInRawPayload(paymentKey)
+            paymentRepository.findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey)
                 .map { payment ->
                     PaymentDetailResult(
                         paymentId = payment.id,
                         orderId = payment.orderId,
+                        paymentKey = payment.paymentKey,
                         status = payment.status.name,
                         amount = payment.amount,
                         approvedAt = payment.approvedAt,
@@ -174,6 +205,7 @@ class PaymentCommandCoroutineService(
             PaymentDetailResult(
                 paymentId = payment.id,
                 orderId = payment.orderId,
+                paymentKey = payment.paymentKey,
                 status = payment.status.name,
                 amount = payment.amount,
                 approvedAt = payment.approvedAt,
@@ -185,7 +217,7 @@ class PaymentCommandCoroutineService(
     /**
      * 결제 생성 입력값 검증
      */
-    private fun validatePaymentCreation(orderId: UUID, paymentMethod: String, amount: Int) {
+    private fun validatePaymentCreation(paymentMethod: String, amount: Int) {
         if (amount <= 0) {
             throw PaymentException.invalidRequest("결제 금액은 0보다 커야 합니다: $amount")
         }
@@ -218,6 +250,7 @@ data class PaymentCreationResult(
 data class PaymentDetailResult(
     val paymentId: UUID,
     val orderId: UUID? = null,
+    val paymentKey: String? = null,
     val status: String,
     val amount: Int,
     val approvedAt: LocalDateTime?,
