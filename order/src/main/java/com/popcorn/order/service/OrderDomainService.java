@@ -230,7 +230,8 @@ public class OrderDomainService {
 
         return switch (orderType) {
             case RESERVATION -> now.plusMinutes(RESERVATION_CANCEL_MINUTES);
-            case PURCHASE -> now.plusMinutes(PURCHASE_CANCEL_MINUTES);
+            case GOODS -> now.plusMinutes(PURCHASE_CANCEL_MINUTES);
+            case MIXED -> now.plusMinutes(PURCHASE_CANCEL_MINUTES); // 혼합형은 구매형과 동일한 정책
         };
     }
 

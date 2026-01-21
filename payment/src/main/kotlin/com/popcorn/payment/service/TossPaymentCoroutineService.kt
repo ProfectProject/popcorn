@@ -32,6 +32,53 @@ class TossPaymentCoroutineService(
     private val log = LoggerFactory.getLogger(TossPaymentCoroutineService::class.java)
 
     /**
+     * 토스페이먼츠 결제 생성 (결제 URL 발급)
+     */
+    suspend fun createPaymentRequest(
+        orderId: String,
+        amount: Int,
+        orderName: String,
+        customerKey: String
+    ): PaymentCreateResult {
+        log.info("토스페이먼츠 결제 생성 요청: orderId={}, amount={}, orderName={}", orderId, amount, orderName)
+
+        return try {
+            // 토스페이먼츠 결제 위젯 URL 생성
+            // 실제로는 토스페이먼츠 결제 생성 API를 호출해야 함
+            val paymentUrl = generateTossPaymentWidgetUrl(orderId, amount, orderName, customerKey)
+
+            PaymentCreateResult(
+                paymentUrl = paymentUrl,
+                orderId = orderId,
+                amount = amount,
+                expiresAt = java.time.LocalDateTime.now().plusMinutes(30)
+            )
+        } catch (e: Exception) {
+            log.error("토스페이먼츠 결제 생성 실패: orderId={}, error={}", orderId, e.message, e)
+            throw e
+        }
+    }
+
+    /**
+     * 토스페이먼츠 결제 위젯 URL 생성
+     */
+    private fun generateTossPaymentWidgetUrl(
+        orderId: String,
+        amount: Int,
+        orderName: String,
+        customerKey: String
+    ): String {
+        // 토스페이먼츠 결제 위젯 연동 방식
+        // 실제로는 토스페이먼츠 SDK 또는 API를 통해 결제 URL을 받아야 함
+
+        // 현재는 토스페이먼츠 결제 위젯 URL 형식으로 생성
+        val baseUrl = "https://js.tosspayments.com/v1/payment"
+        val params = "orderId=$orderId&amount=$amount&orderName=${java.net.URLEncoder.encode(orderName, "UTF-8")}&customerKey=$customerKey"
+
+        return "$baseUrl?$params"
+    }
+
+    /**
      * 토스 결제 승인 처리
      */
     suspend fun confirmPayment(
@@ -283,4 +330,14 @@ data class TossPaymentCancelResult(
     val cancelAmount: Int,
     val status: String,
     val cancelReason: String
+)
+
+/**
+ * 토스 결제 생성 결과 DTO
+ */
+data class PaymentCreateResult(
+    val paymentUrl: String,
+    val orderId: String,
+    val amount: Int,
+    val expiresAt: java.time.LocalDateTime
 )

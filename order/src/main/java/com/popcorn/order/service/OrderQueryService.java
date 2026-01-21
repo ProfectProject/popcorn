@@ -6,13 +6,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.popcorn.order.dto.query.OrderListQuery;
 import com.popcorn.order.dto.response.OrderDetailResponse;
+import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
 import com.popcorn.order.entity.Order;
+import com.popcorn.order.entity.OrderType;
 import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.entity.OrderStatusHistory;
 import com.popcorn.order.repository.OrderRepository;
@@ -230,5 +234,163 @@ public class OrderQueryService {
      */
     public boolean existsByOrderNo(String orderNo) {
         return orderRepository.existsByOrderNo(orderNo);
+    }
+
+    // ================ 새로운 Store 서비스 방식 조회 (Pagination) ================
+
+    /**
+     * 팝업별 주문 목록 조회 (Store 서비스 방식)
+     *
+     * @param query 조회 조건
+     * @return Store 서비스 방식의 주문 목록 응답
+     */
+    public OrderListResponse findOrdersByPopupId(OrderListQuery query) {
+        log.info("팝업별 주문 목록 조회 - 팝업ID: {}, 페이지: {}, 사이즈: {}",
+                query.getPopupId(), query.getValidatedPage(), query.getValidatedSize());
+
+        // 1. 페이지네이션 파라미터 검증
+        int page = query.getValidatedPage();
+        int size = query.getValidatedSize();
+
+        try {
+            // 2. Pageable 생성 (Spring Page는 0부터 시작하므로 -1)
+            Pageable pageable = PageRequest.of(page - 1, size);
+
+            // 3. 조건에 맞는 주문 목록 조회
+            Page<Order> orderPage = orderRepository.findOrdersByPopupIdWithConditions(
+                    query.getPopupId(),
+                    query.getStatus(),
+                    query.getOrderType(),
+                    pageable
+            );
+
+            // 4. 전체 개수 (withTotal=false인 경우 -1 반환)
+            long total = query.getValidatedWithTotal() ? orderPage.getTotalElements() : -1L;
+
+            // 5. Store 서비스 방식으로 응답 생성
+            OrderListResponse response = OrderListResponse.from(
+                    orderPage.getContent(), page, size, total);
+
+            log.info("팝업 주문 목록 조회 완료 - 팝업ID: {}, 조회된 주문: {}개, 전체: {}",
+                    query.getPopupId(), orderPage.getContent().size(), total);
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("팝업 주문 목록 조회 실패 - 팝업ID: {}, 에러: {}", query.getPopupId(), e.getMessage(), e);
+            // 에러 시 빈 응답 반환
+            return OrderListResponse.from(List.of(), page, size, 0L);
+        }
+    }
+
+    /**
+     * 카테고리별 주문 목록 조회 (Store 서비스 방식)
+     *
+     * @param query 조회 조건
+     * @return Store 서비스 방식의 주문 목록 응답
+     */
+    public OrderListResponse findOrdersByCategory(OrderListQuery query) {
+        log.info("카테고리별 주문 목록 조회 - 카테고리: {}, 페이지: {}, 사이즈: {}",
+                query.getOrderType(), query.getValidatedPage(), query.getValidatedSize());
+
+        // 1. 페이지네이션 파라미터 검증
+        int page = query.getValidatedPage();
+        int size = query.getValidatedSize();
+
+        try {
+            // 2. OrderType 검증
+            OrderType orderType = null;
+            if (query.getOrderType() != null) {
+                try {
+                    orderType = OrderType.valueOf(query.getOrderType());
+                } catch (IllegalArgumentException e) {
+                    log.warn("잘못된 주문 타입: {}", query.getOrderType());
+                    return OrderListResponse.from(List.of(), page, size, 0L);
+                }
+            }
+
+            // 3. Pageable 생성
+            Pageable pageable = PageRequest.of(page - 1, size);
+
+            // 4. 조건에 맞는 주문 목록 조회
+            Page<Order> orderPage = orderRepository.findOrdersByCategoryWithConditions(
+                    orderType,
+                    query.getStatus(),
+                    query.getUserId(),
+                    query.getFrom(),
+                    query.getTo(),
+                    pageable
+            );
+
+            // 5. 전체 개수 (withTotal=false인 경우 -1 반환)
+            long total = query.getValidatedWithTotal() ? orderPage.getTotalElements() : -1L;
+
+            // 6. Store 서비스 방식으로 응답 생성
+            OrderListResponse response = OrderListResponse.from(
+                    orderPage.getContent(), page, size, total);
+
+            log.info("카테고리 주문 목록 조회 완료 - 카테고리: {}, 조회된 주문: {}개, 전체: {}",
+                    query.getOrderType(), orderPage.getContent().size(), total);
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("카테고리 주문 목록 조회 실패 - 카테고리: {}, 에러: {}", query.getOrderType(), e.getMessage(), e);
+            // 에러 시 빈 응답 반환
+            return OrderListResponse.from(List.of(), page, size, 0L);
+        }
+    }
+
+    /**
+     * 통합 주문 목록 조회 (Store 서비스 방식)
+     * 모든 검색 조건을 지원하는 범용 메서드
+     *
+     * @param query 조회 조건
+     * @return Store 서비스 방식의 주문 목록 응답
+     */
+    public OrderListResponse findOrdersWithQuery(OrderListQuery query) {
+        log.info("통합 주문 목록 조회 - 팝업: {}, 타입: {}, 상태: {}, 사용자: {}, 페이지: {}",
+                query.getPopupId(), query.getOrderType(), query.getStatus(),
+                query.getUserId(), query.getValidatedPage());
+
+        int page = query.getValidatedPage();
+        int size = query.getValidatedSize();
+
+        try {
+            // OrderType 검증
+            OrderType orderType = null;
+            if (query.getOrderType() != null) {
+                try {
+                    orderType = OrderType.valueOf(query.getOrderType());
+                } catch (IllegalArgumentException e) {
+                    log.warn("잘못된 주문 타입: {}", query.getOrderType());
+                    return OrderListResponse.from(List.of(), page, size, 0L);
+                }
+            }
+
+            // Pageable 생성
+            Pageable pageable = PageRequest.of(page - 1, size);
+
+            // 통합 조회 (모든 조건 지원)
+            Page<Order> orderPage = orderRepository.findOrdersWithAllConditions(
+                    query.getPopupId(),
+                    orderType,
+                    query.getStatus(),
+                    query.getUserId(),
+                    query.getStoreId(),
+                    query.getFrom(),
+                    query.getTo(),
+                    pageable
+            );
+
+            // 전체 개수
+            long total = query.getValidatedWithTotal() ? orderPage.getTotalElements() : -1L;
+
+            return OrderListResponse.from(orderPage.getContent(), page, size, total);
+
+        } catch (Exception e) {
+            log.error("통합 주문 목록 조회 실패 - 에러: {}", e.getMessage(), e);
+            return OrderListResponse.from(List.of(), page, size, 0L);
+        }
     }
 }

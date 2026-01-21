@@ -6,8 +6,10 @@ import com.popcorn.payment.dto.PaymentCreateRequest
 import com.popcorn.payment.service.TossPaymentConfirmResult
 import com.popcorn.payment.service.TossPaymentCoroutineService
 import com.popcorn.payment.service.PaymentCommandCoroutineService
-import com.popcorn.payment.service.PaymentCreationResult
+import com.popcorn.payment.service.OrderQueryCoroutineService
+import com.popcorn.payment.util.PaymentTokenUtil
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -40,6 +42,14 @@ class PaymentControllerTest {
         @Bean
         @Primary
         fun paymentCommandService(): PaymentCommandCoroutineService = mockk()
+
+        @Bean
+        @Primary
+        fun paymentTokenUtil(): PaymentTokenUtil = mockk()
+
+        @Bean
+        @Primary
+        fun orderQueryService(): OrderQueryCoroutineService = mockk()
     }
 
     @Autowired
@@ -47,6 +57,9 @@ class PaymentControllerTest {
 
     @Autowired
     private lateinit var paymentCommandService: PaymentCommandCoroutineService
+
+    @Autowired
+    private lateinit var paymentTokenUtil: PaymentTokenUtil
 
     @Test
     fun `결제 승인 성공 테스트`() {
@@ -73,7 +86,7 @@ class PaymentControllerTest {
 
         // When & Then
         runBlocking {
-            mockMvc.post("/api/v1/payments/confirm") {
+            mockMvc.post("/api/pay/v1/payments/confirm") {
                 contentType = MediaType.APPLICATION_JSON
                 content = objectMapper.writeValueAsString(request)
             }.andExpect {
@@ -93,21 +106,11 @@ class PaymentControllerTest {
             paymentMethod = "CARD",
             amount = 15000
         )
-
-        val mockResult = PaymentCreationResult(
-            paymentId = UUID.randomUUID(),
-            status = "READY",
-            amount = 15000,
-            createdAt = LocalDateTime.now()
-        )
-
-        coEvery {
-            paymentCommandService.createPayment(any(), any(), any(), any())
-        } returns mockResult
+        every { paymentTokenUtil.encryptPaymentToken(any(), any(), any(), any(), any(), any()) } returns "test_token"
 
         // When & Then
         runBlocking {
-            mockMvc.post("/api/v1/payments") {
+            mockMvc.post("/api/pay/v1/payments") {
                 contentType = MediaType.APPLICATION_JSON
                 content = objectMapper.writeValueAsString(request)
             }.andExpect {
@@ -115,6 +118,7 @@ class PaymentControllerTest {
                 jsonPath("$.success") { value(true) }
                 jsonPath("$.data.status") { value("READY") }
                 jsonPath("$.data.amount") { value(15000) }
+                jsonPath("$.data.paymentUrl") { value("http://localhost:3000/payment?token=test_token") }
             }
         }
     }
@@ -130,7 +134,7 @@ class PaymentControllerTest {
 
         // When & Then
         runBlocking {
-            mockMvc.post("/api/v1/payments/confirm") {
+            mockMvc.post("/api/pay/v1/payments/confirm") {
                 contentType = MediaType.APPLICATION_JSON
                 content = objectMapper.writeValueAsString(invalidRequest)
             }.andExpect {

@@ -34,7 +34,7 @@ export default function AutoPaymentPage() {
       dataFetched.current = true;
 
       try {
-        const response = await fetch(`${apiBase}/api/v1/payments/decode?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`${apiBase}/api/pay/v1/payments/decode?token=${encodeURIComponent(token)}`);
 
         if (!response.ok) {
           setError('❌ 유효하지 않은 결제 토큰입니다.');

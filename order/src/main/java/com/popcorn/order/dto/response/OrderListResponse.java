@@ -4,179 +4,142 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.popcorn.order.entity.Order;
+import com.popcorn.order.entity.OrderStatus;
+import com.popcorn.order.entity.OrderType;
+
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
- * 주문 목록 응답 DTO
+ * 주문 목록 조회 응답 DTO (Store 서비스 방식)
  *
- * 주문 목록 조회 시 페이징된 주문 정보들을 반환합니다.
+ * [설계 가이드]
+ * Store 서비스의 PopupListResponse와 동일한 구조:
+ * - items: 실제 데이터 배열
+ * - page: 현재 페이지 번호
+ * - size: 페이지 크기
+ * - total: 전체 개수
+ *
+ * 이 구조의 장점:
+ * - 일관된 API 응답 형식
+ * - 프론트엔드에서 페이징 처리 용이
+ * - 성능 최적화 (withTotal=false로 count 쿼리 생략 가능)
  */
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderListResponse {
 
     /** 주문 목록 */
-    private final List<OrderSummary> orders;
+    private List<OrderItemDto> items;
 
-    /** 백엔드 호환성을 위한 항목 목록 */
-    private final List<OrderSummary> items;
+    /** 현재 페이지 번호 */
+    private int page;
 
-    /** 페이징 정보 */
-    private final PageInfo pageInfo;
+    /** 페이지 크기 */
+    private int size;
 
-    /** 백엔드 호환성을 위한 페이지 번호 */
-    private final Integer page;
-
-    /** 백엔드 호환성을 위한 페이지 크기 */
-    private final Integer size;
-
-    /** 백엔드 호환성을 위한 총 개수 */
-    private final Long total;
-
-    /** 목록 요약 정보 */
-    private final ListSummary summary;
-
-    /** 백엔드 호환성을 위한 total getter */
-    public Long getTotal() {
-        return pageInfo != null ? pageInfo.getTotalElements() : 0L;
-    }
-
-    /** 백엔드 호환성을 위한 items getter */
-    public List<OrderSummary> getItems() {
-        return orders;
-    }
+    /** 전체 주문 개수 (-1이면 count 미계산) */
+    private long total;
 
     /**
-     * 페이징 정보
+     * 주문 목록 항목 DTO (내부 클래스)
+     *
+     * [초보자 가이드]
+     * static nested class를 사용하는 이유:
+     * - OrderListResponse와 밀접하게 관련된 데이터 구조
+     * - 외부에서 OrderListResponse.OrderItemDto로 접근 가능
+     * - 패키지 구조를 깔끔하게 유지
      */
     @Getter
     @Builder
-    public static class PageInfo {
-        private final Integer currentPage;
-        private final Integer pageSize;
-        private final Long totalElements;
-        private final Integer totalPages;
-        private final Boolean hasNext;
-        private final Boolean hasPrevious;
-    }
-
-    /**
-     * 목록 요약 정보
-     */
-    @Getter
-    @Builder
-    public static class ListSummary {
-        private final Long totalOrders;
-        private final Integer totalAmount;
-        private final java.util.Map<String, Long> statusCounts;
-        private final LocalDateTime lastUpdated;
-    }
-
-    /**
-     * 주문 요약 정보
-     */
-    @Getter
-    @Builder
-    public static class OrderSummary {
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OrderItemDto {
         /** 주문 ID */
-        private final UUID orderId;
+        private UUID orderId;
 
         /** 주문 번호 */
-        private final String orderNo;
+        private String orderNo;
 
-        /** 고객 ID */
-        private final Long customerId;
+        /** 주문 타입 */
+        private OrderType orderType;
 
-        /** 고객 이름 (조회 가능한 경우) */
-        private final String customerName;
-
-        /** 스토어 이름 */
-        private final String storeName;
+        /** 주문 상태 */
+        private OrderStatus status;
 
         /** 팝업 ID */
-        private final UUID popupId;
+        private UUID popupId;
 
-        /** 팝업 이름 */
-        private final String popupName;
-
-        /** 주문 유형 */
-        private final String orderType;
-
-        /** 현재 상태 */
-        private final String status;
-
-        /** 상태 표시명 */
-        private final String statusDisplayName;
+        /** 고객 ID */
+        private Long customerId;
 
         /** 총 주문 금액 */
-        private final Integer totalAmount;
-
-        /** 주문 항목 개수 */
-        private final Integer itemCount;
-
-        /** 대표 상품명 (첫 번째 항목) */
-        private final String representativeItemName;
-
-        /** 취소 가능 여부 */
-        private final Boolean cancellable;
+        private Integer totalAmount;
 
         /** 취소 가능 시한 */
-        private final LocalDateTime cancelableUntil;
+        private LocalDateTime cancelableUntil;
 
         /** 주문 생성 시간 */
-        private final LocalDateTime createdAt;
+        private LocalDateTime createdAt;
 
-        /** 마지막 수정 시간 */
-        private final LocalDateTime updatedAt;
+        /** 주문 수정 시간 */
+        private LocalDateTime updatedAt;
 
-        /** 주문 진행률 (0-100) */
-        private final Integer progressPercentage;
-
-        /** 긴급 주문 여부 */
-        private final Boolean urgent;
-
-        /** 특별 요청사항 여부 */
-        private final Boolean hasSpecialRequest;
+        /**
+         * Order 엔티티로부터 OrderItemDto 생성
+         * @param order 주문 엔티티
+         * @return 변환된 DTO
+         */
+        public static OrderItemDto fromEntity(Order order) {
+            return OrderItemDto.builder()
+                    .orderId(order.getId())
+                    .orderNo(order.getOrderNo())
+                    .orderType(order.getOrderType())
+                    .status(order.getStatus())
+                    .popupId(order.getPopupId())
+                    .customerId(order.getCustomerId())
+                    .totalAmount(order.getTotalAmount())
+                    .cancelableUntil(order.getCancelableUntil())
+                    .createdAt(order.getCreatedAt())
+                    .updatedAt(order.getUpdatedAt())
+                    .build();
+        }
     }
 
     /**
-     * 빈 목록 응답 생성
+     * 페이징된 Order 엔티티 목록으로부터 OrderListResponse 생성
+     * @param orders 주문 엔티티 목록
+     * @param page 현재 페이지
+     * @param size 페이지 크기
+     * @param total 전체 개수
+     * @return 응답 DTO
      */
-    public static OrderListResponse empty(Integer page, Integer size) {
+    public static OrderListResponse from(List<Order> orders, int page, int size, long total) {
+        List<OrderItemDto> items = orders.stream()
+                .map(OrderItemDto::fromEntity)
+                .toList();
+
         return OrderListResponse.builder()
-                .orders(List.of())
-                .pageInfo(PageInfo.builder()
-                        .currentPage(page)
-                        .pageSize(size)
-                        .totalElements(0L)
-                        .totalPages(0)
-                        .hasNext(false)
-                        .hasPrevious(false)
-                        .build())
-                .summary(ListSummary.builder()
-                        .totalOrders(0L)
-                        .totalAmount(0)
-                        .statusCounts(java.util.Map.of())
-                        .lastUpdated(LocalDateTime.now())
-                        .build())
+                .items(items)
+                .page(page)
+                .size(size)
+                .total(total)
                 .build();
     }
 
     /**
-     * 상태별 표시명 반환
+     * 전체 개수 없이 OrderListResponse 생성 (성능 최적화)
+     * @param orders 주문 엔티티 목록
+     * @param page 현재 페이지
+     * @param size 페이지 크기
+     * @return 응답 DTO (total = -1)
      */
-    public static String getStatusDisplayName(String status) {
-        return switch (status) {
-            case "REQUESTED" -> "주문 접수";
-            case "ACCEPTED" -> "주문 승인";
-            case "RESERVED" -> "예약 확정";
-            case "PAYMENT_PENDING" -> "결제 대기";
-            case "PAID" -> "결제 완료";
-            case "COMPLETED" -> "주문 완료";
-            case "CANCELLED" -> "취소됨";
-            case "REJECTED" -> "거절됨";
-            default -> status;
-        };
+    public static OrderListResponse fromWithoutTotal(List<Order> orders, int page, int size) {
+        return from(orders, page, size, -1L);
     }
 }

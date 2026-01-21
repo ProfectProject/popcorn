@@ -80,7 +80,7 @@ class PaymentRepositoryTest {
         entityManager.flush()
 
         // When
-        val payments = paymentRepository.findByPaymentKeyInRawPayload(paymentKey)
+        val payments = paymentRepository.findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey)
 
         // Then
         assertEquals(1, payments.size)

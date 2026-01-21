@@ -70,6 +70,90 @@ public class OrderCompletedEvent extends BaseOrderEvent {
         );
     }
 
+    /**
+     * 빌더 패턴을 위한 정적 팩토리 메서드
+     */
+    public static OrderCompletedEventBuilder builder() {
+        return new OrderCompletedEventBuilder();
+    }
+
+    /**
+     * OrderCompletedEvent 빌더 클래스
+     */
+    public static class OrderCompletedEventBuilder {
+        private String eventId;
+        private UUID orderId;
+        private Long userId;
+        private LocalDateTime orderDate;
+        private String completedBy;
+        private Integer finalAmount;
+        private Integer itemCount;
+
+        public OrderCompletedEventBuilder eventId(String eventId) {
+            this.eventId = eventId;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder orderId(UUID orderId) {
+            this.orderId = orderId;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder orderNo(String orderNo) {
+            // orderNo는 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCompletedEventBuilder popupId(UUID popupId) {
+            // popupId는 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCompletedEventBuilder customerId(Long customerId) {
+            this.userId = customerId; // customerId를 userId로 매핑
+            return this;
+        }
+
+        public OrderCompletedEventBuilder userId(Long userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder orderDate(LocalDateTime orderDate) {
+            this.orderDate = orderDate;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder completedBy(String completedBy) {
+            this.completedBy = completedBy;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder finalAmount(Integer finalAmount) {
+            this.finalAmount = finalAmount;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder itemCount(Integer itemCount) {
+            this.itemCount = itemCount;
+            return this;
+        }
+
+        public OrderCompletedEventBuilder completedAt(LocalDateTime completedAt) {
+            // completedAt은 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCompletedEventBuilder eventTime(LocalDateTime eventTime) {
+            // eventTime은 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCompletedEvent build() {
+            return new OrderCompletedEvent(orderId, userId, orderDate, completedBy, finalAmount, itemCount);
+        }
+    }
+
     // ================ 이벤트 전용 메서드들 ================
 
     @Override

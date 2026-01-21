@@ -24,6 +24,7 @@ include 'gateway'
 include 'stores'
 include 'users'
 include 'order'
+include 'payment'
 
 // 각 모듈의 위치 지정
 project(':common-lib').projectDir = file('common-lib')

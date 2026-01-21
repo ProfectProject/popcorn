@@ -36,14 +36,14 @@ public class SwaggerConfig {
                         .url("https://api.popcorn.com")
                         .description("운영 서버"))
                 .components(new Components()
-                        .addSecuritySchemes("Bearer Authentication",
+                        .addSecuritySchemes("bearer-token",
                                 new SecurityScheme()
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
-                                        .description("JWT 토큰을 입력하세요")))
+                                        .description("JWT 토큰을 입력하세요 (Bearer 접두사 제외)")))
                 .addSecurityItem(new SecurityRequirement()
-                        .addList("Bearer Authentication"));
+                        .addList("bearer-token"));
     }
 
     private Info apiInfo() {

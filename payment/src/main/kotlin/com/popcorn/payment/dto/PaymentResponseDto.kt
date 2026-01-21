@@ -31,12 +31,26 @@ data class PaymentCancelResponse(
  * 결제 생성 응답 DTO
  */
 data class PaymentCreateResponse(
-    val paymentId: UUID,
+    val paymentId: UUID?,
     val orderId: UUID,
     val amount: Int,
     val status: String,
     val paymentMethod: String,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
+    val paymentUrl: String? = null, // 결제 URL (카드결제, 간편결제 등에서 사용)
+    val expiresAt: LocalDateTime? = null // 결제 만료 시간
+)
+
+/**
+ * 결제 토큰 디코드 응답 DTO
+ */
+data class PaymentTokenDecodeResponse(
+    val orderId: UUID,
+    val orderNo: String,
+    val amount: Int,
+    val customerKey: String,
+    val successUrl: String,
+    val failUrl: String
 )
 
 /**

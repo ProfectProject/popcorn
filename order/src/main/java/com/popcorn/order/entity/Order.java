@@ -69,12 +69,14 @@ public class Order extends BaseEntity {
     @Column(name = "user_id")
     private Long customerId;
 
-    /** 팝업 ID (요청값 보관용, 저장되지 않음) */
-    @Transient  // @Transient: 데이터베이스에 저장하지 않는 필드
+    /** 팝업 ID - 주문이 속한 팝업의 식별자 */
+    @Column(name = "popup_id")
     private UUID popupId;
 
-    /** 주문 타입 (요청값 보관용, 저장되지 않음) */
-    @Transient
+    /** 주문 타입 - 예약형/구매형/혼합형 구분 */
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "order_type", nullable = false)
     private OrderType orderType;
 
     /** 주문 상태 - 현재 주문이 어떤 단계에 있는지 */
@@ -90,6 +92,22 @@ public class Order extends BaseEntity {
     /** 총 주문 금액 (원 단위) */
     @Column(name = "total_price")
     private Integer totalAmount;
+
+    /** 결제 완료 시간 */
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    /** 주문 확정 시간 */
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
+    /** 주문 취소 시간 */
+    @Column(name = "canceled_at")
+    private LocalDateTime canceledAt;
+
+    /** 취소 사유 */
+    @Column(name = "cancel_reason")
+    private String cancelReason;
 
     // TODO: 주소 정보는 별도 테이블로 관리하거나 향후 스키마 확장 필요
     // 현재 p_orders 테이블에는 주소 필드가 없음
@@ -224,6 +242,99 @@ public class Order extends BaseEntity {
                 .reason(reason)
                 .changedAt(LocalDateTime.now())
                 .build();
+    }
+
+    /**
+     * 주문 상태 업데이트
+     * @param newStatus 새로운 주문 상태
+     */
+    public void updateStatus(OrderStatus newStatus) {
+        if (newStatus == null) {
+            throw new IllegalArgumentException("주문 상태는 null이 될 수 없습니다.");
+        }
+
+        OrderStatus oldStatus = this.status;
+        this.status = newStatus;
+        setUpdatedAt(LocalDateTime.now());
+
+        // 상태별 특별 처리
+        if (newStatus == OrderStatus.PAID) {
+            this.paidAt = LocalDateTime.now();
+        } else if (newStatus == OrderStatus.COMPLETED) {
+            this.confirmedAt = LocalDateTime.now();
+        } else if (newStatus == OrderStatus.CANCELLED) {
+            this.canceledAt = LocalDateTime.now();
+        }
+
+        // 로그 출력
+        System.out.println(String.format("주문 상태 변경: %s -> %s (주문ID: %s)",
+                oldStatus, newStatus, this.id));
+    }
+
+    /**
+     * 주문 취소 사유 설정
+     * @param reason 취소 사유
+     */
+    public void setCancellationReason(String reason) {
+        this.cancelReason = reason;
+        setUpdatedAt(LocalDateTime.now());
+    }
+
+    /**
+     * 주문 상태 조회 (OrderStatus enum 반환)
+     * @return 현재 주문 상태
+     */
+    public OrderStatus getOrderStatus() {
+        return this.status;
+    }
+
+    /**
+     * 결제 완료 처리
+     * 주문 상태를 PAID로 변경하고 결제 완료 시간을 기록
+     */
+    public void markAsPaid() {
+        updateStatus(OrderStatus.PAID);
+    }
+
+    /**
+     * 주문 확정 처리
+     * 주문 상태를 COMPLETED로 변경하고 확정 시간을 기록
+     */
+    public void markAsConfirmed() {
+        updateStatus(OrderStatus.COMPLETED);
+    }
+
+    /**
+     * 주문 취소 처리
+     * @param reason 취소 사유
+     */
+    public void markAsCancelled(String reason) {
+        updateStatus(OrderStatus.CANCELLED);
+        setCancellationReason(reason);
+    }
+
+    /**
+     * 주문이 결제 완료 상태인지 확인
+     * @return 결제 완료 여부
+     */
+    public boolean isPaid() {
+        return this.status == OrderStatus.PAID;
+    }
+
+    /**
+     * 주문이 확정 상태인지 확인
+     * @return 확정 여부
+     */
+    public boolean isConfirmed() {
+        return this.status == OrderStatus.COMPLETED;
+    }
+
+    /**
+     * 주문이 취소 상태인지 확인
+     * @return 취소 여부
+     */
+    public boolean isCancelled() {
+        return this.status == OrderStatus.CANCELLED;
     }
 
 }

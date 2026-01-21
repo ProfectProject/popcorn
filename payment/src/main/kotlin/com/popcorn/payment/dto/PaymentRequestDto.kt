@@ -45,7 +45,10 @@ data class PaymentCreateRequest(
     val paymentMethod: String,
 
     @field:Min(value = 1, message = "결제 금액은 1원 이상이어야 합니다")
-    val amount: Int
+    val amount: Int,
+    val customerId: Long? = null,
+    val orderNo: String? = null,
+    val itemName: String? = null
 )
 
 /**

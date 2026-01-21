@@ -44,7 +44,7 @@ function PaymentsContent() {
       }
 
       try {
-        const response = await fetch(`${apiBase}/api/v1/payments/decode?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`${apiBase}/api/pay/v1/payments/decode?token=${encodeURIComponent(token)}`);
 
         if (!response.ok) {
           setError("유효하지 않은 결제 토큰입니다.");
@@ -78,7 +78,7 @@ function PaymentsContent() {
     }
     if (typeof window === "undefined" || !window.TossPayments) {
       setError("토스 결제 SDK를 불러오지 못했습니다.");
-
+      return;
     }
   }, [scriptReady, clientKey, paymentInfo]);
 

@@ -75,7 +75,8 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
     // === 이벤트 처리 ===
-    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    // TODO: Kafka로 대체 예정
+    // implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
     // === 데이터베이스 마이그레이션 ===
     implementation 'org.flywaydb:flyway-core'

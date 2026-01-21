@@ -1,11 +1,11 @@
--- 주문 관련 테이블 생성
--- backend v1.sql의 order 스키마를 기반으로 작성
+-- Order Entity 구조에 맞춘 주문 관련 테이블 생성 (V1 - 완전 재작성)
+-- Hibernate Entity와 100% 호환되는 구조
 
 CREATE SCHEMA IF NOT EXISTS orders;
 SET search_path TO orders;
 
--- 주문 상태 ENUM 타입 생성
-CREATE TYPE order_status AS ENUM (
+-- 1. OrderStatus enum 타입 생성 (Hibernate가 찾는 정확한 이름)
+CREATE TYPE orderstatus AS ENUM (
     'REQUESTED',        -- 주문 요청됨
     'ACCEPTED',         -- 주문 수락됨
     'REJECTED',         -- 주문 거절됨
@@ -16,15 +16,29 @@ CREATE TYPE order_status AS ENUM (
     'CANCELLED'         -- 취소됨
 );
 
--- 메인 주문 테이블 생성
-CREATE TABLE orders (
-    order_id UUID PRIMARY KEY,                  -- 주문 ID
-    order_no VARCHAR(32) UNIQUE NOT NULL,       -- 주문 번호 (사용자용 식별자)
-    user_id BIGINT NOT NULL,                    -- 주문한 사용자 ID
-    store_id UUID NOT NULL,                     -- 팝업스토어 ID
-    status order_status NOT NULL DEFAULT 'REQUESTED',  -- 주문 상태
-    cancelable_until TIMESTAMP,                 -- 취소 가능 시한
-    total_price INTEGER NOT NULL,               -- 총 주문 금액
+-- 2. OrderType enum 타입 생성
+CREATE TYPE ordertype AS ENUM (
+    'RESERVATION',      -- 예약형
+    'GOODS',           -- 굿즈형
+    'MIXED'            -- 혼합형 (예약 + 굿즈)
+);
+
+-- 3. p_orders 테이블 생성 (Order Entity와 완전 일치)
+CREATE TABLE p_orders (
+    order_id UUID PRIMARY KEY,                     -- Order.id (@Id)
+    order_no VARCHAR(32) UNIQUE NOT NULL,          -- Order.orderNo
+    user_id BIGINT NOT NULL,                       -- Order.customerId
+    popup_id UUID,                                 -- Order.popupId (이제 저장됨)
+    order_type ordertype NOT NULL,                 -- Order.orderType (이제 저장됨)
+    status orderstatus NOT NULL DEFAULT 'REQUESTED', -- Order.status (@JdbcTypeCode)
+    cancelable_until TIMESTAMP,                    -- Order.cancelableUntil
+    total_price INTEGER NOT NULL,                  -- Order.totalAmount
+    paid_at TIMESTAMP,                             -- Order.paidAt
+    confirmed_at TIMESTAMP,                        -- Order.confirmedAt
+    canceled_at TIMESTAMP,                         -- Order.canceledAt
+    cancel_reason VARCHAR(500),                    -- Order.cancelReason
+
+    -- BaseEntity 필드들
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
@@ -33,17 +47,16 @@ CREATE TABLE orders (
     deleted_by BIGINT
 );
 
--- 주문 상품 테이블 (주문 항목)
-CREATE TABLE order_goods (
-    order_goods_id UUID PRIMARY KEY,            -- 주문 상품 ID
-    order_id UUID NOT NULL,                     -- 주문 ID (FK)
-    popup_id UUID NOT NULL,                     -- 팝업 ID
-    item_type VARCHAR(10) NOT NULL,             -- 항목 타입 (RESERVATION/GOODS)
-    schedule_id UUID,                           -- 스케줄 ID (예약형 상품용)
-    goods_variant_id UUID,                      -- 굿즈 변형 ID (구매형 상품용)
-    qty INTEGER NOT NULL,                       -- 수량
-    unit_price INTEGER NOT NULL,                -- 단가
-    price INTEGER NOT NULL,                     -- 라인 금액 (단가 × 수량)
+-- 4. p_order_status_histories 테이블 생성 (OrderStatusHistory Entity와 완전 일치)
+CREATE TABLE p_order_status_histories (
+    order_status_id UUID PRIMARY KEY,              -- OrderStatusHistory.id (@Id)
+    order_id UUID NOT NULL,                        -- OrderStatusHistory.orderId
+    from_status orderstatus,                       -- OrderStatusHistory.fromStatus (@JdbcTypeCode)
+    to_status orderstatus NOT NULL,                -- OrderStatusHistory.toStatus (@JdbcTypeCode)
+    reason VARCHAR(255),                           -- OrderStatusHistory.reason
+    changed_at TIMESTAMP NOT NULL,                 -- OrderStatusHistory.changedAt
+
+    -- BaseEntity 필드들
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
@@ -52,97 +65,49 @@ CREATE TABLE order_goods (
     deleted_by BIGINT
 );
 
--- 주문 상태 변경 이력 테이블
-CREATE TABLE order_status_histories (
-    order_status_id UUID PRIMARY KEY,           -- 상태 이력 ID
-    order_id UUID NOT NULL,                     -- 주문 ID (FK)
-    from_status order_status,                   -- 변경 전 상태
-    to_status order_status NOT NULL,            -- 변경 후 상태
-    reason VARCHAR(255),                        -- 변경 사유
-    changed_at TIMESTAMP NOT NULL,              -- 변경 일시
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
-    created_by BIGINT,
-    updated_by BIGINT,
-    deleted_by BIGINT
-);
+-- 5. 외래 키 제약 조건
+ALTER TABLE p_order_status_histories
+    ADD CONSTRAINT fk_p_order_status_histories_order
+        FOREIGN KEY (order_id) REFERENCES p_orders(order_id);
 
--- 외래 키 제약 조건
-ALTER TABLE order_goods
-    ADD CONSTRAINT fk_order_goods_order
-        FOREIGN KEY (order_id) REFERENCES orders(order_id);
+-- 6. 인덱스 생성 (성능 최적화 + Repository 쿼리 지원)
+CREATE INDEX idx_p_orders_user_id ON p_orders(user_id);
+CREATE INDEX idx_p_orders_popup_id ON p_orders(popup_id);
+CREATE INDEX idx_p_orders_status ON p_orders(status);
+CREATE INDEX idx_p_orders_order_type ON p_orders(order_type);
+CREATE INDEX idx_p_orders_created_at ON p_orders(created_at DESC);
+CREATE INDEX idx_p_orders_order_no ON p_orders(order_no);
+CREATE INDEX idx_p_orders_paid_at ON p_orders(paid_at);
+CREATE INDEX idx_p_orders_cancelable_until ON p_orders(cancelable_until);
 
-ALTER TABLE order_status_histories
-    ADD CONSTRAINT fk_order_status_histories_order
-        FOREIGN KEY (order_id) REFERENCES orders(order_id);
+-- 상태 이력 테이블 인덱스
+CREATE INDEX idx_p_order_status_histories_order_id ON p_order_status_histories(order_id);
+CREATE INDEX idx_p_order_status_histories_changed_at ON p_order_status_histories(changed_at DESC);
 
--- 인덱스 생성 (성능 최적화)
--- 주문 테이블 인덱스
-CREATE INDEX idx_orders_user_id ON orders(user_id);
-CREATE INDEX idx_orders_store_id ON orders(store_id);
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
-CREATE INDEX idx_orders_order_no ON orders(order_no);
+-- 7. 체크 제약 조건
+ALTER TABLE p_orders
+    ADD CONSTRAINT chk_p_orders_total_price
+        CHECK (total_price > 0);
 
--- 주문 상품 테이블 인덱스
-CREATE INDEX idx_order_goods_order_id ON order_goods(order_id);
-CREATE INDEX idx_order_goods_popup_id ON order_goods(popup_id);
-CREATE INDEX idx_order_goods_item_type ON order_goods(item_type);
-CREATE INDEX idx_order_goods_schedule_id ON order_goods(schedule_id);
-CREATE INDEX idx_order_goods_goods_variant_id ON order_goods(goods_variant_id);
+-- 8. 테이블 및 컬럼 코멘트
+COMMENT ON TABLE p_orders IS '주문 정보 테이블 (Order Entity와 완전 일치)';
+COMMENT ON COLUMN p_orders.order_id IS '주문 고유 ID (UUID) - Order.id';
+COMMENT ON COLUMN p_orders.order_no IS '주문 번호 (사용자 표시용) - Order.orderNo';
+COMMENT ON COLUMN p_orders.user_id IS '주문한 사용자 ID - Order.customerId';
+COMMENT ON COLUMN p_orders.popup_id IS '팝업 ID - Order.popupId';
+COMMENT ON COLUMN p_orders.order_type IS '주문 타입 (RESERVATION/GOODS/MIXED) - Order.orderType';
+COMMENT ON COLUMN p_orders.status IS '주문 상태 - Order.status';
+COMMENT ON COLUMN p_orders.cancelable_until IS '취소 가능 시한 - Order.cancelableUntil';
+COMMENT ON COLUMN p_orders.total_price IS '총 주문 금액 (원) - Order.totalAmount';
+COMMENT ON COLUMN p_orders.paid_at IS '결제 완료 시간 - Order.paidAt';
+COMMENT ON COLUMN p_orders.confirmed_at IS '주문 확정 시간 - Order.confirmedAt';
+COMMENT ON COLUMN p_orders.canceled_at IS '주문 취소 시간 - Order.canceledAt';
+COMMENT ON COLUMN p_orders.cancel_reason IS '취소 사유 - Order.cancelReason';
 
--- 주문 상태 이력 테이블 인덱스
-CREATE INDEX idx_order_status_histories_order_id ON order_status_histories(order_id);
-CREATE INDEX idx_order_status_histories_changed_at ON order_status_histories(changed_at DESC);
-
--- 체크 제약 조건
-ALTER TABLE order_goods ADD CONSTRAINT chk_order_goods_qty
-    CHECK (qty > 0);
-
-ALTER TABLE order_goods ADD CONSTRAINT chk_order_goods_unit_price
-    CHECK (unit_price > 0);
-
-ALTER TABLE order_goods ADD CONSTRAINT chk_order_goods_price
-    CHECK (price > 0);
-
-ALTER TABLE orders ADD CONSTRAINT chk_orders_total_price
-    CHECK (total_price > 0);
-
--- 항목 타입 체크 제약 조건
-ALTER TABLE order_goods ADD CONSTRAINT chk_order_goods_item_type
-    CHECK (item_type IN ('RESERVATION', 'GOODS'));
-
--- 논리적 제약 조건 (애플리케이션에서 검증하지만 DB 레벨에서도 체크)
--- 예약형 상품은 schedule_id가 필수, goods_variant_id는 null
--- 구매형 상품은 goods_variant_id가 필수, schedule_id는 null
--- 이는 CHECK 제약으로는 복잡하므로 애플리케이션 레벨에서 검증
-
--- 테이블 및 컬럼 코멘트
-COMMENT ON TABLE orders IS '주문 정보 테이블';
-COMMENT ON COLUMN orders.order_id IS '주문 고유 ID';
-COMMENT ON COLUMN orders.order_no IS '주문 번호 (사용자 표시용)';
-COMMENT ON COLUMN orders.user_id IS '주문한 사용자 ID';
-COMMENT ON COLUMN orders.store_id IS '팝업스토어 ID';
-COMMENT ON COLUMN orders.status IS '주문 상태';
-COMMENT ON COLUMN orders.cancelable_until IS '취소 가능 시한';
-COMMENT ON COLUMN orders.total_price IS '총 주문 금액 (원)';
-
-COMMENT ON TABLE order_goods IS '주문 상품 정보 테이블';
-COMMENT ON COLUMN order_goods.order_goods_id IS '주문 상품 고유 ID';
-COMMENT ON COLUMN order_goods.order_id IS '주문 ID';
-COMMENT ON COLUMN order_goods.popup_id IS '팝업 ID';
-COMMENT ON COLUMN order_goods.item_type IS '상품 타입 (RESERVATION/GOODS)';
-COMMENT ON COLUMN order_goods.schedule_id IS '스케줄 ID (예약형 상품용)';
-COMMENT ON COLUMN order_goods.goods_variant_id IS '굿즈 변형 ID (구매형 상품용)';
-COMMENT ON COLUMN order_goods.qty IS '주문 수량';
-COMMENT ON COLUMN order_goods.unit_price IS '단가 (원)';
-COMMENT ON COLUMN order_goods.price IS '라인 금액 (원)';
-
-COMMENT ON TABLE order_status_histories IS '주문 상태 변경 이력 테이블';
-COMMENT ON COLUMN order_status_histories.order_status_id IS '상태 변경 이력 고유 ID';
-COMMENT ON COLUMN order_status_histories.order_id IS '주문 ID';
-COMMENT ON COLUMN order_status_histories.from_status IS '변경 전 주문 상태';
-COMMENT ON COLUMN order_status_histories.to_status IS '변경 후 주문 상태';
-COMMENT ON COLUMN order_status_histories.reason IS '상태 변경 사유';
-COMMENT ON COLUMN order_status_histories.changed_at IS '상태 변경 일시';
+COMMENT ON TABLE p_order_status_histories IS '주문 상태 변경 이력 테이블 (OrderStatusHistory Entity와 완전 일치)';
+COMMENT ON COLUMN p_order_status_histories.order_status_id IS '상태 변경 이력 고유 ID - OrderStatusHistory.id';
+COMMENT ON COLUMN p_order_status_histories.order_id IS '주문 ID - OrderStatusHistory.orderId';
+COMMENT ON COLUMN p_order_status_histories.from_status IS '변경 전 주문 상태 - OrderStatusHistory.fromStatus';
+COMMENT ON COLUMN p_order_status_histories.to_status IS '변경 후 주문 상태 - OrderStatusHistory.toStatus';
+COMMENT ON COLUMN p_order_status_histories.reason IS '상태 변경 사유 - OrderStatusHistory.reason';
+COMMENT ON COLUMN p_order_status_histories.changed_at IS '상태 변경 일시 - OrderStatusHistory.changedAt';

@@ -213,10 +213,11 @@ class SimpleOrderServiceTest {
     void 주문타입_enum값들() {
         // When & Then
         OrderType[] types = OrderType.values();
-        assertEquals(2, types.length, "2개 타입");
+        assertEquals(3, types.length, "3개 타입");
 
         assertEquals("RESERVATION", OrderType.RESERVATION.name(), "예약형");
-        assertEquals("PURCHASE", OrderType.PURCHASE.name(), "구매형");
+        assertEquals("GOODS", OrderType.GOODS.name(), "구매형");
+        assertEquals("MIXED", OrderType.MIXED.name(), "혼합형");
     }
 
 }

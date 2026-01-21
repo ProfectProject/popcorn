@@ -19,6 +19,9 @@ public class JwtFilter implements GlobalFilter, Ordered{
             "/api/users/v1/auth/login",
             "/api/users/v1/users/signup"
     );
+    private static final List<String> EXCLUDE_PREFIXES = List.of(
+            "/api/pay/v1/payments/health"
+    );
 
     private final JwtUtil jwtUtils;
 
@@ -28,7 +31,7 @@ public class JwtFilter implements GlobalFilter, Ordered{
         String path = exchange.getRequest().getURI().getPath();
 
         // 1) 로그인/회원가입은 필터 제외
-        if (EXCLUDE_URLS.contains(path)) {
+        if (EXCLUDE_URLS.contains(path) || isExcludedByPrefix(path)) {
             return chain.filter(exchange);
         }
 
@@ -58,5 +61,9 @@ public class JwtFilter implements GlobalFilter, Ordered{
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
         exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
+    }
+
+    private boolean isExcludedByPrefix(String path) {
+        return EXCLUDE_PREFIXES.stream().anyMatch(path::startsWith);
     }
 }

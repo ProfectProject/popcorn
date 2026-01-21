@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
+import com.popcorn.order.entity.OrderType;
 
 /**
  * 주문 Repository 인터페이스
@@ -156,5 +157,129 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findRequestedOrdersOlderThan(
             @Param("cutoffTime") LocalDateTime cutoffTime,
             Pageable pageable);
+
+    // ================ Store 서비스 방식 Pagination 메서드들 ================
+
+    /**
+     * 팝업별 주문 목록 조회 (조건부 필터, Pageable 사용)
+     *
+     * @param popupId 팝업 ID
+     * @param status 주문 상태 (선택적)
+     * @param orderType 주문 타입 (선택적)
+     * @param pageable 페이징 정보
+     * @return 주문 목록 페이지
+     */
+    @Query("SELECT o FROM Order o WHERE o.popupId = :popupId " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:orderType IS NULL OR o.orderType = :orderType) " +
+           "ORDER BY o.createdAt DESC")
+    Page<Order> findOrdersByPopupIdWithConditions(
+            @Param("popupId") UUID popupId,
+            @Param("status") String status,
+            @Param("orderType") String orderType,
+            Pageable pageable);
+
+    /**
+     * 팝업별 주문 개수 조회 (조건부 필터)
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.popupId = :popupId " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:orderType IS NULL OR o.orderType = :orderType)")
+    long countOrdersByPopupId(
+            @Param("popupId") UUID popupId,
+            @Param("status") String status,
+            @Param("orderType") String orderType);
+
+    /**
+     * 카테고리별 주문 목록 조회 (조건부 필터, Pageable 사용)
+     *
+     * @param orderType 주문 타입
+     * @param status 주문 상태 (선택적)
+     * @param userId 사용자 ID (선택적)
+     * @param from 시작 날짜 (선택적)
+     * @param to 종료 날짜 (선택적)
+     * @param pageable 페이징 정보
+     * @return 주문 목록 페이지
+     */
+    @Query("SELECT o FROM Order o WHERE " +
+           "(:orderType IS NULL OR o.orderType = :orderType) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:userId IS NULL OR o.customerId = :userId) " +
+           "AND (:from IS NULL OR o.createdAt >= :from) " +
+           "AND (:to IS NULL OR o.createdAt <= :to) " +
+           "ORDER BY o.createdAt DESC")
+    Page<Order> findOrdersByCategoryWithConditions(
+            @Param("orderType") OrderType orderType,
+            @Param("status") String status,
+            @Param("userId") Long userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to,
+            Pageable pageable);
+
+    /**
+     * 카테고리별 주문 개수 조회 (조건부 필터)
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE " +
+           "(:orderType IS NULL OR o.orderType = :orderType) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:userId IS NULL OR o.customerId = :userId) " +
+           "AND (:from IS NULL OR o.createdAt >= :from) " +
+           "AND (:to IS NULL OR o.createdAt <= :to)")
+    long countOrdersByCategory(
+            @Param("orderType") OrderType orderType,
+            @Param("status") String status,
+            @Param("userId") Long userId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
+     * 통합 조건 주문 목록 조회 (모든 조건 지원, Pageable 사용)
+     *
+     * @param popupId 팝업 ID (선택적)
+     * @param orderType 주문 타입 (선택적)
+     * @param status 주문 상태 (선택적)
+     * @param userId 사용자 ID (선택적)
+     * @param storeId 스토어 ID (선택적) - 향후 확장용
+     * @param from 시작 날짜 (선택적)
+     * @param to 종료 날짜 (선택적)
+     * @param pageable 페이징 정보
+     * @return 주문 목록 페이지
+     */
+    @Query("SELECT o FROM Order o WHERE " +
+           "(:popupId IS NULL OR o.popupId = :popupId) " +
+           "AND (:orderType IS NULL OR o.orderType = :orderType) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:userId IS NULL OR o.customerId = :userId) " +
+           "AND (:from IS NULL OR o.createdAt >= :from) " +
+           "AND (:to IS NULL OR o.createdAt <= :to) " +
+           "ORDER BY o.createdAt DESC")
+    Page<Order> findOrdersWithAllConditions(
+            @Param("popupId") UUID popupId,
+            @Param("orderType") OrderType orderType,
+            @Param("status") String status,
+            @Param("userId") Long userId,
+            @Param("storeId") UUID storeId, // 현재는 사용하지 않지만 향후 확장용
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to,
+            Pageable pageable);
+
+    /**
+     * 통합 조건 주문 개수 조회 (모든 조건 지원)
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE " +
+           "(:popupId IS NULL OR o.popupId = :popupId) " +
+           "AND (:orderType IS NULL OR o.orderType = :orderType) " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:userId IS NULL OR o.customerId = :userId) " +
+           "AND (:from IS NULL OR o.createdAt >= :from) " +
+           "AND (:to IS NULL OR o.createdAt <= :to)")
+    long countOrdersWithAllConditions(
+            @Param("popupId") UUID popupId,
+            @Param("orderType") OrderType orderType,
+            @Param("status") String status,
+            @Param("userId") Long userId,
+            @Param("storeId") UUID storeId, // 현재는 사용하지 않지만 향후 확장용
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 
 }

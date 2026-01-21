@@ -31,6 +31,7 @@ import com.popcorn.order.dto.payment.CreatePaymentResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.popcorn.order.util.PaymentTokenUtil;
 
 /**
  * 주문 명령(Command) 처리 서비스
@@ -50,6 +51,7 @@ public class OrderCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final PaymentClient paymentClient;
     private final UserClient userClient;
+    private final PaymentTokenUtil paymentTokenUtil;
 
     /**
      * 새로운 주문 생성하기 (멱등성 처리)
@@ -112,32 +114,36 @@ public class OrderCommandService {
                 .reason("주문 생성")
                 .changedAt(LocalDateTime.now())
                 .build();
+
+
         orderStatusHistoryRepository.save(createdHistory);
 
         // 6. 이벤트 발행
         eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder, null));
 
-        // 7. 결제 프로세스 시작
-        try {
-            startPaymentProcess(savedOrder, command);
-        } catch (Exception e) {
-            log.warn("결제 시작 실패 - 주문번호: {}, 나중에 수동 처리: {}",
-                savedOrder.getOrderNo(), e.getMessage());
-            // 결제 실패해도 주문은 생성됨 (나중에 수동 결제 가능)
-        }
-
-        // 8. 응답 생성 (결제 정보 포함)
+        // 7. 결제 URL 생성 (실제 결제 기록은 결제 완료 시점에 생성)
         String paymentMethod = determinePaymentMethod(savedOrder);
-        LocalDateTime paymentExpiresAt = LocalDateTime.now().plusMinutes(30); // 30분 후 만료
+        CreatePaymentResponse paymentResponse = requestPaymentUrl(savedOrder, paymentMethod);
+        String paymentUrl = paymentResponse != null ? paymentResponse.getPaymentUrl() : null;
+        LocalDateTime paymentExpiresAt = paymentResponse != null && paymentResponse.getExpiresAt() != null
+            ? paymentResponse.getExpiresAt()
+            : LocalDateTime.now().plusMinutes(30);
+        String paymentStatus = paymentResponse != null && paymentResponse.getStatus() != null
+            ? paymentResponse.getStatus()
+            : "READY";
+        String paymentMessage = paymentUrl != null
+            ? "결제 링크가 생성되었습니다. 링크를 통해 결제를 완료해주세요."
+            : "결제가 준비 중입니다. 잠시 후 결제 링크를 받으실 수 있습니다.";
 
+        // 8. 응답 생성 (결제 URL 포함, 실제 Payment 엔티티는 생성하지 않음)
         CreateOrderResponse response = CreateOrderResponse.fromOrderWithPayment(
                 savedOrder,
-                null, // 결제 ID는 비동기 생성 후 확정
-                "PENDING", // 결제 진행 중
+                paymentResponse != null ? paymentResponse.getPaymentId() : null,
+                paymentStatus,
                 paymentMethod,
-                null, // 결제 URL은 비동기 생성 후 확정
+                paymentUrl,
                 paymentExpiresAt,
-                "결제가 준비 중입니다. 잠시 후 결제 링크를 받으실 수 있습니다."
+                paymentMessage
         );
 
         log.info("주문 생성 완료 - 주문번호: {}, 결제방법: {}", response.getOrderNo(), paymentMethod);
@@ -386,14 +392,82 @@ public class OrderCommandService {
     }
 
     /**
-     * 주문 생성 후 결제 프로세스 시작
+     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (동기 처리)
+     *
+     * [개선사항]
+     * - 기존 비동기 처리 → 동기 처리로 변경
+     * - 결제 URL을 즉시 받아서 주문 생성 응답에 포함
+     * - 결제 실패 시에도 주문은 유지되며 나중에 수동 결제 가능
+     */
+    private CreatePaymentResponse startPaymentProcessAndGetUrl(Order order, CreateOrderCommand command) {
+        log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
+                order.getOrderNo(), order.getTotalAmount());
+
+        // 1. 주문 상태를 결제 대기로 변경
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
+        orderRepository.save(order);
+
+        // 2. 상태 변경 이력 저장
+        OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
+                .orderId(order.getId())
+                .fromStatus(OrderStatus.REQUESTED)
+                .toStatus(OrderStatus.PAYMENT_PENDING)
+                .reason("결제 프로세스 시작")
+                .changedAt(LocalDateTime.now())
+                .build();
+        orderStatusHistoryRepository.save(paymentPendingHistory);
+
+        // 3. Payment 서비스에 결제 요청 (동기 처리로 변경)
+        CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
+                order.getId(),
+                order.getCustomerId(),
+                order.getOrderNo(),
+                order.getTotalAmount(),
+                determinePaymentMethod(order)
+        );
+
+        // 4. 동기로 Payment 서비스 호출하여 결제 URL 받기
+        try {
+            CreatePaymentResponse paymentResponse = paymentClient.createPaymentSync(paymentRequest);
+
+            log.info("결제 생성 성공 - 주문번호: {}, 결제ID: {}, 결제URL: {}",
+                    order.getOrderNo(), paymentResponse.getPaymentId(), paymentResponse.getPaymentUrl());
+
+            return paymentResponse;
+
+        } catch (Exception e) {
+            log.error("결제 생성 실패 - 주문번호: {}, 에러: {}", order.getOrderNo(), e.getMessage(), e);
+
+            // 주문 상태를 다시 요청 상태로 되돌림
+            order.setStatus(OrderStatus.REQUESTED);
+            orderRepository.save(order);
+
+            // 상태 변경 이력 저장
+            OrderStatusHistory failedHistory = OrderStatusHistory.builder()
+                    .orderId(order.getId())
+                    .fromStatus(OrderStatus.PAYMENT_PENDING)
+                    .toStatus(OrderStatus.REQUESTED)
+                    .reason("결제 생성 실패: " + e.getMessage())
+                    .changedAt(LocalDateTime.now())
+                    .build();
+            orderStatusHistoryRepository.save(failedHistory);
+
+            return null; // 결제 실패
+        }
+    }
+
+    /**
+     * 주문 생성 후 결제 프로세스 시작 (기존 비동기 방식 - 호환성 유지)
      *
      * [초보자 가이드]
      * 주문이 생성된 후 자동으로 결제를 시작합니다.
      * - 주문 상태 → PAYMENT_PENDING으로 변경
      * - Payment 마이크로서비스에 결제 요청
      * - 비동기로 처리 (결제 실패해도 주문은 유지)
+     *
+     * @deprecated 새로운 동기 방식으로 대체됨. startPaymentProcessAndGetUrl() 사용 권장
      */
+    @Deprecated
     private void startPaymentProcess(Order order, CreateOrderCommand command) {
         log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
                 order.getOrderNo(), order.getTotalAmount());
@@ -542,6 +616,118 @@ public class OrderCommandService {
             // 현재는 경고 로깅만 수행 (모니터링 시스템에서 수집 가능)
         } catch (Exception e) {
             log.error("관리자 결제 장애 알림 발송 실패: 주문ID={}", orderId, e);
+        }
+    }
+
+    /**
+     * 프론트엔드 결제 페이지 URL 생성 (암호화된 토큰 방식)
+     *
+     * [새로운 결제 플로우]
+     * - Order 서비스에서 결제 정보를 AES-256-GCM으로 암호화하여 토큰 생성
+     * - 프론트엔드 URL: http://localhost:3000/payments?token={암호화된토큰}
+     * - Payment 서비스 호출하지 않음 (HTTP 요청 제거)
+     * - 실제 결제 기록은 결제 완료 시점에 Payment 모듈에서 생성
+     */
+    private CreatePaymentResponse requestPaymentUrl(Order order, String paymentMethod) {
+        try {
+            log.info("💳 암호화된 결제 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
+                    order.getOrderNo(), order.getTotalAmount(), paymentMethod);
+
+            // 고객 키 생성 (사용자 ID 기반)
+            String customerKey = "customer_" + order.getCustomerId().toString().replace("-", "");
+
+            // 주문명 생성
+            String orderName = generateOrderName(order);
+
+            try {
+                // 결제 정보를 암호화하여 토큰 생성
+                String paymentToken = paymentTokenUtil.generatePaymentToken(
+                        order.getId(),
+                        order.getOrderNo(),
+                        order.getTotalAmount(),
+                        orderName,
+                        customerKey,
+                        paymentMethod
+                );
+
+                // 프론트엔드 결제 페이지 URL 생성 (토큰 방식)
+                String paymentUrl = String.format("http://localhost:3000/payments?token=%s", paymentToken);
+
+                // CreatePaymentResponse 생성
+                CreatePaymentResponse paymentResponse = CreatePaymentResponse.builder()
+                        .paymentId(null) // 실제 결제 기록은 결제 완료 시점에 생성
+                        .orderId(order.getId())
+                        .amount(order.getTotalAmount())
+                        .status("READY") // 결제 준비 상태
+                        .paymentMethod(paymentMethod)
+                        .paymentUrl(paymentUrl) // 암호화된 토큰 방식 프론트엔드 URL
+                        .expiresAt(LocalDateTime.now().plusMinutes(30)) // 30분 후 만료
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                log.info("✅ 암호화된 결제 토큰 URL 생성 완료 - 주문번호: {}, 고객키: {}, 토큰 길이: {}자",
+                        order.getOrderNo(), customerKey, paymentToken.length());
+                log.debug("🔗 생성된 암호화 결제 URL: {}", paymentUrl);
+
+                return paymentResponse;
+
+            } catch (Exception e) {
+                log.error("💥 결제 토큰 암호화 실패 - 주문번호: {}, 에러: {}",
+                        order.getOrderNo(), e.getMessage(), e);
+                throw e;
+            }
+
+        } catch (Exception e) {
+            log.error("💥 암호화된 결제 토큰 URL 생성 실패 - 주문번호: {}, 에러: {}",
+                    order.getOrderNo(), e.getMessage(), e);
+
+            // 실패 시에도 기본 응답 반환 (프론트엔드 에러 페이지 URL 포함)
+            String errorUrl = "http://localhost:3000/payments/fail?reason=token-generation-failed&orderId=" + order.getId();
+            log.warn("🚨 결제 토큰 생성 실패로 프론트엔드 에러 페이지 반환: {}", errorUrl);
+
+            return CreatePaymentResponse.builder()
+                    .paymentId(null)
+                    .orderId(order.getId())
+                    .amount(order.getTotalAmount())
+                    .status("ERROR")
+                    .paymentMethod(paymentMethod)
+                    .paymentUrl(errorUrl)
+                    .expiresAt(LocalDateTime.now().plusMinutes(30))
+                    .createdAt(LocalDateTime.now())
+                    .build();
+        }
+    }
+
+    /**
+     * 주문명 생성 (결제 화면에 표시될 이름)
+     */
+    private String generateOrderName(Order order) {
+        try {
+            List<OrderItem> items = order.getOrderItems();
+            if (items.isEmpty()) {
+                return "팝콘 주문";
+            }
+
+            OrderItem firstItem = items.get(0);
+            String itemName;
+
+            if (OrderItemType.RESERVATION.equals(firstItem.getOrderItemType())) {
+                itemName = "팝업 예약";
+            } else if (OrderItemType.GOODS.equals(firstItem.getOrderItemType())) {
+                itemName = "굿즈 구매";
+            } else {
+                itemName = "팝콘 상품";
+            }
+
+            if (items.size() == 1) {
+                return itemName;
+            } else {
+                return itemName + " 외 " + (items.size() - 1) + "건";
+            }
+
+        } catch (Exception e) {
+            log.warn("주문명 생성 실패, 기본명 사용: orderId={}", order.getId(), e);
+            return "팝콘 주문";
         }
     }
 

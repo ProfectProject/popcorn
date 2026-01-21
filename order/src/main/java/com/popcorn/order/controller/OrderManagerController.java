@@ -8,6 +8,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.dto.BaseError;
+import com.popcorn.common.dto.CommonResponseCode;
 import com.popcorn.order.dto.response.OrderDetailResponse;
 import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.request.OrderStatusUpdateRequest;
@@ -147,8 +149,8 @@ public class OrderManagerController {
 
         } catch (Exception e) {
             log.error("주문 상태 변경 실패 - orderId: {}", orderId, e);
-            BaseResponse<OrderStatusUpdateResponse> errorResponse = BaseResponse.error("주문 상태 변경에 실패했습니다.");
-            return ResponseEntity.badRequest().body(errorResponse);
+            BaseResponse<BaseError> errorResponse = BaseResponse.error(CommonResponseCode.INTERNAL_ERROR, "주문 상태 변경에 실패했습니다.");
+            return ResponseEntity.status(500).body((BaseResponse) errorResponse);
         }
     }
 
@@ -193,8 +195,8 @@ public class OrderManagerController {
 
         } catch (Exception e) {
             log.error("주문 상세 조회 실패 - orderId: {}", orderId, e);
-            BaseResponse<OrderDetailResponse> errorResponse = BaseResponse.error("주문 정보를 찾을 수 없습니다.");
-            return ResponseEntity.notFound().build();
+            BaseResponse<BaseError> errorResponse = BaseResponse.error(CommonResponseCode.NOT_FOUND, "주문 정보를 찾을 수 없습니다.");
+            return ResponseEntity.status(404).body((BaseResponse) errorResponse);
         }
     }
 }

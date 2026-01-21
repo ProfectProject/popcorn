@@ -4,6 +4,8 @@ import com.popcorn.payment.dto.*
 import com.popcorn.payment.exception.PaymentException
 import com.popcorn.payment.service.TossPaymentCoroutineService
 import com.popcorn.payment.service.PaymentCommandCoroutineService
+import com.popcorn.payment.service.OrderQueryCoroutineService
+import com.popcorn.payment.util.PaymentTokenUtil
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
@@ -23,11 +25,13 @@ import java.util.*
  */
 @Tag(name = "Payment API", description = "결제 관리 API")
 @RestController
-@RequestMapping("/api/v1/payments")
+@RequestMapping("/api/pay/v1/payments")
 @CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8080"])
 class PaymentController(
     private val tossPaymentService: TossPaymentCoroutineService,
-    private val paymentCommandService: PaymentCommandCoroutineService
+    private val paymentCommandService: PaymentCommandCoroutineService,
+    private val orderQueryService: OrderQueryCoroutineService,
+    private val paymentTokenUtil: PaymentTokenUtil
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentController::class.java)
@@ -142,26 +146,23 @@ class PaymentController(
             request.orderId, request.paymentMethod, request.amount)
 
         try {
-            val result = paymentCommandService.createPayment(
-                orderId = request.orderId,
-                paymentMethod = request.paymentMethod,
-                amount = request.amount,
-                paymentKey = null,
-                rawPayload = ""
-            )
+            // 결제 기록은 승인 시점에 생성하므로, 여기서는 URL만 발급
+            val paymentUrl = buildFrontendPaymentUrl(request)
 
             val response = PaymentCreateResponse(
-                paymentId = result.paymentId,
+                paymentId = null,
                 orderId = request.orderId,
-                amount = result.amount,
-                status = result.status,
+                amount = request.amount,
+                status = "READY",
                 paymentMethod = request.paymentMethod,
-                createdAt = result.createdAt
+                createdAt = java.time.LocalDateTime.now(),
+                paymentUrl = paymentUrl,
+                expiresAt = java.time.LocalDateTime.now().plusMinutes(30)
             )
 
-            log.info("✅ 결제 생성 성공: paymentId={}", result.paymentId)
+            log.info("✅ 결제 링크 생성 성공: orderId={}", request.orderId)
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "결제가 성공적으로 생성되었습니다."))
+                .body(ApiResponse.success(response, "결제 링크가 생성되었습니다."))
 
         } catch (e: PaymentException) {
             log.error("❌ 결제 생성 실패: orderId={}, error={}", request.orderId, e.message)
@@ -171,6 +172,71 @@ class PaymentController(
         } catch (e: Exception) {
             log.error("❌ 결제 생성 중 예외 발생: orderId={}", request.orderId, e)
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(genericErrorMessage))
+        }
+    }
+
+    private fun buildFrontendPaymentUrl(request: PaymentCreateRequest): String {
+        val frontendUrl = "http://localhost:3000"
+        val orderNo = request.orderNo ?: request.orderId.toString()
+        val customerKey = request.customerId?.toString() ?: "guest"
+        val successUrl = "http://localhost:3000/payments/success"
+        val failUrl = "http://localhost:3000/payments/fail"
+        val token = paymentTokenUtil.encryptPaymentToken(
+            orderId = request.orderId.toString(),
+            orderNo = orderNo,
+            amount = request.amount,
+            customerKey = customerKey,
+            successUrl = successUrl,
+            failUrl = failUrl
+        )
+        return "$frontendUrl/payments?token=$token"
+    }
+
+    /**
+     * 결제 토큰 디코드
+     */
+    @GetMapping("/decode")
+    suspend fun decodePaymentToken(
+        @RequestParam token: String
+    ): ResponseEntity<ApiResponse<PaymentTokenDecodeResponse>> {
+        return try {
+            log.info("🔓 결제 토큰 디코드 요청 - 토큰 길이: {}자", token.length)
+
+            // AES-256-GCM 암호화된 토큰 복호화
+            val paymentData = paymentTokenUtil.decryptPaymentToken(token)
+
+            // 토큰 유효성 검증
+            if (!paymentTokenUtil.validatePaymentToken(paymentData)) {
+                throw PaymentException.invalidRequest("결제 토큰이 유효하지 않습니다.")
+            }
+
+            // 토큰에서 데이터 추출
+            val orderId = UUID.fromString(paymentData["orderId"] as String)
+            val orderNo = paymentData["orderNo"] as String
+            val amount = paymentData["amount"] as Int
+            val customerKey = paymentData["customerKey"] as String
+            val successUrl = paymentData["successUrl"] as String
+            val failUrl = paymentData["failUrl"] as String
+
+            val response = PaymentTokenDecodeResponse(
+                orderId = orderId,
+                orderNo = orderNo,
+                amount = amount,
+                customerKey = customerKey,
+                successUrl = successUrl,
+                failUrl = failUrl
+            )
+
+            log.info("✅ 결제 토큰 디코드 성공 - 주문번호: {}, 금액: {}원", orderNo, amount)
+            ResponseEntity.ok(ApiResponse.success(response, "결제 토큰 디코드 성공"))
+        } catch (e: PaymentException) {
+            log.error("❌ 결제 토큰 디코드 실패 - PaymentException: {}", e.message)
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(e.message ?: "결제 토큰이 유효하지 않습니다."))
+        } catch (e: Exception) {
+            log.error("❌ 결제 토큰 디코드 중 예외 발생", e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(genericErrorMessage))
         }
     }

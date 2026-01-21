@@ -57,7 +57,7 @@ logging:
 # 마이크로서비스 간 통신 설정
 microservices:
   payment:
-    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8083}
+    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8080}
     timeout: 30s
   user:
     base-url: ${USER_SERVICE_URL:http://localhost:8082}

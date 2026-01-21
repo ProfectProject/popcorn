@@ -56,7 +56,7 @@ public class ExternalServiceClient {
                     );
 
                     Map<String, Object> response = webClient.post()
-                        .uri("http://localhost:8083/api/payments/v1/process")
+                        .uri("http://localhost:8085/api/pay/v1/payments/process")
                         .bodyValue(paymentRequest)
                         .retrieve()
                         .bodyToMono(Map.class)

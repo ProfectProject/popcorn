@@ -47,6 +47,17 @@ spring:
     restart:
       enabled: true
 
+  # RabbitMQ 비활성화 (개발 환경)
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+      direct:
+        auto-startup: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
 # 로깅 설정 (로컬 환경용)
 logging:
   level:
@@ -59,7 +70,7 @@ logging:
 # 마이크로서비스 간 통신 설정 (로컬용)
 microservices:
   payment:
-    base-url: http://localhost:8083
+    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8080}
     timeout: 30s
   user:
     base-url: http://localhost:8082

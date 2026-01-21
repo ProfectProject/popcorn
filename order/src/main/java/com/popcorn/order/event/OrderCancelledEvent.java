@@ -1,10 +1,12 @@
 package com.popcorn.order.event;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
 import com.popcorn.order.entity.OrderStatus;
 
+import lombok.Builder;
 import lombok.Getter;
 
 /**
@@ -24,6 +26,7 @@ import lombok.Getter;
  * - 포인트 서비스: "적립했던 포인트를 취소하자!"
  */
 @Getter
+@Builder
 public class OrderCancelledEvent extends BaseOrderEvent {
 
     // 취소에 대한 정보들
@@ -68,6 +71,95 @@ public class OrderCancelledEvent extends BaseOrderEvent {
             "cancelledBy", cancelledBy != null ? cancelledBy : "SYSTEM",
             "refundAmount", refundAmount != null ? refundAmount : 0
         );
+    }
+
+    /**
+     * 빌더 패턴을 위한 정적 팩토리 메서드
+     */
+    public static OrderCancelledEventBuilder builder() {
+        return new OrderCancelledEventBuilder();
+    }
+
+    /**
+     * OrderCancelledEvent 빌더 클래스
+     */
+    public static class OrderCancelledEventBuilder {
+        private String eventId;
+        private UUID orderId;
+        private Long userId;
+        private OrderStatus previousStatus;
+        private String cancelReason;
+        private String cancelledBy;
+        private Integer refundAmount;
+
+        public OrderCancelledEventBuilder eventId(String eventId) {
+            this.eventId = eventId;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder orderId(UUID orderId) {
+            this.orderId = orderId;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder orderNo(String orderNo) {
+            // orderNo는 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCancelledEventBuilder popupId(UUID popupId) {
+            // popupId는 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCancelledEventBuilder customerId(Long customerId) {
+            this.userId = customerId; // customerId를 userId로 매핑
+            return this;
+        }
+
+        public OrderCancelledEventBuilder userId(Long userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder previousStatus(OrderStatus previousStatus) {
+            this.previousStatus = previousStatus;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder cancelReason(String cancelReason) {
+            this.cancelReason = cancelReason;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder cancelledBy(String cancelledBy) {
+            this.cancelledBy = cancelledBy;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder refundAmount(Integer refundAmount) {
+            this.refundAmount = refundAmount;
+            return this;
+        }
+
+        public OrderCancelledEventBuilder reason(String reason) {
+            this.cancelReason = reason; // reason을 cancelReason으로 매핑
+            return this;
+        }
+
+        public OrderCancelledEventBuilder cancelledAt(LocalDateTime cancelledAt) {
+            // cancelledAt은 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCancelledEventBuilder eventTime(LocalDateTime eventTime) {
+            // eventTime은 실제로는 사용하지 않지만 호환성을 위해 추가
+            return this;
+        }
+
+        public OrderCancelledEvent build() {
+            return new OrderCancelledEvent(orderId, userId, previousStatus, cancelReason, cancelledBy, refundAmount);
+        }
     }
 
     // ================ 이벤트 전용 메서드들 ================
@@ -141,6 +233,13 @@ public class OrderCancelledEvent extends BaseOrderEvent {
         if (needsRefund()) return "HIGH";           // 환불 필요시 높음
         if (isPostPaymentCancellation()) return "MEDIUM"; // 결제 후 취소는 중간
         return "LOW";                               // 그 외는 낮음
+    }
+
+    /**
+     * 취소 사유 반환 (OrderEventPublisher에서 사용)
+     */
+    public String getReason() {
+        return this.cancelReason;
     }
 
 }

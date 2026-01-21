@@ -1,8 +1,8 @@
 package com.popcorn.payment.entity
 
+import com.popcorn.common.entity.BaseEntity
 import jakarta.persistence.*
-import org.hibernate.annotations.CreationTimestamp
-import org.hibernate.annotations.UpdateTimestamp
+import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import java.time.LocalDateTime
 import java.util.*
 
@@ -31,7 +31,8 @@ import java.util.*
         Index(name = "idx_payment_created_at", columnList = "created_at")
     ]
 )
-class Payment {
+@EntityListeners(AuditingEntityListener::class)
+class Payment : BaseEntity() {
 
     @Id
     @Column(name = "id")
@@ -59,17 +60,6 @@ class Payment {
 
     @Column(name = "raw_payload", columnDefinition = "TEXT")
     var rawPayload: String? = null
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    var createdAt: LocalDateTime = LocalDateTime.now()
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    var updatedAt: LocalDateTime = LocalDateTime.now()
-
-    @Column(name = "deleted_at")
-    var deletedAt: LocalDateTime? = null
 
     companion object {
         /**
@@ -116,21 +106,20 @@ class Payment {
         if (approvedAt != null) {
             this.approvedAt = approvedAt
         }
-        this.updatedAt = LocalDateTime.now()
+        // BaseEntity의 updatedAt은 자동으로 관리됨
     }
 
     /**
-     * 논리 삭제
+     * 논리 삭제 (BaseEntity 메서드 사용)
      */
     fun softDelete() {
-        this.deletedAt = LocalDateTime.now()
-        this.updatedAt = LocalDateTime.now()
+        this.delete() // BaseEntity의 delete() 메서드 호출
     }
 
     /**
      * 삭제되지 않은 결제인지 확인
      */
-    fun isNotDeleted(): Boolean = deletedAt == null
+    fun isNotDeleted(): Boolean = !this.isDeleted() // BaseEntity의 isDeleted() 메서드 사용
 
     /**
      * 결제 가능한 상태인지 확인

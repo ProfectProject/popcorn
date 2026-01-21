@@ -14,6 +14,7 @@ import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.entity.OrderType;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
+import com.popcorn.order.event.OrderEventPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,9 @@ public class OrderService {
     // 데이터베이스 작업을 위한 도구들
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+
+    // 이벤트 발행을 위한 도구
+    private final OrderEventPublisher orderEventPublisher;
 
     // 주문 관련 상수들 - 한 곳에서 관리하면 나중에 바꾸기 쉬워요
     private static final int DEFAULT_CANCEL_MINUTES = 30;  // 기본 취소 가능 시간 (30분)
@@ -263,6 +267,147 @@ public class OrderService {
         } catch (Exception e) {
             log.error("주문 상태 변경 실패 - ID: {}", orderId, e);
             throw new RuntimeException("주문 상태 변경 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 결제 완료 처리
+     * Payment 모듈에서 결제가 완료되면 호출되는 메서드
+     *
+     * @param orderId 주문 ID
+     */
+    @Transactional
+    public void handlePaymentCompleted(UUID orderId) {
+        try {
+            log.info("결제 완료 처리 시작 - orderId: {}", orderId);
+
+            // 1. 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다: " + orderId));
+
+            // 2. 주문 상태가 PAYMENT_PENDING인지 확인
+            if (order.getOrderStatus() != OrderStatus.PAYMENT_PENDING) {
+                log.warn("잘못된 주문 상태 - 현재 상태: {}, 주문ID: {}",
+                        order.getOrderStatus(), orderId);
+                throw new IllegalStateException("결제 처리가 가능한 주문 상태가 아닙니다.");
+            }
+
+            // 3. 주문 상태를 PAID로 변경
+            OrderStatus oldStatus = order.getOrderStatus();
+            order.markAsPaid();
+
+            Order savedOrder = orderRepository.save(order);
+
+            // 4. 주문 상태 변경 이력 기록
+            saveOrderStatusHistory(order, oldStatus, "결제 완료");
+
+            // 5. OrderPaidEvent 발행 (재고 차감 요청)
+            orderEventPublisher.publishOrderPaidEvent(savedOrder);
+
+            log.info("결제 완료 처리 성공 - orderId: {}, 상태: {} -> {}",
+                    orderId, oldStatus, OrderStatus.PAID);
+
+        } catch (Exception e) {
+            log.error("결제 완료 처리 실패 - orderId: {}", orderId, e);
+            throw new RuntimeException("결제 완료 처리 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 주문 취소 처리 (보상 트랜잭션)
+     * 재고 차감 실패 등의 이유로 주문을 취소해야 할 때 호출
+     *
+     * @param orderId 주문 ID
+     * @param reason 취소 사유
+     */
+    @Transactional
+    public void handleOrderCancellation(UUID orderId, String reason) {
+        try {
+            log.info("주문 취소 처리 시작 - orderId: {}, reason: {}", orderId, reason);
+
+            // 1. 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다: " + orderId));
+
+            // 2. 이미 취소된 주문인지 확인
+            if (order.isCancelled()) {
+                log.warn("이미 취소된 주문입니다 - orderId: {}", orderId);
+                return;
+            }
+
+            // 3. 주문 취소 처리
+            OrderStatus oldStatus = order.getOrderStatus();
+            order.markAsCancelled(reason);
+
+            Order savedOrder = orderRepository.save(order);
+
+            // 4. 주문 상태 변경 이력 기록
+            saveOrderStatusHistory(order, oldStatus, reason);
+
+            // 5. OrderCancelledEvent 발행 (Payment 모듈에게 환불 요청)
+            orderEventPublisher.publishOrderCancelledEvent(savedOrder, reason);
+
+            log.info("주문 취소 처리 성공 - orderId: {}, 상태: {} -> {}, 사유: {}",
+                    orderId, oldStatus, OrderStatus.CANCELLED, reason);
+
+        } catch (Exception e) {
+            log.error("주문 취소 처리 실패 - orderId: {}, reason: {}", orderId, reason, e);
+            throw new RuntimeException("주문 취소 처리 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 주문 확정 처리
+     * 재고 차감이 성공하면 주문을 확정 상태로 변경
+     *
+     * @param orderId 주문 ID
+     */
+    @Transactional
+    public void handleOrderConfirmation(UUID orderId) {
+        try {
+            log.info("주문 확정 처리 시작 - orderId: {}", orderId);
+
+            // 1. 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다: " + orderId));
+
+            // 2. 주문이 PAID 상태인지 확인
+            if (!order.isPaid()) {
+                log.warn("주문 확정 불가 - 현재 상태: {}, 주문ID: {}",
+                        order.getOrderStatus(), orderId);
+                throw new IllegalStateException("결제가 완료되지 않은 주문은 확정할 수 없습니다.");
+            }
+
+            // 3. 주문 상태를 CONFIRMED로 변경
+            OrderStatus oldStatus = order.getOrderStatus();
+            order.markAsConfirmed();
+
+            Order savedOrder = orderRepository.save(order);
+
+            // 4. 주문 상태 변경 이력 기록
+            saveOrderStatusHistory(order, oldStatus, "재고 차감 성공 - 주문 확정");
+
+            // 5. OrderCompletedEvent 발행 (알림 발송)
+            orderEventPublisher.publishOrderCompletedEvent(savedOrder);
+
+            log.info("주문 확정 처리 성공 - orderId: {}, 상태: {} -> {}",
+                    orderId, oldStatus, OrderStatus.COMPLETED);
+
+        } catch (Exception e) {
+            log.error("주문 확정 처리 실패 - orderId: {}", orderId, e);
+            throw new RuntimeException("주문 확정 처리 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 주문 상태 변경 이력 저장
+     */
+    private void saveOrderStatusHistory(Order order, OrderStatus oldStatus, String reason) {
+        try {
+            orderStatusHistoryRepository.save(order.toHistory(oldStatus, reason));
+        } catch (Exception e) {
+            log.error("주문 상태 이력 저장 실패 - orderId: {}", order.getId(), e);
+            // 이력 저장 실패는 주요 로직을 중단시키지 않음
         }
     }
 

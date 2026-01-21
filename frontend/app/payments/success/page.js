@@ -45,7 +45,7 @@ function PaymentSuccessContent() {
       }
 
       try {
-        const response = await fetch(`${apiBase}/api/v1/payments/toss/confirm`, {
+        const response = await fetch(`${apiBase}/api/pay/v1/payments/toss/confirm`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

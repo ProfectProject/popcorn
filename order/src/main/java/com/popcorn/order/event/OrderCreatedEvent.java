@@ -140,7 +140,7 @@ public class OrderCreatedEvent extends BaseOrderEvent {
      * 구매형 주문인지 확인
      */
     public boolean isPurchaseOrder() {
-        return OrderType.PURCHASE.equals(orderType);
+        return OrderType.GOODS.equals(orderType);
     }
 
 }

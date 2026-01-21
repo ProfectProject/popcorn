@@ -165,6 +165,9 @@ toss:
 
 # 커스텀 Payment 설정
 payment:
+  token:
+    secret: ${PAYMENT_TOKEN_SECRET:change-me}
+    ttl-minutes: ${PAYMENT_TOKEN_TTL_MINUTES:30}
   # Toss Payments 설정 (코루틴 클라이언트용)
   toss:
     base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}

@@ -66,7 +66,7 @@ class OrderRepositoryTest {
                 .customerId(1L)
                 .storeId(storeId1)
                 .popupId(popupId1)
-                .orderType(OrderType.PURCHASE)
+                .orderType(OrderType.GOODS)
                 .status(OrderStatus.PAID)
                 .totalAmount(25000)
                 .cancelableUntil(LocalDateTime.now().plusMinutes(30))

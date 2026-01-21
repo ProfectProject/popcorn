@@ -12,7 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.order.dto.query.OrderListQuery;
 import com.popcorn.order.dto.response.OrderDetailResponse;
+import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderResponseCode;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
 import com.popcorn.order.service.OrderQueryService;
@@ -134,9 +136,9 @@ public class OrderQueryController {
     }
 
     /**
-     * 사용자별 주문 목록 조회 API (페이징 포함)
+     * 사용자별 주문 목록 조회 API (Store 서비스 방식 pagination)
      *
-     * 사용 예시: GET /api/orders/v1/users/123?page=0&size=10&sort=createdAt,desc
+     * 사용 예시: GET /api/orders/v1/users/123?page=1&size=20&withTotal=true
      *
      * 실무 활용:
      * - 마이페이지의 "내 주문 내역" 화면
@@ -145,46 +147,64 @@ public class OrderQueryController {
      */
     @GetMapping("/users/{userId}")
     @Operation(
-        summary = "사용자별 주문 목록 조회",
+        summary = "사용자별 주문 목록 조회 (Store 서비스 방식)",
         description = """
             특정 사용자의 주문 목록을 페이지별로 조회합니다.
 
-            페이징 파라미터:
-            - page: 페이지 번호 (0부터 시작)
-            - size: 한 페이지당 항목 수 (기본 10개)
-            - sort: 정렬 조건 (예: createdAt,desc)
+            페이징 파라미터 (Store 서비스와 동일):
+            - page: 페이지 번호 (1부터 시작)
+            - size: 한 페이지당 항목 수 (기본 20개)
+            - withTotal: 전체 개수 포함 여부 (기본 true)
 
             응답 정보:
-            - totalElements: 전체 주문 개수
-            - totalPages: 전체 페이지 수
-            - content: 실제 주문 데이터 배열
+            - items: 실제 주문 데이터 배열
+            - page: 현재 페이지 번호
+            - size: 페이지 크기
+            - total: 전체 주문 개수
             """
     )
-    public ResponseEntity<BaseResponse<Page<OrderSummaryResponse>>> getOrdersByUserId(
+    public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByUserId(
             @Parameter(description = "사용자 ID", example = "1")
             @PathVariable Long userId,
 
-            @Parameter(description = "페이징 정보")
-            @PageableDefault(size = 10) Pageable pageable) {
+            @Parameter(description = "주문 상태 필터", example = "PAID")
+            @RequestParam(required = false) String status,
 
-        log.info("사용자별 주문 목록 조회 - 사용자ID: {}, 페이지: {}", userId, pageable.getPageNumber());
+            @Parameter(description = "페이지(기본 1)", example = "1")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+
+            @Parameter(description = "사이즈(기본 20, 최대 100)", example = "20")
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+
+            @Parameter(description = "전체 개수 포함 여부(기본 true)", example = "true")
+            @RequestParam(required = false, defaultValue = "true") Boolean withTotal) {
+
+        log.info("사용자별 주문 목록 조회 - 사용자ID: {}, 상태: {}, 페이지: {}, 사이즈: {}",
+                userId, status, page, size);
 
         try {
-            // 페이징된 주문 목록 조회
-            Page<OrderSummaryResponse> orders = orderQueryService.findOrdersByUserId(userId, pageable);
+            OrderListQuery query = OrderListQuery.builder()
+                    .userId(userId)
+                    .status(status)
+                    .page(page)
+                    .size(size)
+                    .withTotal(withTotal)
+                    .build();
 
-            log.info("주문 목록 조회 완료 - 사용자ID: {}, 조회된 주문: {}개",
-                    userId, orders.getContent().size());
+            OrderListResponse response = orderQueryService.findOrdersWithQuery(query);
 
-            BaseResponse<Page<OrderSummaryResponse>> baseResponse = BaseResponse.from(
-                    OrderResponseCode.ORDER_LIST_RETRIEVED, orders);
+            log.info("사용자 주문 목록 조회 완료 - 사용자ID: {}, 조회된 주문: {}개",
+                    userId, response.getItems().size());
+
+            BaseResponse<OrderListResponse> baseResponse = BaseResponse.from(
+                    OrderResponseCode.ORDER_LIST_RETRIEVED, response);
 
             return ResponseEntity.ok(baseResponse);
 
         } catch (Exception e) {
-            log.error("주문 목록 조회 중 오류 발생 - 사용자ID: {}", userId, e);
+            log.error("사용자 주문 목록 조회 중 오류 발생 - 사용자ID: {}", userId, e);
 
-            BaseResponse<Page<OrderSummaryResponse>> errorResponse = BaseResponse.from(
+            BaseResponse<OrderListResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.DATABASE_ERROR, null);
 
             return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
@@ -193,9 +213,9 @@ public class OrderQueryController {
     }
 
     /**
-     * 가게별 주문 목록 조회 API (고급 검색 기능 포함)
+     * 가게별 주문 목록 조회 API (Store 서비스 방식)
      *
-     * 사용 예시: GET /api/orders/v1/stores/store-uuid?status=PAID&from=2024-01-01T00:00:00
+     * 사용 예시: GET /api/orders/v1/stores/store-uuid?status=PAID&from=2024-01-01T00:00:00&page=1&size=20
      *
      * 실무 활용:
      * - 가게 사장님의 매출 현황 확인
@@ -204,14 +224,17 @@ public class OrderQueryController {
      */
     @GetMapping("/stores/{storeId}")
     @Operation(
-        summary = "가게별 주문 목록 조회",
+        summary = "가게별 주문 목록 조회 (Store 서비스 방식)",
         description = """
             특정 가게의 주문 목록을 다양한 조건으로 검색합니다.
 
             검색 조건:
             - status: 주문 상태 필터 (REQUESTED, PAID, COMPLETED 등)
+            - orderType: 주문 타입 (RESERVATION, GOODS, MIXED)
             - from/to: 기간 검색 (ISO 8601 형식)
-            - orderType: 주문 타입 (RESERVATION, GOODS)
+            - page: 페이지 번호 (1부터 시작)
+            - size: 페이지 크기 (기본 20개)
+            - withTotal: 전체 개수 포함 여부
 
             관리자 기능:
             - 실시간 주문 현황 모니터링
@@ -219,12 +242,15 @@ public class OrderQueryController {
             - 상태별 주문 처리 현황
             """
     )
-    public ResponseEntity<BaseResponse<Page<OrderSummaryResponse>>> getOrdersByStoreId(
+    public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByStoreId(
             @Parameter(description = "가게 ID")
             @PathVariable UUID storeId,
 
-            @Parameter(description = "주문 상태 필터")
+            @Parameter(description = "주문 상태 필터", example = "PAID")
             @RequestParam(required = false) String status,
+
+            @Parameter(description = "주문 타입 필터", example = "RESERVATION")
+            @RequestParam(required = false) String orderType,
 
             @Parameter(description = "검색 시작 날짜")
             @RequestParam(required = false)
@@ -234,31 +260,216 @@ public class OrderQueryController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
 
-            @Parameter(description = "주문 타입")
-            @RequestParam(required = false) String orderType,
+            @Parameter(description = "페이지(기본 1)", example = "1")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
 
-            @PageableDefault(size = 20) Pageable pageable) {
+            @Parameter(description = "사이즈(기본 20, 최대 100)", example = "20")
+            @RequestParam(required = false, defaultValue = "20") Integer size,
 
-        log.info("가게별 주문 목록 조회 - 가게ID: {}, 상태: {}, 기간: {} ~ {}",
-                storeId, status, from, to);
+            @Parameter(description = "전체 개수 포함 여부(기본 true)", example = "true")
+            @RequestParam(required = false, defaultValue = "true") Boolean withTotal) {
+
+        log.info("가게별 주문 목록 조회 - 가게ID: {}, 상태: {}, 타입: {}, 기간: {} ~ {}, 페이지: {}",
+                storeId, status, orderType, from, to, page);
 
         try {
-            // 실제로는 OrderQueryService에서 복잡한 검색 로직 구현 필요
-            // 현재는 간단히 userId 검색으로 대체
-            Page<OrderSummaryResponse> orders = orderQueryService.findOrdersByUserId(1L, pageable);
+            OrderListQuery query = OrderListQuery.builder()
+                    .storeId(storeId)
+                    .status(status)
+                    .orderType(orderType)
+                    .from(from)
+                    .to(to)
+                    .page(page)
+                    .size(size)
+                    .withTotal(withTotal)
+                    .build();
+
+            OrderListResponse response = orderQueryService.findOrdersWithQuery(query);
 
             log.info("가게 주문 목록 조회 완료 - 가게ID: {}, 조회된 주문: {}개",
-                    storeId, orders.getContent().size());
+                    storeId, response.getItems().size());
 
-            BaseResponse<Page<OrderSummaryResponse>> baseResponse = BaseResponse.from(
-                    OrderResponseCode.ORDER_LIST_RETRIEVED, orders);
+            BaseResponse<OrderListResponse> baseResponse = BaseResponse.from(
+                    OrderResponseCode.ORDER_LIST_RETRIEVED, response);
 
             return ResponseEntity.ok(baseResponse);
 
         } catch (Exception e) {
             log.error("가게 주문 목록 조회 중 오류 발생 - 가게ID: {}", storeId, e);
 
-            BaseResponse<Page<OrderSummaryResponse>> errorResponse = BaseResponse.from(
+            BaseResponse<OrderListResponse> errorResponse = BaseResponse.from(
+                    OrderResponseCode.DATABASE_ERROR, null);
+
+            return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
+                    .body(errorResponse);
+        }
+    }
+
+    /**
+     * 팝업별 주문 목록 조회 API (Store 서비스 pagination 방식)
+     *
+     * 사용 예시: GET /api/orders/v1/popups/popup-uuid?page=1&size=20&status=PAID
+     *
+     * 실무 활용:
+     * - 특정 팝업의 주문 현황 확인
+     * - 팝업별 매출 분석
+     * - 예약 현황 모니터링
+     */
+    @GetMapping("/popups/{popupId}")
+    @Operation(
+        summary = "팝업별 주문 목록 조회",
+        description = """
+            특정 팝업의 주문 목록을 조회합니다.
+
+            주요 기능:
+            - 팝업별 주문 필터링
+            - 상태별 필터링 (REQUESTED, PAID, COMPLETED 등)
+            - 주문 타입별 필터링 (RESERVATION, GOODS, MIXED)
+            - 페이징 처리 (기본 20개, 최대 100개)
+
+            사용 예시:
+            - 전체 조회: /api/orders/v1/popups/{popupId}
+            - 상태 필터: /api/orders/v1/popups/{popupId}?status=PAID
+            - 페이징: /api/orders/v1/popups/{popupId}?page=1&size=10
+            """
+    )
+    public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByPopupId(
+            @Parameter(description = "팝업 ID", example = "00000000-0000-0000-0000-000000000101")
+            @PathVariable UUID popupId,
+
+            @Parameter(description = "주문 상태 필터", example = "PAID")
+            @RequestParam(required = false) String status,
+
+            @Parameter(description = "주문 타입 필터", example = "RESERVATION")
+            @RequestParam(required = false) String orderType,
+
+            @Parameter(description = "페이지(기본 1)", example = "1")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+
+            @Parameter(description = "사이즈(기본 20, 최대 100)", example = "20")
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+
+            @Parameter(description = "전체 개수 포함 여부(기본 true)", example = "true")
+            @RequestParam(required = false, defaultValue = "true") Boolean withTotal) {
+
+        log.info("팝업별 주문 목록 조회 - 팝업ID: {}, 상태: {}, 타입: {}, 페이지: {}, 사이즈: {}",
+                popupId, status, orderType, page, size);
+
+        try {
+            OrderListQuery query = OrderListQuery.builder()
+                    .popupId(popupId)
+                    .status(status)
+                    .orderType(orderType)
+                    .page(page)
+                    .size(size)
+                    .withTotal(withTotal)
+                    .build();
+
+            OrderListResponse response = orderQueryService.findOrdersByPopupId(query);
+
+            log.info("팝업 주문 목록 조회 완료 - 팝업ID: {}, 조회된 주문: {}개",
+                    popupId, response.getItems().size());
+
+            BaseResponse<OrderListResponse> baseResponse = BaseResponse.from(
+                    OrderResponseCode.ORDER_LIST_RETRIEVED, response);
+
+            return ResponseEntity.ok(baseResponse);
+
+        } catch (Exception e) {
+            log.error("팝업 주문 목록 조회 중 오류 발생 - 팝업ID: {}", popupId, e);
+
+            BaseResponse<OrderListResponse> errorResponse = BaseResponse.from(
+                    OrderResponseCode.DATABASE_ERROR, null);
+
+            return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
+                    .body(errorResponse);
+        }
+    }
+
+    /**
+     * 카테고리별 주문 목록 조회 API
+     *
+     * 사용 예시: GET /api/orders/v1/categories/RESERVATION?page=1&size=20
+     *
+     * 실무 활용:
+     * - 예약형 vs 구매형 주문 분석
+     * - 카테고리별 매출 현황
+     * - 비즈니스 성과 측정
+     */
+    @GetMapping("/categories/{category}")
+    @Operation(
+        summary = "카테고리별 주문 목록 조회",
+        description = """
+            주문 타입별로 주문 목록을 조회합니다.
+
+            주문 카테고리:
+            - RESERVATION: 예약형 주문 (팝업 체험)
+            - GOODS: 구매형 주문 (굿즈 구매)
+            - MIXED: 혼합형 주문 (예약 + 굿즈)
+
+            검색 조건:
+            - category: 주문 타입 (필수)
+            - status: 주문 상태 필터
+            - userId: 특정 사용자 필터
+            - 페이징 처리
+            """
+    )
+    public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByCategory(
+            @Parameter(description = "주문 카테고리(RESERVATION/GOODS/MIXED)", example = "RESERVATION")
+            @PathVariable String category,
+
+            @Parameter(description = "주문 상태 필터", example = "PAID")
+            @RequestParam(required = false) String status,
+
+            @Parameter(description = "사용자 ID 필터", example = "123")
+            @RequestParam(required = false) Long userId,
+
+            @Parameter(description = "검색 시작 날짜")
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+
+            @Parameter(description = "검색 종료 날짜")
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+
+            @Parameter(description = "페이지(기본 1)", example = "1")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+
+            @Parameter(description = "사이즈(기본 20, 최대 100)", example = "20")
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+
+            @Parameter(description = "전체 개수 포함 여부(기본 true)", example = "true")
+            @RequestParam(required = false, defaultValue = "true") Boolean withTotal) {
+
+        log.info("카테고리별 주문 목록 조회 - 카테고리: {}, 상태: {}, 사용자ID: {}, 페이지: {}, 사이즈: {}",
+                category, status, userId, page, size);
+
+        try {
+            OrderListQuery query = OrderListQuery.builder()
+                    .orderType(category)
+                    .status(status)
+                    .userId(userId)
+                    .from(from)
+                    .to(to)
+                    .page(page)
+                    .size(size)
+                    .withTotal(withTotal)
+                    .build();
+
+            OrderListResponse response = orderQueryService.findOrdersByCategory(query);
+
+            log.info("카테고리 주문 목록 조회 완료 - 카테고리: {}, 조회된 주문: {}개",
+                    category, response.getItems().size());
+
+            BaseResponse<OrderListResponse> baseResponse = BaseResponse.from(
+                    OrderResponseCode.ORDER_LIST_RETRIEVED, response);
+
+            return ResponseEntity.ok(baseResponse);
+
+        } catch (Exception e) {
+            log.error("카테고리 주문 목록 조회 중 오류 발생 - 카테고리: {}", category, e);
+
+            BaseResponse<OrderListResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.DATABASE_ERROR, null);
 
             return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())

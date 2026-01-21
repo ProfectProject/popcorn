@@ -20,7 +20,7 @@ import java.time.Duration;
  * MSA 환경에서 서비스 간 장애 전파를 방지하고 시스템 안정성을 향상시킵니다.
  */
 @Configuration
-public class CircuitBreakerConfig {
+public class OrderResilienceConfig {
 
     /**
      * 기본 서킷 브레이커 설정
@@ -35,8 +35,6 @@ public class CircuitBreakerConfig {
         return factory -> factory.configureDefault(id -> new Resilience4JConfigBuilder(id)
                 // 서킷 브레이커 기본 설정
                 .circuitBreakerConfig(getDefaultCircuitBreakerConfig())
-                // 재시도 기본 설정
-                .retryConfig(getDefaultRetryConfig())
                 // 타임아웃 기본 설정
                 .timeLimiterConfig(getDefaultTimeLimiterConfig())
                 .build());
@@ -60,10 +58,6 @@ public class CircuitBreakerConfig {
                     .permittedNumberOfCallsInHalfOpenState(3)         // HALF_OPEN에서 3회 테스트
                     .slowCallRateThreshold(80.0f)       // 80% 느린 호출시 OPEN
                     .slowCallDurationThreshold(Duration.ofSeconds(3)) // 3초 이상이 느린 호출
-                    .build())
-                .retryConfig(RetryConfig.custom()
-                    .maxAttempts(2)                      // 결제는 2회만 재시도
-                    .waitDuration(Duration.ofSeconds(1)) // 1초 대기 후 재시도
                     .build())
                 .timeLimiterConfig(TimeLimiterConfig.custom()
                     .timeoutDuration(Duration.ofSeconds(5))  // 결제는 5초 타임아웃
@@ -90,10 +84,6 @@ public class CircuitBreakerConfig {
                     .slowCallRateThreshold(70.0f)        // 70% 느린 호출시 OPEN
                     .slowCallDurationThreshold(Duration.ofSeconds(2)) // 2초 이상이 느린 호출
                     .build())
-                .retryConfig(RetryConfig.custom()
-                    .maxAttempts(3)                      // 3회 재시도
-                    .waitDuration(Duration.ofMillis(500)) // 0.5초 대기
-                    .build())
                 .timeLimiterConfig(TimeLimiterConfig.custom()
                     .timeoutDuration(Duration.ofSeconds(3))  // 3초 타임아웃
                     .build())
@@ -118,10 +108,6 @@ public class CircuitBreakerConfig {
                     .permittedNumberOfCallsInHalfOpenState(4)         // HALF_OPEN에서 4회 테스트
                     .slowCallRateThreshold(75.0f)        // 75% 느린 호출시 OPEN
                     .slowCallDurationThreshold(Duration.ofSeconds(2)) // 2초 이상이 느린 호출
-                    .build())
-                .retryConfig(RetryConfig.custom()
-                    .maxAttempts(3)                      // 3회 재시도
-                    .waitDuration(Duration.ofSeconds(1)) // 1초 대기
                     .build())
                 .timeLimiterConfig(TimeLimiterConfig.custom()
                     .timeoutDuration(Duration.ofSeconds(4))  // 4초 타임아웃
@@ -148,8 +134,9 @@ public class CircuitBreakerConfig {
     }
 
     /**
-     * 기본 재시도 설정
+     * 기본 재시도 설정 (임시 주석 처리 - API 호환성 문제)
      */
+    /*
     private RetryConfig getDefaultRetryConfig() {
         return RetryConfig.custom()
                 .maxAttempts(3)                           // 최대 3회 재시도
@@ -160,6 +147,7 @@ public class CircuitBreakerConfig {
                 )
                 .build();
     }
+    */
 
     /**
      * 기본 타임아웃 설정

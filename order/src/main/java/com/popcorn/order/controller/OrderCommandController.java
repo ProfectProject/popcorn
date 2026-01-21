@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.order.dto.command.CreateOrderCommand;
@@ -187,53 +188,109 @@ public class OrderCommandController {
     )
     public ResponseEntity<BaseResponse<CreateOrderResponse>> createOrder(
             @Valid @RequestBody CreateOrderRequest request,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
+
+        // 📡 요청 정보 상세 로깅
+        String clientIp = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
+
+        log.info("🚀 [REQ-{}] 주문 생성 요청 시작", requestId);
+        log.info("🌐 [REQ-{}] 클라이언트 정보 - IP: {}, User-Agent: {}", requestId, clientIp, userAgent);
+        log.info("🔐 [REQ-{}] 인증 정보 - 인증됨: {}, 사용자: {}",
+                requestId, authentication != null, authentication != null ? authentication.getName() : "익명");
 
         // JWT에서 사용자 ID 추출 (보안상 요청 본문이 아닌 토큰에서 추출)
         Long userId = extractUserIdFromAuthentication(authentication);
 
-        log.info("주문 생성 요청 - 사용자: {}, 팝업ID: {}, 주문타입: {}",
-                userId, request.getPopupId(), request.getOrderType());
+        log.info("👤 [REQ-{}] 사용자 ID 추출 완료: {}", requestId, userId);
+        log.info("📄 [REQ-{}] 요청 데이터 - 팝업ID: {}, 주문타입: {}, 아이템 수: {}",
+                requestId, request.getPopupId(), request.getOrderType(), request.getItems().size());
+
+        // 요청 본문 상세 로깅 (민감 정보 제외)
+        log.debug("📝 [REQ-{}] 요청 본문: {}", requestId, request);
+
+        long startTime = System.currentTimeMillis();
 
         try {
+            log.info("🔄 [REQ-{}] 1단계: Request → Command 변환 시작", requestId);
             // 1. Request를 Command 객체로 변환 (JWT에서 추출한 userId 포함)
             // Command 패턴: 요청을 객체로 캡슐화하여 처리
             CreateOrderCommand command = CreateOrderCommand.fromRequest(request, userId);
+            log.info("✅ [REQ-{}] Command 객체 생성 완료", requestId);
 
+            log.info("🔄 [REQ-{}] 2단계: 주문 생성 서비스 호출 시작", requestId);
             // 2. CQRS Command 서비스 호출
             // 실제 비즈니스 로직은 Service 계층에서 처리
             CreateOrderResponse response = orderCommandService.createOrder(command);
 
-            log.info("주문 생성 완료 - 주문번호: {}, 주문ID: {}",
-                    response.getOrderNo(), response.getOrderId());
+            long processingTime = System.currentTimeMillis() - startTime;
 
+            log.info("🎉 [REQ-{}] 주문 생성 성공! 주문번호: {}, 주문ID: {}, 처리시간: {}ms",
+                    requestId, response.getOrderNo(), response.getOrderId(), processingTime);
+
+            log.info("🔄 [REQ-{}] 3단계: 성공 응답 생성", requestId);
             // 3. 성공 응답 생성
             BaseResponse<CreateOrderResponse> baseResponse = BaseResponse.from(
                     OrderResponseCode.ORDER_CREATED, response);
+
+            log.info("📤 [REQ-{}] 응답 전송 - 상태: {}, 크기: {} bytes",
+                    requestId, OrderResponseCode.ORDER_CREATED.getHttpStatus(),
+                    baseResponse.toString().length());
 
             return ResponseEntity.status(OrderResponseCode.ORDER_CREATED.getHttpStatus())
                     .body(baseResponse);
 
         } catch (IllegalArgumentException e) {
             // 요청 데이터가 잘못된 경우 (검증 실패)
-            log.error("주문 생성 실패 - 잘못된 요청: {}", e.getMessage());
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            log.error("❌ [REQ-{}] 주문 생성 실패 - 잘못된 요청 ({}ms): {}",
+                    requestId, processingTime, e.getMessage());
+            log.debug("❌ [REQ-{}] 상세 오류 스택:", requestId, e);
 
             BaseResponse<CreateOrderResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.INVALID_ORDER_REQUEST, null);
+
+            log.info("📤 [REQ-{}] 에러 응답 전송 - 상태: {}",
+                    requestId, OrderResponseCode.INVALID_ORDER_REQUEST.getHttpStatus());
 
             return ResponseEntity.status(OrderResponseCode.INVALID_ORDER_REQUEST.getHttpStatus())
                     .body(errorResponse);
 
         } catch (Exception e) {
             // 예상치 못한 서버 오류
-            log.error("주문 생성 실패 - 서버 오류", e);
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            log.error("💥 [REQ-{}] 주문 생성 실패 - 서버 내부 오류 ({}ms)", requestId, processingTime, e);
 
             BaseResponse<CreateOrderResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.ORDER_CREATION_FAILED, null);
 
+            log.info("📤 [REQ-{}] 에러 응답 전송 - 상태: {}",
+                    requestId, OrderResponseCode.ORDER_CREATION_FAILED.getHttpStatus());
+
             return ResponseEntity.status(OrderResponseCode.ORDER_CREATION_FAILED.getHttpStatus())
                     .body(errorResponse);
         }
+    }
+
+    /**
+     * 클라이언트 IP 주소 추출 (프록시 고려)
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        return ip;
     }
 
 
@@ -438,25 +495,33 @@ public class OrderCommandController {
     /**
      * JWT 토큰에서 사용자 ID 추출
      *
-     * @param authentication Spring Security Authentication 객체
+     * @param authentication Spring Security Authentication 객체 (JwtAuthenticationFilter에서 생성)
      * @return 사용자 ID
      */
     private Long extractUserIdFromAuthentication(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            throw new IllegalArgumentException("인증 정보가 없습니다.");
+            log.warn("⚠️ 인증 정보가 없습니다. JWT 토큰이 없거나 유효하지 않습니다.");
+            throw new IllegalArgumentException("인증 정보가 없습니다. JWT 토큰을 확인하세요.");
         }
 
-        // TODO: 실제 JWT 구현에 맞게 수정 필요
-        // 예: CustomUserDetails, JwtAuthenticationToken 등
         try {
-            // 임시로 name에서 userId 추출 (실제로는 principal에서 추출)
+            // JwtAuthenticationFilter에서 설정한 principal은 userId(String)
             String userIdStr = authentication.getName();
-            return Long.parseLong(userIdStr);
+
+            if (userIdStr == null || userIdStr.trim().isEmpty()) {
+                log.warn("⚠️ Authentication에서 사용자 ID를 찾을 수 없습니다.");
+                throw new IllegalArgumentException("JWT 토큰에서 사용자 ID를 추출할 수 없습니다.");
+            }
+
+            Long userId = Long.parseLong(userIdStr);
+            log.debug("🔐 JWT에서 사용자 ID 추출 완료: {} (권한: {})",
+                userId, authentication.getAuthorities());
+
+            return userId;
+
         } catch (NumberFormatException e) {
-            // principal이 CustomUserDetails 타입인 경우
-            // CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            // return userDetails.getUserId();
-            throw new IllegalArgumentException("유효하지 않은 사용자 정보입니다.", e);
+            log.error("💥 JWT 토큰의 사용자 ID 형식이 잘못되었습니다. 값: {}", authentication.getName(), e);
+            throw new IllegalArgumentException("JWT 토큰의 사용자 ID 형식이 올바르지 않습니다.", e);
         }
     }
 
