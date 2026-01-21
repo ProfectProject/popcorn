@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.popcorn.common.annotation.ApiLogging;
 
 @Tag(name = "Order Query Summary", description = "운영자 팝업 주문 요약 조회")
 @RestController
@@ -33,6 +34,7 @@ public class OrderSummaryController extends BaseController {
 
     @GetMapping()
     @Operation(summary = "팝업 KPI 요약 조회", description = "storeId + popupId 기준으로 팝업 요약 정보를 조회합니다.")
+    @ApiLogging(level = ApiLogging.LogLevel.INFO, includeResponse = false, excludeParams = { "authentication" })
     public ResponseEntity<BaseResponse<OrderSummaryDto>> getSummary(
                                                                     Authentication authentication,
                                                                     @Parameter(description = "스토어 ID") @PathVariable UUID storeId,

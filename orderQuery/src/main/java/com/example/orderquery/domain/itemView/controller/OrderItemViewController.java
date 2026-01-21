@@ -6,6 +6,7 @@ import com.example.orderquery.domain.itemView.service.OrderItemViewService;
 import com.example.orderquery.global.security.OwnerAuthService;
 import com.popcorn.common.controller.BaseController;
 import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.annotation.ApiLogging;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +36,7 @@ public class OrderItemViewController extends BaseController {
 
     @GetMapping()
     @Operation(summary = "팝업 주문 항목 조회", description = "storeId + popupId 기준으로 라인 아이템을 조회합니다.")
+    @ApiLogging(level = ApiLogging.LogLevel.INFO, includeResponse = false, excludeParams = { "authentication" })
     public ResponseEntity<BaseResponse<OrderItemPageDto>> getItems(
                                                                    Authentication authentication,
                                                                    @Parameter(description = "스토어 ID") @PathVariable UUID storeId,
