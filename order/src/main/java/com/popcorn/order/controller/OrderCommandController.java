@@ -3,6 +3,7 @@ package com.popcorn.order.controller;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import com.popcorn.order.service.OrderCommandService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Order Command", description = "주문 생성/수정/삭제 API (CQRS Command)")
+@SecurityRequirement(name = "bearer-token")
 @Validated
 public class OrderCommandController {
 
@@ -194,15 +197,19 @@ public class OrderCommandController {
         )
     )
     public ResponseEntity<BaseResponse<CreateOrderResponse>> createOrder(
-            @Valid @RequestBody CreateOrderRequest request) {
+            @Valid @RequestBody CreateOrderRequest request,
+            Authentication authentication) {
+
+        // JWT에서 사용자 ID 추출 (보안상 요청 본문이 아닌 토큰에서 추출)
+        Long userId = extractUserIdFromAuthentication(authentication);
 
         log.info("주문 생성 요청 - 사용자: {}, 팝업ID: {}, 주문타입: {}",
-                request.getUserId(), request.getPopupId(), request.getOrderType());
+                userId, request.getPopupId(), request.getOrderType());
 
         try {
-            // 1. Request를 Command 객체로 변환
+            // 1. Request를 Command 객체로 변환 (JWT에서 추출한 userId 포함)
             // Command 패턴: 요청을 객체로 캡슐화하여 처리
-            CreateOrderCommand command = CreateOrderCommand.fromRequest(request);
+            CreateOrderCommand command = CreateOrderCommand.fromRequest(request, userId);
 
             // 2. CQRS Command 서비스 호출
             // 실제 비즈니스 로직은 Service 계층에서 처리

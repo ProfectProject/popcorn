@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.domain.order.entity.OrderItem;
+import com.popcorn.demo.domain.inventory.dto.InventoryItemDto;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,10 +31,10 @@ public class InventoryService {
 	 * 주문 완료 시 재고 차감
 	 */
 	@Transactional
-	public void deductInventoryForOrder(UUID orderId, List<OrderItem> orderItems) {
+	public void deductInventoryForOrder(UUID orderId, List<InventoryItemDto> orderItems) {
 		log.info("🔧 재고 차감 시작 - 주문ID: {}, 항목 수: {}", orderId, orderItems.size());
 
-		for (OrderItem item : orderItems) {
+		for (InventoryItemDto item : orderItems) {
 			if (item.getSessionOptionId() != null) {
 				// 예약 상품 - 스케줄별 좌석 차감
 				deductReservationInventory(item.getSessionOptionId(), item.getQty());
@@ -207,10 +207,10 @@ public class InventoryService {
 	 * 재고 복원 (결제 실패 시 사용)
 	 */
 	@Transactional
-	public void restoreInventoryForOrder(UUID orderId, List<OrderItem> orderItems) {
+	public void restoreInventoryForOrder(UUID orderId, List<InventoryItemDto> orderItems) {
 		log.info("🔄 재고 복원 시작 - 주문ID: {}, 항목 수: {}", orderId, orderItems.size());
 
-		for (OrderItem item : orderItems) {
+		for (InventoryItemDto item : orderItems) {
 			if (item.getSessionOptionId() != null) {
 				restoreReservationInventory(item.getSessionOptionId(), item.getQty());
 			} else if (item.getGoodsVariantId() != null) {

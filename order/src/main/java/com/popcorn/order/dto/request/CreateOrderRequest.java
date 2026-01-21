@@ -32,9 +32,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CreateOrderRequest {
 
-    /** 사용자 ID - 주문하는 사용자 */
-    @NotNull(message = "사용자 ID는 필수입니다.")
-    private Long userId;
+    // userId는 JWT 토큰에서 추출하므로 요청 본문에 포함하지 않음
 
     /** 주문 타입 - "RESERVATION", "GOODS", "MIXED" */
     @NotBlank(message = "주문 타입은 필수입니다.")
