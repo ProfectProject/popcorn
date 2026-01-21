@@ -282,4 +282,38 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
+    // ===== 새로 추가된 고급 조회 API용 메소드들 =====
+
+    /**
+     * 매장별 주문 목록 조회 (조건부 필터, Pageable 사용)
+     *
+     * [Java 초보자를 위한 가이드]
+     *
+     * 이 메소드가 하는 일:
+     * - 특정 매장(storeId)의 모든 주문을 조회
+     * - 주문 타입(예약/구매), 상태, 기간별 필터링 가능
+     * - 페이지네이션 지원
+     *
+     * @param storeId 매장 ID
+     * @param status 주문 상태 (선택적, null이면 전체)
+     * @param orderType 주문 타입 (선택적, null이면 전체)
+     * @param from 시작 날짜 (선택적)
+     * @param to 종료 날짜 (선택적)
+     * @param pageable 페이징 정보
+     * @return 주문 목록 페이지
+     */
+    @Query("SELECT o FROM Order o WHERE o.storeId = :storeId " +
+           "AND (:status IS NULL OR o.status = :status) " +
+           "AND (:orderType IS NULL OR o.orderType = :orderType) " +
+           "AND (:from IS NULL OR o.createdAt >= :from) " +
+           "AND (:to IS NULL OR o.createdAt <= :to) " +
+           "ORDER BY o.createdAt DESC")
+    Page<Order> findOrdersByStoreIdWithConditions(
+            @Param("storeId") UUID storeId,
+            @Param("status") OrderStatus status,
+            @Param("orderType") OrderType orderType,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to,
+            Pageable pageable);
+
 }

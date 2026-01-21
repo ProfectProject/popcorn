@@ -1,1 +1,5 @@
 rootProject.name = 'order'
+
+// common-lib 모듈 포함 (공통 라이브러리)
+include ':common-lib'
+project(':common-lib').projectDir = new File('../common-lib')

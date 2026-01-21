@@ -18,6 +18,7 @@ import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderResponseCode;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
 import com.popcorn.order.service.OrderQueryService;
+import com.popcorn.order.util.AuthenticationUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -471,6 +472,369 @@ public class OrderQueryController {
 
             BaseResponse<OrderListResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.DATABASE_ERROR, null);
+
+            return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
+                    .body(errorResponse);
+        }
+    }
+
+    // ===== 새로 추가된 고급 조회 API들 =====
+
+    /**
+     * 내 주문 목록 조회 (타임라인 형태)
+     *
+     * [Java 초보자를 위한 가이드]
+     *
+     * 이 API가 하는 일:
+     * - 로그인한 사용자의 모든 주문(예약+구매)를 시간순으로 보여줌
+     * - 모바일 앱에서 "내 주문 내역" 화면에 사용
+     * - 필터링 옵션: 주문 타입, 상태, 기간
+     * - 페이지네이션 지원
+     *
+     * URL 예시:
+     * GET /api/orders/v1/me?page=1&size=20
+     * GET /api/orders/v1/me?orderType=RESERVATION&status=PAID
+     */
+    @GetMapping("/me")
+    @Operation(
+        summary = "내 주문 타임라인 조회",
+        description = """
+            로그인한 사용자의 모든 주문을 시간순으로 조회합니다.
+
+            ## 📱 사용 용도
+            - 모바일 앱 "내 주문 내역" 화면
+            - 마이페이지 주문 목록
+            - 고객 지원을 위한 주문 이력 확인
+
+            ## 🔍 필터링 옵션
+            - **orderType**: 주문 타입 ("RESERVATION" | "PURCHASE" | "ALL")
+            - **status**: 주문 상태 ("REQUESTED" | "PAID" | "COMPLETED" | "CANCELLED")
+            - **from/to**: 기간별 조회
+
+            ## 📄 응답 데이터
+            - 주문 기본 정보 (번호, 상태, 금액)
+            - 팝업/매장 정보 (제목, 위치)
+            - 예약 정보 (방문 예정 시각)
+            - 취소 가능 여부 및 시한
+
+            ## 🎯 Java 초보자 학습 포인트
+            - JWT에서 사용자 ID 추출하는 방법
+            - 페이지네이션 처리 방법
+            - Optional 파라미터 처리 방법
+            """
+    )
+    public ResponseEntity<BaseResponse<com.popcorn.order.dto.response.MyOrderTimelineResponse>> getMyOrders(
+            @Parameter(description = "주문 타입", example = "ALL")
+            @RequestParam(required = false, defaultValue = "ALL") String orderType,
+            @Parameter(description = "주문 상태", example = "PAID")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "조회 시작 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime from,
+            @Parameter(description = "조회 종료 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime to,
+            @Parameter(description = "페이지 번호", example = "1")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @Parameter(description = "페이지 크기", example = "20")
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+            org.springframework.security.core.Authentication authentication) {
+
+        try {
+            // 1. JWT에서 사용자 ID 추출 (AuthenticationUtil 사용)
+            Long customerId = AuthenticationUtil.extractUserIdFromAuthentication(authentication);
+
+            log.info("🎯 JWT에서 추출된 사용자 ID: {}", customerId);
+
+            // 2. 파라미터 정규화
+            String normalizedOrderType = "ALL".equalsIgnoreCase(orderType) ? null : orderType;
+            String normalizedStatus = (status == null || "ALL".equalsIgnoreCase(status)) ? null : status;
+
+            // 3. page/size를 offset/limit으로 변환
+            Integer limit = size;
+            Long offset = (long) (page - 1) * size;
+
+            // 4. 서비스 호출
+            com.popcorn.order.dto.response.MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
+                customerId, normalizedOrderType, normalizedStatus, from, to, limit, offset
+            );
+
+            log.info("내 주문 타임라인 조회 완료 - 사용자: {}, 조회된 주문: {}개",
+                    customerId, response.getItems().size());
+
+            // 5. 응답 생성
+            BaseResponse<com.popcorn.order.dto.response.MyOrderTimelineResponse> baseResponse =
+                BaseResponse.from(OrderResponseCode.ORDER_LIST_RETRIEVED, response);
+
+            return ResponseEntity.ok(baseResponse);
+
+        } catch (Exception e) {
+            log.error("내 주문 타임라인 조회 실패", e);
+
+            BaseResponse<com.popcorn.order.dto.response.MyOrderTimelineResponse> errorResponse =
+                BaseResponse.from(OrderResponseCode.DATABASE_ERROR, null);
+
+            return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
+                    .body(errorResponse);
+        }
+    }
+
+    /**
+     * 매장별 주문 현황 조회
+     *
+     * [Java 초보자를 위한 가이드]
+     *
+     * 이 API가 하는 일:
+     * - 매장 운영자가 자기 가게에 들어온 주문들을 확인
+     * - 팝업별로 필터링 가능
+     * - 주문 상태별로 관리 가능
+     */
+    @GetMapping("/store")
+    @Operation(
+        summary = "매장별 주문 현황 조회",
+        description = """
+            매장 운영자가 자신의 매장에 들어온 주문 현황을 조회합니다.
+
+            ## 🏪 사용 용도
+            - 매장 관리 대시보드
+            - 일일 주문 현황 확인
+            - 팝업별 주문 관리
+
+            ## 🔍 필터링 옵션
+            - **storeId**: 매장 ID (필수)
+            - **popupId**: 특정 팝업만 조회 (선택적)
+            - **orderType**: 주문 타입
+            - **status**: 주문 상태
+            """
+    )
+    public ResponseEntity<BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse>> getStoreOrders(
+            @Parameter(description = "매장 ID (매장 운영자는 JWT에서 자동 추출)")
+            @RequestParam(required = false) UUID storeId,
+            @Parameter(description = "팝업 ID (특정 팝업만 조회시)")
+            @RequestParam(required = false) UUID popupId,
+            @Parameter(description = "주문 타입")
+            @RequestParam(required = false) String orderType,
+            @Parameter(description = "주문 상태")
+            @RequestParam(required = false, defaultValue = "REQUESTED") String status,
+            @Parameter(description = "조회 시작 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime from,
+            @Parameter(description = "조회 종료 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime to,
+            @Parameter(description = "페이지 번호")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @Parameter(description = "페이지 크기")
+            @RequestParam(required = false, defaultValue = "20") Integer size,
+            org.springframework.security.core.Authentication authentication) {
+
+        // 1. 매장 ID 처리 - storeId가 없으면 JWT에서 추출 (매장 운영자인 경우)
+        UUID effectiveStoreId = storeId;
+        if (effectiveStoreId == null) {
+            // TODO: JWT에서 매장 ID 추출 로직 구현 필요
+            // 현재는 기본 매장 ID 사용
+            effectiveStoreId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+            log.info("🏪 매장 ID가 제공되지 않음. 기본 매장 ID 사용: {}", effectiveStoreId);
+        }
+
+        try {
+
+            log.info("매장 주문 현황 조회 - 매장: {}, 팝업: {}", effectiveStoreId, popupId);
+
+            // 1. page/size를 offset/limit으로 변환
+            Integer limit = size;
+            Long offset = (long) (page - 1) * size;
+
+            // 2. 서비스 호출
+            com.popcorn.order.dto.response.StoreOrderReservationListResponse response =
+                orderQueryService.getStoreOrderReservations(
+                    effectiveStoreId, popupId, null, orderType, status, from, to, limit, offset
+                );
+
+            log.info("매장 주문 현황 조회 완료 - 매장: {}, 조회된 주문: {}개",
+                    effectiveStoreId, response.getItems().size());
+
+            BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse> baseResponse =
+                BaseResponse.from(OrderResponseCode.ORDER_LIST_RETRIEVED, response);
+
+            return ResponseEntity.ok(baseResponse);
+
+        } catch (Exception e) {
+            log.error("매장 주문 현황 조회 실패 - 매장: {}", effectiveStoreId, e);
+
+            BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse> errorResponse =
+                BaseResponse.from(OrderResponseCode.DATABASE_ERROR, null);
+
+            return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
+                    .body(errorResponse);
+        }
+    }
+
+    /**
+     * 팝업별 예약 주문 목록 조회
+     *
+     * [Java 초보자를 위한 가이드]
+     *
+     * 이 API와 구매 API의 차이점:
+     * - 예약: 시간 지정해서 방문하는 주문 (팝업 체험)
+     * - 구매: 상품을 사서 가져가는 주문 (굿즈 구매)
+     */
+    @GetMapping("/popup/{popupId}/reservations")
+    @Operation(
+        summary = "팝업별 예약 주문 목록 조회",
+        description = """
+            특정 팝업의 예약형 주문만 조회합니다.
+
+            ## 📅 예약형 주문이란?
+            - 시간을 지정해서 팝업을 체험하는 주문
+            - 예: 팝콘 만들기 체험 오후 2시 예약
+
+            ## 🎯 사용 용도
+            - 팝업 운영자가 예약 현황 확인
+            - 시간대별 예약 관리
+            - 노쇼(No-show) 관리
+            """
+    )
+    public ResponseEntity<BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse>> getPopupReservationOrders(
+            @Parameter(description = "팝업 ID", example = "00000000-0000-0000-0000-000000000101")
+            @PathVariable UUID popupId,
+            @Parameter(description = "주문 상태")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "조회 시작 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime from,
+            @Parameter(description = "조회 종료 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime to,
+            @Parameter(description = "페이지 번호")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @Parameter(description = "페이지 크기")
+            @RequestParam(required = false, defaultValue = "20") Integer size) {
+
+        try {
+            log.info("팝업 예약 주문 조회 - 팝업: {}, 상태: {}", popupId, status);
+
+            // 1. page/size를 offset/limit으로 변환
+            Integer limit = size;
+            Long offset = (long) (page - 1) * size;
+
+            // 2. 서비스 호출 (orderType을 "RESERVATION"으로 고정)
+            com.popcorn.order.dto.response.StoreOrderReservationListResponse response =
+                orderQueryService.getStoreOrderReservations(
+                    null, // storeId는 null (팝업 ID로만 조회)
+                    popupId,
+                    null, // scheduleId
+                    "RESERVATION", // 예약형 주문만 조회
+                    status,
+                    from,
+                    to,
+                    limit,
+                    offset
+                );
+
+            log.info("팝업 예약 주문 조회 완료 - 팝업: {}, 조회된 주문: {}개",
+                    popupId, response.getItems().size());
+
+            BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse> baseResponse =
+                BaseResponse.from(OrderResponseCode.ORDER_LIST_RETRIEVED, response);
+
+            return ResponseEntity.ok(baseResponse);
+
+        } catch (Exception e) {
+            log.error("팝업 예약 주문 조회 실패 - 팝업: {}", popupId, e);
+
+            BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse> errorResponse =
+                BaseResponse.from(OrderResponseCode.DATABASE_ERROR, null);
+
+            return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
+                    .body(errorResponse);
+        }
+    }
+
+    /**
+     * 팝업별 구매 주문 목록 조회
+     *
+     * [Java 초보자를 위한 가이드]
+     *
+     * 예약 API와의 차이점:
+     * - 예약: 체험 시간을 예약하는 주문
+     * - 구매: 굿즈를 사서 가져가는 주문
+     */
+    @GetMapping("/popup/{popupId}/purchases")
+    @Operation(
+        summary = "팝업별 구매 주문 목록 조회",
+        description = """
+            특정 팝업의 구매형 주문만 조회합니다.
+
+            ## 🛒 구매형 주문이란?
+            - 굿즈나 상품을 구매하는 주문
+            - 예: 팝콘 굿즈, 브랜드 상품 구매
+            - 배송 또는 픽업으로 받는 주문
+
+            ## 🎯 사용 용도
+            - 팝업 운영자가 상품 판매 현황 확인
+            - 재고 관리
+            - 매출 분석
+            """
+    )
+    public ResponseEntity<BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse>> getPopupPurchaseOrders(
+            @Parameter(description = "팝업 ID", example = "00000000-0000-0000-0000-000000000101")
+            @PathVariable UUID popupId,
+            @Parameter(description = "주문 상태")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "조회 시작 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime from,
+            @Parameter(description = "조회 종료 시각")
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime to,
+            @Parameter(description = "페이지 번호")
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @Parameter(description = "페이지 크기")
+            @RequestParam(required = false, defaultValue = "20") Integer size) {
+
+        try {
+            log.info("팝업 구매 주문 조회 - 팝업: {}, 상태: {}", popupId, status);
+
+            // 1. page/size를 offset/limit으로 변환
+            Integer limit = size;
+            Long offset = (long) (page - 1) * size;
+
+            // 2. 서비스 호출 (orderType을 "PURCHASE"으로 고정)
+            com.popcorn.order.dto.response.StoreOrderReservationListResponse response =
+                orderQueryService.getStoreOrderReservations(
+                    null, // storeId는 null (팝업 ID로만 조회)
+                    popupId,
+                    null, // scheduleId
+                    "PURCHASE", // 구매형 주문만 조회
+                    status,
+                    from,
+                    to,
+                    limit,
+                    offset
+                );
+
+            log.info("팝업 구매 주문 조회 완료 - 팝업: {}, 조회된 주문: {}개",
+                    popupId, response.getItems().size());
+
+            BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse> baseResponse =
+                BaseResponse.from(OrderResponseCode.ORDER_LIST_RETRIEVED, response);
+
+            return ResponseEntity.ok(baseResponse);
+
+        } catch (Exception e) {
+            log.error("팝업 구매 주문 조회 실패 - 팝업: {}", popupId, e);
+
+            BaseResponse<com.popcorn.order.dto.response.StoreOrderReservationListResponse> errorResponse =
+                BaseResponse.from(OrderResponseCode.DATABASE_ERROR, null);
 
             return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
                     .body(errorResponse);

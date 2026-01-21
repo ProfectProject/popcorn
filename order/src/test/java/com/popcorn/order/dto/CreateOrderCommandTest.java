@@ -12,7 +12,13 @@ import com.popcorn.order.dto.request.CreateOrderRequest;
 import com.popcorn.order.dto.request.OrderItemRequest;
 
 /**
- * 자바 초보자용 CreateOrderCommand 테스트
+ * CreateOrderCommand 테스트 (MSA 구조로 업데이트됨)
+ *
+ * [Java 초보자를 위한 가이드]
+ *
+ * MSA 구조 변경사항:
+ * 1. CreateOrderRequest에서 userId 제거됨 (JWT에서 추출)
+ * 2. fromRequest 메소드가 userId 파라미터를 별도로 받음
  */
 class CreateOrderCommandTest {
 
@@ -39,8 +45,9 @@ class CreateOrderCommandTest {
     @Test
     void Request에서_Command로_변환_테스트() {
         // Given
+        Long userId = 1L; // MSA에서는 JWT에서 추출된 사용자 ID
         CreateOrderRequest request = CreateOrderRequest.builder()
-                .userId(1L)
+                // userId는 request에서 제거됨 (JWT에서 추출)
                 .popupId(UUID.randomUUID())
                 .orderType("RESERVATION")
                 .items(List.of(
@@ -53,10 +60,10 @@ class CreateOrderCommandTest {
                 .build();
 
         // When
-        CreateOrderCommand command = CreateOrderCommand.fromRequest(request);
+        CreateOrderCommand command = CreateOrderCommand.fromRequest(request, userId); // userId 별도 전달
 
         // Then
-        assertEquals(request.getUserId(), command.getUserId());
+        assertEquals(userId, command.getUserId()); // 직접 전달한 userId 확인
         assertEquals(request.getPopupId(), command.getPopupId());
         assertEquals(request.getOrderType(), command.getOrderType());
         assertEquals(1, command.getItems().size());
