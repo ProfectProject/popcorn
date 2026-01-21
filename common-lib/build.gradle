@@ -190,6 +190,12 @@ tasks.named('check') {
 	dependsOn jacocoTestCoverageVerification
 }
 
+// IntelliJ Kotlin DSL sync compatibility for Java-only module
+tasks.register('prepareKotlinBuildScriptModel') {
+	group = 'help'
+	description = 'No-op task for IDE sync compatibility.'
+}
+
 // 라이브러리 빌드 정보 출력
 tasks.register('libraryInfo') {
 	description = 'Common 라이브러리 정보 출력'

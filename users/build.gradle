@@ -62,6 +62,7 @@ dependencies {
 
 	// DB설정
 	runtimeOnly 'org.postgresql:postgresql'
+	// runtimeOnly 'com.h2database:h2'  // H2 인메모리 DB 제거 - PostgreSQL만 사용
 
 	// Flyway
 	implementation 'org.flywaydb:flyway-core:11.7.2'

@@ -26,10 +26,10 @@ import java.util.UUID;
 
 import org.hibernate.annotations.UuidGenerator;
 
-import com.popcorn.demo.common.entity.BaseEntity;
+import com.popcorn.common.entity.BaseEntity;
 
 @Entity
-@Table(name = "customer_addresses", schema = "user_auth")
+@Table(name = "customer_addresses")
 @Getter
 @Setter
 @EqualsAndHashCode(callSuper = false)
