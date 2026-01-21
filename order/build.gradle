@@ -1,0 +1,159 @@
+plugins {
+    id 'org.springframework.boot' version '3.5.9'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'jacoco'
+}
+
+group = 'com.popcorn'
+version = '0.0.1-SNAPSHOT'
+description = 'Order Service - 주문 관리 마이크로서비스 (Java)'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+// 버전 관리 (초보자를 위한 명확한 주석)
+ext {
+    set('springCloudVersion', '2023.0.6')
+    set('springModulithVersion', '1.3.2')
+    set('testcontainersVersion', '1.20.4')
+    set('springdocVersion', '2.8.0')
+    set('wireMockVersion', '3.0.1')
+}
+
+dependencies {
+    // === Spring Boot 핵심 (초보자 필수) ===
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // === 데이터베이스 ===
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation project(':common-lib')
+    // === Hibernate 추가 기능 ===
+    implementation 'org.hibernate.orm:hibernate-core:6.4.1.Final'
+    implementation 'org.hibernate.orm:hibernate-envers:6.4.1.Final'
+
+    // === JSON 처리 ===
+    implementation 'com.fasterxml.jackson.core:jackson-core'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    // === JWT 보안 처리 (결제 URL 토큰 생성용) ===
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // === API 문서화 (초보자도 쉽게!) ===
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+    // === 모니터링 및 메트릭 ===
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // === Resilience4j (Circuit Breaker, Retry, Rate Limiter) ===
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3'
+    implementation 'io.github.resilience4j:resilience4j-reactor'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+    // === 마이크로서비스 통신 (WebClient) ===
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // === Spring Cloud 마이크로서비스 ===
+    implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+    // === 이벤트 처리 ===
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // === 데이터베이스 마이그레이션 ===
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // === Lombok (Java 개발 편의성) ===
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // === 개발 도구 ===
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    // === 테스트 의존성 (80% 커버리지용) ===
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // === 테스트컨테이너 (실제 DB 테스트) ===
+    testImplementation "org.testcontainers:junit-jupiter"
+    testImplementation "org.testcontainers:postgresql"
+
+    // === WireMock (외부 API 모킹) ===
+    testImplementation "org.wiremock:wiremock:${wireMockVersion}"
+
+    // === Reactor 테스트 (WebClient 테스트용) ===
+    testImplementation 'io.projectreactor:reactor-test'
+
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// === 의존성 관리 (Spring Cloud 호환성) ===
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.springframework.modulith:spring-modulith-bom:${springModulithVersion}"
+    }
+    dependencies {
+        // 보안 취약점 해결
+        dependency "org.apache.commons:commons-compress:1.27.1"
+    }
+}
+
+// === 테스트 설정 ===
+test {
+    useJUnitPlatform()
+}
+
+// === JaCoCo 테스트 커버리지 설정 (80% 목표) ===
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    finalizedBy jacocoTestCoverageVerification
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80  // 80% 커버리지 요구
+            }
+        }
+    }
+}
+
+check {
+    dependsOn jacocoTestCoverageVerification
+}
