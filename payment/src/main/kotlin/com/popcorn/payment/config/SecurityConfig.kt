@@ -37,18 +37,18 @@ class SecurityConfig {
                     // 액추에이터 허용
                     .requestMatchers("/actuator/**").permitAll()
 
-                    // Payment 관련 API 허용 (현재는 모든 결제 API를 허용, 추후 인증 추가 가능)
-                    .requestMatchers(
-                        "/api/v*/payments/**",
-                        "/api/v*/payment/**",
-                        "/api/pay/v*/**"  // Gateway 라우팅용
-                    ).permitAll()
+                    // Payment 관련 API 모두 허용
+                    .requestMatchers("/api/payments/**").permitAll()
+                    .requestMatchers("/api/payment/**").permitAll()
+                    .requestMatchers("/api/v*/payments/**").permitAll()
+                    .requestMatchers("/api/v*/payment/**").permitAll()
+                    .requestMatchers("/api/pay/v*/**").permitAll()
 
                     // Health check 허용
                     .requestMatchers("/api/v*/payments/health").permitAll()
 
-                    // 나머지는 인증 필요 (추후 확장용)
-                    .anyRequest().authenticated()
+                    // 나머지는 모든 요청 허용 (개발용)
+                    .anyRequest().permitAll()
             }
             .httpBasic { httpBasic -> httpBasic.disable() }
             .formLogin { formLogin -> formLogin.disable() }

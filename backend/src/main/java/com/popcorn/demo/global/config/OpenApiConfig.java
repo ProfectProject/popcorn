@@ -57,9 +57,9 @@ public class OpenApiConfig {
 						"/api/v1/orders",
 
 						// 결제 관련 (고객)
-						"/api/v1/orders/{orderId}/pay",
-						"/api/v1/orders/{orderId}/payments",
-						"/api/v1/payments/**",
+						"/api/orders/v1/{orderId}/pay",
+						"/api/orders/v1/{orderId}/payments",
+						"/api/pay/v1/payments/**",
 
 						// QR 검증 (고객)
 						"/api/v1/qr/verify"

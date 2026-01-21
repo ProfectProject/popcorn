@@ -51,6 +51,10 @@ public class SecurityConfig {
                 // 🔓 Actuator 허용
                 .requestMatchers("/actuator/**").permitAll()
 
+                // 🔓 결제 서비스 연동용 주문 조회/상태 변경 허용
+                .requestMatchers(HttpMethod.GET, "/api/orders/v1/**").permitAll()
+                .requestMatchers(HttpMethod.PATCH, "/api/orders/v1/**").permitAll()
+
                 // 🔒 API 경로는 JWT 인증 필요
                 .requestMatchers("/api/orders/v1/**").authenticated()
 

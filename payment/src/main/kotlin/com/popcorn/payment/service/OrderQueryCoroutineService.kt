@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.reactive.function.client.awaitBody
+import org.springframework.web.util.UriComponentsBuilder
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
+import java.nio.charset.StandardCharsets
 
 /**
  * 주문 조회 서비스 (코루틴 버전)
@@ -71,7 +73,7 @@ class OrderQueryCoroutineService(
                 totalAmount = data.totalAmount,
                 status = data.status,
                 orderType = data.orderType,
-                createdAt = data.createdAt
+                createdAt = data.createdAt ?: LocalDateTime.now()
             )
         } catch (e: WebClientResponseException) {
             log.error("주문 조회 실패: orderId={}, status={}, error={}",
@@ -103,11 +105,14 @@ class OrderQueryCoroutineService(
                 webClient
                     .patch()
                     .uri { uriBuilder ->
-                        uriBuilder
-                            .path("$orderServiceBaseUrl/api/orders/v1/$orderId/status")
+                        UriComponentsBuilder
+                            .fromHttpUrl(orderServiceBaseUrl)
+                            .path("/api/orders/v1/$orderId/status")
                             .queryParam("status", status)
                             .queryParam("reason", reason)
+                            .encode(StandardCharsets.UTF_8)
                             .build()
+                            .toUri()
                     }
                     .retrieve()
                     .awaitBody<ApiResponse<Unit>>()
@@ -156,7 +161,7 @@ data class OrderDetailApiResponse(
     val orderType: String,
     val status: String,
     val totalAmount: Int,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime? = null
 )
 
 data class OrderSummaryApiResponse(
@@ -166,5 +171,5 @@ data class OrderSummaryApiResponse(
     val orderType: String,
     val status: String,
     val totalAmount: Int,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime? = null
 )

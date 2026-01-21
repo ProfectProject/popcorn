@@ -21,6 +21,7 @@ import com.popcorn.order.entity.OrderType;
 import com.popcorn.order.event.OrderCreatedEvent;
 import com.popcorn.order.event.OrderStatusChangedEvent;
 import com.popcorn.order.event.OrderCancelledEvent;
+import com.popcorn.order.event.OrderEventPublisher;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
@@ -49,6 +50,7 @@ public class OrderCommandService {
     private final OrderItemRepository orderItemRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final OrderEventPublisher orderEventPublisher;
     private final PaymentClient paymentClient;
     private final UserClient userClient;
     private final PaymentTokenUtil paymentTokenUtil;
@@ -229,6 +231,12 @@ public class OrderCommandService {
                 reason,
                 "SYSTEM"
         ));
+
+        if (newStatus == OrderStatus.PAID) {
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(savedOrder.getId());
+            savedOrder.setOrderItems(orderItems);
+            orderEventPublisher.publishOrderPaidEvent(savedOrder);
+        }
 
         // 8. 특별한 상태 변경시 추가 이벤트
         if (newStatus == OrderStatus.CANCELLED) {
@@ -624,7 +632,7 @@ public class OrderCommandService {
      *
      * [새로운 결제 플로우]
      * - Order 서비스에서 결제 정보를 AES-256-GCM으로 암호화하여 토큰 생성
-     * - 프론트엔드 URL: http://localhost:3000/payments?token={암호화된토큰}
+     * - 프론트엔드 URL: http://localhost:3000/auto-payment?token={암호화된토큰}
      * - Payment 서비스 호출하지 않음 (HTTP 요청 제거)
      * - 실제 결제 기록은 결제 완료 시점에 Payment 모듈에서 생성
      */
@@ -650,8 +658,8 @@ public class OrderCommandService {
                         paymentMethod
                 );
 
-                // 프론트엔드 결제 페이지 URL 생성 (토큰 방식)
-                String paymentUrl = String.format("http://localhost:3000/payments?token=%s", paymentToken);
+                // 프론트엔드 결제 페이지 URL 생성 (기존 backend 호환 방식)
+                String paymentUrl = String.format("http://localhost:3000/auto-payment?token=%s", paymentToken);
 
                 // CreatePaymentResponse 생성
                 CreatePaymentResponse paymentResponse = CreatePaymentResponse.builder()

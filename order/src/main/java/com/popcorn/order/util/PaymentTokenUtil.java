@@ -1,118 +1,134 @@
 package com.popcorn.order.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Date;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 /**
- * 결제 토큰 암호화/복호화 유틸리티
+ * 결제 토큰 JWT 암호화/복호화 유틸리티 (기존 backend 호환)
  *
- * AES-256-GCM 방식으로 결제 정보를 안전하게 암호화하여 토큰 생성
+ * JWT HS256 방식으로 결제 정보를 안전하게 암호화하여 토큰 생성
+ * 기존 backend PaymentTokenService와 동일한 방식 사용
  */
 @Slf4j
 @Component
 public class PaymentTokenUtil {
 
-    private static final String ALGORITHM = "AES";
-    private static final String TRANSFORMATION = "AES/GCM/NoPadding";
-    private static final String SECRET_KEY = "MySecretKey12345MySecretKey12345"; // 32바이트 키
-    private static final int GCM_IV_LENGTH = 12;
-    private static final int GCM_TAG_LENGTH = 16;
+    @Value("${jwt.secret}")
+    private String secretKey;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final long TOKEN_VALIDITY_MINUTES = 30; // 30분 유효
 
     /**
-     * 결제 정보를 암호화하여 토큰 생성
+     * 결제 정보를 JWT 토큰으로 암호화 (기존 backend 호환)
      */
     public String generatePaymentToken(UUID orderId, String orderNo, int amount, String orderName,
                                      String customerKey, String paymentMethod) {
         try {
-            // 결제 정보 맵 생성
-            Map<String, Object> paymentData = new HashMap<>();
-            paymentData.put("orderId", orderId.toString());
-            paymentData.put("orderNo", orderNo);
-            paymentData.put("amount", amount);
-            paymentData.put("orderName", orderName);
-            paymentData.put("customerKey", customerKey);
-            paymentData.put("paymentMethod", paymentMethod);
-            paymentData.put("timestamp", System.currentTimeMillis());
-            paymentData.put("successUrl", "http://localhost:3000/payments/success");
-            paymentData.put("failUrl", "http://localhost:3000/payments/fail");
+            Date now = new Date();
+            Date expiry = new Date(now.getTime() + TOKEN_VALIDITY_MINUTES * 60 * 1000);
 
-            // JSON 문자열로 변환
-            String jsonData = objectMapper.writeValueAsString(paymentData);
+            String token = Jwts.builder()
+                    .setSubject("p") // "payment" → "p" (더 짧게)
+                    .setIssuedAt(now)
+                    .setExpiration(expiry)
+                    .claim("i", orderId.toString()) // "orderId" → "i"
+                    .claim("o", orderNo) // "orderNo" → "o"
+                    .claim("a", amount) // "amount" → "a"
+                    .claim("c", customerKey) // "customerKey" → "c"
+                    .claim("p", null) // "paymentId" → "p" (아직 결제 기록 없음)
+                    // successUrl, failUrl 제거 (프론트엔드에서 설정)
+                    .signWith(SignatureAlgorithm.HS256, secretKey.getBytes(StandardCharsets.UTF_8))
+                    .compact();
 
-            // AES-GCM 암호화
-            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-
-            // 랜덤 IV 생성
-            byte[] iv = new byte[GCM_IV_LENGTH];
-            SecureRandom.getInstanceStrong().nextBytes(iv);
-
-            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec);
-
-            // 암호화 수행
-            byte[] encryptedData = cipher.doFinal(jsonData.getBytes(StandardCharsets.UTF_8));
-
-            // IV + 암호화된 데이터를 Base64로 인코딩
-            byte[] encryptedWithIv = new byte[iv.length + encryptedData.length];
-            System.arraycopy(iv, 0, encryptedWithIv, 0, iv.length);
-            System.arraycopy(encryptedData, 0, encryptedWithIv, iv.length, encryptedData.length);
-
-            String token = Base64.getUrlEncoder().withoutPadding().encodeToString(encryptedWithIv);
-
-            log.info("결제 토큰 생성 완료 - 주문번호: {}, 토큰 길이: {}", orderNo, token.length());
-
+            log.info("💳 JWT 결제 토큰 생성 완료 - 주문번호: {}, 토큰 길이: {}", orderNo, token.length());
             return token;
 
         } catch (Exception e) {
-            log.error("결제 토큰 생성 실패 - 주문번호: {}, 에러: {}", orderNo, e.getMessage(), e);
+            log.error("❌ JWT 결제 토큰 생성 실패 - 주문번호: {}, 에러: {}", orderNo, e.getMessage(), e);
             throw new RuntimeException("결제 토큰 생성에 실패했습니다", e);
         }
     }
 
     /**
-     * 토큰 검증용 메서드 (테스트/디버깅용)
+     * JWT 토큰에서 결제 정보 복호화 (테스트/디버깅용)
      */
-    public Map<String, Object> decryptPaymentToken(String token) {
+    public PaymentTokenInfo decryptPaymentToken(String token) {
         try {
-            // Base64 디코딩
-            byte[] encryptedWithIv = Base64.getUrlDecoder().decode(token);
+            Claims claims = Jwts.parser()
+                    .setSigningKey(secretKey.getBytes(StandardCharsets.UTF_8))
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
 
-            // IV와 암호화된 데이터 분리
-            byte[] iv = new byte[GCM_IV_LENGTH];
-            byte[] encryptedData = new byte[encryptedWithIv.length - GCM_IV_LENGTH];
-            System.arraycopy(encryptedWithIv, 0, iv, 0, iv.length);
-            System.arraycopy(encryptedWithIv, iv.length, encryptedData, 0, encryptedData.length);
+            String orderIdValue = claims.get("i", String.class);
+            UUID orderId = null;
+            if (orderIdValue != null && !orderIdValue.isBlank()) {
+                orderId = UUID.fromString(orderIdValue);
+            }
 
-            // AES-GCM 복호화
-            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
-            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
+            String paymentIdValue = claims.get("p", String.class);
+            UUID paymentId = null;
+            if (paymentIdValue != null && !paymentIdValue.isBlank()) {
+                paymentId = UUID.fromString(paymentIdValue);
+            }
 
-            byte[] decryptedData = cipher.doFinal(encryptedData);
-            String jsonData = new String(decryptedData, StandardCharsets.UTF_8);
+            PaymentTokenInfo info = PaymentTokenInfo.builder()
+                    .orderId(orderId)
+                    .orderNo(claims.get("o", String.class))
+                    .amount(claims.get("a", Integer.class))
+                    .customerKey(claims.get("c", String.class))
+                    .paymentId(paymentId)
+                    // URL은 프론트엔드에서 하드코딩으로 처리
+                    .successUrl("http://localhost:3000/payments/success")
+                    .failUrl("http://localhost:3000/payments/fail")
+                    .build();
 
-            // JSON 파싱하여 맵 반환
-            return objectMapper.readValue(jsonData, Map.class);
+            log.info("✅ JWT 결제 토큰 복호화 완료 - 주문번호: {}", info.getOrderNo());
+            return info;
 
         } catch (Exception e) {
-            log.error("결제 토큰 복호화 실패 - 토큰: {}, 에러: {}",
-                    token.length() > 20 ? token.substring(0, 20) + "..." : token, e.getMessage());
+            String tokenPreview = token.length() > 20 ? token.substring(0, 20) + "..." : token;
+            log.error("❌ JWT 결제 토큰 복호화 실패 - 토큰: {}, 에러: {}", tokenPreview, e.getMessage());
             throw new RuntimeException("결제 토큰 복호화에 실패했습니다", e);
         }
+    }
+
+    /**
+     * JWT 토큰 유효성 검증
+     */
+    public boolean isValidToken(String token) {
+        try {
+            Jwts.parser()
+                    .setSigningKey(secretKey.getBytes(StandardCharsets.UTF_8))
+                    .build()
+                    .parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            log.warn("⚠️ JWT 토큰 유효성 검증 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 결제 토큰 정보 DTO (기존 backend 호환)
+     */
+    @lombok.Builder
+    @lombok.Getter
+    public static class PaymentTokenInfo {
+        private UUID orderId;
+        private String orderNo;
+        private Integer amount;
+        private String customerKey;
+        private UUID paymentId;
+        private String successUrl;
+        private String failUrl;
     }
 }

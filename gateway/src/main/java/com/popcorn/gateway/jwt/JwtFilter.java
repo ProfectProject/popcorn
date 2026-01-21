@@ -17,10 +17,12 @@ import reactor.core.publisher.Mono;
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_URLS = List.of(
             "/api/users/v1/auth/login",
-            "/api/users/v1/users/signup"
+            "/api/users/v1/users/signup",
+            "/api/pay/v1/payments/decode"
     );
     private static final List<String> EXCLUDE_PREFIXES = List.of(
-            "/api/pay/v1/payments/health"
+            "/api/pay/v1/payments/health",
+            "/api/pay/v1/payments/decode"
     );
 
     private final JwtUtil jwtUtils;

@@ -7,10 +7,11 @@ server:
 spring:
   application:
     name: payment-service
-
   # 기본 프로필 설정
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+
+# JWT 설정 (기존 backend와 동일한 secret 사용)
 
   # 설정 파일 import
   config:
@@ -38,7 +39,7 @@ spring:
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: ${FLYWAY_BASELINE:true}
-    locations: classpath:db/migration/payment
+    locations: classpath:db/migration
 
   # Docker Compose 자동 실행 비활성화 (개발 편의성)
   docker:
@@ -151,6 +152,9 @@ microservices:
   order:
     base-url: ${ORDER_SERVICE_URL:http://localhost:8084}
     timeout: 30s
+  checkins:
+    base-url: ${CHECKINS_SERVICE_URL:http://localhost:8086}
+    timeout: 10s
   gateway:
     base-url: ${GATEWAY_URL:http://localhost:8080}
     timeout: 10s
@@ -185,3 +189,6 @@ payment:
   qr:
     enabled: true  # QR 코드 생성 활성화
     expiration-minutes: 10  # QR 코드 만료 시간 (10분)
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}

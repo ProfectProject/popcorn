@@ -143,8 +143,15 @@ class PaymentCommandCoroutineService(
         val payment = paymentRepository.findById(paymentId)
             .orElseThrow { PaymentException.paymentNotFound() }
 
+        val newStatus = PaymentStatus.valueOf(status)
+        val resolvedApprovedAt = when {
+            newStatus == PaymentStatus.PAID && payment.approvedAt != null -> payment.approvedAt
+            newStatus == PaymentStatus.PAID -> approvedAt ?: LocalDateTime.now()
+            else -> approvedAt
+        }
+
         // 상태 업데이트
-        payment.updateStatus(PaymentStatus.valueOf(status), approvedAt)
+        payment.updateStatus(newStatus, resolvedApprovedAt)
 
         // rawPayload 업데이트 (있는 경우)
         if (rawPayload != null) {

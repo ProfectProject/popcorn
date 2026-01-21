@@ -68,6 +68,16 @@ data class PaymentDetailResponse(
 )
 
 /**
+ * 결제 상태 조회 응답 DTO
+ */
+data class PaymentStatusResponse(
+    val paymentId: UUID,
+    val orderId: UUID,
+    val status: String,
+    val approvedAt: LocalDateTime?
+)
+
+/**
  * 결제 목록 조회 응답 DTO
  */
 data class PaymentListResponse(

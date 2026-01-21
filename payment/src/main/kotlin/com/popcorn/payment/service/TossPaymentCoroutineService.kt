@@ -2,10 +2,10 @@ package com.popcorn.payment.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.popcorn.payment.client.TossPaymentsCoroutineClient
-import com.popcorn.common.cache.CoroutineIdempotencyService
 import com.popcorn.payment.config.CoroutineTransactionManager
 import com.popcorn.payment.dto.TossPaymentCancelRequest
 import com.popcorn.payment.dto.TossPaymentConfirmRequest
+import com.popcorn.payment.event.PaymentEventPublisherImpl
 import com.popcorn.payment.exception.PaymentException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -25,8 +25,8 @@ class TossPaymentCoroutineService(
     private val transactionManager: CoroutineTransactionManager,
     private val paymentCommandService: PaymentCommandCoroutineService,
     private val orderQueryService: OrderQueryCoroutineService,
-    private val idempotencyService: CoroutineIdempotencyService,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val paymentEventPublisher: PaymentEventPublisherImpl
 ) {
 
     private val log = LoggerFactory.getLogger(TossPaymentCoroutineService::class.java)
@@ -85,10 +85,7 @@ class TossPaymentCoroutineService(
         paymentKey: String,
         orderId: String,
         amount: Int
-    ): TossPaymentConfirmResult = idempotencyService.execute(
-        "payment:confirm:$paymentKey:$orderId"
-    ) {
-        coroutineScope {
+    ): TossPaymentConfirmResult = coroutineScope {
 
             log.info("토스 결제 승인 요청 시작: orderId={}, paymentKey={}, amount={}", orderId, paymentKey, amount)
 
@@ -107,7 +104,15 @@ class TossPaymentCoroutineService(
                     return@coroutineScope existingPayment
                 }
 
-                val order = orderDeferred.await()
+                var order = orderDeferred.await()
+                if (order.status == "REQUESTED") {
+                    log.info("결제 승인 전 주문 상태를 PAYMENT_PENDING으로 전환: orderId={}", order.id)
+                    order = orderQueryService.updateOrderStatus(
+                        orderId = order.id,
+                        status = "PAYMENT_PENDING",
+                        reason = "결제 승인 준비"
+                    )
+                }
 
                 log.info("토스 결제 승인 API 호출: paymentKey={}", paymentKey)
                 val tossResponse = tossClient.confirm(
@@ -160,6 +165,16 @@ class TossPaymentCoroutineService(
                 )
 
                 try {
+                    paymentEventPublisher.publishPaymentApproved(
+                        paymentId = paymentResult.paymentId,
+                        orderId = order.id,
+                        orderNo = order.orderNo,
+                        amount = amount,
+                        paymentMethod = "CARD",
+                        paymentKey = paymentKey,
+                        approvedAt = approvedAt,
+                        customerId = order.customerId
+                    )
                     log.info("결제 성공 이벤트 발행 완료")
                 } catch (e: Exception) {
                     log.error("결제 성공 이벤트 발행 실패 - 결제는 성공 처리: error={}", e.message, e)
@@ -175,7 +190,6 @@ class TossPaymentCoroutineService(
                 log.error("결제 승인 실패: paymentKey={}, orderId={}, error={}", paymentKey, orderId, e.message, e)
                 throw e
             }
-        }
     }
 
     /**

@@ -12,8 +12,10 @@ import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.service.OrderService;
+import com.popcorn.order.client.StoreClient;
 
 import java.util.UUID;
+import java.util.List;
 
 /**
  * 주문 이벤트 리스너
@@ -38,6 +40,7 @@ public class OrderEventListener {
     private final OrderService orderService;
     private final OrderEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final StoreClient storeClient;
 
     /**
      * Store 모듈의 재고 차감 실패 이벤트 수신 (Kafka로 대체 예정)
@@ -110,6 +113,51 @@ public class OrderEventListener {
         } catch (Exception e) {
             log.error("결제 완료 이벤트 처리 중 오류 - orderId: {}", event.getOrderId(), e);
             throw new RuntimeException("결제 완료 이벤트 처리 실패", e);
+        }
+    }
+
+    /**
+     * 주문 결제 완료 이벤트 수신 -> 재고 차감 처리
+     */
+    @EventListener
+    @Transactional
+    public void handleOrderPaid(OrderPaidEvent event) {
+        try {
+            log.info("주문 결제 완료 이벤트 수신 - orderId: {}", event.getOrderId());
+
+            if (event.getOrderItems() == null || event.getOrderItems().isEmpty()) {
+                log.warn("재고 차감할 주문 항목이 없습니다 - orderId: {}", event.getOrderId());
+                return;
+            }
+
+            List<OrderPaidEvent.OrderItemInfo> orderItems = event.getOrderItems();
+            for (OrderPaidEvent.OrderItemInfo item : orderItems) {
+                if (item.isGoodsItem()) {
+                    if (item.getGoodsVariantId() == null || item.getQuantity() == null) {
+                        log.warn("굿즈 재고 차감 스킵 - orderId: {}, goodsVariantId: {}",
+                                event.getOrderId(), item.getGoodsVariantId());
+                        continue;
+                    }
+                    log.info("굿즈 재고 차감 요청 - orderId: {}, popupId: {}, goodsVariantId: {}, quantity: {}",
+                            event.getOrderId(), event.getPopupId(), item.getGoodsVariantId(), item.getQuantity());
+                    storeClient.completeGoodsReservation(
+                            event.getPopupId(),
+                            item.getGoodsVariantId(),
+                            item.getQuantity()
+                    );
+                    log.info("굿즈 재고 차감 완료 - orderId: {}, goodsVariantId: {}, quantity: {}",
+                            event.getOrderId(), item.getGoodsVariantId(), item.getQuantity());
+                } else {
+                    log.info("예약 항목은 별도 재고 처리 대상입니다 - orderId: {}", event.getOrderId());
+                }
+            }
+        } catch (Exception e) {
+            log.error("재고 차감 처리 실패 - orderId: {}, error: {}",
+                    event.getOrderId(), e.getMessage(), e);
+            eventPublisher.publishStockDeductionFailedEvent(
+                    event.getOrderId(),
+                    "재고 차감 실패: " + e.getMessage()
+            );
         }
     }
 

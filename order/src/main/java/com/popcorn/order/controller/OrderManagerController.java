@@ -182,16 +182,15 @@ public class OrderManagerController {
         log.info("주문 상세 조회 - orderId: {}", orderId);
 
         try {
-            // 임시로 빈 응답 반환 (실제 구현 필요)
-            OrderDetailResponse orderDetail = OrderDetailResponse.builder()
-                    .orderId(orderId)
-                    .orderNo("O20260121-000001")
-                    .status("REQUESTED")
-                    .totalAmount(50000)
-                    .build();
-
-            BaseResponse<OrderDetailResponse> response = BaseResponse.success(orderDetail);
-            return ResponseEntity.ok(response);
+            return orderQueryService.findOrderById(orderId)
+                .map(orderDetail -> ResponseEntity.ok(BaseResponse.success(orderDetail)))
+                .orElseGet(() -> {
+                    BaseResponse<BaseError> errorResponse = BaseResponse.error(
+                        CommonResponseCode.NOT_FOUND,
+                        "주문 정보를 찾을 수 없습니다."
+                    );
+                    return ResponseEntity.status(404).body((BaseResponse) errorResponse);
+                });
 
         } catch (Exception e) {
             log.error("주문 상세 조회 실패 - orderId: {}", orderId, e);

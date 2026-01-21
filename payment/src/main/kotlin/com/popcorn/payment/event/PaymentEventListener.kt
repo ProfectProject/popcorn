@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
+import com.popcorn.payment.client.CheckInsClient
 
 /**
  * 결제 이벤트 리스너
@@ -19,7 +20,9 @@ import org.springframework.stereotype.Component
  * - 코루틴으로 높은 동시성 처리
  */
 @Component
-class PaymentEventListener {
+class PaymentEventListener(
+    private val checkInsClient: CheckInsClient
+) {
 
     private val log = LoggerFactory.getLogger(PaymentEventListener::class.java)
     private val eventScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -298,14 +301,19 @@ class PaymentEventListener {
      */
     private suspend fun sendQrCodeToCheckInsService(qrCodeInfo: QrCodeInfo) {
         try {
-            log.info("📤 checkIns 서비스에 QR 코드 정보 전달: qrCodeId={}", qrCodeInfo.qrCodeId)
-
-            // 실제로는 checkIns 서비스 API 호출
-            // checkInsClient.registerQrCode(qrCodeInfo)
-
-            log.info("✅ checkIns 서비스 등록 완료: qrCodeId={}", qrCodeInfo.qrCodeId)
+            log.info("📤 checkIns QR 발급 요청: orderId={}", qrCodeInfo.orderId)
+            val response = checkInsClient.issueQr(qrCodeInfo.orderId)
+            if (response.code != 200) {
+                log.warn("⚠️ checkIns QR 발급 실패: orderId={}, code={}, message={}",
+                    qrCodeInfo.orderId, response.code, response.message)
+                return
+            }
+            val qrCode = response.data?.get("qrCode")
+            val expiresAt = response.data?.get("expiresAt")
+            log.info("✅ checkIns QR 발급 완료: orderId={}, qrCode={}, expiresAt={}",
+                qrCodeInfo.orderId, qrCode, expiresAt)
         } catch (e: Exception) {
-            log.warn("⚠️ checkIns 서비스 등록 실패: qrCodeId={}, error={}", qrCodeInfo.qrCodeId, e.message)
+            log.warn("⚠️ checkIns QR 발급 실패: orderId={}, error={}", qrCodeInfo.orderId, e.message)
         }
     }
 

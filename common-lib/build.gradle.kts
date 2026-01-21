@@ -47,7 +47,7 @@ dependencyManagement {
 dependencies {
     // === Kotlin 관련 ===
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    api("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // === 코루틴 ===
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")

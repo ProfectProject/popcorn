@@ -5,6 +5,7 @@ import com.popcorn.payment.exception.PaymentException
 import com.popcorn.payment.service.TossPaymentCoroutineService
 import com.popcorn.payment.service.PaymentCommandCoroutineService
 import com.popcorn.payment.service.OrderQueryCoroutineService
+import com.popcorn.payment.service.PaymentApprovalAsyncService
 import com.popcorn.payment.util.PaymentTokenUtil
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -31,7 +32,8 @@ class PaymentController(
     private val tossPaymentService: TossPaymentCoroutineService,
     private val paymentCommandService: PaymentCommandCoroutineService,
     private val orderQueryService: OrderQueryCoroutineService,
-    private val paymentTokenUtil: PaymentTokenUtil
+    private val paymentTokenUtil: PaymentTokenUtil,
+    private val paymentApprovalAsyncService: PaymentApprovalAsyncService
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentController::class.java)
@@ -92,6 +94,41 @@ class PaymentController(
     }
 
     /**
+     * 토스페이먼츠 결제 승인 (비동기)
+     */
+    @PostMapping("/confirm-async")
+    suspend fun confirmPaymentAsync(
+        @Valid @RequestBody
+        @Parameter(description = "결제 승인 요청 정보", required = true)
+        request: PaymentConfirmRequest
+    ): ResponseEntity<ApiResponse<PaymentConfirmResponse>> {
+        log.info("💳 결제 승인(비동기) 요청: paymentKey={}, orderId={}, amount={}원",
+            request.paymentKey, request.orderId, request.amount)
+
+        return try {
+            val orderInfo = orderQueryService.getOrder(UUID.fromString(request.orderId))
+            paymentApprovalAsyncService.confirmAsync(request)
+
+            val response = PaymentConfirmResponse(
+                paymentId = UUID.randomUUID(),
+                paymentStatus = "IN_PROGRESS",
+                orderStatus = "PAYMENT_PENDING",
+                orderId = orderInfo.id,
+                orderNo = orderInfo.orderNo,
+                amount = request.amount,
+                approvedAt = null
+            )
+
+            ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(response, "결제 승인 처리 중입니다."))
+        } catch (e: Exception) {
+            log.error("❌ 결제 승인(비동기) 중 예외 발생: paymentKey={}", request.paymentKey, e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(genericErrorMessage))
+        }
+    }
+
+    /**
      * 결제 취소
      */
     @PostMapping("/{paymentId}/cancel")
@@ -146,6 +183,21 @@ class PaymentController(
             request.orderId, request.paymentMethod, request.amount)
 
         try {
+            val orderInfo = orderQueryService.getOrder(request.orderId)
+            when (orderInfo.status) {
+                "PAYMENT_PENDING" -> Unit
+                "PAID", "COMPLETED", "CANCELLED", "REJECTED" -> {
+                    throw PaymentException.invalidRequest("현재 상태에서는 결제를 시작할 수 없습니다: ${orderInfo.status}")
+                }
+                else -> {
+                    orderQueryService.updateOrderStatus(
+                        orderId = request.orderId,
+                        status = "PAYMENT_PENDING",
+                        reason = "결제 시작"
+                    )
+                }
+            }
+
             // 결제 기록은 승인 시점에 생성하므로, 여기서는 URL만 발급
             val paymentUrl = buildFrontendPaymentUrl(request)
 
@@ -180,17 +232,16 @@ class PaymentController(
         val frontendUrl = "http://localhost:3000"
         val orderNo = request.orderNo ?: request.orderId.toString()
         val customerKey = request.customerId?.toString() ?: "guest"
-        val successUrl = "http://localhost:3000/payments/success"
-        val failUrl = "http://localhost:3000/payments/fail"
-        val token = paymentTokenUtil.encryptPaymentToken(
+
+        // JWT 토큰으로 결제 정보 암호화
+        val token = paymentTokenUtil.generatePaymentToken(
             orderId = request.orderId.toString(),
             orderNo = orderNo,
             amount = request.amount,
-            customerKey = customerKey,
-            successUrl = successUrl,
-            failUrl = failUrl
+            customerKey = customerKey
         )
-        return "$frontendUrl/payments?token=$token"
+
+        return "$frontendUrl/auto-payment?token=$token"
     }
 
     /**
@@ -203,7 +254,7 @@ class PaymentController(
         return try {
             log.info("🔓 결제 토큰 디코드 요청 - 토큰 길이: {}자", token.length)
 
-            // AES-256-GCM 암호화된 토큰 복호화
+            // JWT 토큰 복호화
             val paymentData = paymentTokenUtil.decryptPaymentToken(token)
 
             // 토큰 유효성 검증
@@ -317,6 +368,33 @@ class PaymentController(
             log.error("❌ 주문 결제 목록 조회 실패: orderId={}", orderId, e)
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("시스템 오류가 발생했습니다."))
+        }
+    }
+
+    /**
+     * 주문의 최신 결제 상태 조회 (프론트 폴링용)
+     */
+    @GetMapping("/orders/{orderId}/latest")
+    suspend fun getLatestPaymentStatus(
+        @PathVariable orderId: UUID
+    ): ResponseEntity<ApiResponse<PaymentStatusResponse>> {
+        return try {
+            val result = paymentCommandService.getLatestPaymentByOrderId(orderId)
+            val response = PaymentStatusResponse(
+                paymentId = result.paymentId,
+                orderId = result.orderId ?: orderId,
+                status = result.status,
+                approvedAt = result.approvedAt
+            )
+            ResponseEntity.ok(ApiResponse.success(response))
+        } catch (e: PaymentException) {
+            log.error("❌ 최신 결제 조회 실패: orderId={}, error={}", orderId, e.message)
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(e.message ?: "결제 정보를 찾을 수 없습니다."))
+        } catch (e: Exception) {
+            log.error("❌ 최신 결제 조회 중 예외 발생: orderId={}", orderId, e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(genericErrorMessage))
         }
     }
 

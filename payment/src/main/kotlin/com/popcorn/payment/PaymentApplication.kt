@@ -13,5 +13,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement
 class PaymentApplication
 
 fun main(args: Array<String>) {
+    EnvLoader.load(listOf("payment/.env", ".env"))
     runApplication<PaymentApplication>(*args)
 }

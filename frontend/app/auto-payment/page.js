@@ -12,12 +12,13 @@ export default function AutoPaymentPage() {
   const [loading, setLoading] = useState(true);
   const paymentExecuted = useRef(false); // 🔒 중복 실행 방지
   const dataFetched = useRef(false); // 🔒 API 중복 호출 방지
+  const startKeyRef = useRef(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const token = searchParams.get('token'); // 🔐 암호화된 토큰
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
   const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || "test_ck_AQ92ymxN34LKgMYlpPZy3ajRKXvd";
 
   // 🔐 토큰 디코딩으로 결제 정보 가져오기
@@ -71,6 +72,15 @@ export default function AutoPaymentPage() {
     // 🔒 중복 실행 방지: 즉시 실행 플래그 설정
     paymentExecuted.current = true;
     setPaymentStarted(true);
+    if (typeof window !== 'undefined' && token) {
+      const storageKey = `payment-started:${token}`;
+      startKeyRef.current = storageKey;
+      if (window.sessionStorage.getItem(storageKey)) {
+        setError('이미 결제가 진행 중입니다. 새로고침하지 마세요.');
+        return;
+      }
+      window.sessionStorage.setItem(storageKey, '1');
+    }
 
     try {
       if (!window.TossPayments) {
@@ -82,7 +92,7 @@ export default function AutoPaymentPage() {
       const tossPayments = window.TossPayments(clientKey);
 
       await tossPayments.requestPayment('CARD', {
-        orderId: paymentInfo.orderNo, // 토스는 orderNo를 사용
+        orderId: paymentInfo.orderId || paymentInfo.orderNo,
         orderName: `Popcorn Order ${paymentInfo.orderNo}`,
         amount: paymentInfo.amount,
         customerKey: paymentInfo.customerKey,
@@ -97,6 +107,9 @@ export default function AutoPaymentPage() {
       // 🔄 에러 발생 시 재시도 가능하도록 플래그 리셋
       paymentExecuted.current = false;
       setPaymentStarted(false);
+      if (typeof window !== 'undefined' && startKeyRef.current) {
+        window.sessionStorage.removeItem(startKeyRef.current);
+      }
 
       // 5초 후 테스트 페이지로 리다이렉트
       setTimeout(() => {

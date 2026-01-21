@@ -14,7 +14,7 @@ spring:
         - id: order-service
           uri: http://localhost:8084     # order 모듈
           predicates:
-            - Path=/api/orders/**  # 주문 관련 요청은 order로
+            - Path=/api/orders/v1/**  # 주문 관련 요청은 order로
         - id: payment-service
           uri: http://localhost:8085     # payment 모듈
           predicates:

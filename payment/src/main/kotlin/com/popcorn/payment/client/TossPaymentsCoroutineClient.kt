@@ -9,6 +9,7 @@ import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.timelimiter.TimeLimiter
 import kotlinx.coroutines.reactor.awaitSingle
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
@@ -33,6 +34,7 @@ import java.util.*
  */
 @Component
 class TossPaymentsCoroutineClient(
+    @Qualifier("tossPaymentsWebClient")
     private val webClient: WebClient,  // RestTemplate 대신 WebClient 사용
     private val properties: TossPaymentsProperties,
     private val circuitBreaker: CircuitBreaker,

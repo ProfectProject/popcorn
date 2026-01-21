@@ -154,6 +154,9 @@ microservices:
   user:
     base-url: ${USER_SERVICE_URL:http://localhost:8082}
     timeout: 30s
+  store:
+    base-url: ${STORE_SERVICE_URL:http://localhost:8083}
+    timeout: 30s
   gateway:
     base-url: ${GATEWAY_URL:http://localhost:8080}
     timeout: 10s

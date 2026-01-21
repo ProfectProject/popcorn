@@ -2,6 +2,8 @@ package com.popcorn.payment.entity
 
 import com.popcorn.common.entity.BaseEntity
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import java.time.LocalDateTime
 import java.util.*
@@ -23,6 +25,7 @@ import java.util.*
 @Entity
 @Table(
     name = "payments",
+    schema = "payment",
     indexes = [
         Index(name = "idx_payment_order_id", columnList = "order_id"),
         Index(name = "idx_payment_payment_key", columnList = "payment_key"),
@@ -35,7 +38,7 @@ import java.util.*
 class Payment : BaseEntity() {
 
     @Id
-    @Column(name = "id")
+    @Column(name = "payment_id")
     var id: UUID = UUID.randomUUID()
 
     @Column(name = "order_id", nullable = false)
@@ -45,14 +48,16 @@ class Payment : BaseEntity() {
     var paymentKey: String? = null
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", nullable = false, length = 20)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "method", nullable = false, columnDefinition = "payment.payment_method")
     var paymentMethod: PaymentMethod = PaymentMethod.CARD
 
     @Column(name = "amount", nullable = false)
     var amount: Int = 0
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status", nullable = false, columnDefinition = "payment.payment_status")
     var status: PaymentStatus = PaymentStatus.READY
 
     @Column(name = "approved_at")

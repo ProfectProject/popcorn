@@ -142,7 +142,7 @@ class ResilienceConfig {
     @Bean
     fun tossPaymentTimeLimiter(): TimeLimiter {
         val config = TimeLimiterConfig.custom()
-            .timeoutDuration(Duration.ofSeconds(5))         // 5초 타임아웃
+            .timeoutDuration(Duration.ofSeconds(15))        // 15초 타임아웃
             .cancelRunningFuture(true)                      // 실행 중인 Future 취소
             .build()
 
