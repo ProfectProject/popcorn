@@ -86,3 +86,8 @@ k6
 /V0__roles_and_privileges.sql
 /scripts/
 
+# Log files
+logs/
+*.log
+**/logs/
+
