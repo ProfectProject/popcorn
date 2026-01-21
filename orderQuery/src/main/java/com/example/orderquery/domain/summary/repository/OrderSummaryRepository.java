@@ -1,12 +1,13 @@
 package com.example.orderquery.domain.summary.repository;
 
-import com.example.orderquery.domain.summary.entity.OrderSummary;
-
 import java.util.Optional;
 import java.util.UUID;
 
-public interface OrderSummaryRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
 
-    Optional<OrderSummary> findByPopupId(UUID popupId);
+import com.example.orderquery.domain.summary.entity.OrderSummary;
 
+public interface OrderSummaryRepository extends JpaRepository<OrderSummary, UUID> {
+
+    Optional<OrderSummary> findByStoreIdAndPopupId(UUID storeId, UUID popupId);
 }

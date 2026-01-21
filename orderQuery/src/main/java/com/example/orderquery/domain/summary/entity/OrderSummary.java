@@ -82,7 +82,5 @@ public class OrderSummary extends BaseEntity {
 
         this.checkedInOrders += dCheckedIn;
 
-        // 보통 summary는 "마지막 갱신 시각"이 핵심이라 appliedAt을 사용
-        this.updatedAt = appliedAt != null ? appliedAt : LocalDateTime.now();
     }
 }
