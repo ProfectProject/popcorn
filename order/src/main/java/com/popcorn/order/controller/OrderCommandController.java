@@ -101,8 +101,97 @@ public class OrderCommandController {
             주문 타입:
             - RESERVATION: 예약형 주문 (팝업 체험, 시간 슬롯 기반)
             - GOODS: 구매형 주문 (굿즈 구매, 배송 필요)
-            - MIXED: 혼합형 주문 (예약 + 굿즈)
-            """
+            - MIXED: 혼합형 주문 (예약 + 굿즈 함께 주문)
+            """,
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "주문 생성 요청 데이터",
+            required = true,
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                mediaType = "application/json",
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = CreateOrderRequest.class),
+                examples = {
+                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "1. 예약형 주문",
+                        summary = "팝업 체험 예약 (2명, 오후 2시 세션)",
+                        description = "팝업스토어 체험 예약만 하는 경우",
+                        value = """
+                            {
+                              "userId": 1001,
+                              "orderType": "RESERVATION",
+                              "popupId": "550e8400-e29b-41d4-a716-446655440001",
+                              "reservationId": "660f9500-f30c-52e5-b827-557766551002",
+                              "paymentMethod": "CARD",
+                              "items": [
+                                {
+                                  "orderItemType": "RESERVATION",
+                                  "qty": 2,
+                                  "unitPrice": 25000,
+                                  "sessionId": "770g0600-g41d-63f6-c938-668877662003",
+                                  "optionId": "880h1700-h52e-74g7-d049-779988773004"
+                                }
+                              ]
+                            }
+                            """
+                    ),
+                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "2. 굿즈 주문",
+                        summary = "팝업 굿즈 구매 (티셔츠 2벌, 스티커 5개)",
+                        description = "팝업스토어 굿즈만 구매하는 경우",
+                        value = """
+                            {
+                              "userId": 1002,
+                              "orderType": "GOODS",
+                              "popupId": "550e8400-e29b-41d4-a716-446655440001",
+                              "paymentMethod": "CARD",
+                              "items": [
+                                {
+                                  "orderItemType": "GOODS",
+                                  "qty": 2,
+                                  "unitPrice": 35000,
+                                  "goodsVariantId": "990i2800-i63f-85h8-e15a-88aa99884005"
+                                },
+                                {
+                                  "orderItemType": "GOODS",
+                                  "qty": 5,
+                                  "unitPrice": 3000,
+                                  "goodsVariantId": "aa1j3900-j74g-96i9-f26b-99bb00995006"
+                                }
+                              ]
+                            }
+                            """
+                    ),
+                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "3. 혼합형 주문",
+                        summary = "예약 + 굿즈 함께 주문 (체험 1명 + 티셔츠 1벌)",
+                        description = "팝업 체험 예약과 굿즈를 함께 주문하는 경우",
+                        value = """
+                            {
+                              "userId": 1003,
+                              "orderType": "MIXED",
+                              "popupId": "550e8400-e29b-41d4-a716-446655440001",
+                              "reservationId": "660f9500-f30c-52e5-b827-557766551002",
+                              "paymentMethod": "CARD",
+                              "items": [
+                                {
+                                  "orderItemType": "RESERVATION",
+                                  "qty": 1,
+                                  "unitPrice": 25000,
+                                  "sessionId": "770g0600-g41d-63f6-c938-668877662003",
+                                  "optionId": "880h1700-h52e-74g7-d049-779988773004"
+                                },
+                                {
+                                  "orderItemType": "GOODS",
+                                  "qty": 1,
+                                  "unitPrice": 35000,
+                                  "goodsVariantId": "990i2800-i63f-85h8-e15a-88aa99884005"
+                                }
+                              ]
+                            }
+                            """
+                    )
+                }
+            )
+        )
     )
     public ResponseEntity<BaseResponse<CreateOrderResponse>> createOrder(
             @Valid @RequestBody CreateOrderRequest request) {
