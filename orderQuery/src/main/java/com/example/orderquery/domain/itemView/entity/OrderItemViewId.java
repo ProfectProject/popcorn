@@ -5,6 +5,9 @@ import jakarta.persistence.Column;
 import java.io.Serializable;
 import java.util.UUID;
 
+import lombok.Getter;
+
+@Getter
 public class OrderItemViewId implements Serializable {
 
     @Column(name = "popup_id", nullable = false)

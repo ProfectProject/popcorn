@@ -83,4 +83,16 @@ public class OrderSummary extends BaseEntity {
         this.checkedInOrders += dCheckedIn;
 
     }
+
+    public void updatePopupInfo(String title,
+                                String status,
+                                String addressRoad,
+                                String addressDetail,
+                                LocalDateTime reservationOpenAt) {
+        this.popupTitle = title;
+        this.popupStatus = status;
+        this.addressRoad = addressRoad;
+        this.addressDetail = addressDetail;
+        this.reservationOpenAt = reservationOpenAt;
+    }
 }

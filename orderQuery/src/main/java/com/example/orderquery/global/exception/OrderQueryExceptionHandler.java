@@ -13,6 +13,7 @@ import com.popcorn.common.dto.BaseError;
 import com.popcorn.common.dto.BaseResponse;
 import com.example.orderquery.domain.itemView.exception.ItemViewException;
 import com.example.orderquery.domain.summary.exception.SummaryException;
+import com.example.orderquery.global.exception.OwnerAuthException;
 import com.popcorn.common.dto.CommonResponseCode;
 import com.popcorn.common.exception.BaseException;
 
@@ -31,7 +32,10 @@ public class OrderQueryExceptionHandler extends BaseController {
         if (ex instanceof SummaryException summaryException) {
             return error(summaryException.getResponseCode(), summaryException.getDetail());
         }
-        return error(ex.getResponseCode());
+        if (ex instanceof OwnerAuthException ownerAuthException) {
+            return error(ownerAuthException.getResponseCode(), ownerAuthException.getDetail());
+        }
+        return error(ex.getResponseCode(), ex.getMessage());
     }
 
     @ExceptionHandler({ MethodArgumentNotValidException.class, BindException.class })
