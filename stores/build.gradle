@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.9'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'com.popcorn'
@@ -51,6 +52,54 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
 }
 
+jacoco {
+    toolVersion = '0.8.11'
+}
+
+def jacocoExcludes = [
+    '**/StoreServiceApplication.*',
+    '**/config/**',
+    '**/controller/**',
+    '**/dto/**',
+    '**/entity/**',
+    '**/event/**',
+    '**/repository/**'
+]
+
+tasks.named('jacocoTestReport') {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+    classDirectories.setFrom(
+        files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        })
+    )
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    classDirectories.setFrom(
+        files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        })
+    )
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy 'jacocoTestReport'
+}
+
+tasks.named('check') {
+    dependsOn 'jacocoTestCoverageVerification'
 }

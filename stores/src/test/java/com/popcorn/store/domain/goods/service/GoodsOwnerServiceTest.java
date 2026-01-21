@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,10 +98,12 @@ class GoodsOwnerServiceTest {
 		when(ownerPopupRepository.findOwnedPopup(popupId, ownerId))
 				.thenReturn(Optional.of(stubPopup(popupId, ownerId)));
 
-		GoodsVariant saved = GoodsVariant.create(popupId, "개", "키링", 12000, 5, true);
 		UUID goodsId = UUID.randomUUID();
-		ReflectionTestUtils.setField(saved, "id", goodsId);
-		when(goodsVariantRepository.save(any(GoodsVariant.class))).thenReturn(saved);
+		doAnswer(invocation -> {
+			GoodsVariant goods = invocation.getArgument(0);
+			ReflectionTestUtils.setField(goods, "id", goodsId);
+			return goods;
+		}).when(goodsVariantRepository).save(any(GoodsVariant.class));
 
 		GoodsIdResponse response = service.create(ownerId, popupId, request);
 
