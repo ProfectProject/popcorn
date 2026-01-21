@@ -9,6 +9,7 @@ import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
 import com.popcorn.payment.client.CheckInsClient
+import com.popcorn.payment.service.QrIssuanceTracker
 
 /**
  * 결제 이벤트 리스너
@@ -21,7 +22,8 @@ import com.popcorn.payment.client.CheckInsClient
  */
 @Component
 class PaymentEventListener(
-    private val checkInsClient: CheckInsClient
+    private val checkInsClient: CheckInsClient,
+    private val qrIssuanceTracker: QrIssuanceTracker
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentEventListener::class.java)
@@ -302,17 +304,24 @@ class PaymentEventListener(
     private suspend fun sendQrCodeToCheckInsService(qrCodeInfo: QrCodeInfo) {
         try {
             log.info("📤 checkIns QR 발급 요청: orderId={}", qrCodeInfo.orderId)
+            if (!qrIssuanceTracker.tryStart(qrCodeInfo.orderId)) {
+                log.info("QR 발급 중복 처리 스킵: orderId={}", qrCodeInfo.orderId)
+                return
+            }
             val response = checkInsClient.issueQr(qrCodeInfo.orderId)
             if (response.code != 200) {
                 log.warn("⚠️ checkIns QR 발급 실패: orderId={}, code={}, message={}",
                     qrCodeInfo.orderId, response.code, response.message)
+                qrIssuanceTracker.markFailure(qrCodeInfo.orderId)
                 return
             }
             val qrCode = response.data?.get("qrCode")
             val expiresAt = response.data?.get("expiresAt")
             log.info("✅ checkIns QR 발급 완료: orderId={}, qrCode={}, expiresAt={}",
                 qrCodeInfo.orderId, qrCode, expiresAt)
+            qrIssuanceTracker.markSuccess(qrCodeInfo.orderId)
         } catch (e: Exception) {
+            qrIssuanceTracker.markFailure(qrCodeInfo.orderId)
             log.warn("⚠️ checkIns QR 발급 실패: orderId={}, error={}", qrCodeInfo.orderId, e.message)
         }
     }
