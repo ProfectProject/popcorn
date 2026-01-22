@@ -16,7 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import com.popcorn.common.filter.HeaderAuthenticationFilter;
+import com.popcorn.common.security.JwtAuthenticationFilter;
 
 //import com.popcorn.users.auth.jwt.JwtFilter;
 import com.popcorn.users.auth.jwt.JwtUtil;
@@ -33,7 +33,7 @@ public class SecurityConfig {
 
 	private final AuthenticationConfiguration authenticationConfiguration;
 	private final JwtUtil jwtUtil;
-	private final HeaderAuthenticationFilter headerAuthenticationFilter;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -64,10 +64,10 @@ public class SecurityConfig {
 						.requestMatchers("/api/users/v1/users/**").permitAll()
 						//.requestMatchers("/api/users/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
 
-			
-						// Swagger UI 관련 엔드포인트 허용
-						.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-							//"/api/users/v3/api-docs/**","/api/users/swagger-ui/**","/api/users/swagger-ui.html").permitAll()
+
+						// Swagger UI 관련 엔드포인트 허용 (Gateway 재작성 경로 포함)
+						.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/v3/api-docs", "/swagger-resources/**", "/webjars/**").permitAll()
+						.requestMatchers("/api/users/v3/api-docs/**", "/api/users/v3/api-docs", "/api/users/swagger-ui/**", "/api/users/swagger-ui.html").permitAll()
 						// Actuator 엔드포인트 허용
 						.requestMatchers("/actuator/**").permitAll()
 						.anyRequest().authenticated()
@@ -77,7 +77,7 @@ public class SecurityConfig {
 
 		// JWTFilter 추가
 		//http.addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
-		http.addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+		http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		// ★ 로그인 필터 추가
 		http.addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class);

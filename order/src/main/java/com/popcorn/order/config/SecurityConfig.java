@@ -1,17 +1,19 @@
 package com.popcorn.order.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import com.popcorn.common.filter.HeaderAuthenticationFilter;
 
 import java.util.Arrays;
 
@@ -27,10 +29,13 @@ import java.util.Arrays;
  */
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
+@EnableMethodSecurity(prePostEnabled = true) // Method-level security 활성화
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Bean
+    public HeaderAuthenticationFilter headerAuthenticationFilter() {
+        return new HeaderAuthenticationFilter();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -63,12 +68,12 @@ public class SecurityConfig {
             )
 
             // JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 추가
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(headerAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
 
             .httpBasic(httpBasic -> httpBasic.disable())
             .formLogin(formLogin -> formLogin.disable())
             .headers(headers -> headers
-                .frameOptions().sameOrigin()  // H2 Console 허용
+                .frameOptions(frameOptions -> frameOptions.sameOrigin())  // H2 Console 허용 (최신 방식)
                 .httpStrictTransportSecurity(hstsConfig -> hstsConfig.disable()) // 개발용 HSTS 비활성화
             );
 

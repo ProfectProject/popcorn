@@ -130,6 +130,16 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findByPopupIdOrderByCreatedAtDesc(UUID popupId, Pageable pageable);
 
     /**
+     * 팝업별 특정 상태 주문 목록 조회 (페이징, 최신순)
+     */
+    Page<Order> findByPopupIdAndStatusOrderByCreatedAtDesc(UUID popupId, OrderStatus status, Pageable pageable);
+
+    /**
+     * 특정 상태이고 생성일이 특정 시점 이전인 주문들 조회 (타임아웃 처리용)
+     */
+    List<Order> findByStatusAndCreatedAtBefore(OrderStatus status, LocalDateTime cutoffTime);
+
+    /**
      * 주문 번호 존재 여부 확인
      */
     boolean existsByOrderNo(String orderNo);
@@ -285,16 +295,18 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     // ===== 새로 추가된 고급 조회 API용 메소드들 =====
 
     /**
-     * 매장별 주문 목록 조회 (조건부 필터, Pageable 사용)
+     * 팝업별 주문 목록 조회 (고급 조건 필터, Pageable 사용)
      *
      * [Java 초보자를 위한 가이드]
      *
      * 이 메소드가 하는 일:
-     * - 특정 매장(storeId)의 모든 주문을 조회
+     * - 특정 팝업(popupId)의 모든 주문을 조회
      * - 주문 타입(예약/구매), 상태, 기간별 필터링 가능
      * - 페이지네이션 지원
      *
-     * @param storeId 매장 ID
+     * 참고: 이 MSA 구조에서는 주문이 매장이 아닌 팝업에 직접 연결됩니다.
+     *
+     * @param popupId 팝업 ID
      * @param status 주문 상태 (선택적, null이면 전체)
      * @param orderType 주문 타입 (선택적, null이면 전체)
      * @param from 시작 날짜 (선택적)
@@ -302,14 +314,14 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      * @param pageable 페이징 정보
      * @return 주문 목록 페이지
      */
-    @Query("SELECT o FROM Order o WHERE o.storeId = :storeId " +
+    @Query("SELECT o FROM Order o WHERE o.popupId = :popupId " +
            "AND (:status IS NULL OR o.status = :status) " +
            "AND (:orderType IS NULL OR o.orderType = :orderType) " +
            "AND (:from IS NULL OR o.createdAt >= :from) " +
            "AND (:to IS NULL OR o.createdAt <= :to) " +
            "ORDER BY o.createdAt DESC")
-    Page<Order> findOrdersByStoreIdWithConditions(
-            @Param("storeId") UUID storeId,
+    Page<Order> findOrdersByPopupIdWithAdvancedConditions(
+            @Param("popupId") UUID popupId,
             @Param("status") OrderStatus status,
             @Param("orderType") OrderType orderType,
             @Param("from") LocalDateTime from,

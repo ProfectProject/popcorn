@@ -8,17 +8,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import com.popcorn.store.global.security.JwtAuthenticationFilter;
-import com.popcorn.store.global.security.JwtUtil;
+import com.popcorn.common.filter.HeaderAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-	private final JwtUtil jwtUtil;
-
-	public SecurityConfig(JwtUtil jwtUtil) {
-		this.jwtUtil = jwtUtil;
+	@Bean
+	public HeaderAuthenticationFilter headerAuthenticationFilter() {
+		return new HeaderAuthenticationFilter();
 	}
 
 	@Bean
@@ -33,7 +31,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/stores/v1/owner/**").authenticated()
 				.anyRequest().permitAll()
 			)
-			.addFilterBefore(new JwtAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
+			.addFilterBefore(headerAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
 			.build();
 	}
 }

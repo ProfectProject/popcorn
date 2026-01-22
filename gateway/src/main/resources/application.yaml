@@ -6,35 +6,115 @@ spring:
     name: gateway
   cloud:
     gateway:
-      routes:
-        - id: checkIns
-          uri: http://localhost:8086     # checkIns 모듈
-          predicates:
-            - Path=/api/qr/**  # QR 관련 요청은 checkIns로
-        - id: order-service
-          uri: http://localhost:8084     # order 모듈
-          predicates:
-            - Path=/api/orders/v1/**  # 주문 관련 요청은 order로
-        - id: payment-service
-          uri: http://localhost:8085     # payment 모듈
-          predicates:
-            - Path=/api/pay/v1/payments/**  # 결제 관련 요청은 payment로
-        - id: backend
-          uri: http://localhost:8081     # 모놀리식 backend
-          predicates:
-            - Path=/api/v1/**               # /api 로 시작하면 backend로 라우팅
-        - id: user-service
-          uri: http://localhost:8082     # 모놀리식 backend
-          predicates:
-            - Path=/api/users/**          # user-service
-        - id: stores
-          uri: http://localhost:8083
-          predicates:
-            - Path=/api/stores/**         # stores
-        - id: orderQuery
-          uri: http://localhost:8087
-          predicates:
-            - Path=/api/orderquery/**    # order query
+      server:
+        webflux:
+          routes:
+            # === API 서비스 라우팅 ===
+            - id: user-service
+              uri: http://localhost:8082     # user 모듈
+              order: 0
+              predicates:
+                - Path=/api/users/**          # 사용자 관련 요청은 user-service로
+
+            - id: stores
+              uri: http://localhost:8083     # stores 모듈
+              order: 0
+              predicates:
+                - Path=/api/stores/**         # stores
+
+            - id: order-service
+              uri: http://localhost:8084     # order 모듈
+              order: 0
+              predicates:
+                - Path=/api/orders/v1/**      # 주문 관련 요청은 order로
+
+            - id: payment-service
+              uri: http://localhost:8085     # payment 모듈
+              order: 0
+              predicates:
+                - Path=/api/pay/v1/payments/**  # 결제 관련 요청은 payment로
+
+            - id: checkIns-openapi
+              uri: http://localhost:8086
+              order: -1
+              predicates:
+                - Path=/api/qr/v3/api-docs,/api/qr/swagger-ui/**
+              filters:
+                - RewritePath=/api/qr/v3/api-docs,/v3/api-docs
+                - RewritePath=/api/qr/swagger-ui/(.*),/swagger-ui/$1
+
+            - id: checkIns
+              uri: http://localhost:8086     # checkIns 모듈
+              order: 0
+              predicates:
+                - Path=/api/qr/**             # QR 관련 요청은 checkIns로
+
+            - id: checkIns-checkins
+              uri: http://localhost:8086     # checkIns 모듈 (checkins API)
+              order: -1
+              predicates:
+                - Path=/api/v1/checkins,/api/v1/checkins/**  # 체크인 조회는 checkIns로
+
+            - id: orderQuery
+              uri: http://localhost:8087     # orderQuery 모듈
+              order: 0
+              predicates:
+                - Path=/api/orderquery/**     # order query
+
+            - id: backend
+              uri: http://localhost:8081     # 모놀리식 backend
+              predicates:
+                - Path=/api/v1/**             # /api/v1 로 시작하면 backend로 라우팅
+
+            # === OpenAPI/Swagger 관련 라우팅 ===
+            - id: backend-openapi
+              uri: http://localhost:8081
+              predicates:
+                - Path=/v3/api-docs/customer,/v3/api-docs/manager,/v3/api-docs/admin
+            - id: backend-swagger
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/users/**          # user-service
+            - id: user-openapi
+              uri: http://localhost:8082
+              order: -1
+              predicates:
+                - Path=/api/users/v3/api-docs,/api/users/swagger-ui/**
+              filters:
+                - RewritePath=/api/users/v3/api-docs,/v3/api-docs
+                - RewritePath=/api/users/swagger-ui/(.*),/swagger-ui/$1
+            - id: stores-openapi
+              uri: http://localhost:8083
+              order: -1
+              predicates:
+                - Path=/api/stores/v3/api-docs,/api/stores/swagger-ui/**
+              filters:
+                - RewritePath=/api/stores/v3/api-docs,/v3/api-docs
+                - RewritePath=/api/stores/swagger-ui/(.*),/swagger-ui/$1
+
+            - id: order-openapi
+              uri: http://localhost:8084
+              order: -1
+              predicates:
+                - Path=/api/orders/v3/api-docs,/api/orders/swagger-ui/**
+              filters:
+                - RewritePath=/api/orders/v3/api-docs,/v3/api-docs
+
+            - id: payment-openapi
+              uri: http://localhost:8085
+              order: -1
+              predicates:
+                - Path=/api/pay/v3/api-docs,/api/pay/swagger-ui/**
+              filters:
+                - RewritePath=/api/pay/v3/api-docs,/v3/api-docs
+
+            - id: orderQuery-openapi
+              uri: http://localhost:8087
+              order: -1
+              predicates:
+                - Path=/api/orderquery/v3/api-docs,/api/orderquery/swagger-ui/**
+              filters:
+                - RewritePath=/api/orderquery/v3/api-docs,/v3/api-docs
   webflux:
     base-path: /
 
@@ -42,14 +122,32 @@ jwt:
   secret: bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=
 
 springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
   swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
     urls:
-      - name: user-service
-        url: http://localhost:8082/v3/api-docs
-      - name: order-service
-        url: http://localhost:8084/v3/api-docs
+      - name: users-service
+        url: http://localhost:8080/api/users/v3/api-docs
       - name: payment-service
-        url: http://localhost:8085/v3/api-docs
+        url: http://localhost:8080/api/pay/v3/api-docs
+      - name: checkIns-service
+        url: http://localhost:8080/api/qr/v3/api-docs
+      - name: stores-service
+        url: http://localhost:8080/api/stores/v3/api-docs
+      - name: order-service
+        url: http://localhost:8080/api/orders/v3/api-docs
+      - name: orderQuery-service
+        url: http://localhost:8080/api/orderquery/v3/api-docs
+      - name: backend-customer
+        url: http://localhost:8080/v3/api-docs/customer
+      - name: backend-manager
+        url: http://localhost:8080/v3/api-docs/manager
+      - name: backend-admin
+        url: http://localhost:8080/v3/api-docs/admin
+    urls.primaryName: payment-service
         
 logging:
   level:

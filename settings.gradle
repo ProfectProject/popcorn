@@ -25,6 +25,7 @@ include 'stores'
 include 'users'
 include 'order'
 include 'payment'
+include 'orderQuery'
 
 // 각 모듈의 위치 지정
 project(':common-lib').projectDir = file('common-lib')
@@ -35,3 +36,4 @@ project(':stores').projectDir = file('stores')
 project(':users').projectDir = file('users')
 project(':order').projectDir = file('order')
 project(':payment').projectDir = file('payment')
+project(':orderQuery').projectDir = file('orderQuery')

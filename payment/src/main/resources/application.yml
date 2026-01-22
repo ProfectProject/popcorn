@@ -153,7 +153,7 @@ microservices:
     base-url: ${ORDER_SERVICE_URL:http://localhost:8084}
     timeout: 30s
   checkins:
-    base-url: ${CHECKINS_SERVICE_URL:http://localhost:8086}
+    base-url: ${CHECKINS_SERVICE_URL:http://localhost:8080/api/qr}
     timeout: 10s
   gateway:
     base-url: ${GATEWAY_URL:http://localhost:8080}

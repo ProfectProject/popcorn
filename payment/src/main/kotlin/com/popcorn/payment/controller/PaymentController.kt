@@ -18,7 +18,10 @@ import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import com.popcorn.common.security.PassportPrincipal
 import java.util.*
 
 /**
@@ -51,11 +54,13 @@ class PaymentController(
         SwaggerApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
         SwaggerApiResponse(responseCode = "500", description = "서버 내부 오류")
     )
+    @PreAuthorize("hasRole('CUSTOMER')")
     @PostMapping("/confirm")
     suspend fun confirmPayment(
         @Valid @RequestBody
         @Parameter(description = "결제 승인 요청 정보", required = true)
-        request: PaymentConfirmRequest
+        request: PaymentConfirmRequest,
+        @AuthenticationPrincipal principal: PassportPrincipal
     ): ResponseEntity<ApiResponse<PaymentConfirmResponse>> = coroutineScope {
 
         log.info("💳 결제 승인 요청: paymentKey={}, orderId={}, amount={}원",

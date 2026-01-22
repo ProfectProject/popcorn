@@ -12,6 +12,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.order.dto.store.PopupInfoResponse;
 import com.popcorn.order.dto.store.StoreInfoResponse;
+import com.popcorn.order.dto.store.GoodsPriceResponse;
+import com.popcorn.order.dto.store.SessionPriceResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,125 @@ public class StoreClient {
     @Value("${microservices.store.base-url}")
     private String storeBaseUrl;
 
+    /**
+     * 굿즈 재고 예약 (주문 생성 시 호출)
+     *
+     * @param popupId 팝업 ID
+     * @param goodsVariantId 굿즈 변형 ID
+     * @param quantity 예약 수량
+     * @throws IllegalStateException 재고 부족 또는 예약 실패 시
+     */
+    public void reserveGoods(UUID popupId, UUID goodsVariantId, Integer quantity) {
+        log.info("재고 예약 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
+                popupId, goodsVariantId, quantity);
+
+        BaseResponse<Object> response = webClientBuilder.build()
+                .post()
+                .uri(uriBuilder -> uriBuilder
+                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation")
+                        .queryParam("quantity", quantity)
+                        .build(popupId, goodsVariantId))
+                .headers(headers -> {
+                    String authHeader = resolveAuthHeader();
+                    if (authHeader != null) {
+                        headers.set("Authorization", authHeader);
+                    }
+                })
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Object>>() {})
+                .block();
+
+        if (response == null || response.getCode() != 200) {
+            String message = response != null ? response.getMessage() : "스토어 응답이 비어 있습니다.";
+            throw new IllegalStateException("재고 예약 실패: " + message);
+        }
+
+        log.info("재고 예약 성공 - popupId: {}, goodsVariantId: {}, quantity: {}",
+                popupId, goodsVariantId, quantity);
+    }
+
+    /**
+     * 굿즈 예약 취소 (주문 취소 시 호출)
+     *
+     * @param popupId 팝업 ID
+     * @param goodsVariantId 굿즈 변형 ID
+     * @param quantity 취소 수량
+     * @throws IllegalStateException 예약 취소 실패 시
+     */
+    public void cancelGoodsReservation(UUID popupId, UUID goodsVariantId, Integer quantity) {
+        log.info("재고 예약 취소 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
+                popupId, goodsVariantId, quantity);
+
+        BaseResponse<Object> response = webClientBuilder.build()
+                .post()
+                .uri(uriBuilder -> uriBuilder
+                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/cancel")
+                        .queryParam("quantity", quantity)
+                        .build(popupId, goodsVariantId))
+                .headers(headers -> {
+                    String authHeader = resolveAuthHeader();
+                    if (authHeader != null) {
+                        headers.set("Authorization", authHeader);
+                    }
+                })
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Object>>() {})
+                .block();
+
+        if (response == null || response.getCode() != 200) {
+            String message = response != null ? response.getMessage() : "스토어 응답이 비어 있습니다.";
+            throw new IllegalStateException("재고 예약 취소 실패: " + message);
+        }
+
+        log.info("재고 예약 취소 성공 - popupId: {}, goodsVariantId: {}, quantity: {}",
+                popupId, goodsVariantId, quantity);
+    }
+
+    /**
+     * 굿즈 예약 실패 처리 (시스템 오류 시 호출)
+     *
+     * @param popupId 팝업 ID
+     * @param goodsVariantId 굿즈 변형 ID
+     * @param quantity 실패 수량
+     * @throws IllegalStateException 예약 실패 처리 실패 시
+     */
+    public void failGoodsReservation(UUID popupId, UUID goodsVariantId, Integer quantity) {
+        log.info("재고 예약 실패 처리 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
+                popupId, goodsVariantId, quantity);
+
+        BaseResponse<Object> response = webClientBuilder.build()
+                .post()
+                .uri(uriBuilder -> uriBuilder
+                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/fail")
+                        .queryParam("quantity", quantity)
+                        .build(popupId, goodsVariantId))
+                .headers(headers -> {
+                    String authHeader = resolveAuthHeader();
+                    if (authHeader != null) {
+                        headers.set("Authorization", authHeader);
+                    }
+                })
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<Object>>() {})
+                .block();
+
+        if (response == null || response.getCode() != 200) {
+            String message = response != null ? response.getMessage() : "스토어 응답이 비어 있습니다.";
+            throw new IllegalStateException("재고 예약 실패 처리 실패: " + message);
+        }
+
+        log.info("재고 예약 실패 처리 성공 - popupId: {}, goodsVariantId: {}, quantity: {}",
+                popupId, goodsVariantId, quantity);
+    }
+
+    /**
+     * 굿즈 재고 차감 확정 (결제 완료 시 호출)
+     *
+     * @param popupId 팝업 ID
+     * @param goodsVariantId 굿즈 변형 ID
+     * @param quantity 확정 수량
+     * @throws IllegalStateException 재고 차감 확정 실패 시
+     */
     public void completeGoodsReservation(UUID popupId, UUID goodsVariantId, Integer quantity) {
         log.info("재고 차감 확정 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
                 popupId, goodsVariantId, quantity);
@@ -165,6 +286,134 @@ public class StoreClient {
             log.error("팝업 정보 조회 중 오류 발생 - popupId: {}, 에러: {}", popupId, e.getMessage(), e);
             return createDefaultPopupInfo();
         }
+    }
+
+    /**
+     * 굿즈 변형 가격 조회
+     *
+     * @param goodsVariantId 굿즈 변형 ID
+     * @return 굿즈 가격 정보 (가격, 재고, 상태 포함)
+     * @throws IllegalArgumentException 굿즈를 찾을 수 없는 경우
+     */
+    @Cacheable(value = "goods-price", key = "#goodsVariantId")
+    public GoodsPriceResponse getGoodsVariantPrice(UUID goodsVariantId) {
+        if (goodsVariantId == null) {
+            log.warn("굿즈 변형 ID가 null입니다. 기본값을 반환합니다.");
+            return createDefaultGoodsPrice(goodsVariantId);
+        }
+
+        log.info("굿즈 가격 조회 요청 - goodsVariantId: {}", goodsVariantId);
+
+        try {
+            BaseResponse<GoodsPriceResponse> response = webClientBuilder.build()
+                .get()
+                .uri(storeBaseUrl + "/api/stores/v1/goods/{goodsVariantId}/price", goodsVariantId)
+                .headers(headers -> {
+                    String authHeader = resolveAuthHeader();
+                    if (authHeader != null) {
+                        headers.set("Authorization", authHeader);
+                    }
+                })
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<GoodsPriceResponse>>() {})
+                .block();
+
+            if (response != null && response.getCode() == 200 && response.getData() != null) {
+                log.info("굿즈 가격 조회 성공 - goodsVariantId: {}, price: {}원",
+                        goodsVariantId, response.getData().getPrice());
+                return response.getData();
+            } else {
+                log.warn("굿즈 가격 조회 실패 - goodsVariantId: {}, 응답: {}", goodsVariantId, response);
+                return createDefaultGoodsPrice(goodsVariantId);
+            }
+
+        } catch (Exception e) {
+            log.error("굿즈 가격 조회 중 오류 발생 - goodsVariantId: {}, 에러: {}", goodsVariantId, e.getMessage(), e);
+            return createDefaultGoodsPrice(goodsVariantId);
+        }
+    }
+
+    /**
+     * 세션 가격 조회
+     *
+     * @param sessionId 세션 ID
+     * @return 세션 가격 정보 (가격, 좌석 수, 상태 포함)
+     * @throws IllegalArgumentException 세션을 찾을 수 없는 경우
+     */
+    @Cacheable(value = "session-price", key = "#sessionId")
+    public SessionPriceResponse getSessionPrice(UUID sessionId) {
+        if (sessionId == null) {
+            log.warn("세션 ID가 null입니다. 기본값을 반환합니다.");
+            return createDefaultSessionPrice(sessionId);
+        }
+
+        log.info("세션 가격 조회 요청 - sessionId: {}", sessionId);
+
+        try {
+            BaseResponse<SessionPriceResponse> response = webClientBuilder.build()
+                .get()
+                .uri(storeBaseUrl + "/api/stores/v1/sessions/{sessionId}/price", sessionId)
+                .headers(headers -> {
+                    String authHeader = resolveAuthHeader();
+                    if (authHeader != null) {
+                        headers.set("Authorization", authHeader);
+                    }
+                })
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<BaseResponse<SessionPriceResponse>>() {})
+                .block();
+
+            if (response != null && response.getCode() == 200 && response.getData() != null) {
+                log.info("세션 가격 조회 성공 - sessionId: {}, price: {}원",
+                        sessionId, response.getData().getPrice());
+                return response.getData();
+            } else {
+                log.warn("세션 가격 조회 실패 - sessionId: {}, 응답: {}", sessionId, response);
+                return createDefaultSessionPrice(sessionId);
+            }
+
+        } catch (Exception e) {
+            log.error("세션 가격 조회 중 오류 발생 - sessionId: {}, 에러: {}", sessionId, e.getMessage(), e);
+            return createDefaultSessionPrice(sessionId);
+        }
+    }
+
+    /**
+     * 기본 굿즈 가격 정보 생성 (Store 서비스 장애 시 사용)
+     */
+    private GoodsPriceResponse createDefaultGoodsPrice(UUID goodsVariantId) {
+        log.warn("Store 서비스 장애로 굿즈 기본 가격 반환 - goodsVariantId: {}", goodsVariantId);
+        return GoodsPriceResponse.builder()
+            .goodsVariantId(goodsVariantId)
+            .productName("상품 정보를 불러올 수 없습니다")
+            .price(25000) // 기본 가격
+            .originalPrice(25000)
+            .discountRate(0)
+            .stockQuantity(0)
+            .status("UNKNOWN")
+            .currency("KRW")
+            .build();
+    }
+
+    /**
+     * 기본 세션 가격 정보 생성 (Store 서비스 장애 시 사용)
+     */
+    private SessionPriceResponse createDefaultSessionPrice(UUID sessionId) {
+        log.warn("Store 서비스 장애로 세션 기본 가격 반환 - sessionId: {}", sessionId);
+        return SessionPriceResponse.builder()
+            .sessionId(sessionId)
+            .popupId(null)
+            .sessionName("세션 정보를 불러올 수 없습니다")
+            .price(15000) // 기본 가격
+            .originalPrice(15000)
+            .discountRate(0)
+            .availableSeats(0)
+            .totalSeats(0)
+            .status("UNKNOWN")
+            .sessionStartTime(null)
+            .sessionEndTime(null)
+            .currency("KRW")
+            .build();
     }
 
     /**

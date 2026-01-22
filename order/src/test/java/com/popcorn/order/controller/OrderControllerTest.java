@@ -18,12 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.order.client.StoreClient;
-import com.popcorn.order.config.JwtAuthenticationFilter;
+import com.popcorn.common.security.JwtAuthenticationFilter;
 import com.popcorn.order.dto.response.CreateOrderResponse;
 import com.popcorn.order.service.OrderCommandService;
 import com.popcorn.order.service.OrderQueryService;
 import com.popcorn.order.service.OrderDomainService;
-import com.popcorn.order.util.AuthenticationUtil;
 import com.popcorn.order.util.PaymentTokenUtil;
 
 /**
@@ -44,7 +43,6 @@ import com.popcorn.order.util.PaymentTokenUtil;
  * - PaymentTokenUtil: JWT 토큰 관련
  */
 @WebMvcTest({OrderCommandController.class, OrderQueryController.class})
-@Import({AuthenticationUtil.class}) // AuthenticationUtil을 테스트 컨텍스트에 포함
 class OrderControllerTest {
 
     @Autowired

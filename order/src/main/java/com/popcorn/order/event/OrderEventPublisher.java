@@ -139,4 +139,65 @@ public class OrderEventPublisher {
             log.error("주문 완료 이벤트 발행 실패 - orderId: {}", order.getId(), e);
         }
     }
+
+    /**
+     * 재고 예약 성공 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param reservedItems 예약된 재고 항목들
+     */
+    public void publishStockReservedEvent(Order order,
+                                        java.util.List<StockReservedEvent.ReservedStockItem> reservedItems) {
+        try {
+            StockReservedEvent event = StockReservedEvent.create(
+                    order.getId(),
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    order.getCustomerId(),
+                    reservedItems
+            );
+
+            log.info("재고 예약 성공 이벤트 발행 - orderId: {}, items: {}",
+                    event.getOrderId(), event.getReservedItems().size());
+
+            // 내부 이벤트 발행 (Spring Events)
+            applicationEventPublisher.publishEvent(event);
+            // TODO: Kafka 이벤트 발행으로 대체 예정
+
+        } catch (Exception e) {
+            log.error("재고 예약 성공 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
+     * 재고 예약 실패 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param failedItems 실패한 재고 항목들
+     * @param failureReason 실패 이유
+     */
+    public void publishStockReservationFailedEvent(Order order,
+                                                  java.util.List<StockReservationFailedEvent.FailedStockItem> failedItems,
+                                                  String failureReason) {
+        try {
+            StockReservationFailedEvent event = StockReservationFailedEvent.create(
+                    order.getId(),
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    order.getCustomerId(),
+                    failedItems,
+                    failureReason
+            );
+
+            log.info("재고 예약 실패 이벤트 발행 - orderId: {}, reason: {}",
+                    event.getOrderId(), event.getFailureReason());
+
+            // 내부 이벤트 발행 (Spring Events)
+            applicationEventPublisher.publishEvent(event);
+            // TODO: Kafka 이벤트 발행으로 대체 예정
+
+        } catch (Exception e) {
+            log.error("재고 예약 실패 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
 }

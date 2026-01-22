@@ -9,7 +9,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import com.popcorn.common.security.PassportPrincipal;
 
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.order.dto.query.OrderListQuery;
@@ -18,7 +22,6 @@ import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderResponseCode;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
 import com.popcorn.order.service.OrderQueryService;
-import com.popcorn.order.util.AuthenticationUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,7 +51,7 @@ import lombok.extern.slf4j.Slf4j;
  * - 주문 생성/수정/삭제는 OrderCommandController에서 담당
  *
  * 사용된 Spring 어노테이션:
- * - @RestController: REST API를 제공하는 컨트롤러
+ * - RestController: REST API를 제공하는 컨트롤러
  * - @GetMapping: HTTP GET 요청 처리 (데이터 조회용)
  * - @PathVariable: URL 경로에서 변수 추출 (예: /orders/{id})
  * - @RequestParam: 쿼리 파라미터 추출 (예: ?status=PAID)
@@ -64,7 +67,7 @@ public class OrderQueryController {
     /**
      * 의존성 주입
      * - final 키워드: 객체 생성 후 변경 불가능 (불변성)
-     * - @RequiredArgsConstructor: final 필드의 생성자를 Lombok이 자동 생성
+     * - RequiredArgsConstructor: final 필드의 생성자를 Lombok이 자동 생성
      * - Spring이 OrderQueryService 구현체를 자동으로 주입해줌
      */
     private final OrderQueryService orderQueryService;
@@ -92,9 +95,11 @@ public class OrderQueryController {
             - 배송 정보 (구매형 주문의 경우)
             """
     )
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<BaseResponse<OrderDetailResponse>> getOrder(
             @Parameter(description = "주문 ID", example = "12345678-1234-1234-1234-123456789abc")
-            @PathVariable UUID orderId) {
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal PassportPrincipal principal) {
 
         // 로그 출력: 어떤 요청이 들어왔는지 기록
         log.info("주문 상세 조회 요청 - 주문ID: {}", orderId);
@@ -164,6 +169,7 @@ public class OrderQueryController {
             - total: 전체 주문 개수
             """
     )
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByUserId(
             @Parameter(description = "사용자 ID", example = "1")
             @PathVariable Long userId,
@@ -243,6 +249,7 @@ public class OrderQueryController {
             - 상태별 주문 처리 현황
             """
     )
+    @PreAuthorize("hasRole('OWNER') or hasRole('MANAGER')")
     public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByStoreId(
             @Parameter(description = "가게 ID")
             @PathVariable UUID storeId,
@@ -334,6 +341,7 @@ public class OrderQueryController {
             - 페이징: /api/orders/v1/popups/{popupId}?page=1&size=10
             """
     )
+    @PreAuthorize("hasRole('OWNER') or hasRole('MANAGER')")
     public ResponseEntity<BaseResponse<OrderListResponse>> getOrdersByPopupId(
             @Parameter(description = "팝업 ID", example = "00000000-0000-0000-0000-000000000101")
             @PathVariable UUID popupId,
@@ -523,6 +531,7 @@ public class OrderQueryController {
             - Optional 파라미터 처리 방법
             """
     )
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<BaseResponse<com.popcorn.order.dto.response.MyOrderTimelineResponse>> getMyOrders(
             @Parameter(description = "주문 타입", example = "ALL")
             @RequestParam(required = false, defaultValue = "ALL") String orderType,
@@ -540,11 +549,11 @@ public class OrderQueryController {
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @Parameter(description = "페이지 크기", example = "20")
             @RequestParam(required = false, defaultValue = "20") Integer size,
-            org.springframework.security.core.Authentication authentication) {
+            @AuthenticationPrincipal PassportPrincipal principal) {
 
         try {
-            // 1. JWT에서 사용자 ID 추출 (AuthenticationUtil 사용)
-            Long customerId = AuthenticationUtil.extractUserIdFromAuthentication(authentication);
+            // 1. JWT에서 사용자 ID 추출 (PassportPrincipal 사용)
+            Long customerId = principal.getUserId();
 
             log.info("🎯 JWT에서 추출된 사용자 ID: {}", customerId);
 

@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import com.popcorn.order.annotation.CheckAuth;
+
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.common.dto.BaseError;
 import com.popcorn.common.dto.CommonResponseCode;
@@ -52,6 +54,7 @@ public class OrderManagerController {
      * 가게별 주문 목록 조회 (매니저/오너 전용)
      */
     @GetMapping("/popup/{popupId}/orders")
+    @CheckAuth(roles = {"MANAGER", "OWNER"}, resourceType = "POPUP", resourceParam = "popupId")
     @Operation(
         summary = "가게별 주문 목록 조회",
         description = """
@@ -67,7 +70,7 @@ public class OrderManagerController {
             - 페이징 처리
             """
     )
-    public ResponseEntity<BaseResponse<List<OrderListResponse>>> getPopupOrders(
+    public ResponseEntity<BaseResponse<List<OrderListResponse.OrderItemDto>>> getPopupOrders(
             @Parameter(description = "팝업 ID", required = true)
             @PathVariable UUID popupId,
 
@@ -82,25 +85,31 @@ public class OrderManagerController {
 
             Authentication authentication) {
 
-        // TODO: 권한 체크 로직 구현 필요
-        // - JWT에서 사용자 ID와 role 추출
-        // - MANAGER/OWNER 권한 확인
-        // - 해당 팝업에 대한 접근 권한 확인
-
         log.info("팝업 주문 목록 조회 - popupId: {}, status: {}, page: {}, size: {}",
                 popupId, status, page, size);
 
-        // 임시로 빈 리스트 반환 (실제 구현 필요)
-        List<OrderListResponse> orders = List.of();
+        try {
+            // 권한이 검증된 후 실제 주문 목록 조회
+            List<OrderListResponse.OrderItemDto> orders = orderQueryService.findOrdersByPopup(
+                    popupId, status, page, size);
 
-        BaseResponse<List<OrderListResponse>> response = BaseResponse.success(orders);
-        return ResponseEntity.ok(response);
+            BaseResponse<List<OrderListResponse.OrderItemDto>> response = BaseResponse.success(orders);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("팝업 주문 목록 조회 실패 - popupId: {}", popupId, e);
+            BaseResponse<BaseError> errorResponse = BaseResponse.error(
+                    CommonResponseCode.INTERNAL_ERROR,
+                    "주문 목록 조회에 실패했습니다.");
+            return ResponseEntity.status(500).body((BaseResponse) errorResponse);
+        }
     }
 
     /**
      * 주문 상태 변경 (매니저/오너 전용)
      */
     @PatchMapping("/{orderId}/status")
+    @CheckAuth(roles = {"MANAGER", "OWNER"}, resourceType = "ORDER", resourceParam = "orderId")
     @Operation(
         summary = "주문 상태 변경",
         description = """
@@ -125,16 +134,11 @@ public class OrderManagerController {
             @Valid @RequestBody OrderStatusUpdateRequest request,
             Authentication authentication) {
 
-        // TODO: 권한 체크 로직 구현 필요
-        // - JWT에서 사용자 ID와 role 추출
-        // - MANAGER/OWNER 권한 확인
-        // - 해당 주문에 대한 접근 권한 확인
-
         log.info("주문 상태 변경 요청 - orderId: {}, status: {}, reason: {}",
                 orderId, request.getStatus(), request.getReason());
 
         try {
-            // 실제 상태 변경 로직 호출
+            // 권한이 검증된 후 실제 상태 변경 로직 호출
             orderCommandService.updateOrderStatus(orderId, request.getStatus(), request.getReason());
 
             OrderStatusUpdateResponse response = OrderStatusUpdateResponse.builder()
@@ -158,6 +162,7 @@ public class OrderManagerController {
      * 주문 상세 정보 조회 (매니저/오너 전용)
      */
     @GetMapping("/{orderId}")
+    @CheckAuth(roles = {"MANAGER", "OWNER"}, resourceType = "ORDER", resourceParam = "orderId")
     @Operation(
         summary = "주문 상세 정보 조회",
         description = """
@@ -176,8 +181,6 @@ public class OrderManagerController {
             @PathVariable UUID orderId,
 
             Authentication authentication) {
-
-        // TODO: 권한 체크 로직 구현 필요
 
         log.info("주문 상세 조회 - orderId: {}", orderId);
 

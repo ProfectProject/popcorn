@@ -524,15 +524,11 @@ public class OrderQueryService {
                     pageable
                 );
             } else {
-                // 매장 전체 주문 조회
-                orderPage = orderRepository.findOrdersByStoreIdWithConditions(
-                    storeId,
-                    status != null ? OrderStatus.valueOf(status) : null,
-                    orderType != null ? OrderType.valueOf(orderType) : null,
-                    from,
-                    to,
-                    pageable
-                );
+                // 매장 전체 주문 조회 - 현재는 storeId 직접 조회가 불가능하므로
+                // Store 서비스를 통해 해당 매장의 모든 팝업을 조회한 후 주문을 조회해야 함
+                // TODO: Store 서비스에서 매장의 모든 팝업 ID 목록을 가져와서 조회하도록 구현 필요
+                log.warn("매장 전체 주문 조회는 현재 구현되지 않음 - storeId: {}", storeId);
+                orderPage = Page.empty(pageable);
             }
 
             // 3. 응답 DTO로 변환
@@ -605,5 +601,45 @@ public class OrderQueryService {
             .cancelableUntil(order.getCancelableUntil())
             .createdAt(order.getCreatedAt())
             .build();
+    }
+
+    /**
+     * 팝업별 주문 목록 조회 (관리자용)
+     *
+     * @param popupId 팝업 ID
+     * @param status 주문 상태 필터 (선택사항)
+     * @param page 페이지 번호
+     * @param size 페이지 크기
+     * @return 주문 목록
+     */
+    public List<OrderListResponse.OrderItemDto> findOrdersByPopup(UUID popupId, String status, int page, int size) {
+        log.info("팝업별 주문 목록 조회 - popupId: {}, status: {}, page: {}, size: {}",
+                popupId, status, page, size);
+
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Order> orderPage;
+
+            if (status != null && !status.trim().isEmpty()) {
+                // 상태 필터가 있는 경우
+                OrderStatus orderStatus = OrderStatus.valueOf(status.toUpperCase());
+                orderPage = orderRepository.findByPopupIdAndStatusOrderByCreatedAtDesc(
+                        popupId, orderStatus, pageable);
+            } else {
+                // 전체 주문 조회
+                orderPage = orderRepository.findByPopupIdOrderByCreatedAtDesc(popupId, pageable);
+            }
+
+            return orderPage.getContent().stream()
+                    .map(OrderListResponse.OrderItemDto::fromEntity)
+                    .toList();
+
+        } catch (IllegalArgumentException e) {
+            log.error("잘못된 주문 상태: {}", status, e);
+            throw new IllegalArgumentException("유효하지 않은 주문 상태입니다: " + status);
+        } catch (Exception e) {
+            log.error("팝업별 주문 목록 조회 실패 - popupId: {}", popupId, e);
+            throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.", e);
+        }
     }
 }

@@ -3,8 +3,11 @@ package com.popcorn.payment.config
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import com.popcorn.common.filter.HeaderAuthenticationFilter
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.web.cors.CorsConfiguration
@@ -13,7 +16,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
-class SecurityConfig {
+@EnableMethodSecurity(prePostEnabled = true)
+class SecurityConfig(private val headerAuthenticationFilter: HeaderAuthenticationFilter) {
 
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
@@ -37,24 +41,22 @@ class SecurityConfig {
                     // 액추에이터 허용
                     .requestMatchers("/actuator/**").permitAll()
 
-                    // Payment 관련 API 모두 허용
-                    .requestMatchers("/api/payments/**").permitAll()
-                    .requestMatchers("/api/payment/**").permitAll()
-                    .requestMatchers("/api/v*/payments/**").permitAll()
-                    .requestMatchers("/api/v*/payment/**").permitAll()
-                    .requestMatchers("/api/pay/v*/**").permitAll()
-
                     // Health check 허용
-                    .requestMatchers("/api/v*/payments/health").permitAll()
+                    .requestMatchers("/api/pay/v*/payments/health").permitAll()
+                    .requestMatchers("/api/pay/v1/payments/decode").permitAll()
 
-                    // 나머지는 모든 요청 허용 (개발용)
-                    .anyRequest().permitAll()
+                    // Payment API는 인증 필요
+                    .requestMatchers("/api/pay/v*/**").authenticated()
+
+                    // 나머지는 인증 필요
+                    .anyRequest().authenticated()
             }
             .httpBasic { httpBasic -> httpBasic.disable() }
             .formLogin { formLogin -> formLogin.disable() }
             .sessionManagement { session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             }
+            .addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }

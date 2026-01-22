@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication(scanBasePackages = {
         "com.popcorn.users",
-        "com.popcorn.demo.common"
+        "com.popcorn.common"
 })
 //@EnableJpaAuditing
 public class UsersApplication {

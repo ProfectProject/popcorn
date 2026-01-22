@@ -83,6 +83,8 @@ microservices:
   order:
     base-url: http://localhost:8084
     timeout: 30s
+  checkins:
+    base-url: http://localhost:8080/api/qr
   gateway:
     base-url: http://localhost:8080
 

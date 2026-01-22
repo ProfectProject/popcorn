@@ -10,7 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
+import com.popcorn.order.entity.OrderItem;
+import com.popcorn.order.entity.OrderItemType;
 import com.popcorn.order.repository.OrderRepository;
+import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.service.OrderService;
 import com.popcorn.order.client.StoreClient;
 
@@ -37,6 +40,7 @@ import java.util.List;
 public class OrderEventListener {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final OrderService orderService;
     private final OrderEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
@@ -238,5 +242,89 @@ public class OrderEventListener {
 
         // 외부 이벤트 핸들러와 동일한 처리
         handleOrderCancellationForStockFailure(event);
+    }
+
+    /**
+     * 주문 취소 이벤트 수신 → 재고 예약 취소 처리
+     *
+     * @param event 주문 취소 이벤트
+     */
+    @EventListener
+    @Transactional
+    public void handleOrderCancelled(OrderCancelledEvent event) {
+        try {
+            log.info("주문 취소 이벤트 수신 - orderId: {}, reason: {}",
+                    event.getOrderId(), event.getCancelReason());
+
+            // 주문 정보 조회
+            Order order = orderRepository.findById(event.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다: " + event.getOrderId()));
+
+            // RESERVED 상태에서 취소된 경우에만 재고 예약 취소
+            if (OrderStatus.RESERVED.equals(event.getPreviousStatus())) {
+                cancelStockReservationsForOrder(order);
+                log.info("재고 예약 취소 완료 - orderId: {}", event.getOrderId());
+            } else {
+                log.info("재고 예약 취소 불필요 - orderId: {}, previousStatus: {}",
+                        event.getOrderId(), event.getPreviousStatus());
+            }
+
+        } catch (Exception e) {
+            log.error("주문 취소 처리 중 오류 - orderId: {}, error: {}",
+                    event.getOrderId(), e.getMessage(), e);
+            // 주문 취소 자체는 성공했으므로 재고 예약 취소 실패는 로그만 남김
+        }
+    }
+
+    /**
+     * 주문의 모든 굿즈 항목에 대한 재고 예약을 취소합니다.
+     *
+     * @param order 재고 예약을 취소할 주문
+     */
+    private void cancelStockReservationsForOrder(Order order) {
+        log.info("주문 재고 예약 취소 시작 - 주문번호: {}", order.getOrderNo());
+
+        // 주문 항목들 조회 (order 객체에 포함되어 있지 않을 수 있음)
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+        // 굿즈 항목만 필터링
+        List<OrderItem> goodsItems = orderItems.stream()
+                .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
+                .toList();
+
+        if (goodsItems.isEmpty()) {
+            log.info("굿즈 항목이 없어 재고 예약 취소를 건너뜁니다 - 주문번호: {}", order.getOrderNo());
+            return;
+        }
+
+        // 각 굿즈 항목에 대해 재고 예약 취소
+        for (OrderItem item : goodsItems) {
+            if (item.getGoodsVariantId() == null) {
+                log.warn("굿즈 변형 ID가 없어 재고 예약 취소를 건너뜁니다 - 주문번호: {}, 항목ID: {}",
+                        order.getOrderNo(), item.getId());
+                continue;
+            }
+
+            try {
+                log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
+                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
+
+                storeClient.cancelGoodsReservation(
+                        order.getPopupId(),
+                        item.getGoodsVariantId(),
+                        item.getQty()
+                );
+
+                log.info("굿즈 재고 예약 취소 성공 - 주문번호: {}, 굿즈변형ID: {}",
+                        order.getOrderNo(), item.getGoodsVariantId());
+
+            } catch (Exception e) {
+                log.error("굿즈 재고 예약 취소 실패 - 주문번호: {}, 굿즈변형ID: {}, 에러: {}",
+                        order.getOrderNo(), item.getGoodsVariantId(), e.getMessage(), e);
+                // 개별 항목 실패는 로그만 남기고 계속 진행
+            }
+        }
+
+        log.info("주문 재고 예약 취소 완료 - 주문번호: {}", order.getOrderNo());
     }
 }

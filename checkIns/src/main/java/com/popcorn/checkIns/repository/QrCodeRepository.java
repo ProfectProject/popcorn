@@ -31,7 +31,7 @@ public class QrCodeRepository {
 		List<QrCodeRow> rows = jdbcTemplate.query(
 				"""
 				SELECT qr_id, order_id, qr_code, expires_at, created_at
-				FROM p_order_qr_codes
+				FROM qr.qr_order_qr_codes
 				WHERE order_id = ?
 				ORDER BY created_at DESC
 				LIMIT 1
@@ -53,7 +53,7 @@ public class QrCodeRepository {
 		List<QrCodeRow> rows = jdbcTemplate.query(
 				"""
 				SELECT qr_id, order_id, qr_code, expires_at, created_at
-				FROM p_order_qr_codes
+				FROM qr.qr_order_qr_codes
 				WHERE qr_code = ?
 				ORDER BY created_at DESC
 				LIMIT 1
@@ -74,7 +74,7 @@ public class QrCodeRepository {
 	public void insert(QrCodeRow row) {
 		jdbcTemplate.update(
 				"""
-				INSERT INTO p_order_qr_codes
+				INSERT INTO qr.qr_order_qr_codes
 					(qr_id, order_id, qr_code, expires_at, created_at, created_by)
 				VALUES (?, ?, ?, ?, ?, ?)
 				""",

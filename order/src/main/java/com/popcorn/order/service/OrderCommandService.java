@@ -22,11 +22,14 @@ import com.popcorn.order.event.OrderCreatedEvent;
 import com.popcorn.order.event.OrderStatusChangedEvent;
 import com.popcorn.order.event.OrderCancelledEvent;
 import com.popcorn.order.event.OrderEventPublisher;
+import com.popcorn.order.event.StockReservedEvent;
+import com.popcorn.order.event.StockReservationFailedEvent;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
 import com.popcorn.order.client.PaymentClient;
 import com.popcorn.order.client.UserClient;
+import com.popcorn.order.client.StoreClient;
 import com.popcorn.order.dto.payment.CreatePaymentRequest;
 import com.popcorn.order.dto.payment.CreatePaymentResponse;
 
@@ -54,6 +57,7 @@ public class OrderCommandService {
     private final PaymentClient paymentClient;
     private final UserClient userClient;
     private final PaymentTokenUtil paymentTokenUtil;
+    private final StoreClient storeClient;
 
     /**
      * 새로운 주문 생성하기 (멱등성 처리)
@@ -104,7 +108,7 @@ public class OrderCommandService {
         savedOrder.getOrderItems().forEach(item -> item.setOrderId(savedOrder.getId()));
         orderItemRepository.saveAll(savedOrder.getOrderItems());
 
-        // 5. 상태 이력 저장
+        // 5. 상태 이력 저장 (주문 생성)
         OrderStatusHistory createdHistory = OrderStatusHistory.builder()
                 .orderId(savedOrder.getId())
                 .fromStatus(null)
@@ -113,10 +117,51 @@ public class OrderCommandService {
                 .changedAt(LocalDateTime.now())
                 .build();
 
-
         orderStatusHistoryRepository.save(createdHistory);
 
-        // 6. 이벤트 발행
+        // 6. 재고 예약 시도
+        try {
+            reserveStockForOrder(savedOrder);
+
+            // 재고 예약 성공 - 상태를 RESERVED로 변경
+            savedOrder.updateStatus(OrderStatus.RESERVED);
+            orderRepository.save(savedOrder);
+
+            // 재고 예약 성공 이력 저장
+            OrderStatusHistory reservedHistory = OrderStatusHistory.builder()
+                    .orderId(savedOrder.getId())
+                    .fromStatus(OrderStatus.REQUESTED)
+                    .toStatus(OrderStatus.RESERVED)
+                    .reason("재고 예약 완료")
+                    .changedAt(LocalDateTime.now())
+                    .build();
+
+            orderStatusHistoryRepository.save(reservedHistory);
+
+            log.info("재고 예약 성공 - 주문번호: {}", savedOrder.getOrderNo());
+
+        } catch (Exception e) {
+            log.error("재고 예약 실패 - 주문번호: {}, 에러: {}", savedOrder.getOrderNo(), e.getMessage(), e);
+
+            // 재고 예약 실패 - 주문 취소
+            savedOrder.updateStatus(OrderStatus.CANCELLED);
+            orderRepository.save(savedOrder);
+
+            // 재고 예약 실패 이력 저장
+            OrderStatusHistory failedHistory = OrderStatusHistory.builder()
+                    .orderId(savedOrder.getId())
+                    .fromStatus(OrderStatus.REQUESTED)
+                    .toStatus(OrderStatus.CANCELLED)
+                    .reason("재고 예약 실패: " + e.getMessage())
+                    .changedAt(LocalDateTime.now())
+                    .build();
+
+            orderStatusHistoryRepository.save(failedHistory);
+
+            throw new RuntimeException("재고가 부족합니다. 주문이 취소되었습니다: " + e.getMessage(), e);
+        }
+
+        // 7. 이벤트 발행
         eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder, null));
 
         // 7. 결제 URL 생성 (실제 결제 기록은 결제 완료 시점에 생성)
@@ -167,7 +212,6 @@ public class OrderCommandService {
     /**
      * 주문 상태 변경하기 (멱등성 처리)
      *
-     * [초보자 가이드]
      * 같은 주문을 같은 상태로 여러 번 변경해도 한 번만 처리됩니다.
      */
     @Transactional
@@ -338,59 +382,50 @@ public class OrderCommandService {
 
     /**
      * 세션 가격 조회
-     * 향후 Popup/Session 서비스와 연동 예정
+     * Store 서비스의 실제 API를 통해 세션 가격 정보 조회
      */
     private Integer getSessionPrice(UUID sessionId) {
         try {
-            // TODO: 실제 Popup/Session 서비스 API 호출
-            // SessionPriceResponse response = sessionClient.getSessionPrice(sessionId);
-            // return response.getPrice();
+            log.info("세션 가격 조회 요청 - sessionId: {}", sessionId);
 
-            // 현재는 Mock 데이터로 처리
-            log.info("세션 가격 조회: sessionId={}", sessionId);
+            // Store 서비스에서 실제 세션 가격 조회
+            var sessionPriceResponse = storeClient.getSessionPrice(sessionId);
 
-            // 세션별 차등 가격 적용 (Mock)
-            String sessionIdStr = sessionId.toString();
-            if (sessionIdStr.hashCode() % 3 == 0) {
-                return 20000; // VIP 세션
-            } else if (sessionIdStr.hashCode() % 3 == 1) {
-                return 15000; // 일반 세션
+            if (sessionPriceResponse != null && sessionPriceResponse.getPrice() != null) {
+                log.info("세션 가격 조회 성공 - sessionId: {}, price: {}원",
+                        sessionId, sessionPriceResponse.getPrice());
+                return sessionPriceResponse.getPrice();
             } else {
-                return 12000; // 할인 세션
+                log.warn("세션 가격 정보가 비어있습니다 - sessionId: {}, 기본값 사용", sessionId);
+                return 15000; // 기본 가격
             }
         } catch (Exception e) {
-            log.error("세션 가격 조회 실패: sessionId={}", sessionId, e);
+            log.error("세션 가격 조회 실패 - sessionId: {}, 기본값 사용, 에러: {}", sessionId, e.getMessage(), e);
             return 15000; // 기본 가격
         }
     }
 
     /**
      * 굿즈 상품 변형 가격 조회
-     * 향후 Product/Goods 서비스와 연동 예정
+     * Store 서비스의 실제 API를 통해 굿즈 가격 정보 조회
      */
     private Integer getGoodsVariantPrice(UUID goodsVariantId) {
         try {
-            // TODO: 실제 Product/Goods 서비스 API 호출
-            // GoodsPriceResponse response = goodsClient.getGoodsVariantPrice(goodsVariantId);
-            // return response.getPrice();
+            log.info("굿즈 가격 조회 요청 - goodsVariantId: {}", goodsVariantId);
 
-            // 현재는 Mock 데이터로 처리
-            log.info("굿즈 가격 조회: goodsVariantId={}", goodsVariantId);
+            // Store 서비스에서 실제 굿즈 가격 조회
+            var goodsPriceResponse = storeClient.getGoodsVariantPrice(goodsVariantId);
 
-            // 상품별 차등 가격 적용 (Mock)
-            String variantIdStr = goodsVariantId.toString();
-            int hash = variantIdStr.hashCode();
-            if (Math.abs(hash) % 4 == 0) {
-                return 45000; // 한정판 굿즈
-            } else if (Math.abs(hash) % 4 == 1) {
-                return 25000; // 일반 굿즈
-            } else if (Math.abs(hash) % 4 == 2) {
-                return 15000; // 소형 굿즈
+            if (goodsPriceResponse != null && goodsPriceResponse.getPrice() != null) {
+                log.info("굿즈 가격 조회 성공 - goodsVariantId: {}, price: {}원, stock: {}개",
+                        goodsVariantId, goodsPriceResponse.getPrice(), goodsPriceResponse.getStockQuantity());
+                return goodsPriceResponse.getPrice();
             } else {
-                return 35000; // 프리미엄 굿즈
+                log.warn("굿즈 가격 정보가 비어있습니다 - goodsVariantId: {}, 기본값 사용", goodsVariantId);
+                return 25000; // 기본 가격
             }
         } catch (Exception e) {
-            log.error("굿즈 가격 조회 실패: goodsVariantId={}", goodsVariantId, e);
+            log.error("굿즈 가격 조회 실패 - goodsVariantId: {}, 기본값 사용, 에러: {}", goodsVariantId, e.getMessage(), e);
             return 25000; // 기본 가격
         }
     }
@@ -732,6 +767,186 @@ public class OrderCommandService {
         } catch (Exception e) {
             log.warn("주문명 생성 실패, 기본명 사용: orderId={}", order.getId(), e);
             return "팝콘 주문";
+        }
+    }
+
+    /**
+     * 주문에 포함된 굿즈 항목들의 재고를 예약합니다.
+     *
+     * @param order 재고 예약할 주문
+     * @throws RuntimeException 재고 부족 또는 예약 실패 시
+     */
+    private void reserveStockForOrder(Order order) {
+        log.info("주문 재고 예약 시작 - 주문번호: {}", order.getOrderNo());
+
+        // 굿즈 항목만 필터링 (예약형 상품은 재고 예약 불필요)
+        List<OrderItem> goodsItems = order.getOrderItems().stream()
+                .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
+                .toList();
+
+        if (goodsItems.isEmpty()) {
+            log.info("굿즈 항목이 없어 재고 예약을 건너뜁니다 - 주문번호: {}", order.getOrderNo());
+            return;
+        }
+
+        // 각 굿즈 항목에 대해 재고 예약 시도
+        for (OrderItem item : goodsItems) {
+            if (item.getGoodsVariantId() == null) {
+                log.warn("굿즈 변형 ID가 없어 재고 예약을 건너뜁니다 - 주문번호: {}, 항목ID: {}",
+                        order.getOrderNo(), item.getId());
+                continue;
+            }
+
+            try {
+                log.info("굿즈 재고 예약 시도 - 주문번호: {}, 팝업ID: {}, 굿즈변형ID: {}, 수량: {}",
+                        order.getOrderNo(), order.getPopupId(), item.getGoodsVariantId(), item.getQty());
+
+                storeClient.reserveGoods(
+                        order.getPopupId(),
+                        item.getGoodsVariantId(),
+                        item.getQty()
+                );
+
+                log.info("굿즈 재고 예약 성공 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
+                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
+
+            } catch (Exception e) {
+                log.error("굿즈 재고 예약 실패 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}, 에러: {}",
+                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty(), e.getMessage(), e);
+
+                // 이전에 예약한 항목들 롤백
+                rollbackStockReservations(order, goodsItems, item);
+
+                // 재고 예약 실패 이벤트 발행
+                publishStockReservationFailedEvent(order, item, e.getMessage());
+
+                throw new RuntimeException("재고 예약 실패 - 굿즈변형ID: " + item.getGoodsVariantId() +
+                        ", 수량: " + item.getQty() + ", 에러: " + e.getMessage(), e);
+            }
+        }
+
+        // 재고 예약 성공 이벤트 발행
+        publishStockReservedEvent(order, goodsItems);
+
+        log.info("주문 재고 예약 완료 - 주문번호: {}", order.getOrderNo());
+    }
+
+    /**
+     * 재고 예약 실패 시 이전에 예약한 항목들을 롤백합니다.
+     *
+     * @param order 주문
+     * @param goodsItems 모든 굿즈 항목들
+     * @param failedItem 실패한 항목 (이 항목 이전까지만 롤백)
+     */
+    private void rollbackStockReservations(Order order, List<OrderItem> goodsItems, OrderItem failedItem) {
+        log.info("재고 예약 롤백 시작 - 주문번호: {}", order.getOrderNo());
+
+        for (OrderItem item : goodsItems) {
+            // 실패한 항목에 도달하면 중단
+            if (item.equals(failedItem)) {
+                break;
+            }
+
+            if (item.getGoodsVariantId() == null) {
+                continue;
+            }
+
+            try {
+                log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
+                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
+
+                storeClient.cancelGoodsReservation(
+                        order.getPopupId(),
+                        item.getGoodsVariantId(),
+                        item.getQty()
+                );
+
+                log.info("굿즈 재고 예약 취소 성공 - 주문번호: {}, 굿즈변형ID: {}",
+                        order.getOrderNo(), item.getGoodsVariantId());
+
+            } catch (Exception e) {
+                log.error("굿즈 재고 예약 취소 실패 - 주문번호: {}, 굿즈변형ID: {}, 에러: {}",
+                        order.getOrderNo(), item.getGoodsVariantId(), e.getMessage(), e);
+                // 롤백 실패는 로그만 남기고 계속 진행
+            }
+        }
+
+        log.info("재고 예약 롤백 완료 - 주문번호: {}", order.getOrderNo());
+    }
+
+    /**
+     * OrderItem에서 제품명 생성
+     * OrderItem 엔티티에 제품명 필드가 없으므로 타입에 따라 임시 이름 생성
+     */
+    private String generateProductName(OrderItem item) {
+        if (item == null || item.getOrderItemType() == null) {
+            return "알 수 없는 상품";
+        }
+
+        switch (item.getOrderItemType()) {
+            case RESERVATION:
+                return "팝업 예약";
+            case GOODS:
+                return "굿즈 상품";
+            default:
+                return "상품";
+        }
+    }
+
+    /**
+     * 재고 예약 성공 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param goodsItems 예약된 굿즈 항목들
+     */
+    private void publishStockReservedEvent(Order order, List<OrderItem> goodsItems) {
+        try {
+            List<StockReservedEvent.ReservedStockItem> reservedItems = goodsItems.stream()
+                    .filter(item -> item.getGoodsVariantId() != null)
+                    .map(item -> StockReservedEvent.ReservedStockItem.create(
+                            item.getGoodsVariantId(),
+                            item.getQty(),
+                            item.getUnitPrice(),
+                            generateProductName(item)
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
+
+            if (!reservedItems.isEmpty()) {
+                orderEventPublisher.publishStockReservedEvent(order, reservedItems);
+            }
+
+        } catch (Exception e) {
+            log.error("재고 예약 성공 이벤트 발행 실패 - 주문번호: {}, 에러: {}",
+                    order.getOrderNo(), e.getMessage(), e);
+            // 이벤트 발행 실패는 주문 처리에 영향을 주지 않음
+        }
+    }
+
+    /**
+     * 재고 예약 실패 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param failedItem 실패한 항목
+     * @param failureReason 실패 이유
+     */
+    private void publishStockReservationFailedEvent(Order order, OrderItem failedItem, String failureReason) {
+        try {
+            List<StockReservationFailedEvent.FailedStockItem> failedItems = List.of(
+                    StockReservationFailedEvent.FailedStockItem.create(
+                            failedItem.getGoodsVariantId(),
+                            failedItem.getQty(),
+                            0, // 사용 가능한 수량은 Store에서만 알 수 있음
+                            generateProductName(failedItem),
+                            failureReason
+                    )
+            );
+
+            orderEventPublisher.publishStockReservationFailedEvent(order, failedItems, failureReason);
+
+        } catch (Exception e) {
+            log.error("재고 예약 실패 이벤트 발행 실패 - 주문번호: {}, 에러: {}",
+                    order.getOrderNo(), e.getMessage(), e);
+            // 이벤트 발행 실패는 주문 처리에 영향을 주지 않음
         }
     }
 

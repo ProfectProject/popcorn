@@ -33,6 +33,7 @@ configurations {
 }
 
 dependencyManagement {
+	imports {
 		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
 	}
 	dependencies {
@@ -40,6 +41,7 @@ dependencyManagement {
 		dependency 'org.apache.commons:commons-lang3:3.17.0'
 	}
 }
+
 
 dependencies {
 	// ========================= PopCorn Common Library =========================

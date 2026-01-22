@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -282,6 +283,28 @@ public class OrderExceptionHandler {
         );
 
         return ResponseEntity.status(OrderResponseCode.BUSINESS_RULE_VIOLATION.getHttpStatus())
+                .body(response);
+    }
+
+    /**
+     * 권한 접근 거부 예외 처리
+     *
+     * 사용자가 접근 권한이 없는 리소스에 접근하려 할 때 발생합니다.
+     * JWT 토큰이 유효하지만 해당 리소스에 대한 권한이 없는 경우입니다.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<BaseResponse<Void>> handleAccessDeniedException(
+            AccessDeniedException ex, WebRequest request) {
+
+        log.warn("권한 접근 거부 - 요청: {}, 메시지: {}",
+                request.getDescription(false), ex.getMessage());
+
+        BaseResponse<Void> response = BaseResponse.from(
+                OrderResponseCode.ORDER_ACCESS_DENIED,
+                null
+        );
+
+        return ResponseEntity.status(OrderResponseCode.ORDER_ACCESS_DENIED.getHttpStatus())
                 .body(response);
     }
 

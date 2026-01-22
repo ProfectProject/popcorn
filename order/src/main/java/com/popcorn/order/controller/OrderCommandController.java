@@ -3,9 +3,13 @@ package com.popcorn.order.controller;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import com.popcorn.common.security.PassportPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.popcorn.common.dto.BaseResponse;
@@ -45,14 +49,14 @@ import lombok.extern.slf4j.Slf4j;
  * - 주문 조회는 OrderQueryController에서 담당 (CQRS 분리)
  *
  * 사용된 Spring 어노테이션 설명:
- * @RestController: 이 클래스가 REST API를 제공한다는 표시
- * @RequestMapping: 모든 API가 "/api/orders/v1"로 시작한다는 설정
- * @RequiredArgsConstructor: final 필드의 생성자를 Lombok이 자동 생성
- * @Slf4j: log 객체를 자동으로 만들어줌 (로그 출력용)
- * @Tag: Swagger UI에서 API를 그룹으로 묶어서 보여줌
- * @Validated: 입력값 검증을 활성화
- * @PostMapping: HTTP POST 요청 처리 (데이터 생성용)
- * @PatchMapping: HTTP PATCH 요청 처리 (데이터 부분 수정용)
+ * - RestController: 이 클래스가 REST API를 제공한다는 표시
+ * - RequestMapping: 모든 API가 "/api/orders/v1"로 시작한다는 설정
+ * - RequiredArgsConstructor: final 필드의 생성자를 Lombok이 자동 생성
+ * - Slf4j: log 객체를 자동으로 만들어줌 (로그 출력용)
+ * - Tag: Swagger UI에서 API를 그룹으로 묶어서 보여줌
+ * - Validated: 입력값 검증을 활성화
+ * - PostMapping: HTTP POST 요청 처리 (데이터 생성용)
+ * - PatchMapping: HTTP PATCH 요청 처리 (데이터 부분 수정용)
  */
 @RestController
 @RequestMapping("/api/orders/v1")
@@ -63,10 +67,12 @@ import lombok.extern.slf4j.Slf4j;
 @Validated
 public class OrderCommandController {
 
+    private static final String UNKNOWN_IP = "UNKNOWN_IP";
+
     /**
      * 의존성 주입
      * - final 키워드: 객체 생성 후 변경 불가능 (불변성)
-     * - @RequiredArgsConstructor: final 필드의 생성자를 Lombok이 자동 생성
+     * - RequiredArgsConstructor: final 필드의 생성자를 Lombok이 자동 생성
      * - Spring이 OrderCommandService 구현체를 자동으로 주입해줌
      *
      * CQRS 원칙에 따라 Command Controller는 Command Service만 사용
@@ -186,8 +192,10 @@ public class OrderCommandController {
             )
         )
     )
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<BaseResponse<CreateOrderResponse>> createOrder(
             @Valid @RequestBody CreateOrderRequest request,
+            @AuthenticationPrincipal PassportPrincipal principal,
             Authentication authentication,
             HttpServletRequest httpRequest) {
 
@@ -202,7 +210,7 @@ public class OrderCommandController {
                 requestId, authentication != null, authentication != null ? authentication.getName() : "익명");
 
         // JWT에서 사용자 ID 추출 (보안상 요청 본문이 아닌 토큰에서 추출)
-        Long userId = extractUserIdFromAuthentication(authentication);
+        Long userId = principal != null ? principal.getUserId() : extractUserIdFromAuthentication(authentication);
 
         log.info("👤 [REQ-{}] 사용자 ID 추출 완료: {}", requestId, userId);
         log.info("📄 [REQ-{}] 요청 데이터 - 팝업ID: {}, 주문타입: {}, 아이템 수: {}",
@@ -253,7 +261,7 @@ public class OrderCommandController {
             BaseResponse<CreateOrderResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.INVALID_ORDER_REQUEST, null);
 
-            log.info("📤 [REQ-{}] 에러 응답 전송 - 상태: {}",
+            log.info("📤 [REQ-{}] 잘못된 요청 응답 전송 - 상태: {}",
                     requestId, OrderResponseCode.INVALID_ORDER_REQUEST.getHttpStatus());
 
             return ResponseEntity.status(OrderResponseCode.INVALID_ORDER_REQUEST.getHttpStatus())
@@ -268,7 +276,7 @@ public class OrderCommandController {
             BaseResponse<CreateOrderResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.ORDER_CREATION_FAILED, null);
 
-            log.info("📤 [REQ-{}] 에러 응답 전송 - 상태: {}",
+            log.info("📤 [REQ-{}] 서버 오류 응답 전송 - 상태: {}",
                     requestId, OrderResponseCode.ORDER_CREATION_FAILED.getHttpStatus());
 
             return ResponseEntity.status(OrderResponseCode.ORDER_CREATION_FAILED.getHttpStatus())
@@ -281,13 +289,13 @@ public class OrderCommandController {
      */
     private String getClientIp(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "UNKNOWN_IP".equalsIgnoreCase(ip)) {
             ip = request.getHeader("Proxy-Client-IP");
         }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "UNKNOWN_IP".equalsIgnoreCase(ip)) {
             ip = request.getHeader("WL-Proxy-Client-IP");
         }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+        if (ip == null || ip.isEmpty() || "UNKNOWN_IP".equalsIgnoreCase(ip)) {
             ip = request.getRemoteAddr();
         }
         return ip;
@@ -334,6 +342,7 @@ public class OrderCommandController {
             - 모든 상태 변경은 이력으로 기록됨
             """
     )
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<BaseResponse<Void>> updateOrderStatus(
             @Parameter(description = "주문 ID", example = "12345678-1234-1234-1234-123456789abc")
             @PathVariable UUID orderId,
@@ -439,6 +448,7 @@ public class OrderCommandController {
             - CANCELLED: 이미 취소됨
             """
     )
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<BaseResponse<Void>> cancelOrder(
             @Parameter(description = "주문 ID", example = "12345678-1234-1234-1234-123456789abc")
             @PathVariable UUID orderId,
