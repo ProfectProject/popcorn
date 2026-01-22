@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -359,8 +360,17 @@ public class StoreClient {
                         headers.set("Authorization", authHeader);
                     }
                 })
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<BaseResponse<SessionPriceResponse>>() {})
+                .exchangeToMono(clientResponse -> {
+                    if (clientResponse.statusCode().is2xxSuccessful()) {
+                        return clientResponse.bodyToMono(new ParameterizedTypeReference<BaseResponse<SessionPriceResponse>>() {});
+                    }
+                    if (clientResponse.statusCode() == HttpStatus.NOT_FOUND) {
+                        log.warn("세션을 찾을 수 없습니다 - sessionId: {}", sessionId);
+                        return reactor.core.publisher.Mono.empty();
+                    }
+                    return clientResponse.createException()
+                        .flatMap(reactor.core.publisher.Mono::error);
+                })
                 .block();
 
             if (response != null && response.getCode() == 200 && response.getData() != null) {

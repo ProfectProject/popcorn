@@ -9,7 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import com.popcorn.common.security.PassportPrincipal;
+import com.popcorn.common.filter.PassportPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.popcorn.common.dto.BaseResponse;
@@ -210,7 +210,7 @@ public class OrderCommandController {
                 requestId, authentication != null, authentication != null ? authentication.getName() : "익명");
 
         // JWT에서 사용자 ID 추출 (보안상 요청 본문이 아닌 토큰에서 추출)
-        Long userId = principal != null ? principal.getUserId() : extractUserIdFromAuthentication(authentication);
+        Long userId = principal != null ? principal.userId() : extractUserIdFromAuthentication(authentication);
 
         log.info("👤 [REQ-{}] 사용자 ID 추출 완료: {}", requestId, userId);
         log.info("📄 [REQ-{}] 요청 데이터 - 팝업ID: {}, 주문타입: {}, 아이템 수: {}",
@@ -514,23 +514,27 @@ public class OrderCommandController {
             throw new IllegalArgumentException("인증 정보가 없습니다. JWT 토큰을 확인하세요.");
         }
 
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof PassportPrincipal passportPrincipal) {
+            return passportPrincipal.userId();
+        }
+        if (principal instanceof com.popcorn.common.security.PassportPrincipal passportPrincipal) {
+            return passportPrincipal.getUserId();
+        }
+
+        String userIdStr = authentication.getName();
+        if (userIdStr == null || userIdStr.trim().isEmpty()) {
+            log.warn("⚠️ Authentication에서 사용자 ID를 찾을 수 없습니다.");
+            throw new IllegalArgumentException("JWT 토큰에서 사용자 ID를 추출할 수 없습니다.");
+        }
+
         try {
-            // JwtAuthenticationFilter에서 설정한 principal은 userId(String)
-            String userIdStr = authentication.getName();
-
-            if (userIdStr == null || userIdStr.trim().isEmpty()) {
-                log.warn("⚠️ Authentication에서 사용자 ID를 찾을 수 없습니다.");
-                throw new IllegalArgumentException("JWT 토큰에서 사용자 ID를 추출할 수 없습니다.");
-            }
-
             Long userId = Long.parseLong(userIdStr);
             log.debug("🔐 JWT에서 사용자 ID 추출 완료: {} (권한: {})",
                 userId, authentication.getAuthorities());
-
             return userId;
-
         } catch (NumberFormatException e) {
-            log.error("💥 JWT 토큰의 사용자 ID 형식이 잘못되었습니다. 값: {}", authentication.getName(), e);
+            log.error("💥 JWT 토큰의 사용자 ID 형식이 잘못되었습니다. 값: {}", userIdStr, e);
             throw new IllegalArgumentException("JWT 토큰의 사용자 ID 형식이 올바르지 않습니다.", e);
         }
     }

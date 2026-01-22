@@ -256,12 +256,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      * @return 주문 목록 페이지
      */
     @Query("SELECT o FROM Order o WHERE " +
-           "(:popupId IS NULL OR o.popupId = :popupId) " +
-           "AND (:orderType IS NULL OR o.orderType = :orderType) " +
-           "AND (:status IS NULL OR o.status = :status) " +
-           "AND (:userId IS NULL OR o.customerId = :userId) " +
-           "AND (:from IS NULL OR o.createdAt >= :from) " +
-           "AND (:to IS NULL OR o.createdAt <= :to) " +
+           "(o.popupId = :popupId OR :popupId IS NULL) " +
+           "AND (o.orderType = :orderType OR :orderType IS NULL) " +
+           "AND (o.status = :status OR :status IS NULL) " +
+           "AND (o.customerId = :userId OR :userId IS NULL) " +
+           "AND (o.createdAt >= :from OR :from IS NULL) " +
+           "AND (o.createdAt <= :to OR :to IS NULL) " +
            "ORDER BY o.createdAt DESC")
     Page<Order> findOrdersWithAllConditions(
             @Param("popupId") UUID popupId,
@@ -277,12 +277,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      * 통합 조건 주문 개수 조회 (모든 조건 지원)
      */
     @Query("SELECT COUNT(o) FROM Order o WHERE " +
-           "(:popupId IS NULL OR o.popupId = :popupId) " +
-           "AND (:orderType IS NULL OR o.orderType = :orderType) " +
-           "AND (:status IS NULL OR o.status = :status) " +
-           "AND (:userId IS NULL OR o.customerId = :userId) " +
-           "AND (:from IS NULL OR o.createdAt >= :from) " +
-           "AND (:to IS NULL OR o.createdAt <= :to)")
+           "(o.popupId = :popupId OR :popupId IS NULL) " +
+           "AND (o.orderType = :orderType OR :orderType IS NULL) " +
+           "AND (o.status = :status OR :status IS NULL) " +
+           "AND (o.customerId = :userId OR :userId IS NULL) " +
+           "AND (o.createdAt >= :from OR :from IS NULL) " +
+           "AND (o.createdAt <= :to OR :to IS NULL)")
     long countOrdersWithAllConditions(
             @Param("popupId") UUID popupId,
             @Param("orderType") OrderType orderType,

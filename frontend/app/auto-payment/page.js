@@ -18,7 +18,7 @@ export default function AutoPaymentPage() {
   const router = useRouter();
 
   const token = searchParams.get('token'); // 🔐 암호화된 토큰
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
   const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || "test_ck_AQ92ymxN34LKgMYlpPZy3ajRKXvd";
 
   // 🔐 토큰 디코딩으로 결제 정보 가져오기

@@ -16,7 +16,7 @@ function PaymentsContent({ initialToken }) {
   };
 
   const token = initialToken || "";
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8085";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
   const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || "";
 
   const [scriptReady, setScriptReady] = useState(false);

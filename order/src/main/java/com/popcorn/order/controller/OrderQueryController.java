@@ -10,10 +10,12 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import com.popcorn.common.security.PassportPrincipal;
+import com.popcorn.common.filter.PassportPrincipal;
 
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.order.dto.query.OrderListQuery;
@@ -553,7 +555,13 @@ public class OrderQueryController {
 
         try {
             // 1. JWT에서 사용자 ID 추출 (PassportPrincipal 사용)
-            Long customerId = principal.getUserId();
+            Long customerId;
+            if (principal != null) {
+                customerId = principal.userId();
+            } else {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                customerId = extractUserIdFromAuthentication(authentication);
+            }
 
             log.info("🎯 JWT에서 추출된 사용자 ID: {}", customerId);
 
@@ -587,6 +595,37 @@ public class OrderQueryController {
 
             return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
                     .body(errorResponse);
+        }
+    }
+
+    private Long extractUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            log.warn("⚠️ 인증 정보가 없습니다. JWT 토큰이 없거나 유효하지 않습니다.");
+            throw new IllegalArgumentException("인증 정보가 없습니다. JWT 토큰을 확인하세요.");
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof PassportPrincipal passportPrincipal) {
+            return passportPrincipal.userId();
+        }
+        if (principal instanceof com.popcorn.common.security.PassportPrincipal passportPrincipal) {
+            return passportPrincipal.getUserId();
+        }
+
+        String userIdStr = authentication.getName();
+        if (userIdStr == null || userIdStr.trim().isEmpty()) {
+            log.warn("⚠️ Authentication에서 사용자 ID를 찾을 수 없습니다.");
+            throw new IllegalArgumentException("JWT 토큰에서 사용자 ID를 추출할 수 없습니다.");
+        }
+
+        try {
+            Long userId = Long.parseLong(userIdStr);
+            log.debug("🔐 JWT에서 사용자 ID 추출 완료: {} (권한: {})",
+                userId, authentication.getAuthorities());
+            return userId;
+        } catch (NumberFormatException e) {
+            log.error("💥 JWT 토큰의 사용자 ID 형식이 잘못되었습니다. 값: {}", userIdStr, e);
+            throw new IllegalArgumentException("JWT 토큰의 사용자 ID 형식이 올바르지 않습니다.", e);
         }
     }
 

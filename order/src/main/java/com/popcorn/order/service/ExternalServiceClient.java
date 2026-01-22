@@ -4,8 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.circuitbreaker.CircuitBreaker;
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -32,6 +35,15 @@ public class ExternalServiceClient {
     private final CircuitBreakerFactory circuitBreakerFactory;
     private final WebClient.Builder webClientBuilder;
 
+    @Value("${microservices.payment.base-url}")
+    private String paymentBaseUrl;
+
+    @Value("${microservices.user.base-url}")
+    private String userBaseUrl;
+
+    @Value("${microservices.inventory.base-url:${microservices.gateway.base-url:http://localhost:8080}}")
+    private String inventoryBaseUrl;
+
     // ========================= 결제 서비스 호출 =========================
 
     /**
@@ -56,8 +68,14 @@ public class ExternalServiceClient {
                     );
 
                     Map<String, Object> response = webClient.post()
-                        .uri("http://localhost:8085/api/pay/v1/payments/process")
+                        .uri(paymentBaseUrl + "/api/pay/v1/payments/process")
                         .bodyValue(paymentRequest)
+                        .headers(headers -> {
+                            String authHeader = resolveAuthHeader();
+                            if (authHeader != null) {
+                                headers.set("Authorization", authHeader);
+                            }
+                        })
                         .retrieve()
                         .bodyToMono(Map.class)
                         .block(Duration.ofSeconds(5));
@@ -100,7 +118,13 @@ public class ExternalServiceClient {
 
                     WebClient webClient = webClientBuilder.build();
                     Map<String, Object> response = webClient.get()
-                        .uri("http://localhost:8082/api/users/v1/{userId}", userId)
+                        .uri(userBaseUrl + "/api/users/v1/{userId}", userId)
+                        .headers(headers -> {
+                            String authHeader = resolveAuthHeader();
+                            if (authHeader != null) {
+                                headers.set("Authorization", authHeader);
+                            }
+                        })
                         .retrieve()
                         .bodyToMono(Map.class)
                         .block(Duration.ofSeconds(3));
@@ -150,8 +174,14 @@ public class ExternalServiceClient {
                     );
 
                     Map<String, Object> response = webClient.post()
-                        .uri("http://localhost:8085/api/inventory/v1/reserve")
+                        .uri(inventoryBaseUrl + "/api/inventory/v1/reserve")
                         .bodyValue(stockRequest)
+                        .headers(headers -> {
+                            String authHeader = resolveAuthHeader();
+                            if (authHeader != null) {
+                                headers.set("Authorization", authHeader);
+                            }
+                        })
                         .retrieve()
                         .bodyToMono(Map.class)
                         .block(Duration.ofSeconds(4));
@@ -252,4 +282,12 @@ public class ExternalServiceClient {
         }
     }
 
+    private String resolveAuthHeader() {
+        ServletRequestAttributes attributes =
+            (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null || attributes.getRequest() == null) {
+            return null;
+        }
+        return attributes.getRequest().getHeader("Authorization");
+    }
 }
