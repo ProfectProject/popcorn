@@ -11,6 +11,16 @@ spring:
           uri: http://localhost:8086     # checkIns 모듈
           predicates:
             - Path=/api/qr/**  # QR 관련 요청은 checkIns로
+          filters:
+            - RewritePath=^/api/qr/(?<remaining>swagger-ui.*), /${remaining}
+        - id: checkin-docs
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/checkins/**   # checkins docs + APIs
+          filters:
+            - RewritePath=^/api/checkins/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/checkins/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/checkins/(?<remaining>webjars.*), /${remaining}
         - id: backend
           uri: http://localhost:8081     # 모놀리식 backend
           predicates:
@@ -19,25 +29,45 @@ spring:
           uri: http://localhost:8082     # 모놀리식 backend
           predicates:
             - Path=/api/users/**          # user-service
+          filters:
+            - RewritePath=^/api/users/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/users/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/users/(?<remaining>webjars.*), /${remaining}
         - id: stores
           uri: http://localhost:8083
           predicates:
             - Path=/api/stores/**         # stores
+          filters:
+            - RewritePath=^/api/stores/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/stores/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/stores/(?<remaining>webjars.*), /${remaining}
         - id: orderQuery
           uri: http://localhost:8087
           predicates:
             - Path=/api/orderquery/**    # order query
+          filters:
+            - RewritePath=^/api/orderquery/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/orderquery/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/orderquery/(?<remaining>webjars.*), /${remaining}
   webflux:
     base-path: /
 
 jwt:
-  secret: bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
 
 springdoc:
   swagger-ui:
     urls:
       - name: user-service
-        url: http://localhost:8082/v3/api-docs
+        url: http://localhost:8080/api/users/v3/api-docs
+      - name: stores-public
+        url: http://localhost:8080/api/stores/v3/api-docs/public
+      - name: stores-owner
+        url: http://localhost:8080/api/stores/v3/api-docs/owner
+      - name: checkIns
+        url: http://localhost:8080/api/checkins/v3/api-docs
+      - name: orderQuery
+        url: http://localhost:8080/api/orderquery/v3/api-docs
         
 logging:
   level:

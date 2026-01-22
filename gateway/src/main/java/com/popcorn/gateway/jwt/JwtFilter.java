@@ -21,11 +21,7 @@ import reactor.core.publisher.Mono;
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_PATH_PREFIXES = List.of(
             "/api/users/v1/auth/login",
-            "/api/users/v1/users/signup",
-            "/api/users/v3/api-docs",
-            "/api/users/swagger-ui",
-            "/v3/api-docs",
-            "/swagger-ui"
+            "/api/users/v1/users/signup"
     );
 
     private final JwtUtil jwtUtils;
@@ -39,7 +35,7 @@ public class JwtFilter implements GlobalFilter, Ordered{
         }
 
         // 1) 로그인/회원가입, 문서 요청은 필터 제외
-        if (EXCLUDE_PATH_PREFIXES.stream().anyMatch(path::startsWith)) {
+        if (EXCLUDE_PATH_PREFIXES.stream().anyMatch(path::startsWith) || isDocumentationRequest(path)) {
             return chain.filter(exchange);
         }
 
@@ -81,5 +77,9 @@ public class JwtFilter implements GlobalFilter, Ordered{
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
         exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
+    }
+
+    private boolean isDocumentationRequest(String path) {
+        return path.contains("/v3/api-docs") || path.contains("/swagger-ui") || path.contains("/webjars");
     }
 }

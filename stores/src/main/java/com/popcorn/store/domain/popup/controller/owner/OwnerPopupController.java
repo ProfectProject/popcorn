@@ -6,12 +6,13 @@ import com.popcorn.store.domain.popup.dto.owner.request.CreatePopupRequest;
 import com.popcorn.store.domain.popup.dto.owner.request.UpdatePopupRequest;
 import com.popcorn.store.domain.popup.dto.owner.request.UpdatePopupStatusRequest;
 import com.popcorn.store.domain.popup.dto.owner.response.PopupCreatedDto;
-import com.popcorn.store.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.store.domain.popup.dto.owner.response.PopupDetailDto;
 import com.popcorn.store.domain.popup.dto.owner.response.PopupDeletedDto;
 import com.popcorn.store.domain.popup.dto.owner.response.PopupListDto;
 import com.popcorn.store.domain.popup.dto.owner.response.PopupStatusUpdatedDto;
 import com.popcorn.store.domain.popup.dto.owner.response.PopupUpdatedDto;
+import com.popcorn.common.filter.PassportPrincipal;
+import com.popcorn.store.domain.popup.exception.owner.OwnerPopupException;
 import com.popcorn.store.domain.popup.service.owner.OwnerPopupService;
 import com.popcorn.store.domain.users.entity.enums.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
@@ -164,28 +165,27 @@ public class OwnerPopupController {
         return ResponseEntity.ok(BaseResponse.success(popupService.deletePopup(userId, popupId)));
     }
 
-
-    // 인증 정보에서 오너 ID를 추출하고 OWNER 권한을 확인합니다.
     private Long getCurrentOwnerId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw OwnerPopupException.unauthenticated();
         }
 
-        Long userId = null;
+        PassportPrincipal passport = authentication.getPrincipal() instanceof PassportPrincipal p ? p : null;
+        Long userId = passport != null ? passport.userId() : null;
+
         Object principal = authentication.getPrincipal();
-        if (principal == null) {
-            throw OwnerPopupException.invalidPrincipal();
-        }
-        if (principal instanceof Long principalId) {
-            userId = principalId;
+        if (userId == null && principal instanceof Number number) {
+            userId = number.longValue();
         }
 
-        String name = authentication.getName();
-        if (userId == null && name != null) {
-            try {
-                userId = Long.parseLong(name);
-            } catch (NumberFormatException ignored) {
-                throw OwnerPopupException.invalidPrincipal();
+        if (userId == null) {
+            String name = authentication.getName();
+            if (name != null && !name.isBlank()) {
+                try {
+                    userId = Long.parseLong(name);
+                } catch (NumberFormatException ex) {
+                    throw OwnerPopupException.invalidPrincipal();
+                }
             }
         }
 
@@ -193,17 +193,30 @@ public class OwnerPopupController {
             throw OwnerPopupException.userIdRequired();
         }
 
-        String roleValue = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(auth -> auth != null && !auth.isBlank())
-                .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
-                .findFirst()
-                .orElseThrow(OwnerPopupException::invalidRole);
+        String roleValue;
+        if (passport != null && passport.role() != null && !passport.role().isBlank()) {
+            roleValue = passport.role();
+        } else {
+            roleValue = authentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .filter(role -> role != null && !role.isBlank())
+                    .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (roleValue == null || roleValue.isBlank()) {
+            throw OwnerPopupException.invalidRole();
+        }
+
+        if (roleValue.startsWith("ROLE_")) {
+            roleValue = roleValue.substring(5);
+        }
 
         UserRole role;
         try {
             role = UserRole.valueOf(roleValue);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException ex) {
             throw OwnerPopupException.invalidRole();
         }
 
