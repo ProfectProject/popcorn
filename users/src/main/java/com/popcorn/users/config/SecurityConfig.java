@@ -15,8 +15,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import com.popcorn.common.filter.HeaderAuthenticationFilter;
 
-import com.popcorn.users.auth.jwt.JwtFilter;
+//import com.popcorn.users.auth.jwt.JwtFilter;
 import com.popcorn.users.auth.jwt.JwtUtil;
 import com.popcorn.users.auth.jwt.LoginFilter;
 
@@ -25,11 +27,13 @@ import java.util.List;
 //TODO: 각 domian
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
 	private final AuthenticationConfiguration authenticationConfiguration;
 	private final JwtUtil jwtUtil;
+	private final HeaderAuthenticationFilter headerAuthenticationFilter;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -57,11 +61,13 @@ public class SecurityConfig {
 						.requestMatchers("/api/auth/login").permitAll()
 						.requestMatchers("/api/users/v1/auth/login").permitAll() // swagger api 테스트
 						.requestMatchers("/api/users/v1/users/signup").permitAll()
-						.requestMatchers("/api/users/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
+						.requestMatchers("/api/users/v1/users/**").permitAll()
+						//.requestMatchers("/api/users/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
 
 			
 						// Swagger UI 관련 엔드포인트 허용
 						.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+							//"/api/users/v3/api-docs/**","/api/users/swagger-ui/**","/api/users/swagger-ui.html").permitAll()
 						// Actuator 엔드포인트 허용
 						.requestMatchers("/actuator/**").permitAll()
 						.anyRequest().authenticated()
@@ -70,7 +76,8 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
 		// JWTFilter 추가
-		http.addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+		//http.addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+		http.addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		// ★ 로그인 필터 추가
 		http.addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class);

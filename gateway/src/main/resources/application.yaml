@@ -23,6 +23,10 @@ spring:
           uri: http://localhost:8083
           predicates:
             - Path=/api/stores/**         # stores
+        - id: orderQuery
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/orderquery/**    # order query
   webflux:
     base-path: /
 
