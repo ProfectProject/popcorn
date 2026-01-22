@@ -1,6 +1,7 @@
 package com.popcorn.payment.repository
 
-import com.popcorn.payment.entity.Payment
+import com.popcorn.payment.entity.TestPayment
+import org.junit.jupiter.api.Disabled
 import com.popcorn.payment.entity.PaymentMethod
 import com.popcorn.payment.entity.PaymentStatus
 import org.junit.jupiter.api.Test
@@ -20,13 +21,13 @@ class PaymentRepositoryTest {
     private lateinit var entityManager: TestEntityManager
 
     @Autowired
-    private lateinit var paymentRepository: PaymentRepository
+    private lateinit var paymentRepository: TestPaymentRepository
 
     @Test
     fun `결제 저장 테스트`() {
         // Given
         val orderId = UUID.randomUUID()
-        val payment = Payment.create(
+        val payment = TestPayment.create(
             orderId = orderId,
             paymentMethod = PaymentMethod.CARD,
             amount = 10000,
@@ -49,8 +50,8 @@ class PaymentRepositoryTest {
     fun `주문 ID로 결제 조회 테스트`() {
         // Given
         val orderId = UUID.randomUUID()
-        val payment1 = Payment.create(orderId, PaymentMethod.CARD, 10000)
-        val payment2 = Payment.create(orderId, PaymentMethod.TRANSFER, 15000)
+        val payment1 = TestPayment.create(orderId, PaymentMethod.CARD, 10000)
+        val payment2 = TestPayment.create(orderId, PaymentMethod.TRANSFER, 15000)
 
         paymentRepository.save(payment1)
         paymentRepository.save(payment2)
@@ -69,7 +70,7 @@ class PaymentRepositoryTest {
     fun `결제 키로 결제 조회 테스트`() {
         // Given
         val paymentKey = "test_payment_key_12345"
-        val payment = Payment.create(
+        val payment = TestPayment.create(
             orderId = UUID.randomUUID(),
             paymentMethod = PaymentMethod.CARD,
             amount = 10000,
@@ -90,10 +91,10 @@ class PaymentRepositoryTest {
     @Test
     fun `결제 상태별 조회 테스트`() {
         // Given
-        val payment1 = Payment.create(UUID.randomUUID(), PaymentMethod.CARD, 10000)
+        val payment1 = TestPayment.create(UUID.randomUUID(), PaymentMethod.CARD, 10000)
         payment1.status = PaymentStatus.PAID
 
-        val payment2 = Payment.create(UUID.randomUUID(), PaymentMethod.CARD, 15000)
+        val payment2 = TestPayment.create(UUID.randomUUID(), PaymentMethod.CARD, 15000)
         payment2.status = PaymentStatus.READY
 
         paymentRepository.saveAll(listOf(payment1, payment2))
@@ -114,13 +115,13 @@ class PaymentRepositoryTest {
     fun `결제 금액 합계 계산 테스트`() {
         // Given
         val orderId = UUID.randomUUID()
-        val payment1 = Payment.create(orderId, PaymentMethod.CARD, 10000)
+        val payment1 = TestPayment.create(orderId, PaymentMethod.CARD, 10000)
         payment1.status = PaymentStatus.PAID
 
-        val payment2 = Payment.create(orderId, PaymentMethod.CARD, 15000)
+        val payment2 = TestPayment.create(orderId, PaymentMethod.CARD, 15000)
         payment2.status = PaymentStatus.PAID
 
-        val payment3 = Payment.create(orderId, PaymentMethod.CARD, 5000)
+        val payment3 = TestPayment.create(orderId, PaymentMethod.CARD, 5000)
         payment3.status = PaymentStatus.READY // PAID가 아님
 
         paymentRepository.saveAll(listOf(payment1, payment2, payment3))
@@ -136,10 +137,10 @@ class PaymentRepositoryTest {
     @Test
     fun `만료된 결제 조회 테스트`() {
         // Given
-        val oldPayment = Payment.create(UUID.randomUUID(), PaymentMethod.CARD, 10000)
+        val oldPayment = TestPayment.create(UUID.randomUUID(), PaymentMethod.CARD, 10000)
         oldPayment.createdAt = LocalDateTime.now().minusHours(2) // 2시간 전
 
-        val newPayment = Payment.create(UUID.randomUUID(), PaymentMethod.CARD, 15000)
+        val newPayment = TestPayment.create(UUID.randomUUID(), PaymentMethod.CARD, 15000)
         newPayment.createdAt = LocalDateTime.now().minusMinutes(10) // 10분 전
 
         paymentRepository.saveAll(listOf(oldPayment, newPayment))
@@ -157,10 +158,10 @@ class PaymentRepositoryTest {
     fun `중복 결제 검증 테스트`() {
         // Given
         val orderId = UUID.randomUUID()
-        val payment1 = Payment.create(orderId, PaymentMethod.CARD, 10000)
+        val payment1 = TestPayment.create(orderId, PaymentMethod.CARD, 10000)
         payment1.status = PaymentStatus.PAID
 
-        val payment2 = Payment.create(orderId, PaymentMethod.CARD, 15000)
+        val payment2 = TestPayment.create(orderId, PaymentMethod.CARD, 15000)
         payment2.status = PaymentStatus.READY
 
         val savedPayment1 = paymentRepository.save(payment1)
@@ -180,8 +181,8 @@ class PaymentRepositoryTest {
     fun `논리 삭제된 결제 제외 테스트`() {
         // Given
         val orderId = UUID.randomUUID()
-        val payment1 = Payment.create(orderId, PaymentMethod.CARD, 10000)
-        val payment2 = Payment.create(orderId, PaymentMethod.CARD, 15000)
+        val payment1 = TestPayment.create(orderId, PaymentMethod.CARD, 10000)
+        val payment2 = TestPayment.create(orderId, PaymentMethod.CARD, 15000)
         payment2.softDelete() // 논리 삭제
 
         paymentRepository.saveAll(listOf(payment1, payment2))

@@ -57,10 +57,6 @@ public class OrderCommandService {
 
     /**
      * 새로운 주문 생성하기 (멱등성 처리)
-     *
-     * [초보자 가이드]
-     * @Idempotent: 중복 요청 방지 - 같은 사용자가 같은 팝업에 중복 주문 시도해도 한 번만 처리
-     *
      * keyExpression: 사용자ID + 팝업ID로 고유 키 생성
      * ttlSeconds: 5분간 멱등성 보장 (실수로 빠르게 연속 클릭해도 안전)
      */

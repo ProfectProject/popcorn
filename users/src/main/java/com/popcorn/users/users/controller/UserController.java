@@ -26,6 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
+import com.popcorn.common.filter.PassportPrincipal;
 import com.popcorn.users.auth.dto.CustomUserDetails;
 import com.popcorn.users.users.dto.SignupRequest;
 import com.popcorn.users.users.dto.SignupResponse;
@@ -248,11 +249,12 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @GetMapping("/mypage")
-    public UserResponse getMyInfo(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
+    public UserResponse getMyInfo(@AuthenticationPrincipal PassportPrincipal principal) {
         // SecurityContext에서 userId 가져오기
-        Long userId = customUserDetails.getUserId();
-        System.out.println("SecurityContext에서 가져온 userId: " + userId);
+        Long userId = principal.userId();
+        System.out.println("gateway header에서 가져온 userId: " + userId);
 
         // DB에서 실제 유저 정보 조회
         User user = userService.getUserById(userId);

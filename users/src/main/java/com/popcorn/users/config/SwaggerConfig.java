@@ -12,10 +12,12 @@ import org.springframework.context.annotation.Configuration;
 public class SwaggerConfig {
 
     private static final String SECURITY_SCHEME_NAME = "Bearer Authentication";
+    //private static final String GATEWAY_SERVER_URL = "http://localhost:8080";
 
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
+                //.servers(List.of(new Server().url(GATEWAY_SERVER_URL)))
                 // 전역 SecurityRequirement 적용
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
                 .components(new Components()

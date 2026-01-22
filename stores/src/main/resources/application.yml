@@ -1,7 +1,7 @@
 # Spring Boot 기본 설정
 spring:
   application:
-    name: store-service
+    name: stores
   data:
     redis:
       repositories:

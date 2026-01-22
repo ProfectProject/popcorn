@@ -1,6 +1,7 @@
 package com.popcorn.payment.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.junit.jupiter.api.Disabled
 import com.popcorn.payment.dto.PaymentConfirmRequest
 import com.popcorn.payment.dto.PaymentCreateRequest
 import com.popcorn.payment.service.TossPaymentConfirmResult
@@ -50,6 +51,10 @@ class PaymentControllerTest {
         @Bean
         @Primary
         fun orderQueryService(): OrderQueryCoroutineService = mockk()
+
+        @Bean
+        @Primary
+        fun paymentApprovalAsyncService(): com.popcorn.payment.service.PaymentApprovalAsyncService = mockk()
     }
 
     @Autowired
@@ -106,7 +111,7 @@ class PaymentControllerTest {
             paymentMethod = "CARD",
             amount = 15000
         )
-        every { paymentTokenUtil.encryptPaymentToken(any(), any(), any(), any(), any(), any()) } returns "test_token"
+        every { paymentTokenUtil.generatePaymentToken(any(), any(), any(), any()) } returns "test_token"
 
         // When & Then
         runBlocking {
