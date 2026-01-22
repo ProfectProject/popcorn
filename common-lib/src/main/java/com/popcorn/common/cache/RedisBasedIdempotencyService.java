@@ -304,19 +304,25 @@ public class RedisBasedIdempotencyService implements IdempotencyService {
 		return (double) metrics.getCacheHitCount() / totalRequests;
 	}
 
-	private record IdempotencyRecord(String key, String responseData, LocalDateTime completedAt) {
-			@JsonCreator
-			private IdempotencyRecord(
-					@JsonProperty("key") String key,
-					@JsonProperty("responseData") String responseData,
-					@JsonProperty("completedAt") LocalDateTime completedAt
-			) {
-				this.key = key;
-				this.responseData = responseData;
-				this.completedAt = completedAt;
-			}
+	private static class IdempotencyRecord {
+		private final String key;
+		private final String responseData;
+		private final LocalDateTime completedAt;
 
+		@JsonCreator
+		public IdempotencyRecord(
+				@JsonProperty("key") String key,
+				@JsonProperty("responseData") String responseData,
+				@JsonProperty("completedAt") LocalDateTime completedAt
+		) {
+			this.key = key;
+			this.responseData = responseData;
+			this.completedAt = completedAt;
+		}
 
+		public String key() { return key; }
+		public String responseData() { return responseData; }
+		public LocalDateTime completedAt() { return completedAt; }
 	}
 
 	private static class IdempotencyMetrics {

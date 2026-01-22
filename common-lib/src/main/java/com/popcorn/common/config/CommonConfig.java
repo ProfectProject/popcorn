@@ -18,8 +18,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorAware")
 @ComponentScan(basePackages = {
-		"com.popcorn.demo.global",
-		"com.popcorn.demo.common"
+		"com.popcorn.common"
 })
 public class CommonConfig {
 
@@ -27,6 +26,16 @@ public class CommonConfig {
 	public ObjectMapper objectMapper() {
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.registerModule(new JavaTimeModule());
+		// Register Kotlin module if present on the classpath.
+		try {
+			Class<?> kotlinModuleClass = Class.forName("com.fasterxml.jackson.module.kotlin.KotlinModule");
+			Object kotlinModule = kotlinModuleClass.getDeclaredConstructor().newInstance();
+			mapper.registerModule((com.fasterxml.jackson.databind.Module) kotlinModule);
+		} catch (ClassNotFoundException ignored) {
+			// Kotlin module not available; skip registration.
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to register KotlinModule", e);
+		}
 		mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 		mapper.disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
 		return mapper;

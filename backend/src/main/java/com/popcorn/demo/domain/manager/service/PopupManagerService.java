@@ -9,12 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.demo.domain.manager.handler.ApprovalNotAllowedException;
 import com.popcorn.demo.domain.manager.handler.NotFoundException;
-import com.popcorn.demo.domain.popup.dto.manager.OrderCancelRequest;
-import com.popcorn.demo.domain.popup.dto.manager.OrderCancelResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderDetailResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderListResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderStatusUpdateRequest;
-import com.popcorn.demo.domain.popup.dto.manager.OrderStatusUpdateResponse;
+import com.popcorn.demo.domain.manager.client.OrderMicroserviceClient;
+import com.popcorn.order.dto.request.OrderCancelRequest;
+import com.popcorn.order.dto.request.OrderStatusUpdateRequest;
+import com.popcorn.order.dto.response.OrderCancelResponse;
+import com.popcorn.order.dto.response.OrderDetailResponse;
+import com.popcorn.order.dto.response.OrderListResponse;
+import com.popcorn.order.dto.response.OrderStatusUpdateResponse;
 import com.popcorn.demo.domain.popup.dto.manager.PendingStoreListResponse;
 import com.popcorn.demo.domain.popup.dto.manager.StoreApproveRequest;
 import com.popcorn.demo.domain.popup.dto.manager.StoreApproveResponse;
@@ -33,9 +34,11 @@ import com.popcorn.demo.domain.popup.repository.owner.OwnerPopupScheduleReposito
 import com.popcorn.demo.domain.popup.repository.view.PopupListView;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PopupManagerService {
 
 	private static final int DEFAULT_PAGE = 1;
@@ -45,33 +48,36 @@ public class PopupManagerService {
 	private final OwnerPopupRepository ownerPopupRepository;
 	private final OwnerPopupScheduleRepository ownerPopupScheduleRepository;
 	private final PopupQueryRepository popupQueryRepository;
+	private final OrderMicroserviceClient orderMicroserviceClient;
 
+	// ========================= Order 마이크로서비스 연동 메서드 =========================
+
+	/**
+	 * 팝업 취소 (Order 마이크로서비스 호출)
+	 */
 	@Transactional
 	public OrderCancelResponse cancelPopup(OrderCancelRequest request, String status) {
 		if (request == null || request.getPopupId() == null) {
 			throw new IllegalArgumentException("팝업 ID가 필요합니다.");
 		}
 
-		Popup popup = findPopup(request.getPopupId());
-		if (popup.getStatus() != PopupStatus.APPROVED && popup.getStatus() != PopupStatus.OPEN) {
-			throw new ApprovalNotAllowedException("승인된 팝업만 취소할 수 있습니다.");
-		}
+		log.info("📞 Order 마이크로서비스 호출 - 팝업 취소: popupId={}", request.getPopupId());
 
-		PopupStatus targetStatus = parseStatus(status);
-		if (targetStatus == PopupStatus.REQUEST) {
-			throw new IllegalArgumentException("요청 상태로 변경할 수 없습니다.");
-		}
+		try {
+			// Order 마이크로서비스로 취소 요청 전달
+			OrderCancelResponse response = orderMicroserviceClient.cancelOrder(request);
+			log.info("✅ Order 마이크로서비스 응답 완료 - 팝업 취소: popupId={}", response.getPopupId());
+			return response;
 
-		Popup saved = applyStatusChange(popup, targetStatus, request.getManagerId());
-		return OrderCancelResponse.builder()
-				.popupId(saved.getId())
-				.status(saved.getStatus())
-				.reason(request.getReason())
-				.updatedAt(saved.getUpdatedAt())
-				.updatedBy(saved.getUpdatedBy())
-				.build();
+		} catch (Exception e) {
+			log.error("❌ Order 마이크로서비스 호출 실패 - 팝업 취소", e);
+			throw new RuntimeException("팝업 취소 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+		}
 	}
 
+	/**
+	 * 팝업 상태 변경 (Order 마이크로서비스 호출)
+	 */
 	@Transactional
 	public OrderStatusUpdateResponse updatePopupStatus(UUID popupId, OrderStatusUpdateRequest request) {
 		if (popupId == null) {
@@ -80,73 +86,70 @@ public class PopupManagerService {
 		if (request == null || request.getStatus() == null) {
 			throw new IllegalArgumentException("변경할 상태가 필요합니다.");
 		}
-		if (request.getStatus() == PopupStatus.REQUEST) {
-			throw new IllegalArgumentException("요청 상태로 변경할 수 없습니다.");
-		}
 
-		Popup popup = findPopup(popupId);
-		Popup saved = applyStatusChange(popup, request.getStatus(), request.getManagerId());
-		return OrderStatusUpdateResponse.builder()
-				.popupId(saved.getId())
-				.status(saved.getStatus())
-				.updatedAt(saved.getUpdatedAt())
-				.updatedBy(saved.getUpdatedBy())
-				.build();
+		log.info("📞 Order 마이크로서비스 호출 - 상태 변경: popupId={}, status={}",
+			popupId, request.getStatus());
+
+		try {
+			// Order 마이크로서비스로 상태 변경 요청 전달
+			OrderStatusUpdateResponse response = orderMicroserviceClient.updateOrderStatus(popupId, request);
+			log.info("✅ Order 마이크로서비스 응답 완료 - 상태 변경: popupId={}", response.getPopupId());
+			return response;
+
+		} catch (Exception e) {
+			log.error("❌ Order 마이크로서비스 호출 실패 - 상태 변경", e);
+			throw new RuntimeException("팝업 상태 변경 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+		}
 	}
 
+	/**
+	 * 팝업 상세 조회 (Order 마이크로서비스 호출)
+	 */
 	@Transactional(readOnly = true)
 	public OrderDetailResponse getPopupDetail(UUID popupId) {
 		if (popupId == null) {
 			throw new IllegalArgumentException("팝업 ID가 필요합니다.");
 		}
 
-		PopupListView view = popupQueryRepository.findPopupDetail(popupId)
-				.orElseThrow(() -> new NotFoundException("팝업 정보를 찾을 수 없습니다."));
+		log.info("📞 Order 마이크로서비스 호출 - 상세 조회: popupId={}", popupId);
 
-		return OrderDetailResponse.builder()
-				.popupId(toUuid(view.getId()))
-				.storeId(toUuid(view.getStoreId()))
-				.title(view.getTitle())
-				.description(view.getDescription())
-				.popupCategory(toCategory(view.getCategory()))
-				.status(toStatus(view.getStatus()))
-				.eventStartAt(view.getEventStartAt())
-				.eventEndAt(view.getEventEndAt())
-				.build();
+		try {
+			// Order 마이크로서비스로 상세 조회 요청 전달
+			OrderDetailResponse response = orderMicroserviceClient.getOrderDetail(popupId);
+			log.info("✅ Order 마이크로서비스 응답 완료 - 상세 조회: popupId={}", response.getPopupId());
+			return response;
+
+		} catch (Exception e) {
+			log.error("❌ Order 마이크로서비스 호출 실패 - 상세 조회", e);
+			throw new RuntimeException("팝업 상세 조회 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+		}
 	}
 
+	/**
+	 * 상태별 팝업 목록 조회 (Order 마이크로서비스 호출)
+	 */
 	@Transactional(readOnly = true)
 	public OrderListResponse getPopupsByStatus(String status, Integer page, Integer size) {
-		PopupStatus targetStatus = parseStatus(status);
+		if (status == null || status.trim().isEmpty()) {
+			throw new IllegalArgumentException("상태는 필수입니다.");
+		}
+
 		int normalizedPage = normalizePage(page);
 		int normalizedSize = normalizeSize(size);
-		long offset = (long) (normalizedPage - 1) * normalizedSize;
 
-		List<PopupListView> views = popupQueryRepository.findPopupsByStatus(
-				targetStatus.name(),
-				normalizedSize,
-				offset
-		);
-		long total = popupQueryRepository.countPopupsByStatus(targetStatus.name());
+		log.info("📞 Order 마이크로서비스 호출 - 목록 조회: status={}, page={}, size={}",
+			status, normalizedPage, normalizedSize);
 
-		List<OrderListResponse.ItemDto> items = views.stream()
-				.map(view -> OrderListResponse.ItemDto.builder()
-						.popupId(toUuid(view.getId()))
-						.storeId(toUuid(view.getStoreId()))
-						.title(view.getTitle())
-						.popupCategory(toCategory(view.getCategory()))
-						.status(toStatus(view.getStatus()))
-						.eventStartAt(view.getEventStartAt())
-						.eventEndAt(view.getEventEndAt())
-						.build())
-				.toList();
+		try {
+			// Order 마이크로서비스로 목록 조회 요청 전달
+			OrderListResponse response = orderMicroserviceClient.getOrderList(status, normalizedPage, normalizedSize);
+			log.info("✅ Order 마이크로서비스 응답 완료 - 목록 조회: total={}", response.getTotal());
+			return response;
 
-		return OrderListResponse.builder()
-				.items(items)
-				.page(normalizedPage)
-				.size(normalizedSize)
-				.total(total)
-				.build();
+		} catch (Exception e) {
+			log.error("❌ Order 마이크로서비스 호출 실패 - 목록 조회", e);
+			throw new RuntimeException("팝업 목록 조회 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+		}
 	}
 
 	@Transactional

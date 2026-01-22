@@ -5,6 +5,16 @@ const nextConfig = {
   experimental: {
     // 최적화된 이미지 빌드
     outputFileTracingRoot: require('path').join(__dirname, '../'),
+  },
+  async redirects() {
+    return [
+      {
+        source: '/payments',
+        has: [{ type: 'query', key: 'token' }],
+        destination: '/auto-payment?token=:token',
+        permanent: false
+      }
+    ];
   }
 };
 

@@ -898,23 +898,23 @@ curl -X POST http://localhost:8080/api/v1/chaos/extreme-mode
 
 ```bash
 # 1️⃣ 정상 상태 확인
-curl http://localhost:8080/api/v1/payments/toss/confirm
+curl http://localhost:8080/api/pay/v1/payments/toss/confirm
 # → "결제 성공! 0.8초"
 
 # 2️⃣ Chaos Monkey 공격 시작
 curl -X POST http://localhost:8080/api/v1/chaos/scenarios/payment-failure
 
 # 3️⃣ 다시 결제 시도
-curl http://localhost:8080/api/v1/payments/toss/confirm
+curl http://localhost:8080/api/pay/v1/payments/toss/confirm
 # → "💳 결제 시스템 장애 발생!" (몇 번 반복)
 
 # 4️⃣ Circuit Breaker 열림!
-curl http://localhost:8080/api/v1/payments/toss/confirm
+curl http://localhost:8080/api/pay/v1/payments/toss/confirm
 # → "🚨 결제 API 서비스가 불안정합니다" (0.1초 만에 응답!)
 
 # 5️⃣ 30초 후 자동 복구
 sleep 30
-curl http://localhost:8080/api/v1/payments/toss/confirm
+curl http://localhost:8080/api/pay/v1/payments/toss/confirm
 # → "결제 성공! 0.8초" (자동 복구 완료)
 ```
 

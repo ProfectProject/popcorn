@@ -16,7 +16,7 @@ import org.mockito.Mockito;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
-import com.popcorn.demo.domain.order.entity.OrderItem;
+import com.popcorn.order.entity.OrderItem;
 
 class InventoryServiceTest {
 

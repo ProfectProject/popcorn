@@ -26,7 +26,6 @@ configurations {
 
 dependencyManagement {
 	dependencies {
-		dependency 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
 		dependency 'org.apache.commons:commons-lang3:3.17.0'
 	}
 }
@@ -49,7 +48,7 @@ dependencies {
 	}
 
 	// Swagger/OpenAPI 3 (Spring Boot 3.5.x 호환 버전)
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'

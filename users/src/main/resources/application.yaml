@@ -3,6 +3,9 @@ spring:
     name: users
   profiles:
     default: local
+  docker:
+    compose:
+      enabled: false
 
 ---
 

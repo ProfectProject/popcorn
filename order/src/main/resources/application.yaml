@@ -1,0 +1,176 @@
+# Order Service 기본 설정
+# 프로필별 상세 설정은 security/ 폴더 참조
+
+server:
+  port: 8084
+
+spring:
+  application:
+    name: order-service
+
+  # 기본 프로필 설정
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  # 설정 파일 import
+  config:
+    import:
+      - classpath:security/application-${spring.profiles.active}.yml
+
+  # 기본 데이터베이스 설정 (프로필별로 오버라이드 가능)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    username: ${ORDER_DB_USERNAME:order_app}
+    password: ${ORDER_DB_PASSWORD:order123}
+    driver-class-name: org.postgresql.Driver
+
+  # 기본 JPA 설정 (프로필별로 오버라이드 가능)
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}  # 기본값은 validate
+    show-sql: ${JPA_SHOW_SQL:true}        # 기본값은 true (개발용)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${JPA_FORMAT_SQL:true}  # 기본값은 true (개발용)
+
+  # 기본 Flyway 설정
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE:true}
+    locations: classpath:db/migration/order
+
+  # Docker Compose 자동 실행 비활성화 (개발 편의성)
+  docker:
+    compose:
+      enabled: ${DOCKER_COMPOSE_AUTO:false}  # Docker 자동 실행 끄기
+
+  # Redis 설정 (캐싱용)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}  # Redis 패스워드 (필요시 설정)
+      timeout: 2000ms
+      database: ${REDIS_DATABASE:1}  # Order 서비스 전용 DB (0은 backend, 1은 order)
+      connection-timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 10
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+
+  # 캐시 설정
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10분 TTL
+      cache-null-values: false
+
+# 기본 로깅 설정 (프로필별로 오버라이드 가능)
+logging:
+  level:
+    com.popcorn.order: ${LOG_LEVEL_ORDER:DEBUG}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_BINDER:TRACE}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# 관리용 엔드포인트 (모니터링)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# OpenAPI 문서 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# 애플리케이션 정보
+info:
+  app:
+    name: Order Service
+    description: 주문 관리 마이크로서비스
+    version: 1.0.0
+
+# Resilience4j 설정 (Circuit Breaker, Retry, Rate Limiter)
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentService:
+        failure-rate-threshold: 60
+        minimum-number-of-calls: 5
+        sliding-window-size: 15
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      userService:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        sliding-window-size: 10
+        wait-duration-in-open-state: 5s
+      default:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        sliding-window-size: 10
+        wait-duration-in-open-state: 5s
+  retry:
+    instances:
+      paymentService:
+        max-attempts: 3
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+      userService:
+        max-attempts: 3
+        wait-duration: 1s
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+  ratelimiter:
+    instances:
+      paymentService:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 1s
+      userService:
+        limit-for-period: 200
+        limit-refresh-period: 1s
+        timeout-duration: 1s
+
+# 마이크로서비스 간 통신 설정
+microservices:
+  payment:
+    base-url: ${PAYMENT_SERVICE_URL:http://localhost:8080}
+    timeout: 30s
+  user:
+    base-url: ${USER_SERVICE_URL:http://localhost:8082}
+    timeout: 30s
+  store:
+    base-url: ${STORE_SERVICE_URL:http://localhost:8083}
+    timeout: 30s
+  gateway:
+    base-url: ${GATEWAY_URL:http://localhost:8080}
+    timeout: 10s
+
+# 커스텀 설정
+order:
+  # 주문 관련 비즈니스 설정
+  payment:
+    timeout: ${ORDER_PAYMENT_TIMEOUT:30000}  # 결제 대기 시간 (30초)
+  cancel:
+    timeout: ${ORDER_CANCEL_TIMEOUT:1800}   # 취소 가능 시간 (30분)
+  validation:
+    max-quantity: ${ORDER_MAX_QUANTITY:100}  # 최대 주문 수량
+    min-quantity: ${ORDER_MIN_QUANTITY:1}    # 최소 주문 수량
+  notification:
+    enabled: ${ORDER_NOTIFICATION_ENABLED:true}  # 알림 활성화
+    retry-count: ${ORDER_NOTIFICATION_RETRY:3}   # 알림 재시도 횟수

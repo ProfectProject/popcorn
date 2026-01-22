@@ -3,8 +3,12 @@ package com.popcorn.checkIns.controller;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+
+import com.popcorn.common.security.PassportPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,10 +45,12 @@ public class QrController extends BaseController {
 			summary = "QR 발급",
 			description = "PAID 상태의 주문에 대해 QR 코드를 발급합니다."
 	)
+	@PreAuthorize("hasRole('CUSTOMER')")
 	@PostMapping("/orders/{orderId}")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> issueQr(
 			@Parameter(description = "주문 ID", example = "00000000-0000-0000-0000-000000001001")
-			@PathVariable UUID orderId) {
+			@PathVariable UUID orderId,
+			@AuthenticationPrincipal PassportPrincipal principal) {
 		QrCodeResponse response = qrCodeService.issue(orderId);
 		return ok(response);
 	}
@@ -53,10 +59,12 @@ public class QrController extends BaseController {
 			summary = "QR 조회",
 			description = "PAID 상태의 주문에 연결된 QR 코드를 조회합니다."
 	)
+	@PreAuthorize("hasRole('CUSTOMER')")
 	@GetMapping("/orders/{orderId}")
 	public ResponseEntity<BaseResponse<QrCodeResponse>> getQr(
 			@Parameter(description = "주문 ID", example = "00000000-0000-0000-0000-000000001001")
-			@PathVariable UUID orderId) {
+			@PathVariable UUID orderId,
+			@AuthenticationPrincipal PassportPrincipal principal) {
 		QrCodeResponse response = qrCodeService.get(orderId);
 		return ok(response);
 	}
@@ -65,9 +73,11 @@ public class QrController extends BaseController {
 			summary = "QR 검증",
 			description = "스캐너 전용 QR 코드 검증 API입니다."
 	)
+	@PreAuthorize("hasRole('MANAGER') or hasRole('OWNER')")
 	@PostMapping("/verify")
 	public ResponseEntity<BaseResponse<QrVerifyResponse>> verifyQr(
-			@Valid @RequestBody QrVerifyRequest request) {
+			@Valid @RequestBody QrVerifyRequest request,
+			@AuthenticationPrincipal PassportPrincipal principal) {
 		QrVerifyResponse response = qrCodeService.verify(request.getQrCode());
 		return ok(response);
 	}

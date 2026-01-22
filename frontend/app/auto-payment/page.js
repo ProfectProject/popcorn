@@ -12,6 +12,7 @@ export default function AutoPaymentPage() {
   const [loading, setLoading] = useState(true);
   const paymentExecuted = useRef(false); // 🔒 중복 실행 방지
   const dataFetched = useRef(false); // 🔒 API 중복 호출 방지
+  const startKeyRef = useRef(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function AutoPaymentPage() {
       dataFetched.current = true;
 
       try {
-        const response = await fetch(`${apiBase}/api/v1/payments/decode?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`${apiBase}/api/pay/v1/payments/decode?token=${encodeURIComponent(token)}`);
 
         if (!response.ok) {
           setError('❌ 유효하지 않은 결제 토큰입니다.');
@@ -71,6 +72,15 @@ export default function AutoPaymentPage() {
     // 🔒 중복 실행 방지: 즉시 실행 플래그 설정
     paymentExecuted.current = true;
     setPaymentStarted(true);
+    if (typeof window !== 'undefined' && token) {
+      const storageKey = `payment-started:${token}`;
+      startKeyRef.current = storageKey;
+      if (window.sessionStorage.getItem(storageKey)) {
+        setError('이미 결제가 진행 중입니다. 새로고침하지 마세요.');
+        return;
+      }
+      window.sessionStorage.setItem(storageKey, '1');
+    }
 
     try {
       if (!window.TossPayments) {
@@ -82,7 +92,7 @@ export default function AutoPaymentPage() {
       const tossPayments = window.TossPayments(clientKey);
 
       await tossPayments.requestPayment('CARD', {
-        orderId: paymentInfo.orderNo, // 토스는 orderNo를 사용
+        orderId: paymentInfo.orderId || paymentInfo.orderNo,
         orderName: `Popcorn Order ${paymentInfo.orderNo}`,
         amount: paymentInfo.amount,
         customerKey: paymentInfo.customerKey,
@@ -97,6 +107,9 @@ export default function AutoPaymentPage() {
       // 🔄 에러 발생 시 재시도 가능하도록 플래그 리셋
       paymentExecuted.current = false;
       setPaymentStarted(false);
+      if (typeof window !== 'undefined' && startKeyRef.current) {
+        window.sessionStorage.removeItem(startKeyRef.current);
+      }
 
       // 5초 후 테스트 페이지로 리다이렉트
       setTimeout(() => {

@@ -15,12 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.popcorn.common.controller.BaseController;
 import com.popcorn.common.dto.BaseResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderCancelRequest;
-import com.popcorn.demo.domain.popup.dto.manager.OrderCancelResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderDetailResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderListResponse;
-import com.popcorn.demo.domain.popup.dto.manager.OrderStatusUpdateRequest;
-import com.popcorn.demo.domain.popup.dto.manager.OrderStatusUpdateResponse;
+import com.popcorn.order.dto.request.OrderCancelRequest;
+import com.popcorn.order.dto.request.OrderStatusUpdateRequest;
+import com.popcorn.order.dto.response.OrderCancelResponse;
+import com.popcorn.order.dto.response.OrderDetailResponse;
+import com.popcorn.order.dto.response.OrderListResponse;
+import com.popcorn.order.dto.response.OrderStatusUpdateResponse;
 import com.popcorn.demo.domain.popup.dto.manager.PendingStoreListResponse;
 import com.popcorn.demo.domain.popup.dto.manager.StoreApproveRequest;
 import com.popcorn.demo.domain.popup.dto.manager.StoreApproveResponse;
@@ -43,7 +43,9 @@ public class ManagerPopupController extends BaseController {
 
     private final PopupManagerService popupManagerService;
 
-    @PostMapping
+    // ========================= Order 마이크로서비스 연동 API =========================
+
+    @PostMapping("/cancel")
     public ResponseEntity<BaseResponse<OrderCancelResponse>> cancelPopup(
             @RequestParam(required = false, defaultValue = "CANCELLED") String status,
             @RequestBody OrderCancelRequest request) {
@@ -57,12 +59,12 @@ public class ManagerPopupController extends BaseController {
         return ok(popupManagerService.updatePopupStatus(popupId, request));
     }
 
-    @GetMapping("/{popupId}")
+    @GetMapping("/{popupId}/detail")
     public ResponseEntity<BaseResponse<OrderDetailResponse>> getPopupDetail(@PathVariable UUID popupId) {
         return ok(popupManagerService.getPopupDetail(popupId));
     }
 
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<BaseResponse<OrderListResponse>> getApprovedPopups(
             @RequestParam String status,
             @RequestParam(required = false, defaultValue = "1") Integer page,

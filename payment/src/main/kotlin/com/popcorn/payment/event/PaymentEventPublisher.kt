@@ -1,0 +1,147 @@
+package com.popcorn.payment.event
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.stereotype.Component
+
+/**
+ * 결제 이벤트 발행 서비스 구현체
+ */
+@Component
+class PaymentEventPublisherImpl(
+    private val applicationEventPublisher: ApplicationEventPublisher
+) : PaymentEventPublisher {
+
+    private val log = LoggerFactory.getLogger(PaymentEventPublisherImpl::class.java)
+    private val eventScope = CoroutineScope(Dispatchers.Default)
+
+    /**
+     * 단일 이벤트 발행
+     */
+    override suspend fun publish(event: PaymentEvent) {
+        try {
+            log.debug("📨 이벤트 발행: {}", event::class.simpleName)
+            applicationEventPublisher.publishEvent(event)
+        } catch (e: Exception) {
+            log.error("❌ 이벤트 발행 실패: event={}, error={}", event::class.simpleName, e.message, e)
+            // 이벤트 발행 실패해도 메인 로직에는 영향 없음
+        }
+    }
+
+    /**
+     * 다중 이벤트 발행
+     */
+    override suspend fun publishAll(events: List<PaymentEvent>) {
+        events.forEach { event ->
+            eventScope.launch {
+                publish(event)
+            }
+        }
+    }
+
+    /**
+     * 비동기 이벤트 발행 (Fire and Forget)
+     */
+    fun publishAsync(event: PaymentEvent) {
+        eventScope.launch {
+            publish(event)
+        }
+    }
+
+    /**
+     * 결제 생성 이벤트 발행
+     */
+    suspend fun publishPaymentCreated(
+        paymentId: java.util.UUID,
+        orderId: java.util.UUID,
+        orderNo: String,
+        amount: Int,
+        paymentMethod: String,
+        customerId: Long?
+    ) {
+        val event = PaymentCreatedEvent(
+            paymentId = paymentId,
+            orderId = orderId,
+            orderNo = orderNo,
+            amount = amount,
+            paymentMethod = paymentMethod,
+            customerId = customerId
+        )
+        publish(event)
+    }
+
+    /**
+     * 결제 승인 이벤트 발행
+     */
+    suspend fun publishPaymentApproved(
+        paymentId: java.util.UUID,
+        orderId: java.util.UUID,
+        orderNo: String,
+        amount: Int,
+        paymentMethod: String,
+        paymentKey: String?,
+        approvedAt: java.time.LocalDateTime,
+        customerId: Long?
+    ) {
+        val event = PaymentApprovedEvent(
+            paymentId = paymentId,
+            orderId = orderId,
+            orderNo = orderNo,
+            amount = amount,
+            paymentMethod = paymentMethod,
+            paymentKey = paymentKey,
+            approvedAt = approvedAt,
+            customerId = customerId
+        )
+        publish(event)
+    }
+
+    /**
+     * 결제 실패 이벤트 발행
+     */
+    suspend fun publishPaymentFailed(
+        paymentId: java.util.UUID,
+        orderId: java.util.UUID,
+        orderNo: String,
+        amount: Int,
+        paymentMethod: String,
+        failureReason: String,
+        customerId: Long?
+    ) {
+        val event = PaymentFailedEvent(
+            paymentId = paymentId,
+            orderId = orderId,
+            orderNo = orderNo,
+            amount = amount,
+            paymentMethod = paymentMethod,
+            failureReason = failureReason,
+            customerId = customerId
+        )
+        publish(event)
+    }
+
+    /**
+     * 결제 취소 이벤트 발행
+     */
+    suspend fun publishPaymentCancelled(
+        paymentId: java.util.UUID,
+        orderId: java.util.UUID,
+        orderNo: String,
+        cancelAmount: Int,
+        cancelReason: String,
+        customerId: Long?
+    ) {
+        val event = PaymentCancelledEvent(
+            paymentId = paymentId,
+            orderId = orderId,
+            orderNo = orderNo,
+            cancelAmount = cancelAmount,
+            cancelReason = cancelReason,
+            customerId = customerId
+        )
+        publish(event)
+    }
+}

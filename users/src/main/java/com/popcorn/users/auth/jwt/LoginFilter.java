@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.util.StreamUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.users.auth.jwt.JwtUtil;
 import com.popcorn.users.auth.dto.CustomUserDetails;
 import com.popcorn.users.auth.dto.LoginRequest;
 

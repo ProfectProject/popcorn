@@ -2,6 +2,9 @@
 spring:
   application:
     name: popcorn-demo
+  docker:
+    compose:
+      enabled: false
   data:
     redis:
       repositories:
@@ -136,17 +139,27 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 5  # Half-Open에서 허용할 호출 수
         automatic-transition-from-open-to-half-open-enabled: true
 
+      # 마이크로서비스 Circuit Breaker 설정
       orderService:
         failure-rate-threshold: 60           # 주문 서비스는 더 관대하게
         minimum-number-of-calls: 5
         sliding-window-size: 15
-        wait-duration-in-open-state: 5s
+        wait-duration-in-open-state: 10s
+        register-health-indicator: true
 
       paymentService:
         failure-rate-threshold: 30           # 결제 서비스는 더 엄격하게
         minimum-number-of-calls: 3
         sliding-window-size: 10
         wait-duration-in-open-state: 15s
+        register-health-indicator: true
+
+      gatewayService:
+        failure-rate-threshold: 70           # 게이트웨이는 가장 관대하게
+        minimum-number-of-calls: 10
+        sliding-window-size: 20
+        wait-duration-in-open-state: 5s
+        register-health-indicator: true
 
       tossPaymentApi:                         # 🎯 TossPayments API 전용 설정
         failure-rate-threshold: 50           # 외부 API 50% 실패 시 열기
@@ -167,14 +180,21 @@ resilience4j:
         wait-duration: 1s                    # 재시도 간격
         exponential-backoff-multiplier: 2    # 지수 백오프
 
+      # 마이크로서비스 Retry 설정
       orderService:
-        max-attempts: 2
-        wait-duration: 500ms
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
 
       paymentService:
         max-attempts: 5                      # 결제는 더 많이 재시도
         wait-duration: 2s
         exponential-backoff-multiplier: 2
+
+      gatewayService:
+        max-attempts: 2
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 1.5
 
       tossPaymentApi:                        # 🎯 TossPayments API 재시도 설정
         max-attempts: 3                     # 최대 3회 시도 (원본 + 재시도 1회)
@@ -190,6 +210,7 @@ resilience4j:
         limit-refresh-period: 1s             # 제한 갱신 주기
         timeout-duration: 0s                 # 타임아웃 (0s = 즉시 실패)
 
+      # 마이크로서비스 Rate Limiter 설정
       orderApi:
         limit-for-period: 50
         limit-refresh-period: 1s
@@ -200,6 +221,11 @@ resilience4j:
         limit-refresh-period: 1s
         timeout-duration: 200ms
 
+      gatewayApi:
+        limit-for-period: 100                # 게이트웨이는 더 관대하게
+        limit-refresh-period: 1s
+        timeout-duration: 50ms
+
   # Bulkhead 설정 (격리)
   bulkhead:
     instances:
@@ -207,11 +233,15 @@ resilience4j:
         max-concurrent-calls: 25             # 최대 동시 호출 수
         max-wait-duration: 0s                # 대기 시간 없음
 
+      # 마이크로서비스 Bulkhead 설정
       orderService:
         max-concurrent-calls: 15
 
       paymentService:
         max-concurrent-calls: 10             # 결제는 더 제한적으로
+
+      gatewayService:
+        max-concurrent-calls: 20             # 게이트웨이는 더 관대하게
 
   # Time Limiter 설정
   timelimiter:
@@ -220,11 +250,17 @@ resilience4j:
         timeout-duration: 2s                 # 기본 타임아웃
         cancel-running-future: true
 
+      # 마이크로서비스 Time Limiter 설정
       orderService:
         timeout-duration: 3s
+        cancel-running-future: true
 
       paymentService:
         timeout-duration: 5s                 # 결제는 더 오래 대기
+
+      gatewayService:
+        timeout-duration: 2s                 # 게이트웨이는 빠르게
+        cancel-running-future: true
 
       tossPaymentApi:                        # 🎯 TossPayments API 타임아웃 설정
         timeout-duration: 5s                 # 외부 API 5초 타임아웃
@@ -319,7 +355,7 @@ spring:
 
 # 기본 테스트 환경 설정 (application-test.yml이 추가 설정 제공)
 jwt:
-  secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItdGVzdC1lbnZpcm9ubWVudC1vbmx5
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
 
 toss:

@@ -57,7 +57,7 @@ class SecurityConfigTest {
                 .andExpect(status().isForbidden());
 
         // Payment endpoints
-        mockMvc.perform(get("/api/v1/payments"))
+        mockMvc.perform(get("/api/pay/v1/payments"))
                 .andExpect(status().isForbidden());
     }
 

@@ -7,10 +7,13 @@ spring:
   config:
     activate:
       on-profile: local
+  docker:
+    compose:
+      enabled: false
   datasource:
-    url: jdbc:postgresql://localhost:5430/popcorn_db
-    username: user_auth_app
-    password: 1234
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    username: ${USER_AUTH_DB_USERNAME:user_auth_app}
+    password: ${USER_AUTH_DB_PASSWORD:user123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -28,18 +31,27 @@ spring:
 
   flyway:
     enabled: true
-    url: jdbc:postgresql://localhost:5430/popcorn_db #jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user:  user_auth_migrator #${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
-    password: user123 #${USER_AUTH_FLYWAY_PASSWORD:user123}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    user: ${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
+    password: ${USER_AUTH_FLYWAY_PASSWORD:user123}
     schemas: user_auth
     locations: classpath:db/migration/schema
     baseline-on-migrate: true
+    validate-on-migrate: true
     clean-disabled: false
     
 
 jwt:
-  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
   expiration: 3600000
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
 
 logging:
   level:

@@ -455,6 +455,17 @@ public class UserController {
                 .toList();
     }
 
+    /**
+     * 내부 서비스용 주소 조회 (userId 기반)
+     */
+    @GetMapping("/{userId}/addresses")
+    public List<UserAddressResponse> getUserAddressesByUserId(@PathVariable Long userId) {
+        List<UserAddress> addresses = userService.getUserAddresses(userId);
+        return addresses.stream()
+                .map(UserAddressResponse::from)
+                .toList();
+    }
+
     // 주소 
     @Operation(
     summary = "내 주소 등록",
@@ -609,4 +620,3 @@ public class UserController {
     }
 
 }
-

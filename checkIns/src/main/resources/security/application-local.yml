@@ -35,6 +35,14 @@ spring:
       QR_MIGRATOR_PASSWORD: qr321
       QR_APP_PASSWORD: qr123
 
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
 logging:
   level:
     com.popcorn.checkIns: DEBUG
