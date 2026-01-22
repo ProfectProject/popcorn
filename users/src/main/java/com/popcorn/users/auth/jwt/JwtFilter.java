@@ -1,4 +1,4 @@
-package com.popcorn.users.auth.jwt;
+/*package com.popcorn.users.auth.jwt;
 
 import java.io.IOException;
 
@@ -128,4 +128,4 @@ public class JwtFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
-}
+}*/
