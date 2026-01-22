@@ -4,8 +4,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-@SpringBootApplication
-@EnableJpaAuditing
+@SpringBootApplication(scanBasePackages = {
+        "com.popcorn.users",
+        "com.popcorn.demo.common"
+})
+//@EnableJpaAuditing
 public class UsersApplication {
 
 	public static void main(String[] args) {
