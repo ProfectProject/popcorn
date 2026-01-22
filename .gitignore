@@ -49,12 +49,7 @@ out/
 
 # Environment variables
 .env
-.env.*
-.env.qr
 backend/env
-backend/env.**
-checkIns/.env*
-
 
 # Local notes
 There
@@ -81,8 +76,3 @@ frontend/.pnpm-debug.log*
 
 # k6 files
 k6
-
-# 마이그레이션 파일
-/V0__roles_and_privileges.sql
-/scripts/
-

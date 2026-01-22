@@ -59,7 +59,7 @@ services:
     volumes:
       - postgres_extreme_data:/var/lib/postgresql/data
     ports:
-      - "5430:5432"
+      - "5432:5432"
     networks:
       - extreme-test-net
     healthcheck:

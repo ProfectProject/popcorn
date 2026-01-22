@@ -23,7 +23,7 @@ import com.popcorn.demo.domain.order.controller.OrderExceptionHandler;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.service.TossPaymentService;
-import com.popcorn.common.config.CommonConfig;
+import com.popcorn.demo.common.config.CommonConfig;
 
 @DisplayName("토스 결제 승인 API 테스트")
 class TossPaymentControllerTest {

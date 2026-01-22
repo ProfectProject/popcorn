@@ -9,10 +9,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
-import com.popcorn.common.cache.IdempotencyCacheStats;
-import com.popcorn.common.cache.IdempotencyService;
-import com.popcorn.common.cache.IdempotentOperation;
-import com.popcorn.common.cache.RedisIdempotencyCacheStats;
+import com.popcorn.demo.common.cache.IdempotencyCacheStats;
+import com.popcorn.demo.common.cache.IdempotencyService;
+import com.popcorn.demo.common.cache.IdempotentOperation;
+import com.popcorn.demo.common.cache.RedisIdempotencyCacheStats;
 
 import lombok.extern.slf4j.Slf4j;
 

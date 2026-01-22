@@ -2,7 +2,7 @@ package com.popcorn.demo.domain.order.entity;
 
 import java.util.UUID;
 
-import com.popcorn.common.entity.BaseEntity;
+import com.popcorn.demo.common.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

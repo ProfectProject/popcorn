@@ -31,7 +31,7 @@ import com.popcorn.demo.domain.order.service.OrderQueryService;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.users.entity.User;
 import com.popcorn.demo.domain.users.entity.enums.UserRole;
-import com.popcorn.common.config.CommonConfig;
+import com.popcorn.demo.common.config.CommonConfig;
 import com.popcorn.demo.domain.payment.service.PaymentCommandService;
 import com.popcorn.demo.domain.payment.service.PaymentTokenService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsProperties;

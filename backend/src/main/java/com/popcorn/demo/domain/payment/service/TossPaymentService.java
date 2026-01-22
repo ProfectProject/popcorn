@@ -23,15 +23,14 @@ import com.popcorn.demo.domain.payment.entity.Payment;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
-// QR 관련 import 제거됨 - checkIns 모듈로 이동
-// import com.popcorn.demo.domain.qr.service.QrCodeService;
+import com.popcorn.demo.domain.qr.service.QrCodeService;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsClient;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsConfirmResponse;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelRequest;
 import com.popcorn.demo.domain.payment.toss.TossPaymentsCancelResponse;
 import com.popcorn.demo.domain.payment.event.PaymentSuccessEvent;
-import com.popcorn.common.cache.IdempotencyService;
+import com.popcorn.demo.common.cache.IdempotencyService;
 
 import lombok.Builder;
 import lombok.Getter;

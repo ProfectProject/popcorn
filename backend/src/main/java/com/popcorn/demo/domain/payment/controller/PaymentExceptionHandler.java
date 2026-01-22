@@ -7,12 +7,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import com.popcorn.common.controller.BaseController;
-import com.popcorn.common.dto.BaseError;
-import com.popcorn.common.dto.BaseResponse;
-import com.popcorn.common.dto.CommonResponseCode;
+import com.popcorn.demo.common.controller.BaseController;
+import com.popcorn.demo.common.dto.BaseError;
+import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
-import com.popcorn.common.exception.BaseException;
+import com.popcorn.demo.common.exception.BaseException;
 
 import lombok.extern.slf4j.Slf4j;
 

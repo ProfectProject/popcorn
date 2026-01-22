@@ -1,4 +1,4 @@
-package com.popcorn.common;
+package com.popcorn.demo.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.demo.DemoApplication;
