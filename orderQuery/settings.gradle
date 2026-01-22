@@ -1,0 +1,4 @@
+rootProject.name = 'orderQuery'
+
+include 'common-lib'
+project(':common-lib').projectDir = file('../common-lib')
