@@ -1,9 +1,8 @@
 package com.popcorn.store.domain.store.controller.owner;
 
-import com.popcorn.store.domain.store.exception.StoreException;
-import com.popcorn.store.domain.users.entity.enums.UserRole;
+import com.popcorn.common.annotation.Idempotent;
+import com.popcorn.store.global.security.OwnerAuthenticationResolver;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -61,11 +60,18 @@ public class StoreController extends BaseController {
         @ApiResponse(responseCode = "409", description = "중복된 스토어 이름")
     })
     @PostMapping
+    @Idempotent(
+            keyExpression = "(#authentication?.name ?: 'unknown') + ':store:create:' "
+                    + "+ @idempotencyKeyGenerator.hash(#request)",
+            keyPrefix = "store",
+            responseType = StoreCreatedDto.class,
+            ttlSeconds = 600
+    )
     public ResponseEntity<BaseResponse<StoreCreatedDto>> createStore(
             @Parameter(description = "스토어 생성 요청 데이터", required = true) @Valid @RequestBody CreateStoreRequest request,
             Authentication authentication) {
 
-        Long userId = getCurrentOwnerId(authentication);
+        Long userId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.success(storeService.createStore(userId, request)));
     }
@@ -79,7 +85,7 @@ public class StoreController extends BaseController {
     @GetMapping("")
     public ResponseEntity<BaseResponse<List<StoreListDto>>> getMyStores(Authentication authentication) {
         
-        Long userId = getCurrentOwnerId(authentication);
+        Long userId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ResponseEntity.ok(BaseResponse.success(storeService.getStoresByOwnerId(userId)));
     }
 
@@ -95,7 +101,7 @@ public class StoreController extends BaseController {
     public ResponseEntity<BaseResponse<StoreDetailDto>> getStoreDetail(Authentication authentication,
             @PathVariable UUID storeId) {
         
-        Long userId = getCurrentOwnerId(authentication);
+        Long userId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ResponseEntity.ok(BaseResponse.success(storeService.getStoreDetail(userId, storeId)));
     }
 
@@ -115,7 +121,7 @@ public class StoreController extends BaseController {
             @PathVariable UUID storeId,
             @Valid @RequestBody UpdateStoreRequest request) {
         
-        Long userId = getCurrentOwnerId(authentication);
+        Long userId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ResponseEntity.ok(BaseResponse.success(storeService.updateStore(storeId, request, userId)));
     }
 
@@ -132,7 +138,7 @@ public class StoreController extends BaseController {
             Authentication authentication,
             @PathVariable UUID storeId) {
         
-        Long userId = getCurrentOwnerId(authentication);
+        Long userId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         StoreDeletedDto deletedStore = storeService.deleteStore(storeId, userId);
         return ResponseEntity.ok(BaseResponse.success(deletedStore));
     }
@@ -151,57 +157,9 @@ public class StoreController extends BaseController {
             @PathVariable UUID storeId,
             @Valid @RequestBody UpdateStoreStatusRequest request) {
         
-        Long userId = getCurrentOwnerId(authentication);
+        Long userId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ResponseEntity.ok(BaseResponse.success(storeService.updateStoreStatus(storeId, request, userId)));
     }
 
     // 인증 정보에서 오너 ID를 추출하고 OWNER 권한을 확인합니다.
-    private Long getCurrentOwnerId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw StoreException.unauthenticated();
-        }
-
-        Long userId = null;
-        Object principal = authentication.getPrincipal();
-        if (principal == null) {
-            throw StoreException.invalidPrincipal();
-        }
-        if (principal instanceof Long principalId) {
-            userId = principalId;
-        }
-
-        String name = authentication.getName();
-        if (userId == null && name != null) {
-            try {
-                userId = Long.parseLong(name);
-            } catch (NumberFormatException ignored) {
-                throw StoreException.invalidPrincipal();
-            }
-        }
-
-        if (userId == null) {
-            throw StoreException.userIdRequired();
-        }
-
-        String roleValue = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(auth -> auth != null && !auth.isBlank())
-                .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
-                .findFirst()
-                .orElseThrow(StoreException::invalidRole);
-
-        UserRole role;
-        try {
-            role = UserRole.valueOf(roleValue);
-        } catch (Exception e) {
-            throw StoreException.invalidRole();
-        }
-
-        if (role != UserRole.OWNER) {
-            throw StoreException.notOwner();
-        }
-
-        return userId;
-    }
-
 }

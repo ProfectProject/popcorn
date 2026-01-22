@@ -1,5 +1,6 @@
 package com.popcorn.store.domain.goods.controller.owner;
 
+import com.popcorn.common.annotation.Idempotent;
 import com.popcorn.common.controller.BaseController;
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.common.dto.CommonResponseCode;
@@ -11,8 +12,7 @@ import com.popcorn.store.domain.goods.dto.GoodsStatusResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStatusUpdateRequest;
 import com.popcorn.store.domain.goods.dto.GoodsUpdateRequest;
 import com.popcorn.store.domain.goods.service.GoodsOwnerService;
-import com.popcorn.store.domain.popup.exception.owner.OwnerPopupException;
-import com.popcorn.store.domain.users.entity.enums.UserRole;
+import com.popcorn.store.global.security.OwnerAuthenticationResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,7 +26,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -83,7 +82,7 @@ public class GoodsController extends BaseController {
             @PathVariable UUID popupId,
             Authentication authentication
     ) {
-        Long ownerId = getCurrentOwnerId(authentication);
+        Long ownerId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ok(goodsOwnerService.list(ownerId, popupId));
     }
 
@@ -108,6 +107,13 @@ public class GoodsController extends BaseController {
             ),
             @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
+    @Idempotent(
+            keyExpression = "(#authentication?.name ?: 'unknown') + ':popup:' + #popupId + ':goods:create:' + "
+                    + "@idempotencyKeyGenerator.hash(#request)",
+            keyPrefix = "store_goods",
+            responseType = GoodsIdResponse.class,
+            ttlSeconds = 600
+    )
     public ResponseEntity<BaseResponse<GoodsIdResponse>> create(
             @Parameter(description = "팝업 ID", required = true)
             @PathVariable UUID popupId,
@@ -130,7 +136,7 @@ public class GoodsController extends BaseController {
             )
             @Valid @RequestBody GoodsCreateRequest request
     ) {
-        Long ownerId = getCurrentOwnerId(authentication);
+        Long ownerId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ok(goodsOwnerService.create(ownerId, popupId, request));
     }
 
@@ -183,7 +189,7 @@ public class GoodsController extends BaseController {
             @PathVariable UUID goodsId,
             Authentication authentication
     ) {
-        Long ownerId = getCurrentOwnerId(authentication);
+        Long ownerId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ok(goodsOwnerService.get(ownerId, popupId, goodsId));
     }
 
@@ -244,7 +250,7 @@ public class GoodsController extends BaseController {
             )
             @Valid @RequestBody GoodsUpdateRequest request
     ) {
-        Long ownerId = getCurrentOwnerId(authentication);
+        Long ownerId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         return ok(goodsOwnerService.update(ownerId, popupId, goodsId, request));
     }
 
@@ -304,7 +310,7 @@ public class GoodsController extends BaseController {
             )
             @Valid @RequestBody GoodsStatusUpdateRequest request
     ) {
-        Long ownerId = getCurrentOwnerId(authentication);
+        Long ownerId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         GoodsStatusResponse response = goodsOwnerService.updateStatus(ownerId, popupId, goodsId, request);
         return ResponseEntity.ok(
                 BaseResponse.of(
@@ -351,56 +357,9 @@ public class GoodsController extends BaseController {
             @PathVariable UUID goodsId,
             Authentication authentication
     ) {
-        Long ownerId = getCurrentOwnerId(authentication);
+        Long ownerId = OwnerAuthenticationResolver.resolveOwnerId(authentication);
         goodsOwnerService.delete(ownerId, popupId, goodsId);
         return ok(null);
     }
 
-    private Long getCurrentOwnerId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw OwnerPopupException.unauthenticated();
-        }
-
-        Long userId = null;
-        Object principal = authentication.getPrincipal();
-        if (principal == null) {
-            throw OwnerPopupException.invalidPrincipal();
-        }
-        if (principal instanceof Long principalId) {
-            userId = principalId;
-        }
-
-        String name = authentication.getName();
-        if (userId == null && name != null) {
-            try {
-                userId = Long.parseLong(name);
-            } catch (NumberFormatException ignored) {
-                throw OwnerPopupException.invalidPrincipal();
-            }
-        }
-
-        if (userId == null) {
-            throw OwnerPopupException.userIdRequired();
-        }
-
-        String roleValue = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(auth -> auth != null && !auth.isBlank())
-                .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
-                .findFirst()
-                .orElseThrow(OwnerPopupException::invalidRole);
-
-        UserRole role;
-        try {
-            role = UserRole.valueOf(roleValue);
-        } catch (Exception e) {
-            throw OwnerPopupException.invalidRole();
-        }
-
-        if (role != UserRole.OWNER) {
-            throw OwnerPopupException.notOwner();
-        }
-
-        return userId;
-    }
 }

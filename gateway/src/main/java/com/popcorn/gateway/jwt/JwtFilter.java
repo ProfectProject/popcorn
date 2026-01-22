@@ -116,8 +116,6 @@ public class JwtFilter implements GlobalFilter, Ordered{
         return -1; // GlobalFilter에서 가장 먼저 실행되도록
     }
 
-    /**
-     * Swagger/OpenAPI 경로인지 확인하는 메서드
      */
     private boolean isSwaggerOrOpenApiPath(String path) {
         return path.contains("/v3/api-docs") ||
@@ -137,5 +135,8 @@ public class JwtFilter implements GlobalFilter, Ordered{
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
         exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
+    }
+    private boolean isDocumentationRequest(String path) {
+        return path.contains("/v3/api-docs") || path.contains("/swagger-ui") || path.contains("/webjars");
     }
 }

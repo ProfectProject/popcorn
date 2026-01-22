@@ -30,6 +30,7 @@ import com.popcorn.store.domain.popup.event.PopupScheduleDeletedEvent;
 import com.popcorn.store.domain.popup.event.PopupScheduleUpdatedEvent;
 import com.popcorn.store.domain.popup.event.PopupStatusUpdatedEvent;
 import com.popcorn.store.domain.popup.event.PopupUpdatedEvent;
+import com.popcorn.store.domain.popup.cache.PopupDetailCacheManager;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupRepository;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupScheduleRepository;
 import com.popcorn.store.domain.popup.repository.owner.view.OwnerPopupScheduleView;
@@ -47,6 +48,7 @@ public class OwnerPopupService {
     private final OwnerPopupScheduleRepository ownerPopupScheduleRepository;
     private final OwnerPopupValidationService validationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final PopupDetailCacheManager popupDetailCacheManager;
 
     @Transactional
     public PopupCreatedDto createPopup(Long userId, CreatePopupRequest request) {
@@ -148,6 +150,8 @@ public class OwnerPopupService {
         applyScheduleChanges(updatedPopup.getId(), request, ownerId);
 
         eventPublisher.publishEvent(new PopupUpdatedEvent(ownerId, updatedPopup));
+        // 팝업/스케줄 변경 결과가 상세 응답에 반영되도록 캐시 삭제
+        popupDetailCacheManager.evictDetail(updatedPopup.getId());
 
         log.info("[POPUP_UPDATED] popupId={}, storeId={}", updatedPopup.getId(), updatedPopup.getStoreId());
         return mapToUpdatedDto(updatedPopup);
@@ -174,6 +178,8 @@ public class OwnerPopupService {
         }
 
         eventPublisher.publishEvent(new PopupStatusUpdatedEvent(ownerId, updatedPopup));
+        // 상태 변경 후 상세 캐시 무효화
+        popupDetailCacheManager.evictDetail(updatedPopup.getId());
 
         log.info("[POPUP_STATUS_UPDATED] popupId={}, status={}", updatedPopup.getId(), updatedPopup.getStatus());
         return mapToStatusUpdatedDto(updatedPopup);
@@ -197,6 +203,8 @@ public class OwnerPopupService {
         ownerPopupScheduleRepository.softDeleteSchedulesByPopup(deletedPopup.getId(), LocalDateTime.now(), ownerId);
 
         eventPublisher.publishEvent(new PopupDeletedEvent(ownerId, deletedPopup));
+        // 삭제 후 상세 캐시 무효화
+        popupDetailCacheManager.evictDetail(deletedPopup.getId());
 
         log.info("[POPUP_DELETED] popupId={}, storeId={}", deletedPopup.getId(), deletedPopup.getStoreId());
         return mapToDeletedDto(deletedPopup);
