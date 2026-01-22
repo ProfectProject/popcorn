@@ -16,7 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.popcorn.common.dto.CommonResponseCode;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
 import com.popcorn.demo.domain.order.entity.Order;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
@@ -31,8 +31,8 @@ import com.popcorn.demo.domain.payment.entity.PaymentMethod;
 import com.popcorn.demo.domain.payment.entity.PaymentStatus;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
-import com.popcorn.common.exception.BaseException;
-import com.popcorn.common.cache.IdempotencyService;
+import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.demo.common.cache.IdempotencyService;
 import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)

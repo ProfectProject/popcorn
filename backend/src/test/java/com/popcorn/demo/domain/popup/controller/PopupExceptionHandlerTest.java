@@ -17,9 +17,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import com.popcorn.common.dto.BaseError;
-import com.popcorn.common.dto.BaseResponse;
-import com.popcorn.common.dto.CommonResponseCode;
+import com.popcorn.demo.common.dto.BaseError;
+import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.popup.dto.PopupResponseCode;
 import com.popcorn.demo.domain.popup.exception.PopupException;
 

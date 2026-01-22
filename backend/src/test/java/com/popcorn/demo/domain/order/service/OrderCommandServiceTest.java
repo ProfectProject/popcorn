@@ -73,7 +73,7 @@ class OrderCommandServiceTest {
 				Mockito.eq(OrderType.RESERVATION), Mockito.anyList()))
 				.thenAnswer(invocation -> {
 					@SuppressWarnings("unchecked")
-					List<OrderItem> items = invocation.getArgument(4);
+					List<OrderItem> items = (List<OrderItem>) invocation.getArgument(4);
 					return Order.builder()
 							.id(UUID.randomUUID())
 							.orderNo("O-1001")

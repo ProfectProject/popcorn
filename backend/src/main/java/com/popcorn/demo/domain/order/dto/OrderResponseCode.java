@@ -9,7 +9,7 @@ import lombok.Getter;
  * 코드 범위: 1000 ~ 1999 (Order Domain)
  */
 @Getter
-public enum OrderResponseCode implements com.popcorn.common.dto.ResponseCode {
+public enum OrderResponseCode implements com.popcorn.demo.common.dto.ResponseCode {
 
     // 주문 생성 관련 오류 (1000~1099)
     EMPTY_ITEMS(1000, 400, "주문 항목이 비어있습니다."),

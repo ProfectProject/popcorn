@@ -41,6 +41,7 @@ dependencyManagement {
 dependencies {
 	// ========================= PopCorn Common Library =========================
 	implementation project(':common-lib')
+
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -133,7 +134,6 @@ dependencies {
 }
 
 tasks.named('test') {
-	enabled = false // backend에서는 테스트 비활성화
 	useJUnitPlatform()
 	finalizedBy tasks.named('jacocoTestReport')
 

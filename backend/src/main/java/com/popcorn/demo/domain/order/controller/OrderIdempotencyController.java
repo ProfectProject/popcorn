@@ -9,14 +9,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.popcorn.common.cache.IdempotencyService;
-import com.popcorn.common.cache.IdempotencyCacheStats;
-import com.popcorn.common.controller.BaseController;
-import com.popcorn.common.dto.BaseResponse;
-import com.popcorn.common.versioning.ApiVersion;
-import com.popcorn.common.annotation.ApiLogging;
-import com.popcorn.common.annotation.AuditLog;
-import com.popcorn.common.annotation.RateLimit;
+import com.popcorn.demo.common.cache.IdempotencyService;
+import com.popcorn.demo.common.cache.IdempotencyCacheStats;
+import com.popcorn.demo.common.controller.BaseController;
+import com.popcorn.demo.common.dto.BaseResponse;
+import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.demo.common.annotation.ApiLogging;
+import com.popcorn.demo.common.annotation.AuditLog;
+import com.popcorn.demo.common.annotation.RateLimit;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;

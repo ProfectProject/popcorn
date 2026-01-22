@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:18
     container_name: popcorn-db
     environment:
       POSTGRES_DB: ${DB_NAME:-popcorn_db}
@@ -8,7 +8,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
     ports:
       - "5432:5432"
-      - "5430:5432"
     volumes:
       - ./V0__init.sql:/docker-entrypoint-initdb.d/V0__init.sql:ro
     healthcheck:

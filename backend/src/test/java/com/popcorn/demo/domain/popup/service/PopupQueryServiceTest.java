@@ -187,7 +187,7 @@ class PopupQueryServiceTest {
 		);
 		when(repository.findPopupDetail(productId)).thenReturn(Optional.of(view));
 		when(scheduleRepository.findProductSessions(eq(productId), eq(null), eq(null)))
-				.thenReturn(List.of());
+				.thenReturn(List.<PopupScheduleView>of());
 
 		PopupDetailResponse response = service.getPopupDetail(PopupDetailQuery.of(productId));
 

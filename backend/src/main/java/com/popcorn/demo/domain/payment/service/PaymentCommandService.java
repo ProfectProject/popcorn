@@ -27,7 +27,7 @@ import com.popcorn.demo.domain.payment.event.PaymentCreatedEvent;
 import com.popcorn.demo.domain.payment.event.PaymentFailedEvent;
 import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
-import com.popcorn.common.cache.IdempotencyService;
+import com.popcorn.demo.common.cache.IdempotencyService;
 
 import lombok.Builder;
 import lombok.Getter;
