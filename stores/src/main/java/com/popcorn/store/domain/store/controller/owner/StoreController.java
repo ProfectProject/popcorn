@@ -1,5 +1,6 @@
 package com.popcorn.store.domain.store.controller.owner;
 
+import com.popcorn.common.annotation.Idempotent;
 import com.popcorn.store.domain.store.exception.StoreException;
 import com.popcorn.store.domain.users.entity.enums.UserRole;
 import org.springframework.security.core.Authentication;
@@ -61,6 +62,13 @@ public class StoreController extends BaseController {
         @ApiResponse(responseCode = "409", description = "중복된 스토어 이름")
     })
     @PostMapping
+    @Idempotent(
+            keyExpression = "(#authentication?.name ?: 'unknown') + ':store:create:' "
+                    + "+ @idempotencyKeyGenerator.hash(#request)",
+            keyPrefix = "store",
+            responseType = StoreCreatedDto.class,
+            ttlSeconds = 600
+    )
     public ResponseEntity<BaseResponse<StoreCreatedDto>> createStore(
             @Parameter(description = "스토어 생성 요청 데이터", required = true) @Valid @RequestBody CreateStoreRequest request,
             Authentication authentication) {

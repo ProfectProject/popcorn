@@ -1,5 +1,6 @@
 package com.popcorn.store.domain.goods.controller.owner;
 
+import com.popcorn.common.annotation.Idempotent;
 import com.popcorn.common.controller.BaseController;
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.common.dto.CommonResponseCode;
@@ -108,6 +109,13 @@ public class GoodsController extends BaseController {
             ),
             @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
+    @Idempotent(
+            keyExpression = "(#authentication?.name ?: 'unknown') + ':popup:' + #popupId + ':goods:create:' + "
+                    + "@idempotencyKeyGenerator.hash(#request)",
+            keyPrefix = "store_goods",
+            responseType = GoodsIdResponse.class,
+            ttlSeconds = 600
+    )
     public ResponseEntity<BaseResponse<GoodsIdResponse>> create(
             @Parameter(description = "팝업 ID", required = true)
             @PathVariable UUID popupId,

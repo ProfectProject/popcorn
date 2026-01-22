@@ -14,6 +14,7 @@ import com.popcorn.store.domain.goods.event.GoodsStatusUpdatedEvent;
 import com.popcorn.store.domain.goods.event.GoodsUpdatedEvent;
 import com.popcorn.store.domain.goods.exception.GoodsNotFoundException;
 import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
+import com.popcorn.store.domain.popup.cache.PopupDetailCacheManager;
 import com.popcorn.store.domain.popup.exception.PopupException;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupRepository;
 import java.util.List;
@@ -33,6 +34,7 @@ public class GoodsOwnerService {
     private final GoodsVariantRepository goodsVariantRepository;
     private final OwnerPopupRepository ownerPopupRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final PopupDetailCacheManager popupDetailCacheManager;
 
     @Transactional(readOnly = true)
     public GoodsListResponse list(Long ownerId, UUID popupId) {
@@ -63,6 +65,8 @@ public class GoodsOwnerService {
         );
         goodsVariantRepository.save(goods);
         eventPublisher.publishEvent(new GoodsCreatedEvent(ownerId, goods));
+        // 굿즈 변경 사항이 상세 응답에 반영되도록 캐시 삭제
+        popupDetailCacheManager.evictDetail(popupId);
         return new GoodsIdResponse(goods.getId());
     }
 
@@ -86,6 +90,8 @@ public class GoodsOwnerService {
                 request.getStock()
         );
         eventPublisher.publishEvent(new GoodsUpdatedEvent(ownerId, goods));
+        // 굿즈 변경 시 상세 캐시 무효화
+        popupDetailCacheManager.evictDetail(popupId);
         return new GoodsIdResponse(goods.getId());
     }
 
@@ -102,6 +108,8 @@ public class GoodsOwnerService {
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.updateStatus(request.getIsActive());
         eventPublisher.publishEvent(new GoodsStatusUpdatedEvent(ownerId, goods));
+        // 굿즈 상태 변경 시 상세 캐시 무효화
+        popupDetailCacheManager.evictDetail(popupId);
         return new GoodsStatusResponse(goods.getId(), goods.isActive());
     }
 
@@ -112,6 +120,8 @@ public class GoodsOwnerService {
         GoodsVariant goods = getGoods(popupId, goodsId);
         goods.softDelete();
         eventPublisher.publishEvent(new GoodsDeletedEvent(ownerId, goods));
+        // 굿즈 삭제 시 상세 캐시 무효화
+        popupDetailCacheManager.evictDetail(popupId);
     }
 
     private GoodsVariant getGoods(UUID popupId, UUID goodsId) {

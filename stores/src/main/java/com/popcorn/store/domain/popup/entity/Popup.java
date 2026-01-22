@@ -54,20 +54,6 @@ public class Popup extends BaseEntity {
 	@Column(name = "address_detail")
 	private String addressDetail;
 
-	@Column(name = "deleted_at")
-	private java.time.LocalDateTime deletedAt;
-
-	@Column(name = "created_by")
-	private Long createdBy;
-
-	@Column(name = "updated_by")
-	private Long updatedBy;
-
-	@Column(name = "deleted_by")
-	private Long deletedBy;
-
-
-
 	@Builder
 	public Popup(
 			UUID storeId,
@@ -88,7 +74,7 @@ public class Popup extends BaseEntity {
 		this.reservationOpenAt = reservationOpenAt;
 		this.addressRoad = addressRoad;
 		this.addressDetail = addressDetail;
-		this.createdBy = createdBy;
+		setCreatedBy(createdBy);
 	}
 
 }

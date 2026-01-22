@@ -1,5 +1,6 @@
 package com.popcorn.store.domain.popup.controller.owner;
 
+import com.popcorn.common.annotation.Idempotent;
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.store.domain.popup.dto.owner.request.CreatePopupRequest;
 import com.popcorn.store.domain.popup.dto.owner.request.UpdatePopupRequest;
@@ -54,6 +55,13 @@ public class OwnerPopupController {
             @ApiResponse(responseCode = "404", description = "스토어 없음")
     })
     @PostMapping("/popups")
+    @Idempotent(
+            keyExpression = "(#authentication?.name ?: 'unknown') + ':store:' + #request.storeId "
+                    + "+ ':popup:create:' + @idempotencyKeyGenerator.hash(#request)",
+            keyPrefix = "store_popup",
+            responseType = PopupCreatedDto.class,
+            ttlSeconds = 600
+    )
     public ResponseEntity<BaseResponse<PopupCreatedDto>> createPopup(
             Authentication authentication,
             @Parameter(description = "팝업 생성 요청", required = true) @Valid @RequestBody CreatePopupRequest request
