@@ -22,16 +22,16 @@ public class SwaggerConfig {
     @Value("${spring.application.name}")
     private String applicationName;
 
-    @Value("${server.port}")
-    private String serverPort;
+    @Value("${gateway.url:http://localhost:8080}")
+    private String gatewayUrl;
 
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(apiInfo())
                 .addServersItem(new Server()
-                        .url("http://localhost:" + serverPort)
-                        .description("로컬 개발 서버"))
+                        .url(gatewayUrl)
+                        .description("로컬 게이트웨이"))
                 .addServersItem(new Server()
                         .url("https://api.popcorn.com")
                         .description("운영 서버"))

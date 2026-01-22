@@ -12,15 +12,17 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import com.popcorn.common.security.JwtAuthenticationFilter;
+import com.popcorn.common.filter.HeaderAuthenticationFilter;
 
 //import com.popcorn.users.auth.jwt.JwtFilter;
 import com.popcorn.users.auth.jwt.JwtUtil;
 import com.popcorn.users.auth.jwt.LoginFilter;
+import com.popcorn.common.security.JwtAuthenticationFilter;
 
 import lombok.RequiredArgsConstructor;
 import java.util.List;
@@ -33,7 +35,7 @@ public class SecurityConfig {
 
 	private final AuthenticationConfiguration authenticationConfiguration;
 	private final JwtUtil jwtUtil;
-	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final HeaderAuthenticationFilter headerAuthenticationFilter;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -75,14 +77,21 @@ public class SecurityConfig {
 				.formLogin(form -> form.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-		// JWTFilter 추가
-		//http.addFilterBefore(new JwtFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
-		http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+		// Gateway 인증 헤더 기반 필터
+		http.addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		// ★ 로그인 필터 추가
 		http.addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
+	}
+
+	@Bean
+	public FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(
+			JwtAuthenticationFilter filter) {
+		FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+		registration.setEnabled(false);
+		return registration;
 	}
 
 	@Bean

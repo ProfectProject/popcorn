@@ -24,6 +24,7 @@ public class JwtFilter implements GlobalFilter, Ordered{
             "/api/users/v1/auth/login",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
+            "/api/stores/v1/popups",
 
             // Swagger/OpenAPI 관련 경로 (전체) - 포괄적 설정
             "/v3/api-docs",           // 모든 서비스 OpenAPI 문서
@@ -48,6 +49,8 @@ public class JwtFilter implements GlobalFilter, Ordered{
             "/api/orderquery/swagger-ui",
             "/api/backend/v3",
             "/api/backend/swagger-ui",
+            "/api/stores/v3/api-docs",
+            "/api/stores/v3/api-docs/public",
 
             // 기타 정적 리소스
             "/favicon.ico",
@@ -116,7 +119,7 @@ public class JwtFilter implements GlobalFilter, Ordered{
         return -1; // GlobalFilter에서 가장 먼저 실행되도록
     }
 
-     */
+
     private boolean isSwaggerOrOpenApiPath(String path) {
         return path.contains("/v3/api-docs") ||
                path.contains("/swagger-ui") ||

@@ -41,6 +41,22 @@ spring:
             - RewritePath=^/api/stores/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/stores/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/stores/(?<remaining>webjars.*), /${remaining}
+        - id: order
+          uri: http://localhost:8084     # Order 서비스
+          predicates:
+            - Path=/api/orders/**         # orders
+          filters:
+            - RewritePath=^/api/orders/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/orders/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/orders/(?<remaining>webjars.*), /${remaining}
+        - id: payment
+          uri: http://localhost:8085     # Payment 서비스
+          predicates:
+            - Path=/api/payments/**       # payments
+          filters:
+            - RewritePath=^/api/payments/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/payments/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/payments/(?<remaining>webjars.*), /${remaining}
         - id: orderQuery
           uri: http://localhost:8087
           predicates:
@@ -53,7 +69,7 @@ spring:
     base-path: /
 
 jwt:
-  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
 
 springdoc:
   api-docs:
@@ -71,6 +87,10 @@ springdoc:
         url: http://localhost:8080/api/stores/v3/api-docs/owner
       - name: checkIns
         url: http://localhost:8080/api/checkins/v3/api-docs
+      - name: order-service
+        url: http://localhost:8080/api/orders/v3/api-docs
+      - name: payment-service
+        url: http://localhost:8080/api/payments/v3/api-docs
       - name: orderQuery
         url: http://localhost:8080/api/orderquery/v3/api-docs
         

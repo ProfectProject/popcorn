@@ -18,8 +18,8 @@ class SwaggerConfig {
     @Value("\${spring.application.name}")
     private lateinit var applicationName: String
 
-    @Value("\${server.port}")
-    private lateinit var serverPort: String
+    @Value("\${gateway.url:http://localhost:8080}")
+    private lateinit var gatewayUrl: String
 
     @Bean
     fun openAPI(): OpenAPI {
@@ -27,8 +27,8 @@ class SwaggerConfig {
             .info(apiInfo())
             .servers(listOf(
                 Server()
-                    .url("http://localhost:$serverPort")
-                    .description("로컬 개발 서버"),
+                    .url(gatewayUrl)
+                    .description("로컬 게이트웨이"),
                 Server()
                     .url("https://api.popcorn.com")
                     .description("운영 서버")
