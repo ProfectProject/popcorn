@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import com.popcorn.store.domain.popup.dto.query.PopupDetailQuery;
 import com.popcorn.store.domain.popup.dto.query.PopupListQuery;
@@ -18,6 +19,7 @@ import com.popcorn.store.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.store.domain.popup.dto.query.response.PopupListResponse;
 import com.popcorn.store.domain.popup.dto.query.response.PopupScheduleListResponse;
 import com.popcorn.store.domain.popup.entity.enums.PopupCategory;
+import com.popcorn.store.domain.popup.repository.PopupScheduleQueryRepository;
 import com.popcorn.store.domain.popup.repository.PopupScheduleReservationRepository;
 
 class PopupServiceTest {
@@ -30,8 +32,18 @@ class PopupServiceTest {
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
 		PopupScheduleReservationRepository reservationRepository = Mockito.mock(PopupScheduleReservationRepository.class);
 		ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		PopupScheduleQueryRepository scheduleQueryRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		RedisTemplate<String, Object> redisTemplate = Mockito.mock(RedisTemplate.class);
+		PopupDetailCacheService popupDetailCacheService = Mockito.mock(PopupDetailCacheService.class);
 		PopupService service = new PopupService(
-				queryService, scheduleQueryService, validationService, reservationRepository, eventPublisher);
+				queryService,
+				scheduleQueryService,
+				validationService,
+				reservationRepository,
+				eventPublisher,
+				scheduleQueryRepository,
+				redisTemplate,
+				popupDetailCacheService);
 
 		PopupListQuery request = PopupListQuery.builder()
 				.category(PopupCategory.FOOD)
@@ -67,8 +79,18 @@ class PopupServiceTest {
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
 		PopupScheduleReservationRepository reservationRepository = Mockito.mock(PopupScheduleReservationRepository.class);
 		ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		PopupScheduleQueryRepository scheduleQueryRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		RedisTemplate<String, Object> redisTemplate = Mockito.mock(RedisTemplate.class);
+		PopupDetailCacheService popupDetailCacheService = Mockito.mock(PopupDetailCacheService.class);
 		PopupService service = new PopupService(
-				queryService, scheduleQueryService, validationService, reservationRepository, eventPublisher);
+				queryService,
+				scheduleQueryService,
+				validationService,
+				reservationRepository,
+				eventPublisher,
+				scheduleQueryRepository,
+				redisTemplate,
+				popupDetailCacheService);
 
 		UUID popupId = UUID.fromString("00000000-0000-0000-0000-000000000101");
 		PopupDetailQuery query = PopupDetailQuery.of(popupId);
@@ -76,14 +98,15 @@ class PopupServiceTest {
 				.id(popupId)
 				.storeId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
 				.category(PopupCategory.FOOD)
+				.schedules(java.util.List.of())
 				.build();
 
-		when(queryService.getPopupDetail(query)).thenReturn(response);
+		when(popupDetailCacheService.getPopupDetailCached(query)).thenReturn(response);
 
 		PopupDetailResponse result = service.getPopupDetail(query);
 
 		assertEquals(popupId, result.getId());
-		verify(queryService).getPopupDetail(query);
+		verify(popupDetailCacheService).getPopupDetailCached(query);
 	}
 
 	@Test
@@ -94,8 +117,18 @@ class PopupServiceTest {
 		PopupValidationService validationService = Mockito.mock(PopupValidationService.class);
 		PopupScheduleReservationRepository reservationRepository = Mockito.mock(PopupScheduleReservationRepository.class);
 		ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+		PopupScheduleQueryRepository scheduleQueryRepository = Mockito.mock(PopupScheduleQueryRepository.class);
+		RedisTemplate<String, Object> redisTemplate = Mockito.mock(RedisTemplate.class);
+		PopupDetailCacheService popupDetailCacheService = Mockito.mock(PopupDetailCacheService.class);
 		PopupService service = new PopupService(
-				queryService, scheduleQueryService, validationService, reservationRepository, eventPublisher);
+				queryService,
+				scheduleQueryService,
+				validationService,
+				reservationRepository,
+				eventPublisher,
+				scheduleQueryRepository,
+				redisTemplate,
+				popupDetailCacheService);
 
 		PopupScheduleListQuery query = PopupScheduleListQuery.builder()
 				.popupId(UUID.fromString("00000000-0000-0000-0000-000000000101"))

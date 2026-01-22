@@ -23,6 +23,7 @@ include 'checkIns'
 include 'gateway'
 include 'stores'
 include 'users'
+include 'orderQuery'
 
 // 각 모듈의 위치 지정
 project(':common-lib').projectDir = file('common-lib')
@@ -31,3 +32,4 @@ project(':checkIns').projectDir = file('checkIns')
 project(':gateway').projectDir = file('gateway')
 project(':stores').projectDir = file('stores')
 project(':users').projectDir = file('users')
+project(':orderQuery').projectDir = file('orderQuery')
