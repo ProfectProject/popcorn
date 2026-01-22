@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.popcorn.demo.common.controller.BaseController;
-import com.popcorn.demo.common.dto.BaseResponse;
-import com.popcorn.demo.common.versioning.ApiVersion;
+import com.popcorn.common.controller.BaseController;
+import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.versioning.ApiVersion;
 import com.popcorn.demo.domain.payment.dto.request.TossPaymentConfirmRequest;
 import com.popcorn.demo.domain.payment.dto.response.TossPaymentConfirmResponse;
 import com.popcorn.demo.domain.payment.service.TossPaymentService;
@@ -22,12 +22,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-import com.popcorn.demo.common.annotation.ApiLogging;
-import com.popcorn.demo.common.annotation.AuditLog;
-import com.popcorn.demo.common.annotation.Idempotent;
-import com.popcorn.demo.common.annotation.RateLimit;
-import com.popcorn.demo.common.annotation.RetryOnFailure;
-import com.popcorn.demo.common.annotation.ValidateRequest;
+import com.popcorn.common.annotation.ApiLogging;
+import com.popcorn.common.annotation.AuditLog;
+import com.popcorn.common.annotation.Idempotent;
+import com.popcorn.common.annotation.RateLimit;
+import com.popcorn.common.annotation.RetryOnFailure;
+import com.popcorn.common.annotation.ValidateRequest;
 
 @Tag(name = "Payments", description = "결제 관리 API")
 @RestController

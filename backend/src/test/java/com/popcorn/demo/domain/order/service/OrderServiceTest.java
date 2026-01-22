@@ -27,7 +27,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.popcorn.demo.domain.order.config.OrderProperties;
 import com.popcorn.demo.domain.order.dto.OrderResponseCode;
-import com.popcorn.demo.common.dto.CommonResponseCode;
+import com.popcorn.common.dto.CommonResponseCode;
 import com.popcorn.demo.domain.order.dto.command.CreateOrderCommand;
 import com.popcorn.demo.domain.order.dto.response.CreateOrderResponse;
 import com.popcorn.demo.domain.order.dto.response.MyOrderTimelineResponse;
@@ -37,7 +37,7 @@ import com.popcorn.demo.domain.order.entity.OrderItem;
 import com.popcorn.demo.domain.order.entity.OrderItemType;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
 import com.popcorn.demo.domain.order.entity.OrderType;
-import com.popcorn.demo.common.exception.BaseException;
+import com.popcorn.common.exception.BaseException;
 import com.popcorn.demo.domain.order.repository.OrderRepository;
 import com.popcorn.demo.domain.order.repository.jpa.OrderQueryRepository;
 import com.popcorn.demo.domain.order.repository.view.OrderDetailView;

@@ -1,0 +1,20 @@
+pluginManagement {
+    repositories {
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'stores'
+
+include 'common-lib'
+project(':common-lib').projectDir = file('../common-lib')

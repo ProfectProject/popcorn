@@ -1,0 +1,43 @@
+server:
+  port: 8086
+  shutdown: immediate
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:5430/popcorn_db
+    username: qr_app
+    password: qr123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/schema
+    baseline-on-migrate: true
+    validate-on-migrate: false
+    out-of-order: true
+    clean-disabled: false
+    placeholders:
+      QR_MIGRATOR_PASSWORD: qr321
+      QR_APP_PASSWORD: qr123
+
+logging:
+  level:
+    com.popcorn.checkIns: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.boot.web: DEBUG
+    org.hibernate.SQL: DEBUG

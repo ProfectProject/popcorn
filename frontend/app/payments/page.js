@@ -78,7 +78,7 @@ function PaymentsContent() {
     }
     if (typeof window === "undefined" || !window.TossPayments) {
       setError("토스 결제 SDK를 불러오지 못했습니다.");
-      return;
+
     }
   }, [scriptReady, clientKey, paymentInfo]);
 

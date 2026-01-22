@@ -68,7 +68,7 @@ import lombok.extern.slf4j.Slf4j;
 @AutoConfigureMockMvc
 @Import({TestSecurityConfig.class, TestRedisConfig.class})
 @TestPropertySource(properties = {
-    "logging.level.com.popcorn.demo.common.aop=DEBUG",
+    "logging.level.com.popcorn.common.aop=DEBUG",
     "logging.level.AUDIT=INFO",
     "logging.level.com.popcorn.demo.domain.order.controller=DEBUG"
 })
@@ -286,7 +286,7 @@ class OrderCommandControllerIntegrationTest {
                     org.springframework.security.core.Authentication.class);
 
             var rateLimitAnnotation = createOrderMethod.getAnnotation(
-                    com.popcorn.demo.common.annotation.RateLimit.class);
+                    com.popcorn.common.annotation.RateLimit.class);
 
             assertThat(rateLimitAnnotation).isNotNull();
             assertThat(rateLimitAnnotation.requests()).isEqualTo(10);
@@ -313,7 +313,7 @@ class OrderCommandControllerIntegrationTest {
                     org.springframework.security.core.Authentication.class);
 
             var apiLoggingAnnotation = createOrderMethod.getAnnotation(
-                    com.popcorn.demo.common.annotation.ApiLogging.class);
+                    com.popcorn.common.annotation.ApiLogging.class);
 
             assertThat(apiLoggingAnnotation).isNotNull();
             assertThat(apiLoggingAnnotation.message()).isEqualTo("주문 생성");
@@ -342,7 +342,7 @@ class OrderCommandControllerIntegrationTest {
                     org.springframework.security.core.Authentication.class);
 
             var auditLogAnnotation = createOrderMethod.getAnnotation(
-                    com.popcorn.demo.common.annotation.AuditLog.class);
+                    com.popcorn.common.annotation.AuditLog.class);
 
             assertThat(auditLogAnnotation).isNotNull();
             assertThat(auditLogAnnotation.action()).isEqualTo("ORDER_CREATE");
@@ -370,7 +370,7 @@ class OrderCommandControllerIntegrationTest {
                     org.springframework.security.core.Authentication.class);
 
             var idempotentAnnotation = createOrderMethod.getAnnotation(
-                    com.popcorn.demo.common.annotation.Idempotent.class);
+                    com.popcorn.common.annotation.Idempotent.class);
 
             assertThat(idempotentAnnotation).isNotNull();
             assertThat(idempotentAnnotation.keyPrefix()).isEqualTo("order_creation");

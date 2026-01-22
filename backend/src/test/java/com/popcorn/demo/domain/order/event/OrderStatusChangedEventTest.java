@@ -147,7 +147,7 @@ class OrderStatusChangedEventTest {
         assertThat(toString).contains("OrderStatusChangedEvent");
         assertThat(toString).contains("REQUESTED → ACCEPTED");
         assertThat(toString).contains("changedBy=admin");
-        assertThat(toString).contains("orderId=" + orderId.toString());
+        assertThat(toString).contains("orderId=" + orderId);
     }
 
     @Test

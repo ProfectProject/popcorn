@@ -15,8 +15,6 @@ import com.popcorn.demo.domain.payment.exception.PaymentException;
 import com.popcorn.demo.domain.payment.repository.JpaPaymentRepository;
 import com.popcorn.demo.domain.order.repository.jpa.JpaOrderItemRepository;
 import com.popcorn.demo.domain.order.entity.OrderStatus;
-import com.popcorn.demo.domain.qr.service.QrCodeService;
-import com.popcorn.demo.domain.qr.dto.response.QrCodeResponse;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -36,7 +34,6 @@ public class PaymentQueryService {
 
 	private final JpaPaymentRepository paymentRepository;
 	private final JpaOrderItemRepository orderItemRepository;
-	private final QrCodeService qrCodeService;
 
 	/**
 	 * 단건 결제 조회
@@ -86,6 +83,10 @@ public class PaymentQueryService {
 	 * 모든 예외를 포착하여 트랜잭션 안전성 보장
 	 */
 	private QrInfo getQrInfoSafely(Payment payment) {
+		// QR 기능이 checkIns 모듈로 이동됨 - 임시로 false 반환
+		return new QrInfo(false, null, null);
+
+		/* QR 기능 코드 - checkIns 모듈로 이동됨
 		// 결제 완료 상태가 아니면 QR 없음
 		if (payment.getStatus() != PaymentStatus.PAID) {
 			return new QrInfo(false, null, null);
@@ -113,6 +114,7 @@ public class PaymentQueryService {
 			log.warn("QR 코드 조회 실패 - 주문ID: {}, 에러: {}", payment.getOrderId(), e.getMessage());
 			return new QrInfo(false, null, null);
 		}
+		*/
 	}
 
 	/**
