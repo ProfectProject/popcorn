@@ -39,21 +39,19 @@ class OrderRepositoryTest {
     private Order sampleOrder1;
     private Order sampleOrder2;
     private Order sampleOrder3;
-    private UUID storeId1;
-    private UUID storeId2;
     private UUID popupId1;
+    private UUID popupId2;
 
     @BeforeEach
     void setUp() {
         // 테스트용 데이터 준비
-        storeId1 = UUID.randomUUID();
-        storeId2 = UUID.randomUUID();
         popupId1 = UUID.randomUUID();
+        popupId2 = UUID.randomUUID();
 
         sampleOrder1 = Order.builder()
                 .orderNo("O20260120-000001")
                 .customerId(1L)
-                .storeId(storeId1)
+                .popupId(popupId1)
                 .popupId(popupId1)
                 .orderType(OrderType.RESERVATION)
                 .status(OrderStatus.REQUESTED)
@@ -64,7 +62,7 @@ class OrderRepositoryTest {
         sampleOrder2 = Order.builder()
                 .orderNo("O20260120-000002")
                 .customerId(1L)
-                .storeId(storeId1)
+                .popupId(popupId1)
                 .popupId(popupId1)
                 .orderType(OrderType.GOODS)
                 .status(OrderStatus.PAID)
@@ -75,7 +73,7 @@ class OrderRepositoryTest {
         sampleOrder3 = Order.builder()
                 .orderNo("O20260120-000003")
                 .customerId(2L)
-                .storeId(storeId2)
+                .popupId(popupId2)
                 .popupId(popupId1)
                 .orderType(OrderType.RESERVATION)
                 .status(OrderStatus.COMPLETED)
@@ -158,19 +156,19 @@ class OrderRepositoryTest {
     }
 
     @Test
-    @DisplayName("스토어별 주문 조회 테스트")
-    void findByStoreId() {
+    @DisplayName("팝업별 주문 조회 테스트")
+    void findByPopupId() {
         // Given: 여러 주문을 저장하고
         orderRepository.save(sampleOrder1);
         orderRepository.save(sampleOrder2);
         orderRepository.save(sampleOrder3);
 
-        // When: 특정 스토어의 주문을 조회하면
-        List<Order> orders = orderRepository.findByStoreId(storeId1);
+        // When: 특정 팝업의 주문을 조회하면
+        Page<Order> orders = orderRepository.findByPopupIdOrderByCreatedAtDesc(popupId1, PageRequest.of(0, 10));
 
-        // Then: 해당 스토어의 주문 2개가 조회되어야 함
-        assertThat(orders).hasSize(2);
-        assertThat(orders).allMatch(order -> order.getStoreId().equals(storeId1));
+        // Then: 해당 팝업의 주문 2개가 조회되어야 함
+        assertThat(orders.getContent()).hasSize(2);
+        assertThat(orders.getContent()).allMatch(order -> order.getPopupId().equals(popupId1));
     }
 
     @Test
@@ -221,14 +219,14 @@ class OrderRepositoryTest {
     }
 
     @Test
-    @DisplayName("스토어별 특정 상태 주문 개수 조회 테스트")
-    void countByStoreIdAndStatus() {
+    @DisplayName("팝업별 특정 상태 주문 개수 조회 테스트")
+    void countByPopupIdAndStatus() {
         // Given: 주문들을 저장하고
-        orderRepository.save(sampleOrder1); // storeId1, REQUESTED
-        orderRepository.save(sampleOrder2); // storeId1, PAID
+        orderRepository.save(sampleOrder1); // popupId1, REQUESTED
+        orderRepository.save(sampleOrder2); // popupId1, PAID
 
-        // When: storeId1의 REQUESTED 상태 주문 개수를 조회하면
-        long count = orderRepository.countByStoreIdAndStatus(storeId1, OrderStatus.REQUESTED);
+        // When: popupId1의 REQUESTED 상태 주문 개수를 조회하면
+        long count = orderRepository.countOrdersByPopupId(popupId1, "REQUESTED", null);
 
         // Then: 1개여야 함
         assertThat(count).isEqualTo(1);
@@ -276,14 +274,13 @@ class OrderRepositoryTest {
         LocalDateTime start = LocalDateTime.now().minusDays(1);
         LocalDateTime end = LocalDateTime.now().plusDays(1);
 
-        // When: 기간별로 조회하면
+        // When: 팝업별로 조회하면
         PageRequest pageRequest = PageRequest.of(0, 10);
-        Page<Order> orders = orderRepository.findByStoreIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-                storeId1, start, end, pageRequest);
+        Page<Order> orders = orderRepository.findByPopupIdOrderByCreatedAtDesc(popupId1, pageRequest);
 
-        // Then: 해당 기간의 주문들이 조회되어야 함
+        // Then: 해당 팝업의 주문들이 조회되어야 함
         assertThat(orders.getContent()).hasSize(2);
-        assertThat(orders.getContent()).allMatch(order -> order.getStoreId().equals(storeId1));
+        assertThat(orders.getContent()).allMatch(order -> order.getPopupId().equals(popupId1));
     }
 
     @Test

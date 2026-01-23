@@ -16,9 +16,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.popcorn.demo.domain.auth.jwt.JwtFilter;
-import com.popcorn.demo.domain.auth.jwt.JwtUtil;
-import com.popcorn.demo.domain.auth.jwt.LoginFilter;
+import com.popcorn.users.auth.jwt.JwtFilter;
+import com.popcorn.users.auth.jwt.JwtUtil;
+import com.popcorn.users.auth.jwt.LoginFilter;
 
 import lombok.RequiredArgsConstructor;
 import java.util.List;
