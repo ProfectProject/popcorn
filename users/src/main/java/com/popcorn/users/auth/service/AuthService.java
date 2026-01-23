@@ -38,7 +38,7 @@ public class AuthService {
                 .getAuthority()
                 .replace("ROLE_", "");
 
-        String jwt = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, 3 * 60 * 1000L);
+        String jwt = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, 30 * 60 * 1000L);
         //String refreshJwt = jwtUtil.createRefreshJWT(userId,customUserDetails.getUsername(), role, 2 * 60 * 1000L);
 
         //refreshTokenService.saveRefreshToken(refreshJwt,request.getEmail() ,1000L * 60 * 60 * 24 * 7 ); // 7일

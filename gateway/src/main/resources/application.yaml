@@ -70,6 +70,7 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
+  expiration: 3600000
 
 springdoc:
   api-docs:
