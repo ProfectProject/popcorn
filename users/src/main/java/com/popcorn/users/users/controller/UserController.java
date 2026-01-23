@@ -249,7 +249,8 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    //@PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'OWNER')")
     @GetMapping("/mypage")
     public UserResponse getMyInfo(@AuthenticationPrincipal PassportPrincipal principal) {
         // SecurityContext에서 userId 가져오기
@@ -327,9 +328,10 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'OWNER')")
     @PutMapping("/mypage")
     public UserResponse updateMyInfo(
-        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @AuthenticationPrincipal PassportPrincipal principal,
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "수정할 사용자 정보",
             required = true,
@@ -340,8 +342,7 @@ public class UserController {
                     value = """
                         {
                           "name": "수정된 이름",
-                          "phone": "01087654321",
-                          "password": "newSecurePassword123"
+                          "phone": "01087654321"
                         }
                         """
                 )
@@ -349,7 +350,7 @@ public class UserController {
         )
         @Valid @RequestBody UserUpdateRequest request) {
         // SecurityContext에서 userId 가져오기
-        Long userId = customUserDetails.getUserId();
+        Long userId = principal.userId();
         System.out.println("SecurityContext에서 가져온 userId: " + userId);
 
         User updatedUser = userService.updateUser(userId, request);
@@ -398,9 +399,10 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'OWNER')") 
     @DeleteMapping("/me/deactivate")
-    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        userService.deactivateUser(userDetails.getUserId()); // 메서드명도 delete로 변경 권장
+    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal PassportPrincipal principal) {
+        userService.deactivateUser(principal.userId()); // 메서드명도 delete로 변경 권장
         return ResponseEntity.noContent().build(); // 204
     }
 
@@ -446,9 +448,10 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @GetMapping("/me/address")
-    public List<UserAddressResponse> getUserAddresses(@AuthenticationPrincipal CustomUserDetails userDetails){
-        Long userId = userDetails.getUserId();
+    public List<UserAddressResponse> getUserAddresses(@AuthenticationPrincipal PassportPrincipal principal){
+        Long userId = principal.userId();
         List<UserAddress> addresses = userService.getUserAddresses(userId);
         return addresses.stream()
                 .map(UserAddressResponse::from)
@@ -508,9 +511,10 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @PostMapping("/me/addresses")
-    public UserAddressResponse createUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody UserAddressRequest request) {
-        Long userId = userDetails.getUserId();
+    public UserAddressResponse createUserAddress(@AuthenticationPrincipal PassportPrincipal principal, @RequestBody UserAddressRequest request) {
+        Long userId = principal.userId();
         UserAddress address = userService.createUserAddress(userId, request);
         return UserAddressResponse.from(address);
     }
@@ -552,9 +556,10 @@ public class UserController {
         )
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @PutMapping("me/addresses/{addressId}")
-    public UserAddressResponse updateUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
-        Long userId = userDetails.getUserId();
+    public UserAddressResponse updateUserAddress(@AuthenticationPrincipal PassportPrincipal principal, @PathVariable UUID addressId, @RequestBody UserAddressRequest request) {
+        Long userId = principal.userId();
         UserAddress address = userService.updateUserAddress(userId, addressId, request);
         return UserAddressResponse.from(address);
     }
@@ -583,9 +588,10 @@ public class UserController {
             description = "주소를 찾을 수 없음"
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @DeleteMapping("/me/addresses/{addressId}")
-    public void deleteUserAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId) {
-        Long userId = userDetails.getUserId();
+    public void deleteUserAddress(@AuthenticationPrincipal PassportPrincipal principal, @PathVariable UUID addressId) {
+        Long userId = principal.userId();
         userService.deleteUserAddress(userId, addressId);
     }
 
@@ -612,9 +618,10 @@ public class UserController {
             description = "주소를 찾을 수 없음"
     )
     @SecurityRequirement(name = "Bearer Authentication")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @PutMapping("/me/addresses/{addressId}/default")
-    public UserAddressResponse setDefaultAddress(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable UUID addressId) {
-        Long userId = userDetails.getUserId();
+    public UserAddressResponse setDefaultAddress(@AuthenticationPrincipal PassportPrincipal principal, @PathVariable UUID addressId) {
+        Long userId =principal.userId();
         UserAddress address = userService.setDefaultAddress(userId, addressId);
         return UserAddressResponse.from(address);
     }

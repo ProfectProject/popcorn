@@ -6,6 +6,10 @@ spring:
     name: gateway
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 300    # 다운스트림 서비스 연결되는데 걸리는 시간
+        response-timeout: 700ms   # 응답시간 초과
+
       routes:
         - id: checkIns
           uri: http://localhost:8086     # checkIns 모듈
@@ -13,6 +17,23 @@ spring:
             - Path=/api/qr/**  # QR 관련 요청은 checkIns로
           filters:
             - RewritePath=^/api/qr/(?<remaining>swagger-ui.*), /${remaining}
+            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
+            - name: CircuitBreaker
+              args:
+                name: cbCheckInService
+                fallbackUri: forward:/fallback/checkIn-service
+            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
+                backoff:
+                  firstBackoff: 80ms
+                  maxBackoff: 200ms
+                  factor: 2
+                  basedOnPreviousValue: true
+
         - id: checkin-docs
           uri: http://localhost:8086
           predicates:
@@ -21,10 +42,28 @@ spring:
             - RewritePath=^/api/checkins/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/checkins/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/checkins/(?<remaining>webjars.*), /${remaining}
+            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
+            - name: CircuitBreaker
+              args:
+                name: cbCheckInDocService
+                fallbackUri: forward:/fallback/checkin-doc-service
+            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
+                backoff:
+                  firstBackoff: 80ms
+                  maxBackoff: 200ms
+                  factor: 2
+                  basedOnPreviousValue: true
+
         - id: backend
           uri: http://localhost:8081     # 모놀리식 backend
           predicates:
             - Path=/api/v1/**               # /api 로 시작하면 backend로 라우팅
+
         - id: user-service
           uri: http://localhost:8082     # 모놀리식 backend
           predicates:
@@ -33,6 +72,23 @@ spring:
             - RewritePath=^/api/users/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/users/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/users/(?<remaining>webjars.*), /${remaining}
+            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
+            - name: CircuitBreaker
+              args:
+                name: cbUserService
+                fallbackUri: forward:/fallback/user-service
+            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
+                backoff:
+                  firstBackoff: 80ms
+                  maxBackoff: 200ms
+                  factor: 2
+                  basedOnPreviousValue: true
+
         - id: stores
           uri: http://localhost:8083
           predicates:
@@ -41,6 +97,23 @@ spring:
             - RewritePath=^/api/stores/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/stores/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/stores/(?<remaining>webjars.*), /${remaining}
+            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
+            - name: CircuitBreaker
+              args:
+                name: cbStoreService
+                fallbackUri: forward:/fallback/store-service
+            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
+                backoff:
+                  firstBackoff: 80ms
+                  maxBackoff: 200ms
+                  factor: 2
+                  basedOnPreviousValue: true
+
         - id: order
           uri: http://localhost:8084     # Order 서비스
           predicates:
@@ -49,6 +122,23 @@ spring:
             - RewritePath=^/api/orders/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/orders/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/orders/(?<remaining>webjars.*), /${remaining}
+            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
+            - name: CircuitBreaker
+              args:
+                name: cbOrderService
+                fallbackUri: forward:/fallback/order-service
+            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
+                backoff:
+                  firstBackoff: 80ms
+                  maxBackoff: 200ms
+                  factor: 2
+                  basedOnPreviousValue: true
+
         - id: payment
           uri: http://localhost:8085     # Payment 서비스
           predicates:
@@ -73,11 +163,28 @@ spring:
             - RewritePath=^/api/orderquery/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/orderquery/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/orderquery/(?<remaining>webjars.*), /${remaining}
+            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
+            - name: CircuitBreaker
+              args:
+                name: cbOrderQueryService
+                fallbackUri: forward:/fallback/orderQuery-service
+            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
+                backoff:
+                  firstBackoff: 80ms
+                  maxBackoff: 200ms
+                  factor: 2
+                  basedOnPreviousValue: true
   webflux:
     base-path: /
 
 jwt:
   secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
+  expiration: 3600000
 
 springdoc:
   api-docs:
@@ -101,6 +208,107 @@ springdoc:
         url: http://localhost:8080/api/payments/v3/api-docs
       - name: orderQuery
         url: http://localhost:8080/api/orderquery/v3/api-docs
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      cbUserService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 100
+        minimum-number-of-calls: 30
+        failure-rate-threshold: 20
+        slow-call-duration-threshold: 300ms
+        slow-call-rate-threshold: 40
+        wait-duration-in-open-state: 5s
+        permitted-number-of-calls-in-half-open-state: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
+      cbStoreService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 100
+        minimum-number-of-calls: 30
+        failure-rate-threshold: 20
+        slow-call-duration-threshold: 300ms
+        slow-call-rate-threshold: 40
+        wait-duration-in-open-state: 5s
+        permitted-number-of-calls-in-half-open-state: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
+      cbOrderService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 100
+        minimum-number-of-calls: 30
+        failure-rate-threshold: 20
+        slow-call-duration-threshold: 300ms
+        slow-call-rate-threshold: 40
+        wait-duration-in-open-state: 5s
+        permitted-number-of-calls-in-half-open-state: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
+      cbPaymentService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 50
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 20
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
+      cbCheckInService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 100
+        minimum-number-of-calls: 30
+        failure-rate-threshold: 20
+        wait-duration-in-open-state: 5s
+        register-health-indicator: true
+
+      cbCheckInDocService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 50
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s
+        register-health-indicator: true
+
+      cbOrderQueryService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 100
+        minimum-number-of-calls: 30
+        failure-rate-threshold: 20
+        wait-duration-in-open-state: 5s
+        register-health-indicator: true
+
+
+  timelimiter:
+    instances:
+      cbUserService:
+        timeout-duration: 700ms
+        cancel-running-future: true
+      cbStoreService:
+        timeout-duration: 700ms
+      cbOrderService:
+        timeout-duration: 700ms
+      cbPaymentService:
+        timeout-duration: 1200ms  # 결제는 조금 더 여유 권장
+      cbCheckInService:
+        timeout-duration: 700ms
+      cbCheckInDocService:
+        timeout-duration: 1200ms
+      cbOrderQueryService:
+        timeout-duration: 700ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  health:
+    circuitbreakers:
+      enabled: true
         
 logging:
   level:
