@@ -9,6 +9,13 @@ import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.awaitBody
 import java.util.UUID
 
+/**
+ * CheckIns 서비스 클라이언트
+ *
+ * 🚨 현재 사용되지 않음 - 이벤트 기반 아키텍처로 변경됨
+ * QR 코드 생성은 이제 QrCodeGenerationRequestedEvent를 통해 처리됩니다.
+ * Order 서비스가 이 이벤트를 구독하여 QR 생성을 담당합니다.
+ */
 @Component
 class CheckInsClient(
     private val webClient: WebClient,
@@ -25,6 +32,9 @@ class CheckInsClient(
         return webClient
             .post()
             .uri("$checkInsBaseUrl/v1/orders/$orderId")
+            .header("X-User-Id", "1")  // 시스템 사용자 ID
+            .header("X-User-Role", "SYSTEM")  // 시스템 권한
+            .header("X-User-Email", "system@popcorn.com")  // 시스템 이메일
             .retrieve()
             .awaitBody<BaseResponse<Map<String, Any?>>>()
     }

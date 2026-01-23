@@ -58,6 +58,10 @@ public class OrderCommandService {
     private final UserClient userClient;
     private final PaymentTokenUtil paymentTokenUtil;
     private final StoreClient storeClient;
+    private final OrderCacheService orderCacheService;
+
+    @org.springframework.beans.factory.annotation.Value("${frontend.base-url:${FRONTEND_BASE_URL:http://localhost:3000}}")
+    private String frontendBaseUrl;
 
     /**
      * 새로운 주문 생성하기 (멱등성 처리)
@@ -190,6 +194,8 @@ public class OrderCommandService {
         );
 
         log.info("주문 생성 완료 - 주문번호: {}, 결제방법: {}", response.getOrderNo(), paymentMethod);
+
+        orderCacheService.evictMyOrdersCache(savedOrder.getCustomerId());
 
         return response;
     }
@@ -690,7 +696,7 @@ public class OrderCommandService {
                 );
 
                 // 프론트엔드 결제 페이지 URL 생성 (기존 backend 호환 방식)
-                String paymentUrl = String.format("http://localhost:3000/auto-payment?token=%s", paymentToken);
+                String paymentUrl = String.format("%s/auto-payment?token=%s", frontendBaseUrl, paymentToken);
 
                 // CreatePaymentResponse 생성
                 CreatePaymentResponse paymentResponse = CreatePaymentResponse.builder()
@@ -721,7 +727,7 @@ public class OrderCommandService {
                     order.getOrderNo(), e.getMessage(), e);
 
             // 실패 시에도 기본 응답 반환 (프론트엔드 에러 페이지 URL 포함)
-            String errorUrl = "http://localhost:3000/payments/fail?reason=token-generation-failed&orderId=" + order.getId();
+            String errorUrl = frontendBaseUrl + "/payments/fail?reason=token-generation-failed&orderId=" + order.getId();
             log.warn("🚨 결제 토큰 생성 실패로 프론트엔드 에러 페이지 반환: {}", errorUrl);
 
             return CreatePaymentResponse.builder()

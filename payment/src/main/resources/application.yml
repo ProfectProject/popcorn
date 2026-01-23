@@ -147,17 +147,9 @@ resilience4j:
         limit-refresh-period: 1s
         timeout-duration: 2s
 
-# 마이크로서비스 간 통신 설정
-microservices:
-  order:
-    base-url: ${ORDER_SERVICE_URL:http://localhost:8084}
-    timeout: 30s
-  checkins:
-    base-url: ${CHECKINS_SERVICE_URL:http://localhost:8080/api/qr}
-    timeout: 10s
-  gateway:
-    base-url: ${GATEWAY_URL:http://localhost:8080}
-    timeout: 10s
+# 이벤트 기반 아키텍처 - 직접적인 서비스 호출 제거
+# Payment 서비스는 이벤트 발행을 통해서만 다른 서비스와 통신
+# microservices 설정 제거: 모든 통신이 이벤트 기반으로 처리됨
 
 # Toss Payments 설정 (환경별로 오버라이드)
 toss:
@@ -170,7 +162,7 @@ toss:
 # 커스텀 Payment 설정
 payment:
   token:
-    secret: ${PAYMENT_TOKEN_SECRET:change-me}
+    secret: ${PAYMENT_TOKEN_SECRET:${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}}
     ttl-minutes: ${PAYMENT_TOKEN_TTL_MINUTES:30}
   # Toss Payments 설정 (코루틴 클라이언트용)
   toss:

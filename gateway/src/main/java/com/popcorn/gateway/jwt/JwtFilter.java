@@ -24,6 +24,8 @@ public class JwtFilter implements GlobalFilter, Ordered{
             "/api/users/v1/auth/login",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
+            "/api/pay/v1/payments/confirm-async",
+            "/api/pay/v1/payments/orders",
             "/api/stores/v1/popups",
 
             // Swagger/OpenAPI 관련 경로 (전체) - 포괄적 설정
@@ -63,9 +65,14 @@ public class JwtFilter implements GlobalFilter, Ordered{
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 
         String path = exchange.getRequest().getURI().getPath();
+        String method = exchange.getRequest().getMethod().name();
+
+        // 모든 요청 로깅
+        log.info("🌐 Gateway 요청 - Method: {}, Path: {}", method, path);
 
         // OPTIONS 요청은 항상 허용
         if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
+            log.info("🔓 OPTIONS 요청 통과: {}", path);
             return chain.filter(exchange);
         }
 
@@ -81,27 +88,39 @@ public class JwtFilter implements GlobalFilter, Ordered{
 
         // 기타 예외 경로 처리
         if (EXCLUDE_PATH_PREFIXES.stream().anyMatch(path::startsWith)) {
+            log.info("🔓 예외 경로 통과: {}", path);
             return chain.filter(exchange);
         }
 
         // 2) Authorization Header 체크
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+        log.info("🔐 Authorization 헤더: {}", authHeader != null ? "Bearer ***" : "없음");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("❌ Authorization 헤더 없음 또는 형식 오류");
             return onError(exchange, "Missing Authorization Header", HttpStatus.UNAUTHORIZED);
         }
 
         String token = authHeader.substring(7);
+        log.info("🔐 JWT 토큰 추출 완료 (길이: {})", token.length());
 
         // 3) JWT 유효성 검사
         if (!jwtUtils.validateToken(token)) {
+            log.warn("❌ JWT 토큰 검증 실패");
             return onError(exchange, "Invalid Token", HttpStatus.UNAUTHORIZED);
         }
+
+        log.info("✅ JWT 토큰 검증 성공");
         
         // 4) 검증 성공 → 사용자 정보 헤더 전달 후 PROXY 통과
         String userId = String.valueOf(jwtUtils.getUserId(token));
         String email = jwtUtils.getUsername(token);
         String role = jwtUtils.getRole(token);
+
+        // 디버그 로깅 추가
+        log.info("🔍 JWT 파싱 성공 - userId: {}, email: {}, role: {}", userId, email, role);
+        log.info("🔍 요청 경로: {}", exchange.getRequest().getPath().value());
+        log.info("🔍 헤더 설정 - X-User-Id: {}, X-User-Email: {}, X-User-Role: {}", userId, email, role);
 
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(builder -> builder
@@ -136,6 +155,8 @@ public class JwtFilter implements GlobalFilter, Ordered{
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
+        log.error("🚫 Gateway 인증 실패 - 경로: {}, 오류: {}, 상태: {}",
+                exchange.getRequest().getURI().getPath(), err, status);
         exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
     }

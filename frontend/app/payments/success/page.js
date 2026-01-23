@@ -13,6 +13,8 @@ function PaymentSuccessContent() {
   const amount = searchParams.get("amount");
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
+  // JWT 토큰 불필요 - orderId 기반 간단 결제 승인
+
   const [status, setStatus] = useState("confirming");
   const [message, setMessage] = useState("");
   const [countdown, setCountdown] = useState(5);
@@ -52,9 +54,13 @@ function PaymentSuccessContent() {
       }
 
       try {
+        const headers = {
+          "Content-Type": "application/json"
+        };
+
         const response = await fetch(`${apiBase}/api/pay/v1/payments/confirm-async`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             paymentKey,
             orderId,

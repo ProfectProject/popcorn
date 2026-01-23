@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class PaymentTokenUtil {
 
-    @Value("${jwt.secret}")
+    @Value("${payment.token.secret:${jwt.secret}}")
     private String secretKey;
 
     private static final long TOKEN_VALIDITY_MINUTES = 30; // 30분 유효

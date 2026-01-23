@@ -59,6 +59,8 @@ class OrderQueryCoroutineService(
                 webClient
                     .get()
                     .uri("$orderServiceBaseUrl/api/orders/v1/$orderId")
+                    .header("X-Internal-Service", "payment-service")
+                    .header("X-Internal-Call", "true")
                     .retrieve()
                     .awaitBody<ApiResponse<OrderDetailApiResponse>>()
             }
@@ -114,6 +116,8 @@ class OrderQueryCoroutineService(
                             .build()
                             .toUri()
                     }
+                    .header("X-Internal-Service", "payment-service")
+                    .header("X-Internal-Call", "true")
                     .retrieve()
                     .awaitBody<ApiResponse<Unit>>()
             }

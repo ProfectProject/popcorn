@@ -57,6 +57,14 @@ spring:
             - RewritePath=^/api/payments/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/payments/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/payments/(?<remaining>webjars.*), /${remaining}
+        - id: payment-pay
+          uri: http://localhost:8085     # Payment 서비스 (/api/pay 경로)
+          predicates:
+            - Path=/api/pay/**            # pay
+          filters:
+            - RewritePath=^/api/pay/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/pay/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/pay/(?<remaining>webjars.*), /${remaining}
         - id: orderQuery
           uri: http://localhost:8087
           predicates:

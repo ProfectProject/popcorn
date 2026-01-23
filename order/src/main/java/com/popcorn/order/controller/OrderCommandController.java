@@ -342,7 +342,7 @@ public class OrderCommandController {
             - 모든 상태 변경은 이력으로 기록됨
             """
     )
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('SYSTEM')")
     public ResponseEntity<BaseResponse<Void>> updateOrderStatus(
             @Parameter(description = "주문 ID", example = "12345678-1234-1234-1234-123456789abc")
             @PathVariable UUID orderId,
