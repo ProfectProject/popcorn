@@ -33,6 +33,10 @@ public class StoreClient {
     @Value("${microservices.store.base-url}")
     private String storeBaseUrl;
 
+    private WebClient storeWebClient() {
+        return webClientBuilder.baseUrl(storeBaseUrl).build();
+    }
+
     /**
      * 굿즈 재고 예약 (주문 생성 시 호출)
      *
@@ -45,10 +49,10 @@ public class StoreClient {
         log.info("재고 예약 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
                 popupId, goodsVariantId, quantity);
 
-        BaseResponse<Object> response = webClientBuilder.build()
+        BaseResponse<Object> response = storeWebClient()
                 .post()
                 .uri(uriBuilder -> uriBuilder
-                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation")
+                        .path("/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation")
                         .queryParam("quantity", quantity)
                         .build(popupId, goodsVariantId))
                 .headers(headers -> {
@@ -82,10 +86,10 @@ public class StoreClient {
         log.info("재고 예약 취소 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
                 popupId, goodsVariantId, quantity);
 
-        BaseResponse<Object> response = webClientBuilder.build()
+        BaseResponse<Object> response = storeWebClient()
                 .post()
                 .uri(uriBuilder -> uriBuilder
-                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/cancel")
+                        .path("/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/cancel")
                         .queryParam("quantity", quantity)
                         .build(popupId, goodsVariantId))
                 .headers(headers -> {
@@ -119,10 +123,10 @@ public class StoreClient {
         log.info("재고 예약 실패 처리 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
                 popupId, goodsVariantId, quantity);
 
-        BaseResponse<Object> response = webClientBuilder.build()
+        BaseResponse<Object> response = storeWebClient()
                 .post()
                 .uri(uriBuilder -> uriBuilder
-                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/fail")
+                        .path("/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/fail")
                         .queryParam("quantity", quantity)
                         .build(popupId, goodsVariantId))
                 .headers(headers -> {
@@ -156,10 +160,10 @@ public class StoreClient {
         log.info("재고 차감 확정 요청 - popupId: {}, goodsVariantId: {}, quantity: {}",
                 popupId, goodsVariantId, quantity);
 
-        BaseResponse<Object> response = webClientBuilder.build()
+        BaseResponse<Object> response = storeWebClient()
                 .post()
                 .uri(uriBuilder -> uriBuilder
-                        .path(storeBaseUrl + "/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/complete")
+                        .path("/api/stores/v1/popups/{popupId}/goods/{goodsId}/reservation/complete")
                         .queryParam("quantity", quantity)
                         .build(popupId, goodsVariantId))
                 .headers(headers -> {
@@ -209,9 +213,9 @@ public class StoreClient {
         log.info("매장 정보 조회 요청 - storeId: {}", storeId);
 
         try {
-            BaseResponse<StoreInfoResponse> response = webClientBuilder.build()
+            BaseResponse<StoreInfoResponse> response = storeWebClient()
                 .get()
-                .uri(storeBaseUrl + "/api/stores/v1/{storeId}", storeId)
+                .uri("/api/stores/v1/{storeId}", storeId)
                 .headers(headers -> {
                     String authHeader = resolveAuthHeader();
                     if (authHeader != null) {
@@ -262,9 +266,9 @@ public class StoreClient {
         log.info("팝업 정보 조회 요청 - popupId: {}", popupId);
 
         try {
-            BaseResponse<PopupInfoResponse> response = webClientBuilder.build()
+            BaseResponse<PopupInfoResponse> response = storeWebClient()
                 .get()
-                .uri(storeBaseUrl + "/api/stores/v1/popups/{popupId}", popupId)
+                .uri("/api/stores/v1/popups/{popupId}", popupId)
                 .headers(headers -> {
                     String authHeader = resolveAuthHeader();
                     if (authHeader != null) {
@@ -306,9 +310,9 @@ public class StoreClient {
         log.info("굿즈 가격 조회 요청 - goodsVariantId: {}", goodsVariantId);
 
         try {
-            BaseResponse<GoodsPriceResponse> response = webClientBuilder.build()
+            BaseResponse<GoodsPriceResponse> response = storeWebClient()
                 .get()
-                .uri(storeBaseUrl + "/api/stores/v1/goods/{goodsVariantId}/price", goodsVariantId)
+                .uri("/api/stores/v1/goods/{goodsVariantId}/price", goodsVariantId)
                 .headers(headers -> {
                     String authHeader = resolveAuthHeader();
                     if (authHeader != null) {
@@ -351,9 +355,9 @@ public class StoreClient {
         log.info("세션 가격 조회 요청 - sessionId: {}", sessionId);
 
         try {
-            BaseResponse<SessionPriceResponse> response = webClientBuilder.build()
+            BaseResponse<SessionPriceResponse> response = storeWebClient()
                 .get()
-                .uri(storeBaseUrl + "/api/stores/v1/sessions/{sessionId}/price", sessionId)
+                .uri("/api/stores/v1/sessions/{sessionId}/price", sessionId)
                 .headers(headers -> {
                     String authHeader = resolveAuthHeader();
                     if (authHeader != null) {

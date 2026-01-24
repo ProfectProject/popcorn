@@ -23,22 +23,53 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+
+        // 기존 인증이 없을 때만 헤더에서 인증 정보 추출
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            String internalServiceHeader = request.getHeader("X-Internal-Service");
+            String internalCallHeader = request.getHeader("X-Internal-Call");
             String userIdHeader = request.getHeader("X-User-Id");
             String roleHeader = resolveRoleHeader(request);
             String emailHeader = request.getHeader("X-User-Email");
 
-            if (userIdHeader != null && roleHeader != null) {
-                Long userId = Long.valueOf(userIdHeader);
-                String authority = roleHeader.startsWith("ROLE_") ? roleHeader : "ROLE_" + roleHeader;
-                PassportPrincipal principal = new PassportPrincipal(userId, roleHeader, emailHeader);
-                UsernamePasswordAuthenticationToken authentication =
+            // 디버그 로깅 추가
+            System.out.println("🔍 HeaderAuthenticationFilter - URI: " + request.getRequestURI());
+            System.out.println("🔍 X-Internal-Service: " + internalServiceHeader);
+            System.out.println("🔍 X-Internal-Call: " + internalCallHeader);
+            System.out.println("🔍 X-User-Id: " + userIdHeader);
+            System.out.println("🔍 X-User-Role: " + roleHeader);
+            System.out.println("🔍 X-User-Email: " + emailHeader);
+
+            // 내부 서비스 호출인 경우 시스템 인증으로 처리
+            if ("true".equals(internalCallHeader) && internalServiceHeader != null) {
+                PassportPrincipal systemPrincipal = new PassportPrincipal(0L, "SYSTEM", internalServiceHeader + "@internal");
+                UsernamePasswordAuthenticationToken systemAuth =
                         new UsernamePasswordAuthenticationToken(
-                                principal,
+                                systemPrincipal,
                                 null,
-                                List.of(new SimpleGrantedAuthority(authority))
+                                List.of(new SimpleGrantedAuthority("ROLE_SYSTEM"))
                         );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(systemAuth);
+                System.out.println("✅ 내부 서비스 호출 인증 성공 - 서비스: " + internalServiceHeader);
+            } else if (userIdHeader != null && roleHeader != null) {
+                try {
+                    Long userId = Long.valueOf(userIdHeader);
+                    String authority = roleHeader.startsWith("ROLE_") ? roleHeader : "ROLE_" + roleHeader;
+                    PassportPrincipal principal = new PassportPrincipal(userId, roleHeader, emailHeader);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    principal,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority(authority))
+                            );
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    System.out.println("✅ 사용자 인증 성공 - 사용자ID: " + userId + ", 권한: " + authority);
+                } catch (NumberFormatException e) {
+                    System.out.println("❌ 사용자 ID 파싱 실패: " + userIdHeader);
+                }
+            } else {
+                System.out.println("❌ 인증 헤더 누락 - Gateway 헤더 또는 내부 호출 헤더가 필요함");
             }
         }
 

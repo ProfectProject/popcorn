@@ -8,8 +8,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
-import com.popcorn.payment.client.CheckInsClient
-import com.popcorn.payment.service.QrIssuanceTracker
 
 /**
  * 결제 이벤트 리스너
@@ -22,8 +20,7 @@ import com.popcorn.payment.service.QrIssuanceTracker
  */
 @Component
 class PaymentEventListener(
-    private val checkInsClient: CheckInsClient,
-    private val qrIssuanceTracker: QrIssuanceTracker
+    private val paymentEventPublisher: PaymentEventPublisherImpl
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentEventListener::class.java)
@@ -73,11 +70,11 @@ class PaymentEventListener(
                 log.info("💳 결제 승인 이벤트 처리: paymentId={}, orderId={}, amount={}원",
                     event.paymentId, event.orderId, event.amount)
 
-                // QR 코드 생성 요청 (checkIns 서비스와 연동)
-                generateQrCodeForOrder(event.orderId, event.orderNo)
+                // QR 코드 생성 이벤트 발행 (Order 서비스가 처리)
+                publishQrCodeGenerationEvent(event.paymentId, event.orderId, event.orderNo, event.customerId)
 
                 // 재고 차감 확정 처리
-                confirmInventoryDeduction(event.orderId)
+                confirmInventoryDeduction(event.paymentId, event.orderId)
 
                 // 고객 알림 발송
                 sendPaymentApprovedNotification(event)
@@ -111,10 +108,10 @@ class PaymentEventListener(
                     event.paymentId, event.orderId, event.failureReason)
 
                 // 재고 복구 처리
-                restoreInventory(event.orderId)
+                restoreInventory(event.paymentId, event.orderId)
 
                 // 주문 상태를 실패로 변경
-                updateOrderStatusToFailed(event.orderId, event.failureReason)
+                updateOrderStatusToFailed(event.paymentId, event.orderId, event.failureReason)
 
                 // 고객 실패 알림
                 sendPaymentFailedNotification(event)
@@ -147,10 +144,10 @@ class PaymentEventListener(
                     event.paymentId, event.orderId, event.cancelReason)
 
                 // 재고 복구
-                restoreInventory(event.orderId)
+                restoreInventory(event.paymentId, event.orderId)
 
                 // QR 코드 무효화
-                invalidateQrCode(event.orderId)
+                invalidateQrCode(event.paymentId, event.orderId)
 
                 // 고객 취소 알림
                 sendPaymentCancelledNotification(event)
@@ -210,10 +207,10 @@ class PaymentEventListener(
                     event.paymentId, event.orderId)
 
                 // 재고 복구
-                restoreInventory(event.orderId)
+                restoreInventory(event.paymentId, event.orderId)
 
                 // 주문 상태를 만료로 변경
-                updateOrderStatusToExpired(event.orderId)
+                updateOrderStatusToExpired(event.paymentId, event.orderId)
 
                 log.info("✅ 결제 만료 이벤트 처리 완료: paymentId={}", event.paymentId)
 
@@ -228,240 +225,194 @@ class PaymentEventListener(
     // 헬퍼 메서드들 (실제 구현은 각 서비스와 연동)
     // ========================================
 
-    private suspend fun generateQrCodeForOrder(orderId: java.util.UUID, orderNo: String) {
+    /**
+     * QR 코드 생성 이벤트 발행 (이벤트 기반 아키텍처)
+     * Order 서비스가 이 이벤트를 구독하여 QR 발급을 처리합니다.
+     */
+    private suspend fun publishQrCodeGenerationEvent(paymentId: java.util.UUID, orderId: java.util.UUID, orderNo: String, customerId: Long?) {
         try {
-            log.info("🔗 QR 코드 생성 시작: orderId={}, orderNo={}", orderId, orderNo)
+            log.info("🚀 QR 코드 생성 이벤트 발행: paymentId={}, orderId={}, orderNo={}", paymentId, orderId, orderNo)
 
-            // QR 코드 데이터 생성 (체크인 또는 주문 확인용 URL)
-            val qrCodeData = generateQrCodeData(orderId, orderNo)
+            // PaymentEventPublisher를 통해 실제 이벤트 발행
+            paymentEventPublisher.publishQrCodeGenerationRequested(
+                paymentId = paymentId,
+                orderId = orderId,
+                orderNo = orderNo,
+                customerId = customerId
+            )
 
-            // QR 코드 생성 및 저장
-            val qrCodeInfo = createAndSaveQrCode(orderId, orderNo, qrCodeData)
-
-            // checkIns 서비스에 QR 코드 정보 전달 (향후 구현)
-            sendQrCodeToCheckInsService(qrCodeInfo)
-
-            log.info("✅ QR 코드 생성 완료: orderId={}, qrCodeId={}, expiresAt={}",
-                orderId, qrCodeInfo.qrCodeId, qrCodeInfo.expiresAt)
+            log.info("📨 QR 코드 생성 요청 이벤트 발행 완료: paymentId={}, orderId={}", paymentId, orderId)
 
         } catch (e: Exception) {
-            log.error("❌ QR 코드 생성 실패: orderId={}, error={}", orderId, e.message, e)
-            // QR 코드 생성 실패해도 결제는 성공으로 처리
+            log.error("❌ QR 코드 생성 이벤트 발행 실패: paymentId={}, orderId={}, error={}", paymentId, orderId, e.message, e)
+            // 이벤트 발행 실패해도 결제는 성공으로 처리
         }
     }
 
-    /**
-     * QR 코드에 포함될 데이터 생성
-     */
-    private fun generateQrCodeData(orderId: java.util.UUID, orderNo: String): String {
-        // QR 코드 스캔 시 이동할 URL 또는 데이터
-        val baseUrl = "https://api.popcorn.com/checkin" // 실제 도메인으로 변경 필요
-        val checkInUrl = "$baseUrl?orderId=$orderId&orderNo=$orderNo"
 
-        // 추가 보안을 위해 토큰 생성 (간단한 예시)
-        val timestamp = System.currentTimeMillis()
-        val token = generateSecureToken(orderId.toString(), orderNo, timestamp)
+    // ========================================
+    // 이벤트 기반 아키텍처 - QR 관련 로직은 Order 서비스에서 처리
+    // ========================================
 
-        return "$checkInUrl&token=$token&ts=$timestamp"
-    }
-
-    /**
-     * QR 코드 생성 및 저장
-     */
-    private suspend fun createAndSaveQrCode(orderId: java.util.UUID, orderNo: String, qrCodeData: String): QrCodeInfo {
-        // QR 코드 생성 (실제로는 ZXing 라이브러리 등 사용)
-        log.info("📱 QR 코드 이미지 생성: data={}", qrCodeData)
-
-        // QR 코드 정보 생성
-        val qrCodeId = java.util.UUID.randomUUID()
-        val now = java.time.LocalDateTime.now()
-        val expiresAt = now.plusDays(1) // 24시간 후 만료
-
-        // 실제로는 QR 코드 이미지를 S3, CloudFront 등에 저장
-        val qrCodeImageUrl = "https://cdn.popcorn.com/qr/${qrCodeId}.png"
-
-        val qrCodeInfo = QrCodeInfo(
-            qrCodeId = qrCodeId,
-            orderId = orderId,
-            orderNo = orderNo,
-            qrCodeData = qrCodeData,
-            qrCodeImageUrl = qrCodeImageUrl,
-            createdAt = now,
-            expiresAt = expiresAt,
-            status = "ACTIVE"
-        )
-
-        // 실제로는 데이터베이스에 저장
-        log.info("💾 QR 코드 정보 저장: qrCodeId={}", qrCodeId)
-        // qrCodeRepository.save(qrCodeInfo)
-
-        return qrCodeInfo
-    }
-
-    /**
-     * checkIns 서비스에 QR 코드 정보 전달
-     */
-    private suspend fun sendQrCodeToCheckInsService(qrCodeInfo: QrCodeInfo) {
+    private suspend fun confirmInventoryDeduction(paymentId: java.util.UUID, orderId: java.util.UUID) {
         try {
-            log.info("📤 checkIns QR 발급 요청: orderId={}", qrCodeInfo.orderId)
-            if (!qrIssuanceTracker.tryStart(qrCodeInfo.orderId)) {
-                log.info("QR 발급 중복 처리 스킵: orderId={}", qrCodeInfo.orderId)
-                return
-            }
-            val response = checkInsClient.issueQr(qrCodeInfo.orderId)
-            if (response.code != 200) {
-                log.warn("⚠️ checkIns QR 발급 실패: orderId={}, code={}, message={}",
-                    qrCodeInfo.orderId, response.code, response.message)
-                qrIssuanceTracker.markFailure(qrCodeInfo.orderId)
-                return
-            }
-            val qrCode = response.data?.get("qrCode")
-            val expiresAt = response.data?.get("expiresAt")
-            log.info("✅ checkIns QR 발급 완료: orderId={}, qrCode={}, expiresAt={}",
-                qrCodeInfo.orderId, qrCode, expiresAt)
-            qrIssuanceTracker.markSuccess(qrCodeInfo.orderId)
+            log.info("📦 재고 차감 확정 이벤트 발행: paymentId={}, orderId={}", paymentId, orderId)
+
+            // 재고 차감 확정 이벤트 발행 (Store 서비스가 처리)
+            paymentEventPublisher.publishAsync(
+                InventoryConfirmationRequestedEvent.createConfirm(paymentId, orderId)
+            )
+
+            log.info("✅ 재고 차감 확정 이벤트 발행 완료: paymentId={}, orderId={}", paymentId, orderId)
         } catch (e: Exception) {
-            qrIssuanceTracker.markFailure(qrCodeInfo.orderId)
-            log.warn("⚠️ checkIns QR 발급 실패: orderId={}, error={}", qrCodeInfo.orderId, e.message)
+            log.error("❌ 재고 차감 확정 이벤트 발행 실패: paymentId={}, orderId={}, error={}", paymentId, orderId, e.message, e)
         }
     }
 
-    /**
-     * 보안 토큰 생성 (간단한 예시)
-     */
-    private fun generateSecureToken(orderId: String, orderNo: String, timestamp: Long): String {
-        val data = "$orderId:$orderNo:$timestamp"
-        return data.hashCode().toString(16) // 실제로는 HMAC, JWT 등 사용
-    }
-
-    /**
-     * QR 코드 정보 데이터 클래스
-     */
-    data class QrCodeInfo(
-        val qrCodeId: java.util.UUID,
-        val orderId: java.util.UUID,
-        val orderNo: String,
-        val qrCodeData: String,
-        val qrCodeImageUrl: String,
-        val createdAt: java.time.LocalDateTime,
-        val expiresAt: java.time.LocalDateTime,
-        val status: String
-    )
-
-    private suspend fun confirmInventoryDeduction(orderId: java.util.UUID) {
-        // 재고 서비스와 연동하여 재고 차감 확정
-        log.info("📦 재고 차감 확정: orderId={}", orderId)
-        // TODO: 재고 서비스 API 호출
-    }
-
-    private suspend fun restoreInventory(orderId: java.util.UUID) {
-        // 재고 서비스와 연동하여 재고 복구
-        log.info("🔄 재고 복구: orderId={}", orderId)
-        // TODO: 재고 서비스 API 호출
-    }
-
-    private suspend fun invalidateQrCode(orderId: java.util.UUID) {
+    private suspend fun restoreInventory(paymentId: java.util.UUID, orderId: java.util.UUID) {
         try {
-            log.info("❌ QR 코드 무효화 시작: orderId={}", orderId)
+            log.info("🔄 재고 복구 이벤트 발행: paymentId={}, orderId={}", paymentId, orderId)
 
-            // QR 코드 정보 조회 (실제로는 데이터베이스에서 조회)
-            val qrCodes = findActiveQrCodesByOrderId(orderId)
+            // 재고 복구 이벤트 발행 (Store 서비스가 처리)
+            paymentEventPublisher.publishAsync(
+                InventoryConfirmationRequestedEvent.createRestore(paymentId, orderId)
+            )
 
-            if (qrCodes.isEmpty()) {
-                log.warn("⚠️ 무효화할 QR 코드가 없음: orderId={}", orderId)
-                return
-            }
-
-            // 모든 관련 QR 코드 무효화
-            qrCodes.forEach { qrCode ->
-                invalidateQrCodeInfo(qrCode)
-            }
-
-            // checkIns 서비스에 무효화 알림
-            notifyCheckInsServiceForInvalidation(orderId, qrCodes)
-
-            log.info("✅ QR 코드 무효화 완료: orderId={}, invalidatedCount={}", orderId, qrCodes.size)
-
+            log.info("✅ 재고 복구 이벤트 발행 완료: paymentId={}, orderId={}", paymentId, orderId)
         } catch (e: Exception) {
-            log.error("❌ QR 코드 무효화 실패: orderId={}, error={}", orderId, e.message, e)
+            log.error("❌ 재고 복구 이벤트 발행 실패: paymentId={}, orderId={}, error={}", paymentId, orderId, e.message, e)
         }
     }
 
-    /**
-     * 주문 ID로 활성 QR 코드 조회 (Mock)
-     */
-    private fun findActiveQrCodesByOrderId(orderId: java.util.UUID): List<QrCodeInfo> {
-        // 실제로는 QR 코드 데이터베이스에서 조회
-        // return qrCodeRepository.findActiveByOrderId(orderId)
-
-        // Mock 데이터 (로그에서 QR 코드가 있다고 가정)
-        log.info("🔍 활성 QR 코드 조회: orderId={}", orderId)
-        return listOf() // 실제 구현 시 데이터베이스에서 조회
-    }
-
-    /**
-     * QR 코드 정보 무효화
-     */
-    private fun invalidateQrCodeInfo(qrCode: QrCodeInfo) {
-        log.info("🚫 QR 코드 무효화: qrCodeId={}", qrCode.qrCodeId)
-
-        // 실제로는 데이터베이스에서 상태 업데이트
-        // qrCodeRepository.updateStatus(qrCode.qrCodeId, "INVALIDATED")
-
-        // QR 코드 이미지 삭제 또는 무효화 표시
-        // imageService.invalidateQrCodeImage(qrCode.qrCodeImageUrl)
-    }
-
-    /**
-     * checkIns 서비스에 QR 코드 무효화 알림
-     */
-    private suspend fun notifyCheckInsServiceForInvalidation(orderId: java.util.UUID, qrCodes: List<QrCodeInfo>) {
+    private suspend fun invalidateQrCode(paymentId: java.util.UUID, orderId: java.util.UUID) {
         try {
-            log.info("📤 checkIns 서비스에 QR 코드 무효화 알림: orderId={}, qrCodeCount={}",
-                orderId, qrCodes.size)
+            log.info("❌ QR 코드 무효화 이벤트 발행: paymentId={}, orderId={}", paymentId, orderId)
 
-            // 실제로는 checkIns 서비스 API 호출
-            // checkInsClient.invalidateQrCodes(orderId, qrCodes.map { it.qrCodeId })
+            // QR 코드 무효화 이벤트 발행 (Order 서비스가 처리)
+            paymentEventPublisher.publishAsync(
+                QrCodeInvalidationRequestedEvent.create(
+                    paymentId = paymentId,
+                    orderId = orderId,
+                    reason = "PAYMENT_CANCELLED"
+                )
+            )
 
-            log.info("✅ checkIns 서비스 무효화 알림 완료: orderId={}", orderId)
+            log.info("✅ QR 코드 무효화 이벤트 발행 완료: paymentId={}, orderId={}", paymentId, orderId)
+
         } catch (e: Exception) {
-            log.warn("⚠️ checkIns 서비스 무효화 알림 실패: orderId={}, error={}", orderId, e.message)
+            log.error("❌ QR 코드 무효화 이벤트 발행 실패: paymentId={}, orderId={}, error={}", paymentId, orderId, e.message, e)
         }
     }
 
-    private suspend fun updateOrderStatusToFailed(orderId: java.util.UUID, reason: String) {
-        log.info("📝 주문 상태 실패 변경: orderId={}, reason={}", orderId, reason)
-        // TODO: Order 서비스와 연동
+
+    private suspend fun updateOrderStatusToFailed(paymentId: java.util.UUID, orderId: java.util.UUID, reason: String) {
+        try {
+            log.info("📝 주문 실패 이벤트 발행: paymentId={}, orderId={}, reason={}", paymentId, orderId, reason)
+
+            // Order 실패 이벤트 발행 (Order 서비스가 상태 변경 처리)
+            paymentEventPublisher.publishAsync(
+                OrderStatusUpdateRequestedEvent.createFailed(
+                    paymentId = paymentId,
+                    orderId = orderId,
+                    reason = reason
+                )
+            )
+
+            log.info("✅ 주문 실패 이벤트 발행 완료: paymentId={}, orderId={}", paymentId, orderId)
+        } catch (e: Exception) {
+            log.error("❌ 주문 실패 이벤트 발행 실패: paymentId={}, orderId={}, error={}", paymentId, orderId, e.message, e)
+        }
     }
 
-    private suspend fun updateOrderStatusToExpired(orderId: java.util.UUID) {
-        log.info("📝 주문 상태 만료 변경: orderId={}", orderId)
-        // TODO: Order 서비스와 연동
+    private suspend fun updateOrderStatusToExpired(paymentId: java.util.UUID, orderId: java.util.UUID) {
+        try {
+            log.info("📝 주문 만료 이벤트 발행: paymentId={}, orderId={}", paymentId, orderId)
+
+            // Order 만료 이벤트 발행 (Order 서비스가 상태 변경 처리)
+            paymentEventPublisher.publishAsync(
+                OrderStatusUpdateRequestedEvent.createExpired(
+                    paymentId = paymentId,
+                    orderId = orderId
+                )
+            )
+
+            log.info("✅ 주문 만료 이벤트 발행 완료: paymentId={}, orderId={}", paymentId, orderId)
+        } catch (e: Exception) {
+            log.error("❌ 주문 만료 이벤트 발행 실패: paymentId={}, orderId={}, error={}", paymentId, orderId, e.message, e)
+        }
     }
 
     private suspend fun sendPaymentApprovedNotification(event: PaymentApprovedEvent) {
         log.info("📧 결제 승인 알림 발송: customerId={}, amount={}원", event.customerId, event.amount)
-        // TODO: 알림 서비스와 연동
+        // 알림 서비스는 별도 구현 생략
     }
 
     private suspend fun sendPaymentFailedNotification(event: PaymentFailedEvent) {
         log.info("📧 결제 실패 알림 발송: customerId={}, reason={}", event.customerId, event.failureReason)
-        // TODO: 알림 서비스와 연동
+        // 알림 서비스는 별도 구현 생략
     }
 
     private suspend fun sendPaymentCancelledNotification(event: PaymentCancelledEvent) {
         log.info("📧 결제 취소 알림 발송: customerId={}, amount={}원", event.customerId, event.cancelAmount)
-        // TODO: 알림 서비스와 연동
+        // 알림 서비스는 별도 구현 생략
     }
 
     private suspend fun sendCancelFailureAlert(event: PaymentCancelFailedEvent) {
         log.error("🚨 결제 취소 실패 관리자 알림: paymentId={}", event.paymentId)
-        // TODO: 관리자 알림 시스템과 연동
+        // 관리자 알림은 별도 구현 생략
     }
 
     private suspend fun addToRetryQueue(event: PaymentCancelFailedEvent) {
-        log.info("🔄 재시도 큐 추가: paymentId={}, retryCount={}", event.paymentId, event.retryCount)
-        // TODO: 재시도 큐 시스템과 연동
+        try {
+            log.info("🔄 재시도 큐 추가: paymentId={}, retryCount={}", event.paymentId, event.retryCount)
+
+            // 최대 재시도 횟수 체크 (예: 3회)
+            val maxRetries = 3
+            if (event.retryCount >= maxRetries) {
+                log.error("❌ 최대 재시도 횟수 초과: paymentId={}, retryCount={}/{}", event.paymentId, event.retryCount, maxRetries)
+
+                // 최종 실패 이벤트 발행
+                paymentEventPublisher.publishAsync(
+                    PaymentCancelFinalFailureEvent.create(
+                        paymentId = event.paymentId,
+                        orderId = event.orderId,
+                        originalReason = event.cancelReason,
+                        finalFailureReason = "최대 재시도 횟수 초과",
+                        totalRetryCount = event.retryCount
+                    )
+                )
+                return
+            }
+
+            // 재시도 이벤트 발행 (지연된 처리를 위해)
+            paymentEventPublisher.publishAsync(
+                PaymentCancelRetryEvent.create(
+                    paymentId = event.paymentId,
+                    orderId = event.orderId,
+                    cancelReason = event.cancelReason,
+                    retryCount = event.retryCount + 1,
+                    delaySeconds = calculateRetryDelay(event.retryCount + 1)
+                )
+            )
+
+            log.info("✅ 재시도 큐 추가 완료: paymentId={}, nextRetryCount={}", event.paymentId, event.retryCount + 1)
+
+        } catch (e: Exception) {
+            log.error("❌ 재시도 큐 추가 실패: paymentId={}, error={}", event.paymentId, e.message, e)
+        }
+    }
+
+    /**
+     * 재시도 지연 시간 계산 (지수 백오프)
+     */
+    private fun calculateRetryDelay(retryCount: Int): Int {
+        // 1차: 5초, 2차: 10초, 3차: 20초
+        return when (retryCount) {
+            1 -> 5
+            2 -> 10
+            3 -> 20
+            else -> 30
+        }
     }
 
     // 메트릭 수집 메서드들

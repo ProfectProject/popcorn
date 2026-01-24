@@ -52,6 +52,10 @@ jobs:
       - name: CheckIns Test & Coverage Verification
         run: ./gradlew :checkIns:test :checkIns:jacocoTestReport :checkIns:jacocoTestCoverageVerification
 
+      - name: Payment Service Test & Coverage Verification
+        working-directory: ./payment
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification
+
       - name: Upload checkIns Coverage Reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -66,6 +70,22 @@ jobs:
         with:
           name: checkIns-test-results
           path: checkIns/build/reports/tests/test/
+          retention-days: 7
+
+      - name: Upload Payment Coverage Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: payment-coverage-report
+          path: payment/build/reports/jacoco/test/html/
+          retention-days: 7
+
+      - name: Upload Payment Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: payment-test-results
+          path: payment/build/reports/tests/test/
           retention-days: 7
 
   deploy:

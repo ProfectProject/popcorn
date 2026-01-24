@@ -97,14 +97,24 @@ public class OrderQueryController {
             - 배송 정보 (구매형 주문의 경우)
             """
     )
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('SYSTEM')")
     public ResponseEntity<BaseResponse<OrderDetailResponse>> getOrder(
             @Parameter(description = "주문 ID", example = "12345678-1234-1234-1234-123456789abc")
             @PathVariable UUID orderId,
             @AuthenticationPrincipal PassportPrincipal principal) {
 
-        // 로그 출력: 어떤 요청이 들어왔는지 기록
-        log.info("주문 상세 조회 요청 - 주문ID: {}", orderId);
+        // 인증 정보 디버깅
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        log.info("🔍 주문 상세 조회 요청 - 주문ID: {}", orderId);
+        log.info("🔍 인증 정보: {}", auth);
+        if (auth != null) {
+            log.info("🔍 Principal: {}", auth.getPrincipal());
+            log.info("🔍 Authorities: {}", auth.getAuthorities());
+            log.info("🔍 Is Authenticated: {}", auth.isAuthenticated());
+        }
+        if (principal != null) {
+            log.info("🔍 PassportPrincipal - userId: {}, role: {}", principal.userId(), principal.role());
+        }
 
         try {
             // Service 계층에서 실제 조회 로직 수행

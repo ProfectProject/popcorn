@@ -144,4 +144,58 @@ class PaymentEventPublisherImpl(
         )
         publish(event)
     }
+
+    /**
+     * 결제 완료 이벤트 발행 (Order 서비스 호환용)
+     */
+    suspend fun publishPaymentCompleted(
+        paymentId: java.util.UUID,
+        orderId: java.util.UUID,
+        paymentKey: String?,
+        amount: Int,
+        paymentMethod: String,
+        pgResponse: String? = null
+    ) {
+        val event = if (pgResponse != null) {
+            PaymentCompletedEvent.createWithPgResponse(
+                orderId = orderId,
+                paymentId = paymentId,
+                paymentKey = paymentKey,
+                amount = amount,
+                paymentMethod = paymentMethod,
+                pgResponse = pgResponse
+            )
+        } else {
+            PaymentCompletedEvent.create(
+                orderId = orderId,
+                paymentId = paymentId,
+                paymentKey = paymentKey,
+                amount = amount,
+                paymentMethod = paymentMethod
+            )
+        }
+
+        log.info("🚀 결제 완료 이벤트 발행: orderId={}, amount={}원", orderId, amount)
+        applicationEventPublisher.publishEvent(event)
+    }
+
+    /**
+     * QR 코드 생성 요청 이벤트 발행
+     */
+    suspend fun publishQrCodeGenerationRequested(
+        paymentId: java.util.UUID,
+        orderId: java.util.UUID,
+        orderNo: String,
+        customerId: Long?
+    ) {
+        val event = QrCodeGenerationRequestedEvent.create(
+            paymentId = paymentId,
+            orderId = orderId,
+            orderNo = orderNo,
+            customerId = customerId
+        )
+
+        log.info("🚀 QR 코드 생성 요청 이벤트 발행: paymentId={}, orderId={}, orderNo={}", paymentId, orderId, orderNo)
+        applicationEventPublisher.publishEvent(event)
+    }
 }

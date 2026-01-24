@@ -341,6 +341,12 @@ class PaymentEventsTest {
                 is PaymentCancelFailedEvent -> "CANCEL_FAILED"
                 is PaymentExpiredEvent -> "EXPIRED"
                 is PaymentSuccessEvent -> "SUCCESS"
+                is InventoryConfirmationRequestedEvent -> "INVENTORY_CONFIRMATION"
+                is OrderStatusUpdateRequestedEvent -> "ORDER_STATUS_UPDATE"
+                is PaymentCancelFinalFailureEvent -> "CANCEL_FINAL_FAILURE"
+                is PaymentCancelRetryEvent -> "CANCEL_RETRY"
+                is QrCodeGenerationRequestedEvent -> "QR_GENERATION"
+                is QrCodeInvalidationRequestedEvent -> "QR_INVALIDATION"
             }
             assertNotNull(eventType)
             assertTrue(event is PaymentEvent)

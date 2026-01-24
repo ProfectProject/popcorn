@@ -124,7 +124,7 @@ class Payment : BaseEntity() {
     /**
      * 삭제되지 않은 결제인지 확인
      */
-    fun isNotDeleted(): Boolean = !this.isDeleted() // BaseEntity의 isDeleted() 메서드 사용
+    fun isNotDeleted(): Boolean = !this.isDeleted // BaseEntity의 isDeleted 프로퍼티 사용
 
     /**
      * 결제 가능한 상태인지 확인

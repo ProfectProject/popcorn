@@ -1,0 +1,584 @@
+package com.popcorn.payment.service
+
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
+import com.popcorn.payment.client.TossPaymentsCoroutineClient
+import com.popcorn.payment.config.CoroutineTransactionManager
+import com.popcorn.payment.dto.*
+import com.popcorn.payment.event.PaymentEventPublisherImpl
+import com.popcorn.payment.exception.PaymentException
+import io.mockk.*
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import org.mockito.junit.jupiter.MockitoExtension
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.util.*
+
+@ExtendWith(MockitoExtension::class)
+@DisplayName("TossPaymentCoroutineService 단위 테스트")
+class TossPaymentCoroutineServiceUnitTest {
+
+    private val tossClient = mockk<TossPaymentsCoroutineClient>()
+    private val transactionManager = mockk<CoroutineTransactionManager>()
+    private val paymentCommandService = mockk<PaymentCommandCoroutineService>()
+    private val orderQueryService = mockk<OrderQueryCoroutineService>()
+    private val objectMapper = mockk<ObjectMapper>()
+    private val paymentEventPublisher = mockk<PaymentEventPublisherImpl>()
+
+    private lateinit var tossPaymentService: TossPaymentCoroutineService
+
+    private val paymentId = UUID.randomUUID()
+    private val orderId = UUID.randomUUID()
+    private val paymentKey = "test_payment_key_12345"
+    private val amount = 10000
+    private val orderNo = "ORDER-001"
+
+    @BeforeEach
+    fun setUp() {
+        clearAllMocks()
+        tossPaymentService = TossPaymentCoroutineService(
+            tossClient = tossClient,
+            transactionManager = transactionManager,
+            paymentCommandService = paymentCommandService,
+            orderQueryService = orderQueryService,
+            objectMapper = objectMapper,
+            paymentEventPublisher = paymentEventPublisher
+        )
+    }
+
+    @Test
+    @DisplayName("결제 요청 생성 성공")
+    fun `createPaymentRequest should successfully create payment request`() = runTest {
+        // Given
+        val orderId = "ORDER-12345"
+        val amount = 25000
+        val orderName = "테스트 주문"
+        val customerKey = "customer123"
+
+        // When
+        val result = tossPaymentService.createPaymentRequest(orderId, amount, orderName, customerKey)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(orderId, result.orderId)
+        assertEquals(amount, result.amount)
+        assertTrue(result.paymentUrl.startsWith("https://js.tosspayments.com/v1/payment"))
+        assertTrue(result.paymentUrl.contains("orderId=$orderId"))
+        assertTrue(result.paymentUrl.contains("amount=$amount"))
+        assertTrue(result.paymentUrl.contains("customerKey=$customerKey"))
+        assertTrue(result.expiresAt.isAfter(LocalDateTime.now().plusMinutes(25)))
+    }
+
+    @Test
+    @DisplayName("결제 요청 생성 실패 - 예외 발생")
+    fun `createPaymentRequest should handle exception`() = runTest {
+        // Given
+        val orderId = "INVALID-ORDER"
+        val amount = -1000 // 음수 금액으로 예외 시뮬레이션
+        val orderName = "실패 테스트"
+        val customerKey = "customer"
+
+        // When & Then
+        // 현재 구현에서는 URL 생성 중 예외가 발생할 수 있음
+        assertDoesNotThrow {
+            tossPaymentService.createPaymentRequest(orderId, amount, orderName, customerKey)
+        }
+    }
+
+    @Test
+    @DisplayName("결제 승인 성공 - 새로운 결제")
+    fun `confirmPayment should successfully confirm new payment`() = runTest {
+        // Given
+        val tossResponse = mockTossConfirmResponse()
+        val createdPayment = mockCreatedPayment()
+
+        // 멱등성 체크 - 기존 결제 없음
+        coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns emptyList()
+
+        // 토스 API 호출
+        coEvery {
+            tossClient.confirm(any())
+        } returns tossResponse
+
+        // JSON 직렬화
+        every { objectMapper.writeValueAsString(tossResponse) } returns """{"paymentKey":"$paymentKey","totalAmount":$amount}"""
+
+        // 트랜잭션 처리
+        coEvery {
+            transactionManager.executeInTransactionSuspend<PaymentCreatedResult>(any())
+        } answers {
+            val block = firstArg<suspend () -> PaymentCreatedResult>()
+            block()
+        }
+
+        // 결제 생성
+        coEvery {
+            paymentCommandService.createPaymentBlocking(
+                orderId = orderId,
+                paymentMethod = "CARD",
+                amount = amount,
+                paymentKey = paymentKey,
+                rawPayload = any()
+            )
+        } returns createdPayment
+
+        // 결제 상태 업데이트
+        coEvery {
+            paymentCommandService.updatePaymentStatusBlocking(
+                paymentId = createdPayment.paymentId,
+                status = "PAID",
+                approvedAt = any(),
+                rawPayload = any()
+            )
+        } just Runs
+
+        // 이벤트 발행
+        coEvery {
+            paymentEventPublisher.publishPaymentApproved(any(), any(), any(), any(), any(), any(), any(), any())
+        } just Runs
+        coEvery {
+            paymentEventPublisher.publishPaymentCompleted(any(), any(), any(), any(), any(), any())
+        } just Runs
+
+        // When
+        val result = tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(createdPayment.paymentId, result.paymentId)
+        assertEquals("PAID", result.paymentStatus)
+        assertEquals("PAYMENT_COMPLETED", result.orderStatus)
+        assertEquals(orderId, result.orderId)
+        assertEquals(amount, result.amount)
+
+        // 검증
+        coVerify(exactly = 1) { paymentCommandService.findByPaymentKey(paymentKey) }
+        coVerify(exactly = 1) { tossClient.confirm(any()) }
+        coVerify(exactly = 1) { paymentCommandService.createPaymentBlocking(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { paymentCommandService.updatePaymentStatusBlocking(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { paymentEventPublisher.publishPaymentApproved(any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { paymentEventPublisher.publishPaymentCompleted(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    @DisplayName("결제 승인 성공 - 멱등성 체크로 기존 결제 반환")
+    fun `confirmPayment should return existing payment for idempotency`() = runTest {
+        // Given
+        val existingPayment = mockExistingPaymentResult()
+
+        coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns listOf(existingPayment)
+
+        // When
+        val result = tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(existingPayment.paymentId, result.paymentId)
+        assertEquals(existingPayment.status, result.paymentStatus)
+        assertEquals(existingPayment.amount, result.amount)
+
+        // 토스 API 호출하지 않아야 함
+        coVerify(exactly = 0) { tossClient.confirm(any()) }
+        coVerify(exactly = 0) { paymentCommandService.createPaymentBlocking(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - 금액 불일치")
+    fun `confirmPayment should fail when amount mismatch`() = runTest {
+        // Given
+        val tossResponse = mockTossConfirmResponse(totalAmount = 15000) // 다른 금액
+
+        coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns emptyList()
+        coEvery { tossClient.confirm(any()) } returns tossResponse
+
+        // When & Then
+        val exception = assertThrows(PaymentException.AmountMismatch::class.java) {
+            runTest { tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount) }
+        }
+        assertTrue(exception.message!!.contains("결제 금액 불일치"))
+    }
+
+    @Test
+    @DisplayName("결제 승인 실패 - 토스 API 호출 실패")
+    fun `confirmPayment should handle toss client exception`() = runTest {
+        // Given
+        coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns emptyList()
+        coEvery { tossClient.confirm(any()) } throws RuntimeException("토스 API 오류")
+
+        // When & Then
+        assertThrows(RuntimeException::class.java) {
+            runTest { tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount) }
+        }
+    }
+
+    @Test
+    @DisplayName("결제 승인 - 이벤트 발행 실패해도 결제는 성공 처리")
+    fun `confirmPayment should succeed even if event publishing fails`() = runTest {
+        // Given
+        val tossResponse = mockTossConfirmResponse()
+        val createdPayment = mockCreatedPayment()
+
+        setupSuccessfulPaymentFlow(tossResponse, createdPayment)
+
+        // 이벤트 발행 실패
+        coEvery {
+            paymentEventPublisher.publishPaymentApproved(any(), any(), any(), any(), any(), any(), any(), any())
+        } throws RuntimeException("이벤트 발행 실패")
+
+        // When
+        val result = tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount)
+
+        // Then
+        assertNotNull(result)
+        assertEquals("PAID", result.paymentStatus)
+
+        // 이벤트 발행을 시도했지만 실패
+        coVerify(exactly = 1) { paymentEventPublisher.publishPaymentApproved(any(), any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    @DisplayName("결제 취소 성공")
+    fun `cancelPayment should successfully cancel payment`() = runTest {
+        // Given
+        val cancelReason = "고객 요청"
+        val order = mockOrderResult()
+        val payment = mockPaymentDetailForCancel()
+        val cancelResponse = mockTossCancelResponse()
+
+        coEvery { orderQueryService.getOrder(orderId) } returns order
+        coEvery { paymentCommandService.getLatestPaymentByOrderId(orderId) } returns payment
+        coEvery {
+            tossClient.cancel(paymentKey, TossPaymentCancelRequest(cancelReason))
+        } returns cancelResponse
+        coEvery {
+            paymentCommandService.updatePaymentStatus(payment.paymentId, "CANCELLED", any())
+        } just Runs
+        every { objectMapper.writeValueAsString(cancelResponse) } returns """{"status":"CANCELLED","totalAmount":$amount}"""
+
+        // When
+        val result = tossPaymentService.cancelPayment(orderId, cancelReason)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(payment.paymentId, result.paymentId)
+        assertEquals(orderId, result.orderId)
+        assertEquals(amount, result.cancelAmount)
+        assertEquals("CANCELLED", result.status)
+        assertEquals(cancelReason, result.cancelReason)
+
+        coVerify(exactly = 1) { orderQueryService.getOrder(orderId) }
+        coVerify(exactly = 1) { paymentCommandService.getLatestPaymentByOrderId(orderId) }
+        coVerify(exactly = 1) { tossClient.cancel(paymentKey, any()) }
+        coVerify(exactly = 1) { paymentCommandService.updatePaymentStatus(any(), any(), any()) }
+    }
+
+    @Test
+    @DisplayName("결제 취소 실패 - PAID 상태가 아님")
+    fun `cancelPayment should fail when payment is not PAID status`() = runTest {
+        // Given
+        val order = mockOrderResult()
+        val payment = mockPaymentDetailForCancel(status = "PENDING")
+
+        coEvery { orderQueryService.getOrder(orderId) } returns order
+        coEvery { paymentCommandService.getLatestPaymentByOrderId(orderId) } returns payment
+
+        // When & Then
+        val exception = assertThrows(PaymentException.InvalidStatusTransition::class.java) {
+            runTest { tossPaymentService.cancelPayment(orderId, "취소 사유") }
+        }
+        assertTrue(exception.message!!.contains("결제 완료 상태가 아닙니다"))
+    }
+
+    @Test
+    @DisplayName("결제 취소 실패 - paymentKey가 없음")
+    fun `cancelPayment should fail when paymentKey not found`() = runTest {
+        // Given
+        val order = mockOrderResult()
+        val payment = mockPaymentDetailForCancel(paymentKey = null, rawPayload = null)
+
+        coEvery { orderQueryService.getOrder(orderId) } returns order
+        coEvery { paymentCommandService.getLatestPaymentByOrderId(orderId) } returns payment
+
+        // When & Then
+        val exception = assertThrows(PaymentException.InvalidRequest::class.java) {
+            runTest { tossPaymentService.cancelPayment(orderId, "취소 사유") }
+        }
+        assertTrue(exception.message!!.contains("결제 키를 찾을 수 없습니다"))
+    }
+
+    @Test
+    @DisplayName("결제 취소 - rawPayload에서 paymentKey 추출")
+    fun `cancelPayment should extract paymentKey from rawPayload`() = runTest {
+        // Given
+        val cancelReason = "시스템 오류"
+        val order = mockOrderResult()
+        val payment = mockPaymentDetailForCancel(paymentKey = null, rawPayload = """{"paymentKey":"$paymentKey"}""")
+        val cancelResponse = mockTossCancelResponse()
+
+        coEvery { orderQueryService.getOrder(orderId) } returns order
+        coEvery { paymentCommandService.getLatestPaymentByOrderId(orderId) } returns payment
+
+        // JSON 파싱 설정
+        val jsonNode = mockk<JsonNode>()
+        every { objectMapper.readTree(payment.rawPayload) } returns jsonNode
+        every { jsonNode["paymentKey"]?.asText() } returns paymentKey
+
+        coEvery { tossClient.cancel(paymentKey, any()) } returns cancelResponse
+        coEvery { paymentCommandService.updatePaymentStatus(any(), any(), any()) } just Runs
+        every { objectMapper.writeValueAsString(cancelResponse) } returns """{"status":"CANCELLED"}"""
+
+        // When
+        val result = tossPaymentService.cancelPayment(orderId, cancelReason)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(cancelReason, result.cancelReason)
+
+        verify(exactly = 1) { objectMapper.readTree(payment.rawPayload) }
+        coVerify(exactly = 1) { tossClient.cancel(paymentKey, any()) }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["2024-01-01T10:00:00+09:00", "2024-12-31T23:59:59Z", "", "invalid-date"])
+    @DisplayName("승인 시간 파싱 테스트 - 다양한 형식")
+    fun `parseApprovedAt should handle various date formats`(approvedAtString: String) = runTest {
+        // Given
+        val tossResponse = mockTossConfirmResponse(approvedAt = approvedAtString)
+        val createdPayment = mockCreatedPayment()
+
+        setupSuccessfulPaymentFlow(tossResponse, createdPayment)
+
+        // When
+        val result = tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount)
+
+        // Then
+        assertNotNull(result)
+        assertNotNull(result.approvedAt)
+        // 유효한 날짜인 경우 파싱된 값, 그렇지 않으면 현재 시간 근처
+    }
+
+    @Test
+    @DisplayName("JSON 직렬화 실패 처리")
+    fun `serializeResponse should handle serialization failure`() = runTest {
+        // Given
+        val tossResponse = mockTossConfirmResponse()
+
+        coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns emptyList()
+        coEvery { tossClient.confirm(any()) } returns tossResponse
+        every { objectMapper.writeValueAsString(tossResponse) } throws RuntimeException("직렬화 실패")
+
+        // When & Then
+        val exception = assertThrows(PaymentException.InvalidRequest::class.java) {
+            runTest { tossPaymentService.confirmPayment(paymentKey, orderId.toString(), amount) }
+        }
+        assertTrue(exception.message!!.contains("응답 직렬화 실패"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [1000, 5000, 10000, 50000, 100000])
+    @DisplayName("다양한 금액에 대한 결제 승인")
+    fun `confirmPayment should handle various amounts`(testAmount: Int) = runTest {
+        // Given
+        val tossResponse = mockTossConfirmResponse(totalAmount = testAmount)
+        val createdPayment = mockCreatedPayment(amount = testAmount)
+
+        setupSuccessfulPaymentFlow(tossResponse, createdPayment)
+
+        // When
+        val result = tossPaymentService.confirmPayment(paymentKey, orderId.toString(), testAmount)
+
+        // Then
+        assertEquals(testAmount, result.amount)
+    }
+
+    @Test
+    @DisplayName("rawPayload에서 paymentKey 추출 실패 - 잘못된 JSON")
+    fun `extractPaymentKeyFromRawPayload should handle invalid JSON`() = runTest {
+        // Given
+        val order = mockOrderResult()
+        val payment = mockPaymentDetailForCancel(paymentKey = null, rawPayload = "invalid-json")
+
+        coEvery { orderQueryService.getOrder(orderId) } returns order
+        coEvery { paymentCommandService.getLatestPaymentByOrderId(orderId) } returns payment
+        every { objectMapper.readTree("invalid-json") } throws RuntimeException("JSON 파싱 실패")
+
+        // When & Then
+        val exception = assertThrows(PaymentException.InvalidRequest::class.java) {
+            runTest { tossPaymentService.cancelPayment(orderId, "취소") }
+        }
+        assertTrue(exception.message!!.contains("결제 키를 찾을 수 없습니다"))
+    }
+
+    @Test
+    @DisplayName("URL 인코딩 테스트 - 한글 주문명")
+    fun `createPaymentRequest should properly encode Korean order name`() = runTest {
+        // Given
+        val orderId = "ORDER-한글"
+        val amount = 10000
+        val orderName = "한글 주문명 테스트"
+        val customerKey = "고객123"
+
+        // When
+        val result = tossPaymentService.createPaymentRequest(orderId, amount, orderName, customerKey)
+
+        // Then
+        assertTrue(result.paymentUrl.contains(orderId))
+        assertTrue(result.paymentUrl.contains(customerKey))
+        // URL 인코딩된 한글이 포함되어야 함
+        assertFalse(result.paymentUrl.contains("한글 주문명 테스트")) // 원본 그대로는 없어야 함
+    }
+
+    // Mock 헬퍼 메서드들
+    private fun mockTossConfirmResponse(
+        totalAmount: Int = this.amount,
+        approvedAt: String = "2024-01-01T10:00:00+09:00"
+    ): TossPaymentConfirmResponse {
+        return TossPaymentConfirmResponse(
+            paymentKey = paymentKey,
+            orderId = orderId.toString(),
+            totalAmount = totalAmount,
+            method = "CARD",
+            status = "DONE",
+            approvedAt = approvedAt
+        )
+    }
+
+    private fun mockCreatedPayment(amount: Int = this.amount): PaymentCreatedResult {
+        return PaymentCreatedResult(
+            paymentId = paymentId,
+            orderId = orderId,
+            amount = amount,
+            paymentMethod = "CARD",
+            status = "PAID",
+            createdAt = LocalDateTime.now()
+        )
+    }
+
+    private fun mockExistingPaymentResult(): PaymentDetailResult {
+        return PaymentDetailResult(
+            paymentId = paymentId,
+            orderId = orderId,
+            amount = amount,
+            status = "PAID",
+            paymentKey = paymentKey,
+            approvedAt = LocalDateTime.now(),
+            rawPayload = """{"paymentKey":"$paymentKey"}"""
+        )
+    }
+
+    private fun mockOrderResult(): OrderDetailResult {
+        return OrderDetailResult(
+            id = orderId,
+            orderNo = orderNo,
+            status = "PAID",
+            totalAmount = amount
+        )
+    }
+
+    private fun mockPaymentDetailForCancel(
+        status: String = "PAID",
+        paymentKey: String? = this.paymentKey,
+        rawPayload: String? = """{"paymentKey":"${this.paymentKey}"}"""
+    ): PaymentDetailResult {
+        return PaymentDetailResult(
+            paymentId = paymentId,
+            orderId = orderId,
+            amount = amount,
+            status = status,
+            paymentKey = paymentKey,
+            approvedAt = LocalDateTime.now(),
+            rawPayload = rawPayload
+        )
+    }
+
+    private fun mockTossCancelResponse(): TossPaymentCancelResponse {
+        return TossPaymentCancelResponse(
+            paymentKey = paymentKey,
+            orderId = orderId.toString(),
+            totalAmount = amount,
+            status = "CANCELLED",
+            cancelledAt = OffsetDateTime.now()
+        )
+    }
+
+    private fun setupSuccessfulPaymentFlow(tossResponse: TossPaymentConfirmResponse, createdPayment: PaymentCreatedResult) {
+        coEvery { paymentCommandService.findByPaymentKey(paymentKey) } returns emptyList()
+        coEvery { tossClient.confirm(any()) } returns tossResponse
+        every { objectMapper.writeValueAsString(tossResponse) } returns """{"paymentKey":"$paymentKey","totalAmount":${tossResponse.totalAmount}}"""
+
+        coEvery {
+            transactionManager.executeInTransactionSuspend<PaymentCreatedResult>(any())
+        } answers {
+            val block = firstArg<suspend () -> PaymentCreatedResult>()
+            block()
+        }
+
+        coEvery {
+            paymentCommandService.createPaymentBlocking(any(), any(), any(), any(), any())
+        } returns createdPayment
+
+        coEvery {
+            paymentCommandService.updatePaymentStatusBlocking(any(), any(), any(), any())
+        } just Runs
+
+        coEvery {
+            paymentEventPublisher.publishPaymentApproved(any(), any(), any(), any(), any(), any(), any(), any())
+        } just Runs
+
+        coEvery {
+            paymentEventPublisher.publishPaymentCompleted(any(), any(), any(), any(), any(), any())
+        } just Runs
+    }
+}
+
+// 테스트용 Mock DTO 클래스들
+data class TossPaymentConfirmResponse(
+    val paymentKey: String,
+    val orderId: String,
+    val totalAmount: Int,
+    val method: String,
+    val status: String,
+    val approvedAt: String
+)
+
+data class TossPaymentCancelResponse(
+    val paymentKey: String,
+    val orderId: String,
+    val totalAmount: Int,
+    val status: String,
+    val cancelledAt: OffsetDateTime
+)
+
+data class PaymentCreatedResult(
+    val paymentId: UUID,
+    val orderId: UUID,
+    val amount: Int,
+    val paymentMethod: String,
+    val status: String,
+    val createdAt: LocalDateTime
+)
+
+data class PaymentDetailResult(
+    val paymentId: UUID,
+    val orderId: UUID,
+    val amount: Int,
+    val status: String,
+    val paymentKey: String?,
+    val approvedAt: LocalDateTime?,
+    val rawPayload: String?
+)
+
+data class OrderDetailResult(
+    val id: UUID,
+    val orderNo: String,
+    val status: String,
+    val totalAmount: Int
+)

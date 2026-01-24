@@ -4,7 +4,6 @@ import com.popcorn.payment.dto.*
 import com.popcorn.payment.exception.PaymentException
 import com.popcorn.payment.service.TossPaymentCoroutineService
 import com.popcorn.payment.service.PaymentCommandCoroutineService
-import com.popcorn.payment.service.OrderQueryCoroutineService
 import com.popcorn.payment.service.PaymentApprovalAsyncService
 import com.popcorn.payment.util.PaymentTokenUtil
 import io.swagger.v3.oas.annotations.Operation
@@ -30,11 +29,9 @@ import java.util.*
 @Tag(name = "Payment API", description = "결제 관리 API")
 @RestController
 @RequestMapping("/api/pay/v1/payments")
-@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8080"])
 class PaymentController(
     private val tossPaymentService: TossPaymentCoroutineService,
     private val paymentCommandService: PaymentCommandCoroutineService,
-    private val orderQueryService: OrderQueryCoroutineService,
     private val paymentTokenUtil: PaymentTokenUtil,
     private val paymentApprovalAsyncService: PaymentApprovalAsyncService
 ) {
@@ -99,7 +96,7 @@ class PaymentController(
     }
 
     /**
-     * 토스페이먼츠 결제 승인 (비동기)
+     * 토스페이먼츠 결제 승인 (비동기) - orderId 기반 간단 승인
      */
     @PostMapping("/confirm-async")
     suspend fun confirmPaymentAsync(
@@ -111,21 +108,23 @@ class PaymentController(
             request.paymentKey, request.orderId, request.amount)
 
         return try {
-            val orderInfo = orderQueryService.getOrder(UUID.fromString(request.orderId))
+            // 🎯 이벤트 기반 MSA: Order Service 직접 호출 없이 이벤트만 발행
+            log.info("🚀 결제 승인 이벤트 발행: orderId={}, amount={}원", request.orderId, request.amount)
+
             paymentApprovalAsyncService.confirmAsync(request)
 
             val response = PaymentConfirmResponse(
                 paymentId = UUID.randomUUID(),
                 paymentStatus = "IN_PROGRESS",
                 orderStatus = "PAYMENT_PENDING",
-                orderId = orderInfo.id,
-                orderNo = orderInfo.orderNo,
+                orderId = UUID.fromString(request.orderId),
+                orderNo = "주문번호_미정", // Order Service가 이벤트로 처리
                 amount = request.amount,
                 approvedAt = null
             )
 
             ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(ApiResponse.success(response, "결제 승인 처리 중입니다."))
+                .body(ApiResponse.success(response, "결제 승인 이벤트가 발행되었습니다."))
         } catch (e: Exception) {
             log.error("❌ 결제 승인(비동기) 중 예외 발생: paymentKey={}", request.paymentKey, e)
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -188,20 +187,8 @@ class PaymentController(
             request.orderId, request.paymentMethod, request.amount)
 
         try {
-            val orderInfo = orderQueryService.getOrder(request.orderId)
-            when (orderInfo.status) {
-                "PAYMENT_PENDING" -> Unit
-                "PAID", "COMPLETED", "CANCELLED", "REJECTED" -> {
-                    throw PaymentException.invalidRequest("현재 상태에서는 결제를 시작할 수 없습니다: ${orderInfo.status}")
-                }
-                else -> {
-                    orderQueryService.updateOrderStatus(
-                        orderId = request.orderId,
-                        status = "PAYMENT_PENDING",
-                        reason = "결제 시작"
-                    )
-                }
-            }
+            // 🎯 이벤트 기반: 결제 생성 이벤트 발행 (Order Service가 상태 관리)
+            log.info("🚀 결제 생성 이벤트 발행: orderId={}", request.orderId)
 
             // 결제 기록은 승인 시점에 생성하므로, 여기서는 URL만 발급
             val paymentUrl = buildFrontendPaymentUrl(request)

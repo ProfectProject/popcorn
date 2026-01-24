@@ -17,7 +17,7 @@ import java.util.*
 @Component
 class PaymentTokenUtil {
 
-    @Value("\${jwt.secret}")
+    @Value("\${payment.token.secret:\${jwt.secret}}")
     private lateinit var secretKey: String
 
     private val log = LoggerFactory.getLogger(PaymentTokenUtil::class.java)

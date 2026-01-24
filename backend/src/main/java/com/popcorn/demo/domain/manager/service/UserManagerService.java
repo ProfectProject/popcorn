@@ -3,13 +3,13 @@ package com.popcorn.demo.domain.manager.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.popcorn.demo.domain.users.dto.manager.OwnerApproveResponse;
-import com.popcorn.demo.domain.users.dto.manager.OwnerForceStopResponse;
-import com.popcorn.demo.domain.users.dto.manager.UserForceStopRequest;
-import com.popcorn.demo.domain.users.dto.manager.UserForceStopResponse;
-import com.popcorn.demo.domain.users.entity.User;
-import com.popcorn.demo.domain.users.entity.enums.UserRole;
-import com.popcorn.demo.domain.users.repository.UserRepository;
+import com.popcorn.users.users.dto.manager.OwnerApproveResponse;
+import com.popcorn.users.users.dto.manager.OwnerForceStopResponse;
+import com.popcorn.users.users.dto.manager.UserForceStopRequest;
+import com.popcorn.users.users.dto.manager.UserForceStopResponse;
+import com.popcorn.users.users.entity.User;
+import com.popcorn.users.users.entity.enums.UserRole;
+import com.popcorn.users.users.repository.UserRepository;
 import com.popcorn.demo.domain.manager.handler.ApprovalNotAllowedException;
 import com.popcorn.demo.domain.manager.handler.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class UserManagerService {
         if (user.getRole() != UserRole.OWNER) {
             throw new ApprovalNotAllowedException("승인대상이 아닙니다.");
         }
-        if(user.getRole() == com.popcorn.demo.domain.users.entity.enums.UserRole.OWNER){
+        if(user.getRole() == UserRole.OWNER){
 
         }
 

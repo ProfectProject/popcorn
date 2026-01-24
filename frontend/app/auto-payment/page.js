@@ -72,8 +72,8 @@ export default function AutoPaymentPage() {
     // 🔒 중복 실행 방지: 즉시 실행 플래그 설정
     paymentExecuted.current = true;
     setPaymentStarted(true);
-    if (typeof window !== 'undefined' && token) {
-      const storageKey = `payment-started:${token}`;
+    if (typeof window !== 'undefined' && paymentInfo.orderId) {
+      const storageKey = `payment-started:${paymentInfo.orderId}`;
       startKeyRef.current = storageKey;
       if (window.sessionStorage.getItem(storageKey)) {
         setError('이미 결제가 진행 중입니다. 새로고침하지 마세요.');
@@ -91,13 +91,17 @@ export default function AutoPaymentPage() {
 
       const tossPayments = window.TossPayments(clientKey);
 
+      // 간단한 결제 승인 - JWT 토큰 불필요
+      const successUrl = paymentInfo.successUrl || "http://localhost:3000/payments/success";
+      const failUrl = paymentInfo.failUrl || "http://localhost:3000/payments/fail";
+
       await tossPayments.requestPayment('CARD', {
         orderId: paymentInfo.orderId || paymentInfo.orderNo,
         orderName: `Popcorn Order ${paymentInfo.orderNo}`,
         amount: paymentInfo.amount,
         customerKey: paymentInfo.customerKey,
-        successUrl: paymentInfo.successUrl || "http://localhost:3000/payments/success",
-        failUrl: paymentInfo.failUrl || "http://localhost:3000/payments/fail"
+        successUrl: successUrl,
+        failUrl: failUrl
       });
 
     } catch (err) {
