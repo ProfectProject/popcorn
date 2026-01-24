@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import com.popcorn.users.auth.dto.LoginRequest;
 import com.popcorn.users.auth.dto.LoginResponse;
 import com.popcorn.users.auth.service.AuthService;
+import com.popcorn.users.auth.dto.RefreshTokenRequest;
+import com.popcorn.users.auth.dto.RefreshTokenResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -103,5 +105,35 @@ public class AuthController {
         )
         @Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @Operation(
+        summary = "액세스 토큰 갱신",
+        description = """
+            만료된 액세스 토큰 대신 리프레시 토큰으로 새로운 액세스 토큰을 발급합니다.
+            """
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "갱신 성공",
+        content = @Content(
+            schema = @Schema(implementation = RefreshTokenResponse.class),
+            examples = @ExampleObject(
+                name = "갱신 성공 응답",
+                value = """
+                    {
+                      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "tokenType": "Bearer",
+                      "expiresInMs": 3600000
+                    }
+                    """
+            )
+        )
+    )
+    @PostMapping("/refresh")
+    public RefreshTokenResponse refresh(
+        @Parameter(description = "리프레시 토큰")
+        @Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refreshAccessToken(request);
     }
 }

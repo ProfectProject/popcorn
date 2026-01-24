@@ -205,19 +205,19 @@ springdoc:
     path: /swagger-ui.html
     urls:
       - name: user-service
-        url: http://localhost:8080/api/users/v3/api-docs
+        url: ${GATEWAY_SERVICE_URL}/api/users/v3/api-docs #http://localhost:8080/api/users/v3/api-docs
       - name: stores-public
-        url: http://localhost:8080/api/stores/v3/api-docs/public
+        url: ${GATEWAY_SERVICE_URL}/api/stores/v3/api-docs/public
       - name: stores-owner
-        url: http://localhost:8080/api/stores/v3/api-docs/owner
+        url: ${GATEWAY_SERVICE_URL}/api/stores/v3/api-docs/owner
       - name: checkIns
-        url: http://localhost:8080/api/checkins/v3/api-docs
+        url: ${GATEWAY_SERVICE_URL}/api/checkins/v3/api-docs
       - name: order-service
-        url: http://localhost:8080/api/orders/v3/api-docs
+        url: ${GATEWAY_SERVICE_URL}/api/orders/v3/api-docs
       - name: payment-service
-        url: http://localhost:8080/api/payments/v3/api-docs
+        url: ${GATEWAY_SERVICE_URL}/api/payments/v3/api-docs
       - name: orderQuery
-        url: http://localhost:8080/api/orderquery/v3/api-docs
+        url: ${GATEWAY_SERVICE_URL}/api/orderquery/v3/api-docs
 
 resilience4j:
   circuitbreaker:

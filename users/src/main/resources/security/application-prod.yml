@@ -6,7 +6,11 @@ server:
 spring:
   config:
     activate:
-      on-profile: local
+      on-profile: prod
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
   datasource:
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
     username: ${USER_AUTH_DB_USERNAME}
@@ -41,6 +45,7 @@ spring:
 jwt:
   secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
+  refresh-expiration-ms: 1209600000
 
 logging:
   level:
