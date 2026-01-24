@@ -229,6 +229,8 @@ class PaymentCommandCoroutineServiceTest {
 
         val result2 = PaymentDetailResult(
             paymentId = paymentId,
+            orderId = null,
+            paymentKey = null,
             status = status,
             amount = amount,
             approvedAt = null,

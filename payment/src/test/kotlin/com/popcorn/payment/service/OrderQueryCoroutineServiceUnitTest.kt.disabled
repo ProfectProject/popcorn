@@ -12,9 +12,12 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.http.HttpStatus
+import org.springframework.http.HttpHeaders
 import org.springframework.web.reactive.function.client.*
 import org.springframework.web.reactive.function.client.WebClient.*
+import org.springframework.web.util.UriBuilder
 import reactor.core.publisher.Mono
+import java.net.URI
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
@@ -151,7 +154,7 @@ class OrderQueryCoroutineServiceUnitTest {
         val webClientException = WebClientResponseException.create(
             HttpStatus.SERVICE_UNAVAILABLE.value(),
             "Service Unavailable",
-            null,
+            HttpHeaders.EMPTY,
             errorMessage.toByteArray(),
             null
         )
@@ -230,7 +233,7 @@ class OrderQueryCoroutineServiceUnitTest {
         val webClientException = WebClientResponseException.create(
             HttpStatus.BAD_REQUEST.value(),
             "Bad Request",
-            null,
+            HttpHeaders.EMPTY,
             errorResponse.toByteArray(),
             null
         )
@@ -371,7 +374,7 @@ class OrderQueryCoroutineServiceUnitTest {
     @DisplayName("타임아웃 테스트 - 긴 응답 시간")
     fun `getOrder should handle timeout scenarios`() = runTest {
         // Given
-        val timeoutException = kotlinx.coroutines.TimeoutCancellationException("Timed out waiting for 30000 ms")
+        val timeoutException = java.util.concurrent.TimeoutException("Timed out waiting for 30000 ms")
 
         setupWebClientCallWithException(timeoutException)
 
@@ -463,7 +466,7 @@ class OrderQueryCoroutineServiceUnitTest {
         val responseSpec = mockk<ResponseSpec>()
 
         every { webClient.patch() } returns requestBodyUriSpec
-        every { requestBodyUriSpec.uri(any<((UriBuilder) -> URI)>()) } returns requestHeadersSpec
+        every { requestBodyUriSpec.uri(any<((UriBuilder) -> URI)>()) } returns requestBodyUriSpec
         every { requestHeadersSpec.header(any(), any()) } returns requestHeadersSpec
         every { requestHeadersSpec.retrieve() } returns responseSpec
         coEvery { responseSpec.awaitBody<ApiResponse<Unit>>() } returns ApiResponse(code = 200, message = "success")
@@ -475,7 +478,7 @@ class OrderQueryCoroutineServiceUnitTest {
         val responseSpec = mockk<ResponseSpec>()
 
         every { webClient.patch() } returns requestBodyUriSpec
-        every { requestBodyUriSpec.uri(any<((UriBuilder) -> URI)>()) } returns requestHeadersSpec
+        every { requestBodyUriSpec.uri(any<((UriBuilder) -> URI)>()) } returns requestBodyUriSpec
         every { requestHeadersSpec.header(any(), any()) } returns requestHeadersSpec
         every { requestHeadersSpec.retrieve() } returns responseSpec
         coEvery { responseSpec.awaitBody<ApiResponse<Unit>>() } throws exception

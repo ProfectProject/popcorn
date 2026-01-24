@@ -1,7 +1,6 @@
 package com.popcorn.payment.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Disabled
 import com.popcorn.payment.dto.PaymentConfirmRequest
 import com.popcorn.payment.dto.PaymentCreateRequest
 import com.popcorn.payment.service.TossPaymentConfirmResult

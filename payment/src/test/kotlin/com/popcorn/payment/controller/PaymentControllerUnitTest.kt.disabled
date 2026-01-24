@@ -6,8 +6,8 @@ import com.popcorn.payment.service.PaymentApprovalAsyncService
 import com.popcorn.payment.service.PaymentCommandCoroutineService
 import com.popcorn.payment.service.TossPaymentCoroutineService
 import com.popcorn.payment.service.TossPaymentConfirmResult
-import com.popcorn.payment.controller.PaymentDetailResult
-import com.popcorn.payment.controller.PaymentCancelResult
+import com.popcorn.payment.service.PaymentDetailResult
+import com.popcorn.payment.service.TossPaymentCancelResult
 import com.popcorn.payment.util.PaymentTokenUtil
 import com.popcorn.common.security.PassportPrincipal
 import io.mockk.*
@@ -185,12 +185,14 @@ class PaymentControllerUnitTest {
         val paymentDetail = PaymentDetailResult(
             paymentId = paymentId,
             orderId = orderId,
-            amount = amount,
+            paymentKey = paymentKey,
             status = "DONE",
-            approvedAt = LocalDateTime.now()
+            amount = amount,
+            approvedAt = LocalDateTime.now(),
+            rawPayload = null
         )
 
-        val cancelResult = PaymentCancelResult(
+        val cancelResult = TossPaymentCancelResult(
             paymentId = paymentId,
             orderId = orderId,
             cancelAmount = amount,
@@ -330,7 +332,7 @@ class PaymentControllerUnitTest {
     @DisplayName("결제 생성 실패 - PaymentException")
     fun `createPayment should handle PaymentException`() = runTest {
         // Given
-        val request = PaymentCreateRequest(orderId, amount, "CARD", 123L, orderNo)
+        val request = PaymentCreateRequest(orderId, "CARD", amount, 123L, orderNo)
         val errorMessage = "결제 생성 실패"
 
         every {
@@ -427,9 +429,11 @@ class PaymentControllerUnitTest {
         val paymentDetail = PaymentDetailResult(
             paymentId = paymentId,
             orderId = orderId,
-            amount = amount,
+            paymentKey = paymentKey,
             status = "DONE",
-            approvedAt = LocalDateTime.now()
+            amount = amount,
+            approvedAt = LocalDateTime.now(),
+            rawPayload = null
         )
 
         coEvery { paymentCommandService.getLatestPaymentByOrderId(paymentId) } returns paymentDetail
@@ -506,9 +510,11 @@ class PaymentControllerUnitTest {
         val paymentDetail = PaymentDetailResult(
             paymentId = paymentId,
             orderId = orderId,
-            amount = amount,
+            paymentKey = paymentKey,
             status = "DONE",
-            approvedAt = LocalDateTime.now()
+            amount = amount,
+            approvedAt = LocalDateTime.now(),
+            rawPayload = null
         )
 
         coEvery { paymentCommandService.getLatestPaymentByOrderId(orderId) } returns paymentDetail
@@ -606,7 +612,7 @@ class PaymentControllerUnitTest {
             approvedAt = LocalDateTime.now()
         )
 
-        coEvery { tossPaymentService.confirmPayment(paymentKey, orderId, testAmount) } returns tossResult
+        coEvery { tossPaymentService.confirmPayment(paymentKey, orderId.toString(), testAmount) } returns tossResult
 
         // When
         val response = paymentController.confirmPayment(request, principal)
@@ -677,29 +683,4 @@ class PaymentControllerUnitTest {
     }
 }
 
-// 테스트에 필요한 Mock 클래스들
-data class TossPaymentConfirmResult(
-    val paymentId: UUID,
-    val paymentStatus: String,
-    val orderStatus: String,
-    val orderId: UUID,
-    val orderNo: String,
-    val amount: Int,
-    val approvedAt: LocalDateTime
-)
 
-data class PaymentDetailResult(
-    val paymentId: UUID,
-    val orderId: UUID?,
-    val amount: Int,
-    val status: String,
-    val approvedAt: LocalDateTime?
-)
-
-data class PaymentCancelResult(
-    val paymentId: UUID,
-    val orderId: UUID,
-    val cancelAmount: Int,
-    val status: String,
-    val cancelReason: String
-)
