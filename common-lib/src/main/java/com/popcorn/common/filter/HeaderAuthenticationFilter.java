@@ -38,21 +38,11 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
             String internalCallHeader = request.getHeader("X-Internal-Call");
             String passportHeader = request.getHeader("X-Passport");
 
-            /* 
-            String userIdHeader = request.getHeader("X-User-Id");
-            String roleHeader = resolveRoleHeader(request);
-            String emailHeader = request.getHeader("X-User-Email");*/
-
             // 디버그 로깅 추가
             System.out.println("🔍 HeaderAuthenticationFilter - URI: " + request.getRequestURI());
             System.out.println("🔍 X-Internal-Service: " + internalServiceHeader);
             System.out.println("🔍 X-Internal-Call: " + internalCallHeader);
             System.out.println("🔍 X-Passport: " + passportHeader);
-
-            /* 
-            System.out.println("🔍 X-User-Id: " + userIdHeader);
-            System.out.println("🔍 X-User-Role: " + roleHeader);
-            System.out.println("🔍 X-User-Email: " + emailHeader);*/
 
             if (passportHeader != null) {
                 try {
@@ -100,25 +90,6 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(systemAuth);
                 System.out.println("✅ 내부 서비스 호출 인증 성공 - 서비스: " + internalServiceHeader);
             } 
-            /* 
-            else if (userIdHeader != null && roleHeader != null) {
-                try {
-                    Long userId = Long.valueOf(userIdHeader);
-                    String authority = roleHeader.startsWith("ROLE_") ? roleHeader : "ROLE_" + roleHeader;
-                    PassportPrincipal principal = new PassportPrincipal(userId, roleHeader, emailHeader);
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    principal,
-                                    null,
-                                    List.of(new SimpleGrantedAuthority(authority))
-                            );
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                    System.out.println("✅ 사용자 인증 성공 - 사용자ID: " + userId + ", 권한: " + authority);
-                } catch (NumberFormatException e) {
-                    System.out.println("❌ 사용자 ID 파싱 실패: " + userIdHeader);
-                }
-            }*/
             else {
                 System.out.println("❌ 인증 헤더 누락 - Gateway 헤더 또는 내부 호출 헤더가 필요함");
             }
