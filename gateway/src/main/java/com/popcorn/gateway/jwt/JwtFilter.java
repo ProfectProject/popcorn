@@ -1,15 +1,25 @@
 package com.popcorn.gateway.jwt;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.gateway.dto.PassportEnvelope;
+import com.popcorn.gateway.dto.PassportPayload;
+import com.popcorn.gateway.dto.PassportUser;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +31,8 @@ import reactor.core.publisher.Mono;
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_PATH_PREFIXES = List.of(
             // 인증 관련 경로
-            "/api/users/v1/auth/login",
+            "/api/users/v1/auth/**",
+            "/api/users/v1/auth/refresh",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
             "/api/pay/v1/payments/confirm-async",
@@ -60,6 +71,14 @@ public class JwtFilter implements GlobalFilter, Ordered{
     );
 
     private final JwtUtil jwtUtils;
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Value("${passport.secret}")
+    private String passportSecret;
+
+    @Value("${passport.ttl-seconds:60}")
+    private long passportTtlSeconds;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -111,26 +130,48 @@ public class JwtFilter implements GlobalFilter, Ordered{
         }
 
         log.info("✅ JWT 토큰 검증 성공");
-        
-        // 4) 검증 성공 → 사용자 정보 헤더 전달 후 PROXY 통과
-        String userId = String.valueOf(jwtUtils.getUserId(token));
-        String email = jwtUtils.getUsername(token);
-        String role = jwtUtils.getRole(token);
 
-        // 디버그 로깅 추가
-        log.info("🔍 JWT 파싱 성공 - userId: {}, email: {}, role: {}", userId, email, role);
-        log.info("🔍 요청 경로: {}", exchange.getRequest().getPath().value());
-        log.info("🔍 헤더 설정 - X-User-Id: {}, X-User-Email: {}, X-User-Role: {}", userId, email, role);
+        // +) passport 발급
+        // 캐시 키 = passport:sha256(token)
+        String cacheKey = "passport:" + sha256(token);
+        // 토큰 만료까지 남은 시간(초) (JwtUtil에 맞게 구현)
+        long tokenRemainSeconds = jwtUtils.getRemainingSeconds(token); // 구현 필요
+        long ttl = Math.max(1, Math.min(passportTtlSeconds, tokenRemainSeconds));
 
-        ServerWebExchange mutatedExchange = exchange.mutate()
-                .request(builder -> builder
-                        .header("X-User-Id", userId)
-                        .header("X-User-Email", email)
-                        .header("X-User-Role", role)
-                )
-                .build();
+        return redisTemplate.opsForValue().get(cacheKey)
+                .flatMap(cachedPassportJson -> forwardWithPassport(exchange, chain, cachedPassportJson))
+                .switchIfEmpty(Mono.defer(() -> {
+                    // 새 Passport 생성
+                    String userId = String.valueOf(jwtUtils.getUserId(token));
+                    String email = jwtUtils.getUsername(token);
+                    String role = jwtUtils.getRole(token);
 
-        return chain.filter(mutatedExchange);
+                    long now = Instant.now().getEpochSecond();
+                    long exp = now + ttl;
+
+                    PassportPayload payload = new PassportPayload(
+                            new PassportUser(userId, email, role),
+                            now,
+                            exp
+                    );
+
+                    try {
+                        // payload를 안정적으로 직렬화(서명 대상)
+                        String payloadJson = objectMapper.writeValueAsString(payload);
+                        String integrity = HmacUtil.hmacSha256Base64Url(passportSecret, payloadJson);
+
+                        PassportEnvelope envelope = new PassportEnvelope(payload, integrity);
+                        String passportJson = objectMapper.writeValueAsString(envelope);
+
+                        // 캐시에 저장 후 전달
+                        return redisTemplate.opsForValue()
+                                .set(cacheKey, passportJson, java.time.Duration.ofSeconds(ttl))
+                                .then(forwardWithPassport(exchange, chain, passportJson));
+
+                    } catch (Exception e) {
+                        return onError(exchange,"Invalid passport", HttpStatus.INTERNAL_SERVER_ERROR);
+                    }
+                }));
     }
 
     @Override
@@ -154,6 +195,12 @@ public class JwtFilter implements GlobalFilter, Ordered{
                );
     }
 
+    private Mono<Void> forwardWithPassport(ServerWebExchange exchange, GatewayFilterChain chain, String passportJson) {
+        ServerHttpRequest mutated = exchange.getRequest().mutate()
+                .header("X-Passport", passportJson) // 다운스트림으로 passport 전달
+                .build();
+        return chain.filter(exchange.mutate().request(mutated).build());
+    }
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
         log.error("🚫 Gateway 인증 실패 - 경로: {}, 오류: {}, 상태: {}",
                 exchange.getRequest().getURI().getPath(), err, status);
@@ -162,5 +209,17 @@ public class JwtFilter implements GlobalFilter, Ordered{
     }
     private boolean isDocumentationRequest(String path) {
         return path.contains("/v3/api-docs") || path.contains("/swagger-ui") || path.contains("/webjars");
+    }
+
+    private static String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

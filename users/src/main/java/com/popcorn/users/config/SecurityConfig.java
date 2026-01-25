@@ -17,12 +17,14 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.beans.factory.annotation.Value;
 import com.popcorn.common.filter.HeaderAuthenticationFilter;
 
 //import com.popcorn.users.auth.jwt.JwtFilter;
 import com.popcorn.users.auth.jwt.JwtUtil;
 import com.popcorn.users.auth.jwt.LoginFilter;
 import com.popcorn.common.security.JwtAuthenticationFilter;
+import com.popcorn.users.auth.service.RefreshTokenService;
 
 import lombok.RequiredArgsConstructor;
 import java.util.List;
@@ -36,6 +38,13 @@ public class SecurityConfig {
 	private final AuthenticationConfiguration authenticationConfiguration;
 	private final JwtUtil jwtUtil;
 	private final HeaderAuthenticationFilter headerAuthenticationFilter;
+	private final RefreshTokenService refreshTokenService;
+
+	@Value("${jwt.expiration:3600000}")
+	private long accessTokenExpirationMs;
+
+	@Value("${jwt.refresh-expiration-ms:1209600000}")
+	private long refreshTokenExpirationMs;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -53,7 +62,7 @@ public class SecurityConfig {
 		AuthenticationManager authManager = authenticationManager(authenticationConfiguration);
 
 		// ★ LoginFilter는 여기서 직접 생성 (Bean 등록 X)
-        LoginFilter loginFilter = new LoginFilter(authManager, jwtUtil);
+        LoginFilter loginFilter = new LoginFilter(authManager, jwtUtil,refreshTokenExpirationMs);
         loginFilter.setFilterProcessesUrl("/api/v1/auth/login");
 
 		http.csrf(csrf -> csrf.disable())
@@ -61,7 +70,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authz -> authz
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight 요청 허용
 						.requestMatchers("/api/auth/login").permitAll()
-						.requestMatchers("/api/users/v1/auth/login").permitAll() // swagger api 테스트
+						.requestMatchers("/api/users/v1/auth/**").permitAll() // swagger api 테스트
 						.requestMatchers("/api/users/v1/users/signup").permitAll()
 						.requestMatchers("/api/users/v1/users/**").permitAll()
 						//.requestMatchers("/api/users/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
