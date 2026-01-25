@@ -1,6 +1,7 @@
 package com.popcorn.gateway.jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -48,7 +49,13 @@ public class JwtUtil {
 
     public Boolean isExpired(String token) {
 
-        return Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody().getExpiration().before(new Date());
+        return Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration()
+                .before(new Date());
     }
 
     public boolean validateToken(String token) {
@@ -61,6 +68,23 @@ public class JwtUtil {
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    // 토큰 만료까지 남은 시간 :  jwt의 exp -  현재시간
+    public long getRemainingSeconds(String token) {
+        Date exp = Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration();
+        if(exp==null) return 0L;
+
+        long nowEpochSec = Instant.now().getEpochSecond();
+        long expEpochSec = exp.toInstant().getEpochSecond();
+
+        long remain = expEpochSec - nowEpochSec;
+        return Math.max(0L, remain);
     }
 }
 

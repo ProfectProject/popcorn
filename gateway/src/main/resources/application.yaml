@@ -65,7 +65,7 @@ spring:
             - Path=/api/v1/**               # /api 로 시작하면 backend로 라우팅
 
         - id: user-service
-          uri: ${USER_SERVICE_URL} #http://localhost:8082    
+          uri: http://localhost:8082     # 모놀리식 backend
           predicates:
             - Path=/api/users/**          # user-service
           filters:
@@ -147,23 +147,14 @@ spring:
             - RewritePath=^/api/payments/(?<remaining>v3/api-docs.*), /${remaining}
             - RewritePath=^/api/payments/(?<remaining>swagger-ui.*), /${remaining}
             - RewritePath=^/api/payments/(?<remaining>webjars.*), /${remaining}
-            # 1) CircuitBreaker (Resilience4j 인스턴스명 연결)
-            - name: CircuitBreaker
-              args:
-                name: cbPaymentService
-                fallbackUri: forward:/fallback/payment-service
-            # 2) Retry (Gateway 필터로만 적용) --> 서버 5xx / 502/504 만 재시도
-            - name: Retry
-              args:
-                retries: 2
-                methods: GET
-                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR,SERVICE_UNAVAILABLE
-                backoff:
-                  firstBackoff: 80ms
-                  maxBackoff: 200ms
-                  factor: 2
-                  basedOnPreviousValue: true
-
+        - id: payment-pay
+          uri: http://localhost:8085     # Payment 서비스 (/api/pay 경로)
+          predicates:
+            - Path=/api/pay/**            # pay
+          filters:
+            - RewritePath=^/api/pay/(?<remaining>v3/api-docs.*), /${remaining}
+            - RewritePath=^/api/pay/(?<remaining>swagger-ui.*), /${remaining}
+            - RewritePath=^/api/pay/(?<remaining>webjars.*), /${remaining}
         - id: orderQuery
           uri: http://localhost:8087
           predicates:
@@ -192,9 +183,12 @@ spring:
     base-path: /
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
   expiration: 3600000
-  refresh-expiration-ms: 1209600000
+
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
 
 springdoc:
   api-docs:
@@ -205,19 +199,19 @@ springdoc:
     path: /swagger-ui.html
     urls:
       - name: user-service
-        url: ${GATEWAY_SERVICE_URL}/api/users/v3/api-docs #http://localhost:8080/api/users/v3/api-docs
+        url: http://localhost:8080/api/users/v3/api-docs
       - name: stores-public
-        url: ${GATEWAY_SERVICE_URL}/api/stores/v3/api-docs/public
+        url: http://localhost:8080/api/stores/v3/api-docs/public
       - name: stores-owner
-        url: ${GATEWAY_SERVICE_URL}/api/stores/v3/api-docs/owner
+        url: http://localhost:8080/api/stores/v3/api-docs/owner
       - name: checkIns
-        url: ${GATEWAY_SERVICE_URL}/api/checkins/v3/api-docs
+        url: http://localhost:8080/api/checkins/v3/api-docs
       - name: order-service
-        url: ${GATEWAY_SERVICE_URL}/api/orders/v3/api-docs
+        url: http://localhost:8080/api/orders/v3/api-docs
       - name: payment-service
-        url: ${GATEWAY_SERVICE_URL}/api/payments/v3/api-docs
+        url: http://localhost:8080/api/payments/v3/api-docs
       - name: orderQuery
-        url: ${GATEWAY_SERVICE_URL}/api/orderquery/v3/api-docs
+        url: http://localhost:8080/api/orderquery/v3/api-docs
 
 resilience4j:
   circuitbreaker:

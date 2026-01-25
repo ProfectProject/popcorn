@@ -70,9 +70,8 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authz -> authz
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight 요청 허용
 						.requestMatchers("/api/auth/login").permitAll()
-						.requestMatchers("/api/users/v1/auth/login").permitAll() // swagger api 테스트
+						.requestMatchers("/api/users/v1/auth/**").permitAll() // swagger api 테스트
 						.requestMatchers("/api/users/v1/users/signup").permitAll()
-						.requestMatchers("/api/users/v1/auth/refresh").permitAll()
 						.requestMatchers("/api/users/v1/users/**").permitAll()
 						//.requestMatchers("/api/users/v1/users/**").hasAnyRole("CUSTOMER", "OWNER")
 
