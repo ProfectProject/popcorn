@@ -68,6 +68,7 @@ public class RedisCacheResultAspect {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached != null) {
                 log.debug("Redis 캐시 히트: key={}, method={}", cacheKey, joinPoint.getSignature());
+                logCacheStatus(cacheResult.cacheName(), cacheKey, "캐시 히트");
                 if (responseEntityReturn) {
                     return buildResponseEntityFromCache(cached);
                 }
@@ -80,6 +81,7 @@ public class RedisCacheResultAspect {
 
         // 캐시 미스 - 메서드 실행
         log.debug("Redis 캐시 미스: key={}, method={}", cacheKey, joinPoint.getSignature());
+        logCacheStatus(cacheResult.cacheName(), cacheKey, "캐시 미스");
 
         Object result;
         try {
@@ -113,6 +115,7 @@ public class RedisCacheResultAspect {
                     redisTemplate.opsForValue().set(cacheKey, cacheValue);
                 }
                 log.debug("Redis 캐시 저장: key={}, method={}", cacheKey, joinPoint.getSignature());
+                logCacheStatus(cacheResult.cacheName(), cacheKey, "캐시 저장");
             }
         } catch (DataAccessException e) {
             log.warn("Redis 캐시 저장 실패로 캐시 우회: key={}, error={}", cacheKey, e.getMessage());
@@ -237,6 +240,12 @@ public class RedisCacheResultAspect {
         } catch (Exception e) {
             log.error("Redis 캐시 제외 조건 평가 실패: {}", cacheResult.unless(), e);
             return true;
+        }
+    }
+
+    private void logCacheStatus(String cacheName, String cacheKey, String status) {
+        if ("popup".equals(cacheName)) {
+            log.info("캐시 상태 안내 - cacheName={}, key={}, status={}", cacheName, cacheKey, status);
         }
     }
 

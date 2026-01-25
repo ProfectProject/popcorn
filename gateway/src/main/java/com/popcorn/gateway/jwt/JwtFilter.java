@@ -20,7 +20,6 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_PATH_PREFIXES = List.of(
-            // 인증 관련 경로
             "/api/users/v1/auth/login",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
@@ -65,62 +64,33 @@ public class JwtFilter implements GlobalFilter, Ordered{
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 
         String path = exchange.getRequest().getURI().getPath();
-        String method = exchange.getRequest().getMethod().name();
-
-        // 모든 요청 로깅
-        log.info("🌐 Gateway 요청 - Method: {}, Path: {}", method, path);
-
-        // OPTIONS 요청은 항상 허용
         if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
-            log.info("🔓 OPTIONS 요청 통과: {}", path);
             return chain.filter(exchange);
         }
 
-        // 모든 OpenAPI/Swagger 경로 무조건 허용 (최고 우선순위)
-        if (path.contains("api-docs") ||
-            path.contains("swagger") ||
-            path.contains("webjars") ||
-            path.contains("openapi") ||
-            path.equals("/") ||
-            path.equals("/swagger-ui.html")) {
-            return chain.filter(exchange);
-        }
-
-        // 기타 예외 경로 처리
-        if (EXCLUDE_PATH_PREFIXES.stream().anyMatch(path::startsWith)) {
-            log.info("🔓 예외 경로 통과: {}", path);
+        // 1) 로그인/회원가입, 문서 요청은 필터 제외
+        if (EXCLUDE_PATH_PREFIXES.stream().anyMatch(path::startsWith) || isDocumentationRequest(path)) {
             return chain.filter(exchange);
         }
 
         // 2) Authorization Header 체크
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-        log.info("🔐 Authorization 헤더: {}", authHeader != null ? "Bearer ***" : "없음");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("❌ Authorization 헤더 없음 또는 형식 오류");
             return onError(exchange, "Missing Authorization Header", HttpStatus.UNAUTHORIZED);
         }
 
         String token = authHeader.substring(7);
-        log.info("🔐 JWT 토큰 추출 완료 (길이: {})", token.length());
 
         // 3) JWT 유효성 검사
         if (!jwtUtils.validateToken(token)) {
-            log.warn("❌ JWT 토큰 검증 실패");
             return onError(exchange, "Invalid Token", HttpStatus.UNAUTHORIZED);
         }
-
-        log.info("✅ JWT 토큰 검증 성공");
         
         // 4) 검증 성공 → 사용자 정보 헤더 전달 후 PROXY 통과
         String userId = String.valueOf(jwtUtils.getUserId(token));
         String email = jwtUtils.getUsername(token);
         String role = jwtUtils.getRole(token);
-
-        // 디버그 로깅 추가
-        log.info("🔍 JWT 파싱 성공 - userId: {}, email: {}, role: {}", userId, email, role);
-        log.info("🔍 요청 경로: {}", exchange.getRequest().getPath().value());
-        log.info("🔍 헤더 설정 - X-User-Id: {}, X-User-Email: {}, X-User-Role: {}", userId, email, role);
 
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(builder -> builder
@@ -138,28 +108,11 @@ public class JwtFilter implements GlobalFilter, Ordered{
         return -1; // GlobalFilter에서 가장 먼저 실행되도록
     }
 
-
-    private boolean isSwaggerOrOpenApiPath(String path) {
-        return path.contains("/v3/api-docs") ||
-               path.contains("/swagger-ui") ||
-               path.contains("/webjars") ||
-               path.contains("/openapi") ||
-               path.contains("/swagger-resources") ||
-               path.contains("/configuration") ||
-               path.equals("/swagger-ui.html") ||
-               path.equals("/") ||  // 루트 경로도 허용
-               path.startsWith("/api/") && (
-                   path.contains("/v3/") ||
-                   path.contains("/swagger-ui")
-               );
-    }
-
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
-        log.error("🚫 Gateway 인증 실패 - 경로: {}, 오류: {}, 상태: {}",
-                exchange.getRequest().getURI().getPath(), err, status);
         exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
     }
+
     private boolean isDocumentationRequest(String path) {
         return path.contains("/v3/api-docs") || path.contains("/swagger-ui") || path.contains("/webjars");
     }
