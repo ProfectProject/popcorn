@@ -47,6 +47,8 @@ dependencies {
 	// ========================= PopCorn Common Library =========================
 	implementation project(':common-lib')
 	implementation project(':order')
+	implementation project(':stores')
+	implementation project(':users')
 
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'

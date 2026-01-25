@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.popcorn.common.controller.BaseController;
 import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.demo.domain.manager.service.UserManagerService;
-import com.popcorn.demo.domain.users.dto.manager.OwnerApproveResponse;
-import com.popcorn.demo.domain.users.dto.manager.OwnerForceStopRequest;
-import com.popcorn.demo.domain.users.dto.manager.OwnerForceStopResponse;
-import com.popcorn.demo.domain.users.dto.manager.UserForceStopRequest;
-import com.popcorn.demo.domain.users.dto.manager.UserForceStopResponse;
+import com.popcorn.users.users.dto.manager.OwnerApproveResponse;
+import com.popcorn.users.users.dto.manager.OwnerForceStopRequest;
+import com.popcorn.users.users.dto.manager.OwnerForceStopResponse;
+import com.popcorn.users.users.dto.manager.UserForceStopRequest;
+import com.popcorn.users.users.dto.manager.UserForceStopResponse;
 
 import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.tags.Tag;

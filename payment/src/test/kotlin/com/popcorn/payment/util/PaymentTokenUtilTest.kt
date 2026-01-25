@@ -5,6 +5,7 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import java.util.*
 
 /**
  * PaymentTokenUtil 간단한 테스트
@@ -133,5 +134,155 @@ class PaymentTokenUtilTest {
         // Then
         assertEquals(amount, paymentData["amount"])
         assertTrue { paymentTokenUtil.validatePaymentToken(paymentData) }
+    }
+
+    @Test
+    fun `토큰 형식 검증 테스트`() {
+        // Given
+        val validToken = paymentTokenUtil.generatePaymentToken("orderId", "orderNo", 1000, "customer")
+        val invalidTokens = listOf(
+            "",
+            " ",
+            "invalid",
+            "only.two.parts",
+            "too.many.parts.here.invalid"
+        )
+
+        // When & Then
+        assertTrue { paymentTokenUtil.isValidToken(validToken) }
+        invalidTokens.forEach { invalidToken ->
+            assertFalse("Token '$invalidToken' should be invalid") {
+                paymentTokenUtil.isValidToken(invalidToken)
+            }
+        }
+    }
+
+    @Test
+    fun `금액 타입 검증 테스트`() {
+        // Given
+        val orderId = UUID.randomUUID().toString()
+        val validPaymentData = mapOf(
+            "orderId" to orderId,
+            "orderNo" to "ORDER-TEST",
+            "amount" to 15000,
+            "customerKey" to "customer_123"
+        )
+
+        val missingAmountData = mapOf(
+            "orderId" to orderId,
+            "orderNo" to "ORDER-TEST",
+            // amount 필드 누락
+            "customerKey" to "customer_123"
+        )
+
+        // When & Then
+        assertTrue { paymentTokenUtil.validatePaymentToken(validPaymentData) }
+        assertFalse { paymentTokenUtil.validatePaymentToken(missingAmountData) }
+    }
+
+    @Test
+    fun `다양한 금액으로 토큰 생성 테스트`() {
+        // Given
+        val amounts = listOf(0, 100, 1000, 10000, 100000, 999999)
+
+        amounts.forEach { amount ->
+            // When
+            val orderId = UUID.randomUUID().toString()
+            val token = paymentTokenUtil.generatePaymentToken(orderId, "ORDER-$amount", amount, "customer")
+            val paymentData = paymentTokenUtil.decryptPaymentToken(token)
+
+            // Then
+            assertEquals(amount, paymentData["amount"])
+            assertTrue { paymentTokenUtil.validatePaymentToken(paymentData) }
+        }
+    }
+
+    @Test
+    fun `특수문자가 포함된 orderNo 테스트`() {
+        // Given
+        val specialOrderNos = listOf(
+            "ORDER-12345",
+            "ORD_2023_001",
+            "주문-2023-001",
+            "ORDER@#$%001"
+        )
+
+        specialOrderNos.forEach { orderNo ->
+            // When
+            val orderId = UUID.randomUUID().toString()
+            val token = paymentTokenUtil.generatePaymentToken(orderId, orderNo, 1000, "customer")
+            val paymentData = paymentTokenUtil.decryptPaymentToken(token)
+
+            // Then
+            assertEquals(orderNo, paymentData["orderNo"])
+            assertTrue { paymentTokenUtil.validatePaymentToken(paymentData) }
+        }
+    }
+
+    @Test
+    fun `고객 키 다양한 형식 테스트`() {
+        // Given
+        val customerKeys = listOf(
+            "customer_123",
+            "user@example.com",
+            "1234567890",
+            "고객_123"
+        )
+
+        customerKeys.forEach { customerKey ->
+            // When
+            val orderId = UUID.randomUUID().toString()
+            val token = paymentTokenUtil.generatePaymentToken(orderId, "orderNo", 1000, customerKey)
+            val paymentData = paymentTokenUtil.decryptPaymentToken(token)
+
+            // Then
+            assertEquals(customerKey, paymentData["customerKey"])
+            assertTrue { paymentTokenUtil.validatePaymentToken(paymentData) }
+        }
+    }
+
+    @Test
+    fun `null 값 처리 테스트`() {
+        // Given
+        val nullPaymentData: Map<String, Any> = mapOf(
+            "orderNo" to "ORDER-TEST",
+            "amount" to 1000,
+            "customerKey" to "customer"
+            // orderId 누락 (null과 같은 효과)
+        )
+
+        // When & Then
+        assertFalse { paymentTokenUtil.validatePaymentToken(nullPaymentData) }
+    }
+
+    @Test
+    fun `빈 맵 처리 테스트`() {
+        // Given
+        val emptyPaymentData = emptyMap<String, Any>()
+
+        // When & Then
+        assertFalse { paymentTokenUtil.validatePaymentToken(emptyPaymentData) }
+    }
+
+    @Test
+    fun `토큰 생성 후 즉시 검증 테스트`() {
+        // Given
+        val orderId = UUID.randomUUID().toString()
+        val orderNo = "IMMEDIATE-ORDER"
+        val amount = 25000
+        val customerKey = "immediate_customer"
+
+        // When
+        val token = paymentTokenUtil.generatePaymentToken(orderId, orderNo, amount, customerKey)
+        val paymentData = paymentTokenUtil.decryptPaymentToken(token)
+        val isValid = paymentTokenUtil.validatePaymentToken(paymentData)
+
+        // Then
+        assertTrue { paymentTokenUtil.isValidToken(token) }
+        assertTrue { isValid }
+        assertEquals(orderId, paymentData["orderId"])
+        assertEquals(orderNo, paymentData["orderNo"])
+        assertEquals(amount, paymentData["amount"])
+        assertEquals(customerKey, paymentData["customerKey"])
     }
 }

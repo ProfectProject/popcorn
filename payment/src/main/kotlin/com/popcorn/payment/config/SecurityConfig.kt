@@ -8,13 +8,14 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
-import com.popcorn.common.filter.HeaderAuthenticationFilter
+import com.popcorn.common.security.HeaderAuthenticationFilter
 import com.popcorn.common.security.JwtAuthenticationFilter
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.web.cors.CorsConfiguration
-import org.springframework.web.cors.CorsConfigurationSource
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+// CORS 관련 import는 Gateway에서 처리하므로 제거
+// import org.springframework.web.cors.CorsConfiguration
+// import org.springframework.web.cors.CorsConfigurationSource
+// import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
@@ -25,7 +26,7 @@ class SecurityConfig(private val headerAuthenticationFilter: HeaderAuthenticatio
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { csrf -> csrf.disable() }
-            .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
+            .cors { cors -> cors.disable() }
             .authorizeHttpRequests { authz ->
                 authz
                     // CORS preflight 요청 허용
@@ -43,12 +44,10 @@ class SecurityConfig(private val headerAuthenticationFilter: HeaderAuthenticatio
                     // 액추에이터 허용
                     .requestMatchers("/actuator/**").permitAll()
 
-                    // Health check 허용
+                    // Health check 및 Payment API 허용 (JWT 토큰 불필요)
                     .requestMatchers("/api/pay/v*/payments/health").permitAll()
                     .requestMatchers("/api/pay/v1/payments/decode").permitAll()
-
-                    // Payment API는 인증 필요
-                    .requestMatchers("/api/pay/v*/**").authenticated()
+                    .requestMatchers("/api/pay/v*/**").permitAll()
 
                     // 나머지는 인증 필요
                     .anyRequest().authenticated()
@@ -63,19 +62,9 @@ class SecurityConfig(private val headerAuthenticationFilter: HeaderAuthenticatio
         return http.build()
     }
 
-    @Bean
-    fun corsConfigurationSource(): CorsConfigurationSource {
-        val configuration = CorsConfiguration().apply {
-            allowedOriginPatterns = listOf("*")
-            allowedMethods = listOf("GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS")
-            allowedHeaders = listOf("*")
-            allowCredentials = false
-        }
-
-        val source = UrlBasedCorsConfigurationSource()
-        source.registerCorsConfiguration("/**", configuration)
-        return source
-    }
+    // CORS는 Gateway에서 전역적으로 처리
+    // @Bean
+    // fun corsConfigurationSource(): CorsConfigurationSource { ... }
 
     @Bean
     fun jwtAuthenticationFilterRegistration(

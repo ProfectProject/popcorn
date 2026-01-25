@@ -172,26 +172,6 @@ public class JwtFilter implements GlobalFilter, Ordered{
                         return onError(exchange,"Invalid passport", HttpStatus.INTERNAL_SERVER_ERROR);
                     }
                 }));
-
-        /* 
-        // 4) 검증 성공 → 사용자 정보 헤더 전달 후 PROXY 통과
-        String userId = String.valueOf(jwtUtils.getUserId(token));
-        String email = jwtUtils.getUsername(token);
-        String role = jwtUtils.getRole(token);
-        // 디버그 로깅 추가
-        log.info("🔍 JWT 파싱 성공 - userId: {}, email: {}, role: {}", userId, email, role);
-        log.info("🔍 요청 경로: {}", exchange.getRequest().getPath().value());
-        log.info("🔍 헤더 설정 - X-User-Id: {}, X-User-Email: {}, X-User-Role: {}", userId, email, role);
-
-        ServerWebExchange mutatedExchange = exchange.mutate()
-                .request(builder -> builder
-                        .header("X-User-Id", userId)
-                        .header("X-User-Email", email)
-                        .header("X-User-Role", role)
-                )
-                .build();
-
-        return chain.filter(mutatedExchange);*/
     }
 
     @Override

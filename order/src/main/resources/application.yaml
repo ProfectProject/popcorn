@@ -146,20 +146,21 @@ resilience4j:
         limit-refresh-period: 1s
         timeout-duration: 1s
 
-# 마이크로서비스 간 통신 설정
+# 마이크로서비스 간 통신 설정 (환경별 자동 전환)
 microservices:
+  # 결제 서비스 (Gateway를 통한 접근)
   payment:
     base-url: ${PAYMENT_SERVICE_URL:http://localhost:8080}
     timeout: 30s
-  user:
-    base-url: ${USER_SERVICE_URL:http://localhost:8082}
-    timeout: 30s
-  store:
-    base-url: ${STORE_SERVICE_URL:http://localhost:8083}
-    timeout: 30s
-  gateway:
-    base-url: ${GATEWAY_URL:http://localhost:8080}
+
+  # 체크인 서비스 (Gateway를 통한 접근)
+  checkins:
+    base-url: ${CHECKINS_SERVICE_URL:http://localhost:8080}
     timeout: 10s
+
+# 프론트엔드 주소 설정
+frontend:
+  base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
 
 # 커스텀 설정
 order:

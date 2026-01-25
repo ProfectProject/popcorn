@@ -127,7 +127,7 @@ class SimpleOrderServiceTest {
         List<OrderItem> orderItems = List.of(orderItem);
 
         // When: 주문 생성
-        Order order = realDomainService.createOrder(customerId, storeId, popupId, orderType, orderItems);
+        Order order = realDomainService.createOrder(customerId, popupId, orderType, orderItems);
 
         // Then: 기본 검증
         assertNotNull(order, "주문 생성됨");
@@ -144,7 +144,7 @@ class SimpleOrderServiceTest {
         // Given: Order 빌더로 주문 생성
         Order order = Order.builder()
                 .customerId(123L)
-                .storeId(UUID.randomUUID())
+                .popupId(UUID.randomUUID())
                 .orderType(OrderType.RESERVATION)
                 .status(OrderStatus.REQUESTED)
                 .totalAmount(15000)
@@ -155,7 +155,7 @@ class SimpleOrderServiceTest {
         assertEquals(123L, order.getCustomerId(), "고객 ID");
         assertEquals(OrderType.RESERVATION, order.getOrderType(), "주문 타입");
         assertTrue(order.isReservationType(), "예약형 확인");
-        assertFalse(order.isPurchaseType(), "구매형 아님");
+        assertFalse(order.isGoodsType(), "구매형 아님");
         assertEquals(OrderStatus.REQUESTED, order.getStatus(), "상태");
     }
 

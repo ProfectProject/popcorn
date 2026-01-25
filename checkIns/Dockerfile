@@ -1,17 +1,20 @@
-# QR 체크인 서비스 Dockerfile
-FROM openjdk:17-slim
-
-# 작업 디렉토리 설정
+# ===== Build stage =====
+FROM eclipse-temurin:17-jdk-jammy AS builder
 WORKDIR /app
 
-# 애플리케이션 JAR 파일 복사
-COPY build/libs/checkIns-0.0.1-SNAPSHOT.jar app.jar
+# 레포 전체 복사
+COPY . .
 
-# 포트 노출
+# checkIns bootJar 생성 (테스트 제외)
+RUN chmod +x ./gradlew && ./gradlew :checkIns:bootJar -x test
+
+# ===== Run stage =====
+FROM eclipse-temurin:17-jre-jammy
+WORKDIR /app
+
+# 반드시 존재하는 경로에서 jar 복사
+COPY --from=builder /app/checkIns/build/libs/*.jar app.jar
+
 EXPOSE 8082
-
-# 시간대 설정
 ENV TZ=Asia/Seoul
-
-# 애플리케이션 실행
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:local}", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

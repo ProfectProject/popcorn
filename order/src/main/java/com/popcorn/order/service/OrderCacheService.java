@@ -46,6 +46,7 @@ public class OrderCacheService {
     private static final String ORDER_DETAIL_PREFIX = CACHE_KEY_PREFIX + "detail:";
     private static final String ORDER_LIST_PREFIX = CACHE_KEY_PREFIX + "list:user:";
     private static final String ORDER_STATS_PREFIX = CACHE_KEY_PREFIX + "stats:";
+    private static final String MY_ORDERS_PREFIX = "my-orders::";
 
     /**
      * 주문 상세 정보 캐시 조회
@@ -125,6 +126,26 @@ public class OrderCacheService {
             }
         } catch (Exception e) {
             log.error("사용자 주문 목록 캐시 제거 실패 - 사용자ID: {}, 오류: {}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * 내 주문 타임라인 캐시 무효화
+     *
+     * OrderQueryService의 "my-orders" 캐시를 사용자 기준으로 삭제합니다.
+     */
+    @PerformanceMonitoring(threshold = 100, category = "cache")
+    public void evictMyOrdersCache(Long userId) {
+        String pattern = MY_ORDERS_PREFIX + userId + ":*";
+
+        try {
+            var keys = redisTemplate.keys(pattern);
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.debug("내 주문 타임라인 캐시 제거 - 사용자ID: {}, 제거된 키 개수: {}", userId, keys.size());
+            }
+        } catch (Exception e) {
+            log.error("내 주문 타임라인 캐시 제거 실패 - 사용자ID: {}, 오류: {}", userId, e.getMessage());
         }
     }
 

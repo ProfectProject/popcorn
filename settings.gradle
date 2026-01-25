@@ -18,7 +18,7 @@ rootProject.name = 'popcorn-msa'
 
 // 모든 모듈 포함
 include 'common-lib'
-include 'backend'
+//include 'backend'  // 일시적으로 제외 - 컴파일 문제로 인해
 include 'checkIns'
 include 'gateway'
 include 'stores'
@@ -29,7 +29,7 @@ include 'orderQuery'
 
 // 각 모듈의 위치 지정
 project(':common-lib').projectDir = file('common-lib')
-project(':backend').projectDir = file('backend')
+//project(':backend').projectDir = file('backend')  // 일시적으로 제외
 project(':checkIns').projectDir = file('checkIns')
 project(':gateway').projectDir = file('gateway')
 project(':stores').projectDir = file('stores')

@@ -14,6 +14,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +44,7 @@ import com.popcorn.order.util.PaymentTokenUtil;
  * - PaymentTokenUtil: JWT 토큰 관련
  */
 @WebMvcTest({OrderCommandController.class, OrderQueryController.class})
+@ActiveProfiles("test")
 class OrderControllerTest {
 
     @Autowired
