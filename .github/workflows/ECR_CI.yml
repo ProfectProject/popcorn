@@ -126,7 +126,8 @@ jobs:
             cd ${{ matrix.service.path }} && npm ci && npm test
           else
             chmod +x gradlew
-            ./gradlew :${{ matrix.service.gradleModule }}:test --info
+            ./gradlew :${{ matrix.service.gradleModule }}:test \
+              --stacktrace --info --no-daemon
           fi
 
       # ✅ 3. Docker Build & ECR Push (요청하신 포맷 이슈 해결 코드 포함)
