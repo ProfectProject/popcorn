@@ -56,6 +56,21 @@ jobs:
           SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN-DB-COMMON --query SecretString --output text)
           echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
+          # ✅ 서비스별 전용 Secrets Manager 값 로드
+      - name: Load Service Specific Secrets
+        if: matrix.service.secretArn != ''
+        run: |
+          echo "Fetching secrets for ${{ matrix.service.name }}..."
+          # 매트릭스에 정의된 secretArn을 사용하여 값을 가져옴
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_ORDER_QUERY --query SecretString --output text)
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_ORDER --query SecretString --output text)
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_QR --query SecretString --output text)
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id DB_STORE --query SecretString --output text)
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_USER --query SecretString --output text)
+          
+          # JSON의 Key-Value를 환경 변수 형태로 변환하여 GITHUB_ENV에 저장
+          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+
       - name: Build Matrix JSON
         id: set-matrix
         run: |
