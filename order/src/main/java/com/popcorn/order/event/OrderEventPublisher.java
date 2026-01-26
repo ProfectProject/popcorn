@@ -200,4 +200,32 @@ public class OrderEventPublisher {
             log.error("재고 예약 실패 이벤트 발행 실패 - orderId: {}", order.getId(), e);
         }
     }
+
+    /**
+     * 재고 차감 요청 이벤트 발행
+     *
+     * @param orderId 주문 ID
+     * @param orderNo 주문 번호
+     * @param popupId 팝업 ID
+     * @param deductionItems 차감 항목들
+     */
+    public void publishStockDeductionRequestedEvent(java.util.UUID orderId, String orderNo,
+                                                   java.util.UUID popupId,
+                                                   java.util.List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems) {
+        try {
+            log.info("재고 차감 요청 이벤트 발행 시작 - orderId: {}", orderId);
+
+            StockDeductionRequestedEvent event = StockDeductionRequestedEvent.create(
+                    orderId, orderNo, popupId, deductionItems
+            );
+
+            applicationEventPublisher.publishEvent(event);
+
+            log.info("재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
+                    orderId, event.getEventId());
+
+        } catch (Exception e) {
+            log.error("재고 차감 요청 이벤트 발행 실패 - orderId: {}", orderId, e);
+        }
+    }
 }

@@ -43,6 +43,7 @@ public class OrderEventListener {
     private final OrderItemRepository orderItemRepository;
     private final OrderService orderService;
     private final OrderEventPublisher eventPublisher;
+    private final RedisEventPublisher redisEventPublisher;
     private final ObjectMapper objectMapper;
     private final StoreClient storeClient;
 
@@ -69,27 +70,26 @@ public class OrderEventListener {
     */
 
     /**
-     * Store 모듈의 재고 차감 성공 이벤트 수신 (Kafka로 대체 예정)
+     * Store 모듈의 재고 차감 성공 이벤트 수신 (Spring Events로 처리)
      */
-    // TODO: @KafkaListener로 대체
-    /*
+    @EventListener
     @Transactional
-    public void handleStockDeductionSuccess(String message) {
+    public void handleStockDeductionSuccess(StockDeductionSuccessEvent event) {
         try {
-            log.info("재고 차감 성공 이벤트 수신: {}", message);
-
-            // Store 모듈의 재고 차감 성공 이벤트 파싱
-            StockDeductionSuccessEvent event = objectMapper.readValue(message, StockDeductionSuccessEvent.class);
+            log.info("재고 차감 성공 이벤트 수신 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
 
             // 주문 상태를 CONFIRMED로 변경
             handleOrderConfirmation(event.getOrderId());
 
+            log.info("재고 차감 성공 처리 완료 - orderId: {}", event.getOrderId());
+
         } catch (Exception e) {
-            log.error("재고 차감 성공 이벤트 처리 중 오류: {}", message, e);
+            log.error("재고 차감 성공 이벤트 처리 중 오류 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId(), e);
             throw new RuntimeException("재고 차감 성공 이벤트 처리 실패", e);
         }
     }
-    */
 
     /**
      * Payment 모듈의 결제 완료 이벤트 수신 (내부 이벤트)
@@ -134,6 +134,9 @@ public class OrderEventListener {
                 return;
             }
 
+            // HTTP 동기 호출 대신 이벤트 기반 비동기 처리로 변경
+            List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems = new java.util.ArrayList<>();
+
             List<OrderPaidEvent.OrderItemInfo> orderItems = event.getOrderItems();
             for (OrderPaidEvent.OrderItemInfo item : orderItems) {
                 if (item.isGoodsItem()) {
@@ -142,18 +145,35 @@ public class OrderEventListener {
                                 event.getOrderId(), item.getGoodsVariantId());
                         continue;
                     }
-                    log.info("굿즈 재고 차감 요청 - orderId: {}, popupId: {}, goodsVariantId: {}, quantity: {}",
+                    log.info("굿즈 재고 차감 요청 수집 - orderId: {}, popupId: {}, goodsVariantId: {}, quantity: {}",
                             event.getOrderId(), event.getPopupId(), item.getGoodsVariantId(), item.getQuantity());
-                    storeClient.completeGoodsReservation(
-                            event.getPopupId(),
+
+                    // 재고 차감 항목 수집
+                    deductionItems.add(StockDeductionRequestedEvent.StockDeductionItem.create(
                             item.getGoodsVariantId(),
                             item.getQuantity()
-                    );
-                    log.info("굿즈 재고 차감 완료 - orderId: {}, goodsVariantId: {}, quantity: {}",
-                            event.getOrderId(), item.getGoodsVariantId(), item.getQuantity());
+                    ));
                 } else {
                     log.info("예약 항목은 별도 재고 처리 대상입니다 - orderId: {}", event.getOrderId());
                 }
+            }
+
+            // 재고 차감 요청 이벤트를 Redis Pub/Sub으로 발행 (나중에 Kafka로 전환 예정)
+            if (!deductionItems.isEmpty()) {
+                log.info("재고 차감 요청 이벤트 발행 - orderId: {}, items: {}", event.getOrderId(), deductionItems.size());
+
+                StockDeductionRequestedEvent stockEvent = StockDeductionRequestedEvent.create(
+                        event.getOrderId(),
+                        event.getOrderNo(),
+                        event.getPopupId(),
+                        deductionItems
+                );
+
+                // Redis 이벤트 발행 (나중에 Kafka Producer로 교체 예정)
+                redisEventPublisher.publishStockDeductionRequestedEvent(stockEvent);
+
+                log.info("재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
+                        event.getOrderId(), stockEvent.getEventId());
             }
         } catch (Exception e) {
             log.error("재고 차감 처리 실패 - orderId: {}, error: {}",
