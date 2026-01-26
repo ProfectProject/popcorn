@@ -13,3 +13,5 @@ COPY --from=builder /app/users/build/libs/*.jar app.jar
 EXPOSE 8082
 ENV TZ=Asia/Seoul
 ENTRYPOINT ["java", "-jar", "app.jar"]
+
+#test
