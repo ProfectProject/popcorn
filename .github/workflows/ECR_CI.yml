@@ -142,6 +142,27 @@ jobs:
             --image-scanning-configuration scanOnPush=true \
             --encryption-configuration encryptionType=AES256
 
+      - name: Check ECR Image Existence
+        id: check_ecr  # ✅ 다음 단계에서 참조하기 위해 id를 지정합니다.
+        run: |
+          REPO_NAME="${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}"
+          
+          # 이미지 존재 여부 확인 (최근 1개만 조회)
+          IMAGE_COUNT=$(aws ecr list-images --repository-name $REPO_NAME --max-items 1 --query 'imageIds' --output json)
+          
+          if [ "$IMAGE_COUNT" == "[]" ]; then
+            echo "Repository is empty."
+            echo "is_empty=true" >> "$GITHUB_OUTPUT"  # ✅ 결과를 Output에 저장
+          else
+            echo "Images found."
+            echo "is_empty=false" >> "$GITHUB_OUTPUT" # ✅ 결과를 Output에 저장
+          fi
+
+      - name: Initial Build and Push
+        # ✅ 'steps.아이디.outputs.변수명' 형식으로 접근합니다.
+        if: steps.check_ecr.outputs.is_empty == 'true'
+        run: echo "이 레포지토리는 비어있으므로 초기 배포를 진행합니다."
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
