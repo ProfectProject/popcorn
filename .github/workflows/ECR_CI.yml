@@ -4,9 +4,14 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'user-service/**'
+      - '.github/workflows/**'
+      - 'users/**'
       - 'checkIns/**'
       - 'order/**'
+      - 'stores/**'
+      - 'payment/**'
+      - 'orderQuery/**'
+      - 'gateway/**'
       - 'common-lib/**'
       - 'gradle/**'
       - '*.gradle'
@@ -16,6 +21,7 @@ env:
   AWS_REGION: ap-northeast-2
   ECR_REGISTRY: 375896310755.dkr.ecr.ap-northeast-2.amazonaws.com
   ECR_REPO_PREFIX: goorm-popcorn
+  COMMON_SECRET_ARN: arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN-DB-COMMON-aGIGrF
 
 jobs:
   # [1] 변경된 서비스 감지 및 Matrix 생성
@@ -29,23 +35,48 @@ jobs:
         id: filter
         with:
           filters: |
-            user: ['user-service/**']
+            user: ['user/**']
             checkin: ['checkIns/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
             order: ['order/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            stores: ['stores/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            orderQuery: ['orderQuery/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            # gateway: ['gateway/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            
+                  # ✅ 0. 공통 ENV 먼저 로드
+      - name: Load Common Secrets Manager to ENV
+        run: |
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${{ env.COMMON_SECRET_ARN }} --query SecretString --output text)
+          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+
+      # ✅ 1. 서비스별 ENV 로드 (공통과 겹치면 서비스별이 덮어씀)
+      - name: Load Service Secrets Manager to ENV
+        run: |
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${{ matrix.service.secretArn }} --query SecretString --output text)
+          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       - name: Build Matrix JSON
         id: set-matrix
         run: |
           SERVICES=()
-          if [ "${{ steps.filter.outputs.user }}" = "true" ]; then
-            SERVICES+=('{"name":"user","path":"user-service","type":"node","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_USER-yQ38fS"}')
+          if [ "${{ steps.filter.outputs.users }}" = "true" ]; then
+            SERVICES+=('{"name":"users","path":"users","type":"node","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_USER-yQ38fS"}')
           fi
-          if [ "${{ steps.filter.outputs.checkin }}" = "true" ]; then
+          if [ "${{ steps.filter.outputs.checkIns }}" = "true" ]; then
             SERVICES+=('{"name":"checkin","path":"checkIns","type":"gradle","gradleModule":"checkIns","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_QR-GPInzQ"}')
           fi
           if [ "${{ steps.filter.outputs.order }}" = "true" ]; then
             SERVICES+=('{"name":"order","path":"order","type":"gradle","gradleModule":"order","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER-cLSykH"}')
           fi
+          if [ "${{ steps.filter.outputs.stores }}" = "true" ]; then
+            SERVICES+=('{"name":"order","path":"stores","type":"gradle","gradleModule":"stores","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:DB_STORE-3RCBYv"}')
+          fi
+          if [ "${{ steps.filter.outputs.orderQuery }}" = "true" ]; then
+            SERVICES+=('{"name":"order","path":"orderQuery","type":"gradle","gradleModule":"orderQuery","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH"}')
+          fi
+          # if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then
+          #   SERVICES+=('{"name":"order","path":"gateway","type":"gradle","gradleModule":"gateway","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH"}')
+          # fi
+          
 
           echo "matrix=$(printf '%s\n' "${SERVICES[@]}" | jq -sc '.')" >> "$GITHUB_OUTPUT"
 
