@@ -8,7 +8,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
-import com.popcorn.common.security.HeaderAuthenticationFilter
+import com.popcorn.common.filter.HeaderAuthenticationFilter
 import com.popcorn.common.security.JwtAuthenticationFilter
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain

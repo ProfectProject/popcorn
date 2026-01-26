@@ -24,6 +24,7 @@ spring:
     properties:
       hibernate:
         default_schema: user_auth
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         type:
           preferred_enum_jdbc_type: NAMED_ENUM
 
@@ -50,6 +51,11 @@ jwt:
 passport:
   secret: ${PASSPORT_SECRET:passport-shared-secret}
   ttl-seconds: 60
+
+# Redis 이벤트 설정
+redis:
+  events:
+    enabled: true
 
 logging:
   level:

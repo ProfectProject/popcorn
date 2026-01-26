@@ -3,6 +3,7 @@ package com.popcorn.store.domain.goods.service;
 import com.popcorn.store.domain.goods.dto.GoodsItemResponse;
 import com.popcorn.store.domain.goods.dto.GoodsListResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStockResponse;
+import com.popcorn.store.domain.goods.entity.GoodsVariant;
 import com.popcorn.store.domain.goods.exception.GoodsException;
 import com.popcorn.store.domain.goods.repository.GoodsReservationRepository;
 import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
@@ -49,6 +50,14 @@ public class GoodsService {
         return response;
     }
 
+    @Transactional(readOnly = true)
+    public UUID resolvePopupId(UUID goodsId) {
+        GoodsVariant goodsVariant = goodsVariantRepository.findById(goodsId)
+                .filter(variant -> variant.getDeletedAt() == null)
+                .orElseThrow(GoodsException::goodsNotFound);
+        return goodsVariant.getPopupId();
+    }
+
     @Transactional
     public GoodsStockResponse cancelReservationGoods(UUID popupId, UUID goodsId, int quantity) {
         log.info("[GOODS_RESERVE_CANCEL] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
@@ -91,6 +100,14 @@ public class GoodsService {
             log.warn("[GOODS_RESERVE_COMPLETE_FAILED] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
             throw GoodsException.insufficientStock();
         }
+        log.info(
+            "[GOODS_RESERVE_COMPLETE_OK] popupId={}, goodsId={}, qty={} -> stock={}, reservationStock={}",
+            popupId,
+            goodsId,
+            quantity,
+            response.getStock(),
+            response.getReservationStock()
+        );
         return response;
     }
 }

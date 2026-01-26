@@ -6,14 +6,17 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Mono;
 
+
+import com.popcorn.gateway.http.EventHttpLoggingFilter;
 @RestController
 public class OpenApiProxyController {
 
     private final WebClient webClient;
 
-    public OpenApiProxyController() {
+    public OpenApiProxyController(EventHttpLoggingFilter eventHttpLoggingFilter) {
         this.webClient = WebClient.builder()
                 .baseUrl("${BACKEND_SERVICE_URL}")  // 모놀리식 백엔드
+                .filter(eventHttpLoggingFilter)
                 .build();
     }
 

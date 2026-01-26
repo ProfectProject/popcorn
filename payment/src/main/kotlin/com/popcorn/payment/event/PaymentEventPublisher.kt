@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class PaymentEventPublisherImpl(
-    private val applicationEventPublisher: ApplicationEventPublisher
+    private val applicationEventPublisher: ApplicationEventPublisher,
+    private val paymentRedisEventPublisher: PaymentRedisEventPublisher
 ) : PaymentEventPublisher {
 
     private val log = LoggerFactory.getLogger(PaymentEventPublisherImpl::class.java)
@@ -25,6 +26,7 @@ class PaymentEventPublisherImpl(
         try {
             log.debug("📨 이벤트 발행: {}", event::class.simpleName)
             applicationEventPublisher.publishEvent(event)
+            paymentRedisEventPublisher.publish(event)
         } catch (e: Exception) {
             log.error("❌ 이벤트 발행 실패: event={}, error={}", event::class.simpleName, e.message, e)
             // 이벤트 발행 실패해도 메인 로직에는 영향 없음

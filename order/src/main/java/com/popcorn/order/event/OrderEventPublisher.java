@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderEventPublisher {
 
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final RedisEventPublisher redisEventPublisher;
 
     /**
      * 주문 결제 완료 이벤트 발행
@@ -43,11 +44,41 @@ public class OrderEventPublisher {
             // 2. 내부 이벤트 발행 (동일 서비스 내 처리)
             applicationEventPublisher.publishEvent(event);
 
+            // 3. Redis 이벤트 발행 (Store 서비스 연동)
+            redisEventPublisher.publishOrderPaidEvent(event);
+
             // TODO: Kafka 이벤트 발행으로 대체 예정
 
         } catch (Exception e) {
             log.error("주문 결제 완료 이벤트 발행 실패 - orderId: {}", order.getId(), e);
             // 이벤트 발행 실패는 주문 프로세스를 중단시키지 않음 (최종 일관성)
+        }
+    }
+
+    /**
+     * 굿즈 재고 예약 요청 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param reservationItems 예약 요청 항목들
+     */
+    public void publishGoodsReservationRequestedEvent(Order order,
+                                                      java.util.List<GoodsReservationRequestedEvent.ReservationItem> reservationItems) {
+        try {
+            GoodsReservationRequestedEvent event = GoodsReservationRequestedEvent.create(
+                    order.getId(),
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    reservationItems
+            );
+
+            log.info("굿즈 재고 예약 요청 이벤트 발행 - orderId: {}, items: {}",
+                    event.getOrderId(), event.getReservationItems().size());
+
+            redisEventPublisher.publishGoodsReservationRequestedEvent(event);
+
+        } catch (Exception e) {
+            log.error("굿즈 재고 예약 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+            // 이벤트 발행 실패는 주문 프로세스를 중단시키지 않음
         }
     }
 
@@ -198,6 +229,34 @@ public class OrderEventPublisher {
 
         } catch (Exception e) {
             log.error("재고 예약 실패 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
+     * 재고 차감 요청 이벤트 발행
+     *
+     * @param orderId 주문 ID
+     * @param orderNo 주문 번호
+     * @param popupId 팝업 ID
+     * @param deductionItems 차감 항목들
+     */
+    public void publishStockDeductionRequestedEvent(java.util.UUID orderId, String orderNo,
+                                                   java.util.UUID popupId,
+                                                   java.util.List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems) {
+        try {
+            log.info("재고 차감 요청 이벤트 발행 시작 - orderId: {}", orderId);
+
+            StockDeductionRequestedEvent event = StockDeductionRequestedEvent.create(
+                    orderId, orderNo, popupId, deductionItems
+            );
+
+            applicationEventPublisher.publishEvent(event);
+
+            log.info("재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
+                    orderId, event.getEventId());
+
+        } catch (Exception e) {
+            log.error("재고 차감 요청 이벤트 발행 실패 - orderId: {}", orderId, e);
         }
     }
 }
