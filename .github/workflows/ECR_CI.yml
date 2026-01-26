@@ -1,0 +1,115 @@
+name: popcorn-msa-ci-cd-optimized
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'user-service/**'
+      - 'checkIns/**'
+      - 'order/**'
+      - 'common-lib/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - 'gradle.properties'
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 375896310755.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPO_PREFIX: goorm-popcorn
+
+jobs:
+  # [1] 변경된 서비스 감지 및 Matrix 생성
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            user: ['user-service/**']
+            checkin: ['checkIns/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            order: ['order/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+
+      - name: Build Matrix JSON
+        id: set-matrix
+        run: |
+          SERVICES=()
+          if [ "${{ steps.filter.outputs.user }}" = "true" ]; then
+            SERVICES+=('{"name":"user","path":"user-service","type":"node","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_USER-yQ38fS"}')
+          fi
+          if [ "${{ steps.filter.outputs.checkin }}" = "true" ]; then
+            SERVICES+=('{"name":"checkin","path":"checkIns","type":"gradle","gradleModule":"checkIns","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_QR-GPInzQ"}')
+          fi
+          if [ "${{ steps.filter.outputs.order }}" = "true" ]; then
+            SERVICES+=('{"name":"order","path":"order","type":"gradle","gradleModule":"order","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER-cLSykH"}')
+          fi
+
+          echo "matrix=$(printf '%s\n' "${SERVICES[@]}" | jq -sc '.')" >> "$GITHUB_OUTPUT"
+
+  # [2] 빌드 및 배포
+  ci-cd:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ✅ 1. Secrets Manager에서 서비스별 환경변수 로드
+      # (QR_DB_USERNAME, SERVER_PORT, SWAGGER_UI_PATH 등이 여기서 모두 주입됨)
+      - name: Load Secrets Manager to ENV
+        run: |
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${{ matrix.service.secretArn }} --query SecretString --output text)
+          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+
+      # ✅ 2. CI (테스트 단계)
+      - name: Setup & Run Tests
+        run: |
+          if [ "${{ matrix.service.type }}" = "node" ]; then
+            cd ${{ matrix.service.path }} && npm ci && npm test
+          else
+            chmod +x gradlew
+            ./gradlew :${{ matrix.service.gradleModule }}:test --info
+          fi
+
+      # ✅ 3. Docker Build & ECR Push (요청하신 포맷 이슈 해결 코드 포함)
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push (ECR)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: true
+          # 🚀 포맷 및 호환성 이슈 해결 핵심 설정
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}:test-${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
