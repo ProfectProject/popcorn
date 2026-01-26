@@ -110,6 +110,21 @@ public class JwtFilter implements GlobalFilter, Ordered{
             return chain.filter(exchange);
         }
 
+        // 결제 생성은 내부 호출/클라이언트 흐름 모두 허용 (POST /api/pay/v1/payments)
+        if (HttpMethod.POST.equals(exchange.getRequest().getMethod())
+                && "/api/pay/v1/payments".equals(path)) {
+            log.info("🔓 결제 생성 경로 통과: {}", path);
+            return chain.filter(exchange);
+        }
+
+        // 내부 서비스 호출은 인증 없이 통과
+        String internalCall = exchange.getRequest().getHeaders().getFirst("X-Internal-Call");
+        String internalService = exchange.getRequest().getHeaders().getFirst("X-Internal-Service");
+        if ("true".equalsIgnoreCase(internalCall) && internalService != null && !internalService.isBlank()) {
+            log.info("🔓 내부 서비스 호출 통과: service={}, path={}", internalService, path);
+            return chain.filter(exchange);
+        }
+
         // 2) Authorization Header 체크
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
         log.info("🔐 Authorization 헤더: {}", authHeader != null ? "Bearer ***" : "없음");

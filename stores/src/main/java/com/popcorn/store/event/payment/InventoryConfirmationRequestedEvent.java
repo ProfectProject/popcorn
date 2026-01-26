@@ -55,11 +55,45 @@ public class InventoryConfirmationRequestedEvent {
         );
     }
 
+    public static InventoryConfirmationRequestedEvent fromPayload(UUID paymentId,
+                                                                  UUID orderId,
+                                                                  String actionType,
+                                                                  String reason,
+                                                                  String requestedAt,
+                                                                  String occurredAt,
+                                                                  String eventId) {
+        LocalDateTime req = parseOrNow(requestedAt);
+        LocalDateTime occ = parseOrNow(occurredAt);
+        String resolvedEventId = eventId != null ? eventId : UUID.randomUUID().toString();
+        String resolvedReason = reason != null ? reason :
+                (ACTION_CONFIRM.equals(actionType) ? "결제 승인 완료" : "결제 실패/취소");
+        return new InventoryConfirmationRequestedEvent(
+                paymentId,
+                orderId,
+                actionType,
+                resolvedReason,
+                req,
+                occ,
+                resolvedEventId
+        );
+    }
+
     public boolean isConfirmAction() {
         return ACTION_CONFIRM.equals(actionType);
     }
 
     public boolean isRestoreAction() {
         return ACTION_RESTORE.equals(actionType);
+    }
+
+    private static LocalDateTime parseOrNow(String value) {
+        if (value == null || value.isBlank()) {
+            return LocalDateTime.now();
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (Exception ignored) {
+            return LocalDateTime.now();
+        }
     }
 }

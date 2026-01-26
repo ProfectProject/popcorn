@@ -21,9 +21,31 @@ public class RedisEventPublisher {
     private final ObjectMapper objectMapper;
 
     // 이벤트 토픽 상수
+    private static final String ORDER_PAID_TOPIC = "events:order-paid";
     private static final String STOCK_DEDUCTION_REQUESTED_TOPIC = "events:stock-deduction-requested";
     private static final String STOCK_DEDUCTION_SUCCESS_TOPIC = "events:stock-deduction-success";
     private static final String STOCK_DEDUCTION_FAILED_TOPIC = "events:stock-deduction-failed";
+
+    /**
+     * 주문 결제 완료 이벤트 발행 (Store 서비스에서 수신)
+     */
+    public void publishOrderPaidEvent(OrderPaidEvent event) {
+        try {
+            log.info("주문 결제 완료 이벤트 Redis 발행 시작 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+            String eventJson = objectMapper.writeValueAsString(event);
+            redisTemplate.convertAndSend(ORDER_PAID_TOPIC, eventJson);
+
+            log.info("주문 결제 완료 이벤트 Redis 발행 완료 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+        } catch (Exception e) {
+            log.error("주문 결제 완료 이벤트 Redis 발행 실패 - orderId: {}, eventId: {}, error: {}",
+                    event.getOrderId(), event.getEventId(), e.getMessage(), e);
+            throw new RuntimeException("주문 결제 완료 이벤트 Redis 발행 실패", e);
+        }
+    }
 
     /**
      * 재고 차감 요청 이벤트 발행 (Store 서비스에서 수신)

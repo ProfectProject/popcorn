@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderEventPublisher {
 
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final RedisEventPublisher redisEventPublisher;
 
     /**
      * 주문 결제 완료 이벤트 발행
@@ -42,6 +43,9 @@ public class OrderEventPublisher {
 
             // 2. 내부 이벤트 발행 (동일 서비스 내 처리)
             applicationEventPublisher.publishEvent(event);
+
+            // 3. Redis 이벤트 발행 (Store 서비스 연동)
+            redisEventPublisher.publishOrderPaidEvent(event);
 
             // TODO: Kafka 이벤트 발행으로 대체 예정
 

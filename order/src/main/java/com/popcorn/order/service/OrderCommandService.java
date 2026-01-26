@@ -437,12 +437,12 @@ public class OrderCommandService {
     }
 
     /**
-     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (동기 처리)
+     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (비동기 처리)
      *
      * [개선사항]
-     * - 기존 비동기 처리 → 동기 처리로 변경
-     * - 결제 URL을 즉시 받아서 주문 생성 응답에 포함
-     * - 결제 실패 시에도 주문은 유지되며 나중에 수동 결제 가능
+     * - Payment 서비스 호출은 비동기로 수행
+     * - 결제 URL은 즉시 발급하여 응답에 포함
+     * - 결제 실패 시에도 주문은 유지되며 나중에 결제 가능
      */
     private CreatePaymentResponse startPaymentProcessAndGetUrl(Order order, CreateOrderCommand command) {
         log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
@@ -462,43 +462,8 @@ public class OrderCommandService {
                 .build();
         orderStatusHistoryRepository.save(paymentPendingHistory);
 
-        // 3. Payment 서비스에 결제 요청 (동기 처리로 변경)
-        CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
-                order.getId(),
-                order.getCustomerId(),
-                order.getOrderNo(),
-                order.getTotalAmount(),
-                determinePaymentMethod(order)
-        );
-
-        // 4. 동기로 Payment 서비스 호출하여 결제 URL 받기
-        try {
-            CreatePaymentResponse paymentResponse = paymentClient.createPaymentSync(paymentRequest);
-
-            log.info("결제 생성 성공 - 주문번호: {}, 결제ID: {}, 결제URL: {}",
-                    order.getOrderNo(), paymentResponse.getPaymentId(), paymentResponse.getPaymentUrl());
-
-            return paymentResponse;
-
-        } catch (Exception e) {
-            log.error("결제 생성 실패 - 주문번호: {}, 에러: {}", order.getOrderNo(), e.getMessage(), e);
-
-            // 주문 상태를 다시 요청 상태로 되돌림
-            order.setStatus(OrderStatus.REQUESTED);
-            orderRepository.save(order);
-
-            // 상태 변경 이력 저장
-            OrderStatusHistory failedHistory = OrderStatusHistory.builder()
-                    .orderId(order.getId())
-                    .fromStatus(OrderStatus.PAYMENT_PENDING)
-                    .toStatus(OrderStatus.REQUESTED)
-                    .reason("결제 생성 실패: " + e.getMessage())
-                    .changedAt(LocalDateTime.now())
-                    .build();
-            orderStatusHistoryRepository.save(failedHistory);
-
-            return null; // 결제 실패
-        }
+        // 비동기 결제 요청 및 토큰 URL 발급
+        return requestPaymentUrl(order, determinePaymentMethod(order));
     }
 
     /**
@@ -686,17 +651,17 @@ public class OrderCommandService {
                     paymentMethod
             );
 
-            log.info("🔄 Payment 서비스 호출 시작 - 주문번호: {}", order.getOrderNo());
-            CreatePaymentResponse paymentServiceResponse;
-            try {
-                paymentServiceResponse = paymentClient.createPaymentSync(paymentRequest);
-                log.info("✅ Payment 서비스 호출 성공 - 주문번호: {}, 결제ID: {}, 상태: {}",
-                        order.getOrderNo(), paymentServiceResponse.getPaymentId(), paymentServiceResponse.getStatus());
-            } catch (Exception e) {
-                log.error("❌ Payment 서비스 호출 실패 - 주문번호: {}, 에러: {}", order.getOrderNo(), e.getMessage(), e);
-                // Payment 서비스 실패해도 토큰은 생성하여 나중에 결제할 수 있도록 함
-                paymentServiceResponse = null;
-            }
+            log.info("🔄 Payment 서비스 비동기 호출 시작 - 주문번호: {}", order.getOrderNo());
+            paymentClient.createPayment(paymentRequest)
+                    .doOnSuccess(response ->
+                        log.info("✅ Payment 서비스 비동기 응답 수신 - 주문번호: {}, 결제ID: {}, 상태: {}",
+                                order.getOrderNo(),
+                                response != null ? response.getPaymentId() : null,
+                                response != null ? response.getStatus() : null))
+                    .doOnError(error ->
+                        log.error("❌ Payment 서비스 비동기 호출 실패 - 주문번호: {}, 에러: {}",
+                                order.getOrderNo(), error.getMessage(), error))
+                    .subscribe();
 
             // 2단계: 토큰 생성 및 프론트엔드 URL 생성
             // 고객 키 생성 (사용자 ID 기반)
@@ -720,33 +685,16 @@ public class OrderCommandService {
                 String paymentUrl = String.format("%s/auto-payment?token=%s", frontendBaseUrl, paymentToken);
 
                 // CreatePaymentResponse 생성 (Payment 서비스 응답 우선, 실패시 토큰 정보 사용)
-                CreatePaymentResponse finalResponse;
-                if (paymentServiceResponse != null && paymentServiceResponse.isSuccess()) {
-                    // Payment 서비스 성공 - 실제 결제 ID 사용
-                    finalResponse = CreatePaymentResponse.builder()
-                            .paymentId(paymentServiceResponse.getPaymentId())
-                            .orderId(order.getId())
-                            .amount(order.getTotalAmount())
-                            .status(paymentServiceResponse.getStatus())
-                            .paymentMethod(paymentMethod)
-                            .paymentUrl(paymentUrl) // 토큰 방식 URL 사용
-                            .expiresAt(paymentServiceResponse.getExpiresAt() != null ?
-                                    paymentServiceResponse.getExpiresAt() : LocalDateTime.now().plusMinutes(30))
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                } else {
-                    // Payment 서비스 실패 - 토큰만으로 대체
-                    finalResponse = CreatePaymentResponse.builder()
-                            .paymentId(null) // Payment 서비스 실패시 null
-                            .orderId(order.getId())
-                            .amount(order.getTotalAmount())
-                            .status("READY") // 결제 준비 상태
-                            .paymentMethod(paymentMethod)
-                            .paymentUrl(paymentUrl) // 토큰 방식 URL
-                            .expiresAt(LocalDateTime.now().plusMinutes(30))
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                }
+                CreatePaymentResponse finalResponse = CreatePaymentResponse.builder()
+                        .paymentId(null) // 비동기 요청이므로 즉시 결제 ID 미확정
+                        .orderId(order.getId())
+                        .amount(order.getTotalAmount())
+                        .status("READY") // 결제 준비 상태
+                        .paymentMethod(paymentMethod)
+                        .paymentUrl(paymentUrl) // 토큰 방식 URL
+                        .expiresAt(LocalDateTime.now().plusMinutes(30))
+                        .createdAt(LocalDateTime.now())
+                        .build();
 
                 log.info("✅ 결제 생성 + 토큰 URL 생성 완료 - 주문번호: {}, 결제ID: {}, 토큰 길이: {}자",
                         order.getOrderNo(), finalResponse.getPaymentId(), paymentToken.length());

@@ -9,6 +9,9 @@ import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
+import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
+import com.popcorn.store.event.order.OrderPaidEvent;
+
 /**
  * Store 서비스 범용 이벤트 리스너
  * - Redis 이벤트 구독
@@ -55,7 +58,7 @@ public class StoreRedisEventListener implements MessageListener {
                     break;
                 case "events:order-paid":
                     log.info("💳 [STORES] 주문 결제 완료 이벤트 수신 - {}", body);
-                    // 재고 차감 확정 처리
+                    publishOrderPaidEvent(body);
                     break;
                 case "events:payment-approved":
                     log.info("✅ [STORES] 결제 승인 이벤트 수신 - {}", body);
@@ -67,9 +70,11 @@ public class StoreRedisEventListener implements MessageListener {
                     break;
                 case "events:inventory-confirmation-requested":
                     log.info("📦 [STORES] 재고 확정 요청 이벤트 수신 - {}", body);
+                    publishInventoryConfirmationEvent(body);
                     break;
                 case "events:inventory-restore-requested":
                     log.info("🔄 [STORES] 재고 복구 요청 이벤트 수신 - {}", body);
+                    publishInventoryConfirmationEvent(body);
                     break;
                 case "events:goods-reservation-requested":
                     log.info("📋 [STORES] 굿즈 재고 예약 요청 이벤트 수신 - {}", body);
@@ -80,6 +85,59 @@ public class StoreRedisEventListener implements MessageListener {
             }
         } catch (Exception e) {
             log.error("🚨 [STORES] 이벤트 처리 실패 - channel: {}, error: {}", channel, e.getMessage(), e);
+        }
+    }
+
+    private void publishInventoryConfirmationEvent(String body) {
+        try {
+            String resolvedBody = body;
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(body);
+                if (node != null && node.isTextual()) {
+                    resolvedBody = node.asText();
+                }
+            } catch (Exception ignored) {
+            }
+
+            InventoryConfirmationPayload payload =
+                    objectMapper.readValue(resolvedBody, InventoryConfirmationPayload.class);
+            InventoryConfirmationRequestedEvent event =
+                    InventoryConfirmationRequestedEvent.fromPayload(
+                            payload.paymentId,
+                            payload.orderId,
+                            payload.actionType,
+                            payload.reason,
+                            payload.requestedAt,
+                            payload.occurredAt,
+                            payload.eventId
+                    );
+            eventPublisher.publishEvent(event);
+            log.info("📨 [STORES] 재고 처리 이벤트 발행 - orderId: {}, action: {}",
+                    payload.orderId, payload.actionType);
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 재고 처리 이벤트 변환 실패 - body: {}, error: {}",
+                    body, e.getMessage(), e);
+        }
+    }
+
+    private void publishOrderPaidEvent(String body) {
+        try {
+            String resolvedBody = body;
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(body);
+                if (node != null && node.isTextual()) {
+                    resolvedBody = node.asText();
+                }
+            } catch (Exception ignored) {
+            }
+
+            OrderPaidEvent event = objectMapper.readValue(resolvedBody, OrderPaidEvent.class);
+            eventPublisher.publishEvent(event);
+            log.info("📨 [STORES] 주문 결제 완료 이벤트 발행 - orderId: {}",
+                    event.getOrderId());
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 주문 결제 완료 이벤트 변환 실패 - body: {}, error: {}",
+                    body, e.getMessage(), e);
         }
     }
 
@@ -104,5 +162,15 @@ public class StoreRedisEventListener implements MessageListener {
             log.error("🚨 [STORES] Application 이벤트 처리 실패 - event: {}, error: {}",
                     event.getClass().getSimpleName(), e.getMessage(), e);
         }
+    }
+
+    private static class InventoryConfirmationPayload {
+        public java.util.UUID paymentId;
+        public java.util.UUID orderId;
+        public String actionType;
+        public String reason;
+        public String requestedAt;
+        public String occurredAt;
+        public String eventId;
     }
 }

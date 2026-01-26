@@ -1,6 +1,8 @@
 package com.popcorn.store.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.store.domain.goods.entity.ReservationType;
+import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
 import com.popcorn.store.domain.goods.service.GoodsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class RedisEventListener implements MessageListener {
 
     private final ObjectMapper objectMapper;
     private final GoodsService goodsService;
+    private final GoodsOrderReservationService reservationService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     // 이벤트 토픽 상수
@@ -62,6 +65,12 @@ public class RedisEventListener implements MessageListener {
 
             log.info("재고 차감 요청 이벤트 파싱 완료 - orderId: {}, popupId: {}, items: {}",
                     event.getOrderId(), event.getPopupId(), event.getDeductionItems().size());
+
+            if (!reservationService.findByOrderIdAndType(event.getOrderId(), ReservationType.GOODS).isEmpty()) {
+                log.info("예약 정보 존재 - 재고 차감 요청 이벤트는 스킵 (inventory-confirmation 흐름 사용) - orderId: {}",
+                        event.getOrderId());
+                return;
+            }
 
             // 각 항목별로 재고 차감 처리
             boolean allSuccess = true;

@@ -9,8 +9,8 @@ spring:
       server:
         webflux:
           httpclient:
-            connect-timeout: 300    # 다운스트림 서비스 연결되는데 걸리는 시간
-            response-timeout: 700ms   # 응답시간 초과
+            connect-timeout: 3000    # 다운스트림 서비스 연결되는데 걸리는 시간
+            response-timeout: 5s     # 응답시간 초과
 
       routes:
         - id: checkIns

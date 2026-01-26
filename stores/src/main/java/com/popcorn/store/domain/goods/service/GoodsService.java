@@ -91,6 +91,14 @@ public class GoodsService {
             log.warn("[GOODS_RESERVE_COMPLETE_FAILED] popupId={}, goodsId={}, quantity={}", popupId, goodsId, quantity);
             throw GoodsException.insufficientStock();
         }
+        log.info(
+            "[GOODS_RESERVE_COMPLETE_OK] popupId={}, goodsId={}, qty={} -> stock={}, reservationStock={}",
+            popupId,
+            goodsId,
+            quantity,
+            response.getStock(),
+            response.getReservationStock()
+        );
         return response;
     }
 }
