@@ -56,6 +56,33 @@ public class OrderEventPublisher {
     }
 
     /**
+     * 굿즈 재고 예약 요청 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param reservationItems 예약 요청 항목들
+     */
+    public void publishGoodsReservationRequestedEvent(Order order,
+                                                      java.util.List<GoodsReservationRequestedEvent.ReservationItem> reservationItems) {
+        try {
+            GoodsReservationRequestedEvent event = GoodsReservationRequestedEvent.create(
+                    order.getId(),
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    reservationItems
+            );
+
+            log.info("굿즈 재고 예약 요청 이벤트 발행 - orderId: {}, items: {}",
+                    event.getOrderId(), event.getReservationItems().size());
+
+            redisEventPublisher.publishGoodsReservationRequestedEvent(event);
+
+        } catch (Exception e) {
+            log.error("굿즈 재고 예약 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+            // 이벤트 발행 실패는 주문 프로세스를 중단시키지 않음
+        }
+    }
+
+    /**
      * 주문 취소 이벤트 발행
      *
      * @param order 취소된 주문

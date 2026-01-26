@@ -1,6 +1,7 @@
 package com.popcorn.order.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,8 +53,9 @@ public class RedisEventSubscriber implements MessageListener {
         try {
             log.info("재고 차감 성공 이벤트 처리 시작 - eventJson: {}", eventJson);
 
+            String resolvedJson = resolveEventJson(eventJson);
             StockDeductionSuccessEventDto eventDto = objectMapper.readValue(
-                    eventJson, StockDeductionSuccessEventDto.class);
+                    resolvedJson, StockDeductionSuccessEventDto.class);
 
             // DTO를 내부 이벤트 객체로 변환
             StockDeductionSuccessEvent event = StockDeductionSuccessEvent.create(
@@ -82,8 +84,9 @@ public class RedisEventSubscriber implements MessageListener {
         try {
             log.info("재고 차감 실패 이벤트 처리 시작 - eventJson: {}", eventJson);
 
+            String resolvedJson = resolveEventJson(eventJson);
             StockDeductionFailedEventDto eventDto = objectMapper.readValue(
-                    eventJson, StockDeductionFailedEventDto.class);
+                    resolvedJson, StockDeductionFailedEventDto.class);
 
             // DTO를 내부 이벤트 객체로 변환
             StockDeductionFailedEvent event = StockDeductionFailedEvent.forSystemError(
@@ -106,6 +109,18 @@ public class RedisEventSubscriber implements MessageListener {
 
     // DTO classes for Redis deserialization
 
+    private String resolveEventJson(String eventJson) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(eventJson);
+            if (node != null && node.isTextual()) {
+                return node.asText();
+            }
+        } catch (Exception ignored) {
+        }
+        return eventJson;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class StockDeductionSuccessEventDto {
         private String eventId;
         private UUID orderId;
@@ -136,6 +151,7 @@ public class RedisEventSubscriber implements MessageListener {
         public void setSucceededAt(LocalDateTime succeededAt) { this.succeededAt = succeededAt; }
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class StockDeductionFailedEventDto {
         private String eventId;
         private UUID orderId;

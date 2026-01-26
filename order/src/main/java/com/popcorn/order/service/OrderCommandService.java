@@ -769,7 +769,7 @@ public class OrderCommandService {
      * @throws RuntimeException 재고 부족 또는 예약 실패 시
      */
     private void reserveStockForOrder(Order order) {
-        log.info("주문 재고 예약 시작 - 주문번호: {}", order.getOrderNo());
+        log.info("주문 재고 예약 요청 시작(이벤트) - 주문번호: {}", order.getOrderNo());
 
         // 굿즈 항목만 필터링 (예약형 상품은 재고 예약 불필요)
         List<OrderItem> goodsItems = order.getOrderItems().stream()
@@ -781,46 +781,24 @@ public class OrderCommandService {
             return;
         }
 
-        // 각 굿즈 항목에 대해 재고 예약 시도
-        for (OrderItem item : goodsItems) {
-            if (item.getGoodsVariantId() == null) {
-                log.warn("굿즈 변형 ID가 없어 재고 예약을 건너뜁니다 - 주문번호: {}, 항목ID: {}",
-                        order.getOrderNo(), item.getId());
-                continue;
-            }
+        List<com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem> reservationItems =
+                goodsItems.stream()
+                        .filter(item -> item.getGoodsVariantId() != null)
+                        .map(item -> com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem.create(
+                                item.getGoodsVariantId(),
+                                item.getQty()
+                        ))
+                        .toList();
 
-            try {
-                log.info("굿즈 재고 예약 시도 - 주문번호: {}, 팝업ID: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), order.getPopupId(), item.getGoodsVariantId(), item.getQty());
-
-                storeClient.reserveGoods(
-                        order.getPopupId(),
-                        item.getGoodsVariantId(),
-                        item.getQty()
-                );
-
-                log.info("굿즈 재고 예약 성공 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
-
-            } catch (Exception e) {
-                log.error("굿즈 재고 예약 실패 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}, 에러: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty(), e.getMessage(), e);
-
-                // 이전에 예약한 항목들 롤백
-                rollbackStockReservations(order, goodsItems, item);
-
-                // 재고 예약 실패 이벤트 발행
-                publishStockReservationFailedEvent(order, item, e.getMessage());
-
-                throw new RuntimeException("재고 예약 실패 - 굿즈변형ID: " + item.getGoodsVariantId() +
-                        ", 수량: " + item.getQty() + ", 에러: " + e.getMessage(), e);
-            }
+        if (reservationItems.isEmpty()) {
+            log.warn("굿즈 변형 ID가 없어 재고 예약 요청을 건너뜁니다 - 주문번호: {}", order.getOrderNo());
+            return;
         }
 
-        // 재고 예약 성공 이벤트 발행
-        publishStockReservedEvent(order, goodsItems);
+        orderEventPublisher.publishGoodsReservationRequestedEvent(order, reservationItems);
 
-        log.info("주문 재고 예약 완료 - 주문번호: {}", order.getOrderNo());
+        log.info("주문 재고 예약 요청 이벤트 발행 완료 - 주문번호: {}, items: {}",
+                order.getOrderNo(), reservationItems.size());
     }
 
     /**

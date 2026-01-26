@@ -56,12 +56,6 @@ public class StoreRedisEventConfig {
                 new PatternTopic("events:goods-*")
         );
 
-        // 모든 이벤트 구독 (모니터링 목적)
-        container.addMessageListener(
-                new MessageListenerAdapter(storeRedisEventListener),
-                new PatternTopic("events:*")
-        );
-
         return container;
     }
 }

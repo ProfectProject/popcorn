@@ -10,6 +10,7 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
 import com.popcorn.store.domain.goods.entity.ReservationType;
+import com.popcorn.store.domain.goods.service.GoodsService;
 import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
@@ -28,6 +29,8 @@ public class StoreRedisEventListener implements MessageListener {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final GoodsOrderReservationService reservationService;
+    private final GoodsService goodsService;
+    private final StoreRedisEventPublisher storeRedisEventPublisher;
 
     /**
      * Redis Pub/Sub 이벤트 수신
@@ -81,6 +84,7 @@ public class StoreRedisEventListener implements MessageListener {
                     break;
                 case "events:goods-reservation-requested":
                     log.info("📋 [STORES] 굿즈 재고 예약 요청 이벤트 수신 - {}", body);
+                    publishGoodsReservationRequestedEvent(body);
                     break;
                 default:
                     log.info("🔔 [STORES] 기타 이벤트 수신 - channel: {}, body: {}", channel, body);
@@ -176,6 +180,78 @@ public class StoreRedisEventListener implements MessageListener {
         }
     }
 
+    private void publishGoodsReservationRequestedEvent(String body) {
+        try {
+            String resolvedBody = body;
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(body);
+                if (node != null && node.isTextual()) {
+                    resolvedBody = node.asText();
+                }
+            } catch (Exception ignored) {
+            }
+
+            GoodsReservationRequestedPayload payload =
+                    objectMapper.readValue(resolvedBody, GoodsReservationRequestedPayload.class);
+
+            if (payload.reservationItems == null || payload.reservationItems.isEmpty()) {
+                log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목이 없음 - orderId: {}", payload.orderId);
+                return;
+            }
+
+            for (GoodsReservationItem item : payload.reservationItems) {
+                if (item.goodsVariantId == null || item.quantity == null) {
+                    log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 누락 - orderId: {}, item: {}",
+                            payload.orderId, item);
+                    continue;
+                }
+
+                java.util.UUID popupId = payload.popupId;
+                try {
+                    if (popupId == null) {
+                        popupId = goodsService.resolvePopupId(item.goodsVariantId);
+                    }
+
+                    goodsService.reservationGoods(popupId, item.goodsVariantId, item.quantity);
+                    reservationService.createGoodsReservation(
+                            payload.orderId,
+                            payload.orderNo,
+                            popupId,
+                            item.goodsVariantId,
+                            item.quantity
+                    );
+
+                    log.info("✅ [STORES] 굿즈 재고 예약 완료 - orderId: {}, goodsVariantId: {}, qty: {}",
+                            payload.orderId, item.goodsVariantId, item.quantity);
+
+                    storeRedisEventPublisher.publishGoodsReservedEvent(
+                            payload.orderId,
+                            popupId,
+                            item.goodsVariantId,
+                            item.quantity
+                    );
+
+                } catch (Exception e) {
+                    log.error("❌ [STORES] 굿즈 재고 예약 실패 - orderId: {}, goodsVariantId: {}, qty: {}, error: {}",
+                            payload.orderId, item.goodsVariantId, item.quantity, e.getMessage(), e);
+
+                    storeRedisEventPublisher.publishGoodsReservationFailedEvent(
+                            payload.orderId,
+                            popupId,
+                            item.goodsVariantId,
+                            item.quantity,
+                            0,
+                            e.getMessage()
+                    );
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 굿즈 재고 예약 요청 이벤트 변환 실패 - body: {}, error: {}",
+                    body, e.getMessage(), e);
+        }
+    }
+
     /**
      * Spring Application 이벤트 수신 (범용)
      */
@@ -207,5 +283,19 @@ public class StoreRedisEventListener implements MessageListener {
         public String requestedAt;
         public String occurredAt;
         public String eventId;
+    }
+
+    private static class GoodsReservationRequestedPayload {
+        public String eventId;
+        public java.util.UUID orderId;
+        public String orderNo;
+        public java.util.UUID popupId;
+        public java.util.List<GoodsReservationItem> reservationItems;
+        public String requestedAt;
+    }
+
+    private static class GoodsReservationItem {
+        public java.util.UUID goodsVariantId;
+        public Integer quantity;
     }
 }

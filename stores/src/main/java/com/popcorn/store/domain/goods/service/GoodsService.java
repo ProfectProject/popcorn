@@ -3,6 +3,7 @@ package com.popcorn.store.domain.goods.service;
 import com.popcorn.store.domain.goods.dto.GoodsItemResponse;
 import com.popcorn.store.domain.goods.dto.GoodsListResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStockResponse;
+import com.popcorn.store.domain.goods.entity.GoodsVariant;
 import com.popcorn.store.domain.goods.exception.GoodsException;
 import com.popcorn.store.domain.goods.repository.GoodsReservationRepository;
 import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
@@ -47,6 +48,14 @@ public class GoodsService {
             throw GoodsException.insufficientStock();
         }
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public UUID resolvePopupId(UUID goodsId) {
+        GoodsVariant goodsVariant = goodsVariantRepository.findById(goodsId)
+                .filter(variant -> variant.getDeletedAt() == null)
+                .orElseThrow(GoodsException::goodsNotFound);
+        return goodsVariant.getPopupId();
     }
 
     @Transactional
