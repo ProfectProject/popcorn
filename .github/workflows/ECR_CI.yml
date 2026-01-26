@@ -70,24 +70,6 @@ jobs:
           
           # JSON의 Key-Value를 환경 변수 형태로 변환하여 GITHUB_ENV에 저장
           echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
-     
-      # ✅ 테스트 실행 전 컴파일 에러만 정밀 진단
-      - name: Debug Compilation Error
-        run: |
-          chmod +x gradlew
-          echo "Starting focused compilation for ${{ matrix.service.gradleModule }}..."
-          
-          # 1. 이전 빌드 기록 삭제 (캐시 꼬임 방지)
-          
-          ./gradlew :$MODULE_NAME:clean
-          
-          # 2. 컴파일만 실행 (테스트 실행 X, 오직 문법 및 의존성 검사)
-          # --console=plain: 진행바를 없애고 순수 텍스트 에러만 출력
-          # --no-daemon: 깨끗한 환경에서 빌드
-          ./gradlew :${{ matrix.service.gradleModule }}:compileTestJava \
-            --console=plain \
-            --no-daemon \
-            --stacktrace
       
       - name: Build Matrix JSON
         id: set-matrix
