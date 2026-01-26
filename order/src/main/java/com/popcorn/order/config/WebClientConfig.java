@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.popcorn.order.http.EventHttpLoggingFilter;
+
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
@@ -28,6 +30,11 @@ public class WebClientConfig {
 
     @Value("${microservices.payment.timeout:30s}")
     private Duration paymentTimeout;
+    private final EventHttpLoggingFilter eventHttpLoggingFilter;
+
+    public WebClientConfig(EventHttpLoggingFilter eventHttpLoggingFilter) {
+        this.eventHttpLoggingFilter = eventHttpLoggingFilter;
+    }
 
     /**
      * Payment 마이크로서비스 통신용 WebClient 설정
@@ -56,6 +63,7 @@ public class WebClientConfig {
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Accept", "application/json")
                 .defaultHeader("User-Agent", "Order-Service/1.0.0")
+                .filter(eventHttpLoggingFilter)
                 // 요청/응답 로깅 (개발환경용)
                 .filter((request, next) -> {
                     log.debug("HTTP 요청 - {} {}", request.method(), request.url());

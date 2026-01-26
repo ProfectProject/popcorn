@@ -31,8 +31,9 @@ import reactor.core.publisher.Mono;
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_PATH_PREFIXES = List.of(
             // 인증 관련 경로
-            "/api/users/v1/auth/**",
+            "/api/users/v1/auth/login",
             "/api/users/v1/auth/refresh",
+            "/api/users/v1/auth/",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
             "/api/pay/v1/payments/confirm-async",
@@ -108,6 +109,21 @@ public class JwtFilter implements GlobalFilter, Ordered{
         // 기타 예외 경로 처리
         if (EXCLUDE_PATH_PREFIXES.stream().anyMatch(path::startsWith)) {
             log.info("🔓 예외 경로 통과: {}", path);
+            return chain.filter(exchange);
+        }
+
+        // 결제 생성은 내부 호출/클라이언트 흐름 모두 허용 (POST /api/pay/v1/payments)
+        if (HttpMethod.POST.equals(exchange.getRequest().getMethod())
+                && "/api/pay/v1/payments".equals(path)) {
+            log.info("🔓 결제 생성 경로 통과: {}", path);
+            return chain.filter(exchange);
+        }
+
+        // 내부 서비스 호출은 인증 없이 통과
+        String internalCall = exchange.getRequest().getHeaders().getFirst("X-Internal-Call");
+        String internalService = exchange.getRequest().getHeaders().getFirst("X-Internal-Service");
+        if ("true".equalsIgnoreCase(internalCall) && internalService != null && !internalService.isBlank()) {
+            log.info("🔓 내부 서비스 호출 통과: service={}, path={}", internalService, path);
             return chain.filter(exchange);
         }
 

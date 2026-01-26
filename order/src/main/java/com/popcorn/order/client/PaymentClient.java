@@ -71,6 +71,7 @@ public class PaymentClient {
                         if (authHeader != null) {
                             headers.set("Authorization", authHeader);
                         }
+                        setInternalHeaders(headers);
                     })
                     .bodyValue(request)
                     .retrieve()
@@ -121,6 +122,7 @@ public class PaymentClient {
                     if (authHeader != null) {
                         headers.set("Authorization", authHeader);
                     }
+                    setInternalHeaders(headers);
                 })
                 .bodyValue(request)
                 .retrieve()
@@ -132,6 +134,11 @@ public class PaymentClient {
                 .doOnError(error ->
                     log.error("결제 생성 실패 - 주문ID: {}, 에러: {}",
                         request.getOrderId(), error.getMessage()));
+    }
+
+    private static void setInternalHeaders(org.springframework.http.HttpHeaders headers) {
+        headers.set("X-Internal-Call", "true");
+        headers.set("X-Internal-Service", "order");
     }
 
     /**
