@@ -73,3 +73,12 @@ order:
     timeout: ${ORDER_CANCEL_TIMEOUT:1800}
   validation:
     max-quantity: ${ORDER_MAX_QUANTITY:100}
+
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  expiration: 3600000
+  refresh-expiration-ms: 1209600000

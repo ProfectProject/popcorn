@@ -11,6 +11,15 @@ spring:
   profiles:
     default: local
 
+  passport:
+    secret: ${PASSPORT_SECRET:passport-shared-secret}
+    ttl-seconds: 60
+
+  jwt:
+    secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+    expiration: 3600000
+    refresh-expiration-ms: 1209600000
+
 ---
 # Test 환경 설정 (H2 데이터베이스 강제 사용)
 spring:

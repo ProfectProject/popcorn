@@ -14,7 +14,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
     username: ${USER_AUTH_DB_USERNAME:user_auth_app}
-    password: ${USER_AUTH_DB_PASSWORD:user123}
+    password: ${USER_AUTH_DB_PASSWORD:user_auth123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -34,8 +34,8 @@ spring:
   flyway:
     enabled: true
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user: ${USER_AUTH_FLYWAY_USERNAME:postgres}
-    password: ${USER_AUTH_FLYWAY_PASSWORD:1234}
+    user:  ${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
+    password: ${USER_AUTH_FLYWAY_PASSWORD:user123}
     schemas: user_auth
     locations: classpath:db/migration/schema
     baseline-on-migrate: true
