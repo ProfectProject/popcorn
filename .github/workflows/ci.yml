@@ -4,9 +4,15 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'users/**'
-      
+      - 'checkIns/**'      # 실제 서비스 디렉토리에 맞춰 수정 (기존 users/** 에서 변경)
+      - 'common-lib/**'
+      - '.github/workflows/checkins-ci.yml'
+      - 'gradle/**'
+      - '*.gradle'
+      - 'gradle.properties'
+
 jobs:
+  # [1] 테스트 및 커버리지 확인
   test-checkins:
     runs-on: ubuntu-latest
     name: CheckIns Module Test & Coverage
@@ -46,16 +52,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -72,59 +69,17 @@ jobs:
       - name: Verify Coverage (80% minimum)
         run: ./gradlew :checkIns:jacocoTestCoverageVerification
 
-      - name: Upload Coverage to Codecov (optional)
-        if: success()
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./checkIns/build/reports/jacoco/test/jacocoTestReport.xml
-          flags: checkins
-          name: codecov-checkins
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-
       - name: Upload CheckIns Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: checkins-test-results
           path: |
-            users/build/reports/tests/test/
-            users/build/test-results/test/
+            checkIns/build/reports/tests/test/
+            checkIns/build/test-results/test/
           retention-days: 7
 
-      - name: Upload CheckIns Coverage Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: users-coverage-report
-          path: users/build/reports/jacoco/test/html/
-          retention-days: 7
-
-      - name: Comment PR with Coverage
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            try {
-              const indexPath = 'checkIns/build/reports/jacoco/test/html/index.html';
-              if (fs.existsSync(indexPath)) {
-                const indexContent = fs.readFileSync(indexPath, 'utf8');
-                const match = indexContent.match(/Total.*?(\d+)%/);
-                if (match) {
-                  const coverage = match[1];
-                  github.rest.issues.createComment({
-                    issue_number: context.issue.number,
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    body: `## CheckIns Module Coverage Report 📊\n\n**Coverage: ${coverage}%** ${coverage >= 80 ? '✅' : '❌'}\n\n${coverage >= 80 ? 'Great! Coverage meets the 80% target.' : 'Coverage below 80% target.'}`
-                  });
-                }
-              }
-            } catch (error) {
-              console.log('Could not post coverage comment:', error);
-            }
-
+  # [2] 빌드 단계 (JAR 생성)
   build-checkins:
     runs-on: ubuntu-latest
     needs: test-checkins
@@ -140,6 +95,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -154,6 +110,7 @@ jobs:
           path: checkIns/build/libs/
           retention-days: 7
 
+  # [3] ECR 이미지 빌드 및 푸시
   docker-build-push-ecr:
     runs-on: ubuntu-latest
     needs: build-checkins
@@ -167,18 +124,17 @@ jobs:
     env:
       AWS_REGION: ap-northeast-2
       ECR_REPOSITORY: goorm-popcorn-user
-      SERVICE_DIR: users
+      SERVICE_DIR: checkIns  # Dockerfile이 있는 디렉토리로 통일
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # OIDC 인증 사용 시 Access Key는 생략하는 것이 보안상 좋으나, 필요시 유지
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -191,22 +147,17 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          # Dockerfile이 JAR를 COPY하므로, context는 repo root로 두는 게 안전함
           context: .
           file: ${{ env.SERVICE_DIR }}/Dockerfile
           push: true
-          
           platforms: linux/amd64
-
-          # ✅ ECR Scan 호환: OCI index 유발하는 attestation 끄기
+          # ECR 호환성 핵심 설정
           provenance: false
           sbom: false
-          
-					
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:test-${{ github.run_number }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          
           outputs: type=image,oci-mediatypes=true
