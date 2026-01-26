@@ -47,3 +47,9 @@ logging:
     org.hibernate.SQL: DEBUG
     org.springframework.security: DEBUG
 
+
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
+
+
