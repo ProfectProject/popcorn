@@ -41,6 +41,13 @@ jobs:
             stores: ['stores/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
             orderQuery: ['orderQuery/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
             # gateway: ['gateway/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+
+      - name: Configure AWS Credentials (IAM User)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
             
                   # ✅ 0. 공통 ENV 먼저 로드
       - name: Load Common Secrets Manager to ENV
