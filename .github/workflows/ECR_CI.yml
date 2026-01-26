@@ -35,12 +35,13 @@ jobs:
         id: filter
         with:
           filters: |
-            user: ['user/**']
-            checkin: ['checkIns/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            users: ['users/**']
+            checkins: ['checkIns/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
             order: ['order/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
             stores: ['stores/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
             orderQuery: ['orderQuery/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-            # gateway: ['gateway/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            gateway: ['gateway/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
+            payment: ['payment/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
 
       - name: Configure AWS Credentials (IAM User)
         uses: aws-actions/configure-aws-credentials@v4
@@ -112,7 +113,7 @@ jobs:
                          }')
           fi
           if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then
-             SERVICES+=('{"name":"order",
+             SERVICES+=('{"name":"gateway",
                            "path":"gateway",
                            "type":"gradle",
                            "gradleModule":"gateway",
@@ -146,15 +147,10 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # ✅ 1. Secrets Manager에서 서비스별 환경변수 로드
-      # (QR_DB_USERNAME, SERVER_PORT, SWAGGER_UI_PATH 등이 여기서 모두 주입됨)
-      - name: Load Secrets Manager to ENV
-        run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${{ matrix.service.secretArn }} --query SecretString --output text)
-          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       # ✅ 2. CI (테스트 단계)
       - name: Setup & Run Tests
@@ -171,6 +167,14 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Create ECR repository if not exists
+        run: |
+          REPO_NAME="${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}"
+          aws ecr describe-repositories --repository-names ${REPO_NAME} || \
+          aws ecr create-repository --repository-name ${REPO_NAME} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -180,7 +184,7 @@ jobs:
           context: .
           file: ${{ matrix.service.path }}/Dockerfile
           push: true
-          # 🚀 포맷 및 호환성 이슈 해결 핵심 설정
+ 
           platforms: linux/amd64
           provenance: false
           sbom: false
