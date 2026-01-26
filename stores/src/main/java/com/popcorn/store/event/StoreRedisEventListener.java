@@ -9,6 +9,8 @@ import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
+import com.popcorn.store.domain.goods.entity.ReservationType;
+import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
 
@@ -25,6 +27,7 @@ public class StoreRedisEventListener implements MessageListener {
 
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final GoodsOrderReservationService reservationService;
 
     /**
      * Redis Pub/Sub 이벤트 수신
@@ -101,6 +104,22 @@ public class StoreRedisEventListener implements MessageListener {
 
             InventoryConfirmationPayload payload =
                     objectMapper.readValue(resolvedBody, InventoryConfirmationPayload.class);
+            publishInventoryConfirmationEventWithRetry(payload, 0);
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 재고 처리 이벤트 변환 실패 - body: {}, error: {}",
+                    body, e.getMessage(), e);
+        }
+    }
+
+    private void publishInventoryConfirmationEventWithRetry(InventoryConfirmationPayload payload, int attempt) {
+        boolean hasGoodsReservation = !reservationService
+                .findByOrderIdAndType(payload.orderId, ReservationType.GOODS)
+                .isEmpty();
+        boolean hasScheduleReservation = !reservationService
+                .findByOrderIdAndType(payload.orderId, ReservationType.SCHEDULE)
+                .isEmpty();
+
+        if (hasGoodsReservation || hasScheduleReservation) {
             InventoryConfirmationRequestedEvent event =
                     InventoryConfirmationRequestedEvent.fromPayload(
                             payload.paymentId,
@@ -114,10 +133,26 @@ public class StoreRedisEventListener implements MessageListener {
             eventPublisher.publishEvent(event);
             log.info("📨 [STORES] 재고 처리 이벤트 발행 - orderId: {}, action: {}",
                     payload.orderId, payload.actionType);
-        } catch (Exception e) {
-            log.error("🚨 [STORES] 재고 처리 이벤트 변환 실패 - body: {}, error: {}",
-                    body, e.getMessage(), e);
+            return;
         }
+
+        if (attempt >= 5) {
+            log.warn("⏳ 예약 정보 없음 - 재고 처리 이벤트 보류 종료 - orderId: {}",
+                    payload.orderId);
+            return;
+        }
+
+        int nextAttempt = attempt + 1;
+        long delayMs = 200L * nextAttempt;
+        log.info("⏳ 예약 정보 없음 - 재시도 예정 ({}회) - orderId: {}", nextAttempt, payload.orderId);
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(delayMs);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            publishInventoryConfirmationEventWithRetry(payload, nextAttempt);
+        });
     }
 
     private void publishOrderPaidEvent(String body) {
