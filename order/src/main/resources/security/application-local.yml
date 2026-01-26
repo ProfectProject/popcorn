@@ -67,6 +67,15 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.security: DEBUG
 
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  expiration: 3600000
+  refresh-expiration-ms: 1209600000
+
 # 마이크로서비스 간 통신 설정 (로컬용)
 microservices:
   payment:
