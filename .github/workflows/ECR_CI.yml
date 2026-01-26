@@ -52,7 +52,7 @@ jobs:
                   # ✅ 0. 공통 ENV 먼저 로드
       - name: Load Common Secrets Manager to ENV
         run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN-DB-COMMON ${{ env.COMMON_SECRET_ARN }} --query SecretString --output text)
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN-DB-COMMON --query SecretString --output text)
           echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       # ✅ 1. 서비스별 ENV 로드 (공통과 겹치면 서비스별이 덮어씀)
