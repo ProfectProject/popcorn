@@ -186,6 +186,10 @@ jwt:
   secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
   expiration: 3600000
 
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
+
 springdoc:
   api-docs:
     enabled: true

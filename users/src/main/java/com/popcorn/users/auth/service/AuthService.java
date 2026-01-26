@@ -4,11 +4,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.popcorn.users.auth.dto.CustomUserDetails;
 import com.popcorn.users.auth.dto.LoginRequest;
 import com.popcorn.users.auth.dto.LoginResponse;
 import com.popcorn.users.auth.jwt.JwtUtil;
+import com.popcorn.users.auth.dto.RefreshTokenRequest;
+import com.popcorn.users.auth.dto.RefreshTokenResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,7 +21,13 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    //private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenService refreshTokenService;
+
+    @Value("${jwt.expiration:3600000}")
+    private long accessTokenExpirationMs;
+
+    @Value("${jwt.refresh-expiration-ms:1209600000}")
+    private long refreshTokenExpirationMs;
 
     public LoginResponse login(LoginRequest request) {
 
@@ -38,14 +47,36 @@ public class AuthService {
                 .getAuthority()
                 .replace("ROLE_", "");
 
-        String jwt = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, 30 * 60 * 1000L);
-        //String refreshJwt = jwtUtil.createRefreshJWT(userId,customUserDetails.getUsername(), role, 2 * 60 * 1000L);
+        String accesstoken = jwtUtil.createJwt(userId,customUserDetails.getUsername(), role, accessTokenExpirationMs);
+        String refreshtoken = jwtUtil.createRefreshJwt(userId,customUserDetails.getUsername(), role, refreshTokenExpirationMs);
 
-        //refreshTokenService.saveRefreshToken(refreshJwt,request.getEmail() ,1000L * 60 * 60 * 24 * 7 ); // 7일
+        refreshTokenService.saveRefreshToken(userId, refreshtoken, refreshTokenExpirationMs);
+        return new LoginResponse(accesstoken,refreshtoken);
+    }
 
-        //RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+    public RefreshTokenResponse refreshAccessToken(RefreshTokenRequest request) {
+        String refreshToken = request.getRefreshToken();
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new RuntimeException("Refresh token is required.");
+        }
 
-        //return new LoginResponse(jwt,refreshJwt);
-        return new LoginResponse(jwt);
+        if (jwtUtil.isExpired(refreshToken)) {
+            throw new RuntimeException("Refresh token expired.");
+        }
+
+        //String tokenType = jwtUtil.getTokenType(refreshToken);
+        //if (!"refresh".equals(tokenType)) {
+        //    throw new RuntimeException("Invalid refresh token.");
+        //}
+        Long userId = jwtUtil.getUserId(refreshToken);
+        String email = jwtUtil.getUsername(refreshToken);
+        String role = jwtUtil.getRole(refreshToken);
+
+        if (!refreshTokenService.isRefreshTokenValid(userId, refreshToken)) {
+            throw new RuntimeException("Refresh token not recognized.");
+        }
+        String accessToken = jwtUtil.createJwt(userId, email, role, accessTokenExpirationMs);
+        return new RefreshTokenResponse(accessToken, "Bearer", accessTokenExpirationMs);
+
     }
 }

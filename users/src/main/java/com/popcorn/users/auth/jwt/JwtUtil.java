@@ -74,4 +74,19 @@ public class JwtUtil {
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
     }
+
+    public String createRefreshJwt(Long userId, String email, String role, Long expiredMs) {
+        Claims claims = Jwts.claims();
+        claims.put("id", userId);
+        claims.put("email", email);
+        claims.put("role", role);
+        claims.put("type", "refresh");
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + expiredMs))
+                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
 }

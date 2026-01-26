@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.users.auth.jwt.JwtUtil;
 import com.popcorn.users.auth.dto.CustomUserDetails;
 import com.popcorn.users.auth.dto.LoginRequest;
+import com.popcorn.users.auth.service.RefreshTokenService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletInputStream;
@@ -29,8 +30,10 @@ import lombok.RequiredArgsConstructor;
 public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
     private final AuthenticationManager authenticationManager;
-
+    //private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
+    //private final long accessTokenExpirationMs;
+    private final long refreshTokenExpirationMs;
     
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
@@ -75,6 +78,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
        // String role = auth.getAuthority();
         String role = auth.getAuthority().replace("ROLE_", ""); // ROLE_USER -> enum type USER 로 바꿈
         String token = jwtUtil.createJwt(userId,username, role, 60*60*100L);
+        String refreshToken = jwtUtil.createRefreshJwt(userId, username, role, refreshTokenExpirationMs);
 
         response.addHeader("Authorization", "Bearer " + token);
 
