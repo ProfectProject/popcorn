@@ -7,13 +7,14 @@ spring:
   config:
     activate:
       on-profile: local
-  docker:
-    compose:
-      enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
     username: ${USER_AUTH_DB_USERNAME:user_auth_app}
-    password: ${USER_AUTH_DB_PASSWORD:user123}
+    password: ${USER_AUTH_DB_PASSWORD:user_auth123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -32,26 +33,21 @@ spring:
   flyway:
     enabled: true
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user: ${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
+    user:  ${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
     password: ${USER_AUTH_FLYWAY_PASSWORD:user123}
     schemas: user_auth
     locations: classpath:db/migration/schema
     baseline-on-migrate: true
-    validate-on-migrate: true
     clean-disabled: false
     
 
 jwt:
-  secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
-
-springdoc:
-  api-docs:
-    enabled: true
-    path: /v3/api-docs
-  swagger-ui:
-    enabled: true
-    path: /swagger-ui.html
+  refresh-expiration-ms: 1209600000
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
 
 logging:
   level:
