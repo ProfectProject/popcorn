@@ -111,8 +111,8 @@ jobs:
                          "repoPrefix":"goorm-popcorn"}"
                          }')
           fi
-          # if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then
-          #   SERVICES+=('{"name":"order",
+          if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then
+             SERVICES+=('{"name":"order",
                            "path":"gateway",
                            "type":"gradle",
                            "gradleModule":"gateway",
@@ -121,7 +121,7 @@ jobs:
                            "ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-api-gateway",
                            "repoPrefix":"goorm-popcorn"}"
                            }')
-          # fi
+          fi
           
 
           echo "matrix=$(printf '%s\n' "${SERVICES[@]}" | jq -sc '.')" >> "$GITHUB_OUTPUT"
