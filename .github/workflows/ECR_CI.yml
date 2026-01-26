@@ -130,7 +130,7 @@ jobs:
   # [2] 빌드 및 배포
   ci-cd:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
+    if: ${{ needs.detect-changes.outputs.matrix != '' && needs.detect-changes.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
