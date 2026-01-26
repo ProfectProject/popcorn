@@ -70,14 +70,14 @@ jobs:
                          "repoPrefix":"goorm-popcorn"}')
           fi
           if [ "${{ steps.filter.outputs.checkIns }}" = "true" ]; then
-            SERVICES+=('{"name":"checkin",
+            SERVICES+=('{"name":"checkIns",
                          "path":"checkIns",
                          "type":"gradle",
                          "gradleModule":"checkIns",
                          "secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_QR-GPInzQ",
                          "ecrAccountId":"375896310755",
                          "ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-qr",
-                         "repoPrefix":"goorm-popcorn"}",
+                         "repoPrefix":"goorm-popcorn"
                          }')
           fi
           if [ "${{ steps.filter.outputs.order }}" = "true" ]; then
@@ -87,7 +87,7 @@ jobs:
                          "secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER-cLSykH",
                          "ecrAccountId":"375896310755",
                          "ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-order",
-                         "repoPrefix":"goorm-popcorn"}"
+                         "repoPrefix":"goorm-popcorn"
                          }')
           fi
           if [ "${{ steps.filter.outputs.stores }}" = "true" ]; then
@@ -98,7 +98,7 @@ jobs:
                          "secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:DB_STORE-3RCBYv",
                          "ecrAccountId":"375896310755",
                          "ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-store",
-                         "repoPrefix":"goorm-popcorn"}"
+                         "repoPrefix":"goorm-popcorn"
                          }')
           fi
           if [ "${{ steps.filter.outputs.orderQuery }}" = "true" ]; then
@@ -106,10 +106,10 @@ jobs:
                          "path":"orderQuery",
                          "type":"gradle",
                          "gradleModule":"orderQuery",
-                         "secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH"
+                         "secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH",
                          "ecrAccountId":"375896310755",
                          "ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-order-query",
-                         "repoPrefix":"goorm-popcorn"}"
+                         "repoPrefix":"goorm-popcorn"
                          }')
           fi
           if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then
@@ -117,10 +117,9 @@ jobs:
                            "path":"gateway",
                            "type":"gradle",
                            "gradleModule":"gateway",
-                           "secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH",
                            "ecrAccountId":"375896310755",
                            "ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-api-gateway",
-                           "repoPrefix":"goorm-popcorn"}"
+                           "repoPrefix":"goorm-popcorn"
                            }')
           fi
           
