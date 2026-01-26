@@ -13,7 +13,7 @@ public class OpenApiProxyController {
 
     public OpenApiProxyController() {
         this.webClient = WebClient.builder()
-                .baseUrl("http://localhost:8081")  // 모놀리식 백엔드
+                .baseUrl("${BACKEND_SERVICE_URL}")  // 모놀리식 백엔드
                 .build();
     }
 

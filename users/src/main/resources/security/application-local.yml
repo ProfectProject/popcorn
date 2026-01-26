@@ -39,7 +39,9 @@ spring:
     locations: classpath:db/migration/schema
     baseline-on-migrate: true
     clean-disabled: false
-    
+app:
+  gateway:
+    url: ${GATEWAY_SERVICE_URL}
 
 jwt:
   secret: ${JWT_SECRET}
