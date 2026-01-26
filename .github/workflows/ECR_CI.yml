@@ -49,16 +49,10 @@ jobs:
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: ${{ env.AWS_REGION }}
             
-                  # ✅ 0. 공통 ENV 먼저 로드
+      # ✅ 0. 공통 ENV 먼저 로드
       - name: Load Common Secrets Manager to ENV
         run: |
           SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN-DB-COMMON --query SecretString --output text)
-          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
-
-      # ✅ 1. 서비스별 ENV 로드 (공통과 겹치면 서비스별이 덮어씀)
-      - name: Load Service Secrets Manager to ENV
-        run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${{ matrix.service.secretArn }} --query SecretString --output text)
           echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       - name: Build Matrix JSON
