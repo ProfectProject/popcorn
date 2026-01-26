@@ -1,202 +1,171 @@
-name: popcorn-msa-ci-cd-optimized
+# .github/workflows/user-service.yml
+name: User Service CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop, main]
     paths:
-      - '.github/workflows/**'
-      - 'users/**'
-      - 'checkIns/**'
-      - 'order/**'
-      - 'stores/**'
-      - 'payment/**'
-      - 'orderQuery/**'
-      - 'gateway/**'
-      - 'common-lib/**'
-      - 'gradle/**'
-      - '*.gradle'
-      - 'gradle.properties'
+      - 'user-service/**'
+      - '.github/workflows/user-service.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'user-service/**'
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REGISTRY: 375896310755.dkr.ecr.ap-northeast-2.amazonaws.com
-  ECR_REPO_PREFIX: goorm-popcorn
-  COMMON_SECRET_ARN: arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN-DB-COMMON-aGIGrF
-
+  ECR_REGISTRY: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com
+  SERVICE_NAME: user-service
+  
 jobs:
-  # [1] 변경된 서비스 감지 및 Matrix 생성
-  detect-changes:
+  test:
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            users: ['users/**']
-            checkIns: ['checkIns/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-            order: ['order/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-            stores: ['stores/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-            orderQuery: ['orderQuery/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-            gateway: ['gateway/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-            payment: ['payment/**', 'common-lib/**', 'gradle/**', '*.gradle', 'gradle.properties']
-
-      - name: Configure AWS Credentials (IAM User)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws-region: ${{ env.AWS_REGION }}
-            
-      # ✅ 0. 공통 ENV 먼저 로드
-      - name: Load Common Secrets Manager to ENV
-        run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN-DB-COMMON --query SecretString --output text)
-          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
-
-          # ✅ 서비스별 전용 Secrets Manager 값 로드
-      - name: Load Service Specific Secrets
-        if: matrix.service.secretArn != ''
-        run: |
-          echo "Fetching secrets for ${{ matrix.service.name }}..."
-          # 매트릭스에 정의된 secretArn을 사용하여 값을 가져옴
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_ORDER_QUERY --query SecretString --output text)
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_ORDER --query SecretString --output text)
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_QR --query SecretString --output text)
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id DB_STORE --query SecretString --output text)
-          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id POPCORN_USER --query SecretString --output text)
-          
-          # JSON의 Key-Value를 환경 변수 형태로 변환하여 GITHUB_ENV에 저장
-          echo "$SECRET_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-      - name: Build Matrix JSON
-        id: set-matrix
-        run: |
-          SERVICES=()
-          # 필터 키값(checkins, users 등)은 상단 filters 정의와 정확히 일치해야 함
-          if [ "${{ steps.filter.outputs.users }}" = "true" ]; then
-            SERVICES+=('{"name":"users","path":"users","type":"node","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_USER-yQ38fS","ecrRegistry":"375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-user"}')
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SERVICE_NAME }}/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ${{ env.SERVICE_NAME }}
+        run: npm ci
+      
+      - name: Lint
+        working-directory: ${{ env.SERVICE_NAME }}
+        run: npm run lint
+      
+      - name: Unit tests
+        working-directory: ${{ env.SERVICE_NAME }}
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
+      
+      - name: Integration tests
+        working-directory: ${{ env.SERVICE_NAME }}
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
 
-          if [ "${{ steps.filter.outputs.checkins }}" = "true" ]; then
-            SERVICES+=('{"name":"checkIns","path":"checkIns","type":"gradle","gradleModule":"checkIns","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_QR-GPInzQ"}')
-          fi
+      - name: Code coverage
+        working-directory: ${{ env.SERVICE_NAME }}
+        run: npm run test:coverage
+        env:
+          COVERAGE_THRESHOLD: 80
+      
+      - name: Security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
 
-          if [ "${{ steps.filter.outputs.order }}" = "true" ]; then
-            SERVICES+=('{"name":"order","path":"order","type":"gradle","gradleModule":"order","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER-cLSykH"}')
-          fi
-
-          if [ "${{ steps.filter.outputs.stores }}" = "true" ]; then
-            SERVICES+=('{"name":"stores","path":"stores","type":"gradle","gradleModule":"stores","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:DB_STORE-3RCBYv"}')
-          fi
-
-          if [ "${{ steps.filter.outputs.orderQuery }}" = "true" ]; then
-            SERVICES+=('{"name":"orderQuery","path":"orderQuery","type":"gradle","gradleModule":"orderQuery","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH"}')
-          fi
-
-          if [ "${{ steps.filter.outputs.gateway }}" = "true" ]; then
-            SERVICES+=('{"name":"gateway","path":"gateway","type":"gradle","gradleModule":"gateway","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER_QUERY-cLSykH"}')
-          fi
-
-          if [ "${{ steps.filter.outputs.payment }}" = "true" ]; then
-            SERVICES+=('{"name":"payment","path":"payment","type":"gradle","gradleModule":"payment","secretArn":"arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:POPCORN_ORDER-cLSykH"}')
-          fi
-
-          # 최종 매트릭스 생성
-          MATRIX_JSON=$(printf '%s\n' "${SERVICES[@]}" | jq -sc '.')
-          echo "matrix=${MATRIX_JSON}" >> "$GITHUB_OUTPUT"
-          echo "Final Matrix: ${MATRIX_JSON}"
-
-  # [2] 빌드 및 배포
-  ci-cd:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.matrix != '' && needs.detect-changes.outputs.matrix != '[]' }}
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: goorm_popcorn_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      
+  build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    if: github.event_name == 'push'
     
     permissions:
       id-token: write
       contents: read
-
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-
-      # ✅ 2. CI (테스트 단계)
-      - name: Setup & Run Tests
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: ${{ env.SERVICE_NAME }}
         run: |
-          if [ "${{ matrix.service.type }}" = "node" ]; then
-            cd ${{ matrix.service.path }} && npm ci && npm test
-          else
-            chmod +x gradlew
-            ./gradlew :${{ matrix.service.gradleModule }}:test \
-              --stacktrace --info --no-daemon
-          fi
-
-      # ✅ 3. Docker Build & ECR Push (요청하신 포맷 이슈 해결 코드 포함)
-      - name: Login to ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Create ECR repository if not exists
+          docker build \
+            --build-arg NODE_ENV=production \
+            -t $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:$IMAGE_TAG \
+            -t $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:latest \
+            .
+      
+      - name: Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          REPO_NAME="${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}"
-          aws ecr describe-repositories --repository-names ${REPO_NAME} || \
-          aws ecr create-repository --repository-name ${REPO_NAME} \
-            --image-scanning-configuration scanOnPush=true \
-            --encryption-configuration encryptionType=AES256
-
-      - name: Check ECR Image Existence
-        id: check_ecr  # ✅ 다음 단계에서 참조하기 위해 id를 지정합니다.
+          docker push $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:latest
+      
+      - name: Deploy to Staging (Rolling Update)
+        if: github.ref == 'refs/heads/develop'
         run: |
-          REPO_NAME="${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}"
-          
-          # 이미지 존재 여부 확인 (최근 1개만 조회)
-          IMAGE_COUNT=$(aws ecr list-images --repository-name $REPO_NAME --max-items 1 --query 'imageIds' --output json)
-          
-          if [ "$IMAGE_COUNT" == "[]" ]; then
-            echo "Repository is empty."
-            echo "is_empty=true" >> "$GITHUB_OUTPUT"  # ✅ 결과를 Output에 저장
-          else
-            echo "Images found."
-            echo "is_empty=false" >> "$GITHUB_OUTPUT" # ✅ 결과를 Output에 저장
-          fi
-
-      - name: Initial Build and Push
-        # ✅ 'steps.아이디.outputs.변수명' 형식으로 접근합니다.
-        if: steps.check_ecr.outputs.is_empty == 'true'
-        run: echo "이 레포지토리는 비어있으므로 초기 배포를 진행합니다."
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push (ECR)
-        uses: docker/build-push-action@v6
+          aws ecs update-service \
+            --cluster goorm-popcorn-cluster-staging \
+            --service ${{ env.SERVICE_NAME }} \
+            --force-new-deployment \
+            --task-definition ${{ env.SERVICE_NAME }}:${{ github.sha }}
+      
+      - name: Wait for approval (Production)
+        if: github.ref == 'refs/heads/main'
+        uses: trstringer/manual-approval@v1
         with:
-          context: .
-          file: ${{ matrix.service.path }}/Dockerfile
-          push: true
- 
-          platforms: linux/amd64
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}:latest
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_PREFIX }}-${{ matrix.service.name }}:test-${{ github.run_number }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-#1
-
+          approvers: tech-lead-team
+          minimum-approvals: 1
+          issue-title: "Deploy ${{ env.SERVICE_NAME }} to Production"
+      
+      - name: Deploy to Production (Blue/Green via CodeDeploy)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # CodeDeploy를 통한 블루/그린 배포
+          aws deploy create-deployment \
+            --application-name goorm-popcorn-${{ env.SERVICE_NAME }} \
+            --deployment-group-name production \
+            --revision revisionType=S3,s3Location="{bucket=goorm-popcorn-deployments,key=${{ env.SERVICE_NAME }}/appspec.yml,bundleType=zip}" \
+            --deployment-config-name CodeDeployDefault.ECSBlueGreenCanary10Percent5Minutes \
+            --description "Deploy ${{ env.SERVICE_NAME }} version ${{ github.sha }}"
+      
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          text: "${{ env.SERVICE_NAME }} 배포 ${{ job.status }}"
