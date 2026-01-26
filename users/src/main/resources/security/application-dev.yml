@@ -43,11 +43,11 @@ spring:
     
 
 jwt:
-  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+  secret: ${JWT_SECRET}
   expiration: 3600000
   refresh-expiration-ms: 1209600000
 passport:
-  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  secret: ${PASSPORT_SECRET}
   ttl-seconds: 60
 
 logging:
