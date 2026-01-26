@@ -33,9 +33,16 @@ public class QrEventListener {
         }
 
         String eventName = event.getClass().getSimpleName();
+
+        // 모든 이벤트 수신 로그
+        log.info("🔔 [ORDERQUERY] QR 이벤트 수신 - type: {}", eventName);
+
         if (!SUPPORTED_EVENTS.contains(eventName)) {
+            log.debug("🔍 [ORDERQUERY] 지원하지 않는 QR 이벤트 타입 - type: {}", eventName);
             return;
         }
+
+        log.info("📱 [ORDERQUERY] QR 체크인 이벤트 처리 시작 - type: {}", eventName);
 
         UUID orderGoodsId = (UUID) invokeAny(event, "getOrderGoodsId", "getOrderGoodsID");
         UUID storeId = (UUID) invokeAny(event, "getStoreId");

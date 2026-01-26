@@ -90,11 +90,6 @@ microservices:
   gateway:
     base-url: http://localhost:8080
 
-# Order 서비스 비즈니스 설정
-# 인증 설정
-passport:
-  secret: ${PASSPORT_SECRET:passport-shared-secret}
-
 order:
   payment:
     timeout: 60000  # 로컬에서는 긴 타임아웃
