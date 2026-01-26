@@ -665,19 +665,40 @@ public class OrderCommandService {
     }
 
     /**
-     * 프론트엔드 결제 페이지 URL 생성 (암호화된 토큰 방식)
+     * 프론트엔드 결제 페이지 URL 생성 + Payment 서비스에 결제 생성 요청
      *
-     * [새로운 결제 플로우]
-     * - Order 서비스에서 결제 정보를 AES-256-GCM으로 암호화하여 토큰 생성
-     * - 프론트엔드 URL: http://localhost:3000/auto-payment?token={암호화된토큰}
-     * - Payment 서비스 호출하지 않음 (HTTP 요청 제거)
-     * - 실제 결제 기록은 결제 완료 시점에 Payment 모듈에서 생성
+     * [수정된 결제 플로우]
+     * - 1단계: Payment 서비스에 실제 결제 생성 요청
+     * - 2단계: 토큰 생성하여 프론트엔드 URL 생성
+     * - 이렇게 하면 결제 승인 로그도 정상적으로 기록됨
      */
     private CreatePaymentResponse requestPaymentUrl(Order order, String paymentMethod) {
         try {
-            log.info("💳 암호화된 결제 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
+            log.info("💳 결제 생성 + 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
                     order.getOrderNo(), order.getTotalAmount(), paymentMethod);
 
+            // 1단계: Payment 서비스에 실제 결제 생성 요청
+            CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
+                    order.getId(),
+                    order.getCustomerId(),
+                    order.getOrderNo(),
+                    order.getTotalAmount(),
+                    paymentMethod
+            );
+
+            log.info("🔄 Payment 서비스 호출 시작 - 주문번호: {}", order.getOrderNo());
+            CreatePaymentResponse paymentServiceResponse;
+            try {
+                paymentServiceResponse = paymentClient.createPaymentSync(paymentRequest);
+                log.info("✅ Payment 서비스 호출 성공 - 주문번호: {}, 결제ID: {}, 상태: {}",
+                        order.getOrderNo(), paymentServiceResponse.getPaymentId(), paymentServiceResponse.getStatus());
+            } catch (Exception e) {
+                log.error("❌ Payment 서비스 호출 실패 - 주문번호: {}, 에러: {}", order.getOrderNo(), e.getMessage(), e);
+                // Payment 서비스 실패해도 토큰은 생성하여 나중에 결제할 수 있도록 함
+                paymentServiceResponse = null;
+            }
+
+            // 2단계: 토큰 생성 및 프론트엔드 URL 생성
             // 고객 키 생성 (사용자 ID 기반)
             String customerKey = "customer_" + order.getCustomerId().toString().replace("-", "");
 
@@ -695,26 +716,43 @@ public class OrderCommandService {
                         paymentMethod
                 );
 
-                // 프론트엔드 결제 페이지 URL 생성 (기존 backend 호환 방식)
+                // 프론트엔드 결제 페이지 URL 생성
                 String paymentUrl = String.format("%s/auto-payment?token=%s", frontendBaseUrl, paymentToken);
 
-                // CreatePaymentResponse 생성
-                CreatePaymentResponse paymentResponse = CreatePaymentResponse.builder()
-                        .paymentId(null) // 실제 결제 기록은 결제 완료 시점에 생성
-                        .orderId(order.getId())
-                        .amount(order.getTotalAmount())
-                        .status("READY") // 결제 준비 상태
-                        .paymentMethod(paymentMethod)
-                        .paymentUrl(paymentUrl) // 암호화된 토큰 방식 프론트엔드 URL
-                        .expiresAt(LocalDateTime.now().plusMinutes(30)) // 30분 후 만료
-                        .createdAt(LocalDateTime.now())
-                        .build();
+                // CreatePaymentResponse 생성 (Payment 서비스 응답 우선, 실패시 토큰 정보 사용)
+                CreatePaymentResponse finalResponse;
+                if (paymentServiceResponse != null && paymentServiceResponse.isSuccess()) {
+                    // Payment 서비스 성공 - 실제 결제 ID 사용
+                    finalResponse = CreatePaymentResponse.builder()
+                            .paymentId(paymentServiceResponse.getPaymentId())
+                            .orderId(order.getId())
+                            .amount(order.getTotalAmount())
+                            .status(paymentServiceResponse.getStatus())
+                            .paymentMethod(paymentMethod)
+                            .paymentUrl(paymentUrl) // 토큰 방식 URL 사용
+                            .expiresAt(paymentServiceResponse.getExpiresAt() != null ?
+                                    paymentServiceResponse.getExpiresAt() : LocalDateTime.now().plusMinutes(30))
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                } else {
+                    // Payment 서비스 실패 - 토큰만으로 대체
+                    finalResponse = CreatePaymentResponse.builder()
+                            .paymentId(null) // Payment 서비스 실패시 null
+                            .orderId(order.getId())
+                            .amount(order.getTotalAmount())
+                            .status("READY") // 결제 준비 상태
+                            .paymentMethod(paymentMethod)
+                            .paymentUrl(paymentUrl) // 토큰 방식 URL
+                            .expiresAt(LocalDateTime.now().plusMinutes(30))
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                }
 
-                log.info("✅ 암호화된 결제 토큰 URL 생성 완료 - 주문번호: {}, 고객키: {}, 토큰 길이: {}자",
-                        order.getOrderNo(), customerKey, paymentToken.length());
-                log.debug("🔗 생성된 암호화 결제 URL: {}", paymentUrl);
+                log.info("✅ 결제 생성 + 토큰 URL 생성 완료 - 주문번호: {}, 결제ID: {}, 토큰 길이: {}자",
+                        order.getOrderNo(), finalResponse.getPaymentId(), paymentToken.length());
+                log.debug("🔗 생성된 결제 URL: {}", paymentUrl);
 
-                return paymentResponse;
+                return finalResponse;
 
             } catch (Exception e) {
                 log.error("💥 결제 토큰 암호화 실패 - 주문번호: {}, 에러: {}",
@@ -723,12 +761,12 @@ public class OrderCommandService {
             }
 
         } catch (Exception e) {
-            log.error("💥 암호화된 결제 토큰 URL 생성 실패 - 주문번호: {}, 에러: {}",
+            log.error("💥 결제 생성 + 토큰 URL 생성 실패 - 주문번호: {}, 에러: {}",
                     order.getOrderNo(), e.getMessage(), e);
 
             // 실패 시에도 기본 응답 반환 (프론트엔드 에러 페이지 URL 포함)
-            String errorUrl = frontendBaseUrl + "/payments/fail?reason=token-generation-failed&orderId=" + order.getId();
-            log.warn("🚨 결제 토큰 생성 실패로 프론트엔드 에러 페이지 반환: {}", errorUrl);
+            String errorUrl = frontendBaseUrl + "/payments/fail?reason=payment-creation-failed&orderId=" + order.getId();
+            log.warn("🚨 결제 생성 실패로 프론트엔드 에러 페이지 반환: {}", errorUrl);
 
             return CreatePaymentResponse.builder()
                     .paymentId(null)

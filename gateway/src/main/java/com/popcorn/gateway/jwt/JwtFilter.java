@@ -31,8 +31,7 @@ import reactor.core.publisher.Mono;
 public class JwtFilter implements GlobalFilter, Ordered{
     private static final List<String> EXCLUDE_PATH_PREFIXES = List.of(
             // 인증 관련 경로
-            "/api/users/v1/auth/**",
-            "/api/users/v1/auth/refresh",
+            "/api/users/v1/auth/",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
             "/api/pay/v1/payments/confirm-async",

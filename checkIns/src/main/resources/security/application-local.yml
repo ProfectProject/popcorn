@@ -35,6 +35,13 @@ spring:
       QR_MIGRATOR_PASSWORD: qr321
       QR_APP_PASSWORD: qr123
 
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+  ttl-seconds: 60
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
+
 springdoc:
   api-docs:
     enabled: true

@@ -9,12 +9,12 @@ spring:
       on-profile: local
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${USER_AUTH_DB_USERNAME}
-    password: ${USER_AUTH_DB_PASSWORD}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    username: ${USER_AUTH_DB_USERNAME:user_auth_app}
+    password: ${USER_AUTH_DB_PASSWORD:user123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -24,6 +24,7 @@ spring:
     properties:
       hibernate:
         default_schema: user_auth
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         type:
           preferred_enum_jdbc_type: NAMED_ENUM
 
@@ -32,9 +33,9 @@ spring:
 
   flyway:
     enabled: true
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME} #jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user:  ${USER_AUTH_FLYWAY_USERNAME} #${USER_AUTH_FLYWAY_USERNAME:user_auth_migrator}
-    password: ${USER_AUTH_FLYWAY_PASSWORD} #${USER_AUTH_FLYWAY_PASSWORD:user123}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
+    user: ${USER_AUTH_FLYWAY_USERNAME:postgres}
+    password: ${USER_AUTH_FLYWAY_PASSWORD:1234}
     schemas: user_auth
     locations: classpath:db/migration/schema
     baseline-on-migrate: true
@@ -42,7 +43,7 @@ spring:
     
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
   refresh-expiration-ms: 1209600000
 passport:

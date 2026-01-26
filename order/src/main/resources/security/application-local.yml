@@ -69,6 +69,9 @@ logging:
 
 # 마이크로서비스 간 통신 설정 (로컬용)
 microservices:
+  store:
+    base-url: ${STORE_SERVICE_URL:http://localhost:8083}
+    timeout: 30s
   payment:
     base-url: ${PAYMENT_SERVICE_URL:http://localhost:8080}
     timeout: 30s
@@ -79,6 +82,10 @@ microservices:
     base-url: http://localhost:8080
 
 # Order 서비스 비즈니스 설정
+# 인증 설정
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+
 order:
   payment:
     timeout: 60000  # 로컬에서는 긴 타임아웃

@@ -6,9 +6,11 @@ spring:
     name: gateway
   cloud:
     gateway:
-      httpclient:
-        connect-timeout: 300    # 다운스트림 서비스 연결되는데 걸리는 시간
-        response-timeout: 700ms   # 응답시간 초과
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 300    # 다운스트림 서비스 연결되는데 걸리는 시간
+            response-timeout: 700ms   # 응답시간 초과
 
       routes:
         - id: checkIns
@@ -183,7 +185,7 @@ spring:
     base-path: /
 
 jwt:
-  secret: ${JWT_SECRET:bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU=}
+  secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==}
   expiration: 3600000
 
 passport:

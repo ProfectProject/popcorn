@@ -88,6 +88,10 @@ microservices:
   gateway:
     base-url: http://localhost:8080
 
+# 인증 설정
+passport:
+  secret: ${PASSPORT_SECRET:passport-shared-secret}
+
 # Payment 서비스 비즈니스 설정 (로컬용)
 payment:
   webhook:
