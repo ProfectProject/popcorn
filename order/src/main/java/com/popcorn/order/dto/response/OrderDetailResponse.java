@@ -154,7 +154,7 @@ public class OrderDetailResponse {
         private final Integer unitPrice;
         private final Integer lineAmount;
         private final UUID sessionOptionId;
-        private final UUID goodsVariantId;
+        private final UUID goodsId;
 
         public static OrderItemDetailResponse fromOrderItem(com.popcorn.order.entity.OrderItem item) {
             return OrderItemDetailResponse.builder()
@@ -164,7 +164,7 @@ public class OrderDetailResponse {
                     .unitPrice(item.getUnitPrice())
                     .lineAmount(item.getLineAmount())
                     .sessionOptionId(item.getSessionOptionId())
-                    .goodsVariantId(item.getGoodsVariantId())
+                    .goodsId(item.getGoodsId())
                     .build();
         }
     }

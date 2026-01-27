@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
  * public OrderDetailResponse getOrderDetail(UUID orderId) { ... }
  *
  * {@literal @}PerformanceMonitoring(threshold = 1000, logParams = true)
- * public void processLargeOrder(CreateOrderRequest request) { ... }
+ * public void processLargeOrder(OrderCreateRequest request) { ... }
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

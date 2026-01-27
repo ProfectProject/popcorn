@@ -19,7 +19,7 @@ import java.util.UUID;
 public class GoodsPriceResponse {
 
     /** 굿즈 변형 ID */
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     /** 상품명 */
     private String productName;

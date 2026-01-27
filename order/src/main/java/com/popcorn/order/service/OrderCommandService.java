@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.common.annotation.Idempotent;
 
 import com.popcorn.order.dto.command.CreateOrderCommand;
-import com.popcorn.order.dto.response.CreateOrderResponse;
+import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderItem;
 import com.popcorn.order.entity.OrderItemType;
@@ -22,14 +22,16 @@ import com.popcorn.order.event.OrderCreatedEvent;
 import com.popcorn.order.event.OrderStatusChangedEvent;
 import com.popcorn.order.event.OrderCancelledEvent;
 import com.popcorn.order.event.OrderEventPublisher;
+import com.popcorn.order.event.standard.StandardOrderEventPublisher;
+import com.popcorn.order.event.standard.StandardOrderCreatedEvent;
+import com.popcorn.order.event.standard.StandardOrderStatusUpdatedEvent;
 import com.popcorn.order.event.StockReservedEvent;
 import com.popcorn.order.event.StockReservationFailedEvent;
+import com.popcorn.order.event.StockDeductionRequestedEvent;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
-import com.popcorn.order.client.PaymentClient;
-import com.popcorn.order.client.UserClient;
-import com.popcorn.order.client.StoreClient;
+import com.popcorn.order.service.OrderUserLookupService;
 import com.popcorn.order.dto.payment.CreatePaymentRequest;
 import com.popcorn.order.dto.payment.CreatePaymentResponse;
 
@@ -54,11 +56,11 @@ public class OrderCommandService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final OrderEventPublisher orderEventPublisher;
-    private final PaymentClient paymentClient;
-    private final UserClient userClient;
+    private final StandardOrderEventPublisher standardOrderEventPublisher;
+    private final OrderUserLookupService orderUserLookupService;
     private final PaymentTokenUtil paymentTokenUtil;
-    private final StoreClient storeClient;
     private final OrderCacheService orderCacheService;
+    private final OrderPriceLookupService orderPriceLookupService;
 
     @org.springframework.beans.factory.annotation.Value("${frontend.base-url:${FRONTEND_BASE_URL:http://localhost:3000}}")
     private String frontendBaseUrl;
@@ -73,9 +75,9 @@ public class OrderCommandService {
         keyExpression = "#command.userId + ':' + #command.popupId",
         keyPrefix = "order:create",
         ttlSeconds = 300,  // 5분
-        responseType = CreateOrderResponse.class
+        responseType = OrderCreateResponse.class
     )
-    public CreateOrderResponse createOrder(CreateOrderCommand command) {
+    public OrderCreateResponse createOrder(CreateOrderCommand command) {
         log.info("주문 생성 시작 - 사용자: {}, 팝업: {}", command.getUserId(), command.getPopupId());
 
         try {
@@ -89,7 +91,7 @@ public class OrderCommandService {
     /**
      * 실제 주문 생성 로직 실행
      */
-    private CreateOrderResponse executeOrderCreation(CreateOrderCommand command) {
+    private OrderCreateResponse executeOrderCreation(CreateOrderCommand command) {
         // 1. 명령을 엔티티로 변환
         List<OrderItem> orderItems = convertToOrderItems(command.getItems());
         OrderType orderType = OrderType.valueOf(command.getOrderType());
@@ -123,46 +125,28 @@ public class OrderCommandService {
 
         orderStatusHistoryRepository.save(createdHistory);
 
-        // 6. 재고 예약 시도
-        try {
+        // 6. 재고 예약 요청 (이벤트 기반)
+        boolean hasGoodsItems = savedOrder.getOrderItems().stream()
+                .anyMatch(item -> OrderItemType.GOODS.equals(item.getOrderItemType()));
+
+        if (hasGoodsItems) {
             reserveStockForOrder(savedOrder);
-
-            // 재고 예약 성공 - 상태를 RESERVED로 변경
-            savedOrder.updateStatus(OrderStatus.RESERVED);
+            log.info("재고 예약 요청 완료 - 주문번호: {} (응답 이벤트 대기)", savedOrder.getOrderNo());
+        } else {
+            // 굿즈가 없으면 바로 결제 대기 상태로 전환
+            savedOrder.updateStatus(OrderStatus.PAYMENT_PENDING);
             orderRepository.save(savedOrder);
 
-            // 재고 예약 성공 이력 저장
-            OrderStatusHistory reservedHistory = OrderStatusHistory.builder()
+            OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
                     .orderId(savedOrder.getId())
                     .fromStatus(OrderStatus.REQUESTED)
-                    .toStatus(OrderStatus.RESERVED)
-                    .reason("재고 예약 완료")
+                    .toStatus(OrderStatus.PAYMENT_PENDING)
+                    .reason("굿즈 없음 - 결제 대기")
                     .changedAt(LocalDateTime.now())
                     .build();
+            orderStatusHistoryRepository.save(paymentPendingHistory);
 
-            orderStatusHistoryRepository.save(reservedHistory);
-
-            log.info("재고 예약 성공 - 주문번호: {}", savedOrder.getOrderNo());
-
-        } catch (Exception e) {
-            log.error("재고 예약 실패 - 주문번호: {}, 에러: {}", savedOrder.getOrderNo(), e.getMessage(), e);
-
-            // 재고 예약 실패 - 주문 취소
-            savedOrder.updateStatus(OrderStatus.CANCELLED);
-            orderRepository.save(savedOrder);
-
-            // 재고 예약 실패 이력 저장
-            OrderStatusHistory failedHistory = OrderStatusHistory.builder()
-                    .orderId(savedOrder.getId())
-                    .fromStatus(OrderStatus.REQUESTED)
-                    .toStatus(OrderStatus.CANCELLED)
-                    .reason("재고 예약 실패: " + e.getMessage())
-                    .changedAt(LocalDateTime.now())
-                    .build();
-
-            orderStatusHistoryRepository.save(failedHistory);
-
-            throw new RuntimeException("재고가 부족합니다. 주문이 취소되었습니다: " + e.getMessage(), e);
+            publishPaymentCreateRequestedEvent(savedOrder.getId());
         }
 
         // 7. 이벤트 발행
@@ -183,7 +167,7 @@ public class OrderCommandService {
             : "결제가 준비 중입니다. 잠시 후 결제 링크를 받으실 수 있습니다.";
 
         // 8. 응답 생성 (결제 URL 포함, 실제 Payment 엔티티는 생성하지 않음)
-        CreateOrderResponse response = CreateOrderResponse.fromOrderWithPayment(
+        OrderCreateResponse response = OrderCreateResponse.fromOrderWithPayment(
                 savedOrder,
                 paymentResponse != null ? paymentResponse.getPaymentId() : null,
                 paymentStatus,
@@ -194,6 +178,9 @@ public class OrderCommandService {
         );
 
         log.info("주문 생성 완료 - 주문번호: {}, 결제방법: {}", response.getOrderNo(), paymentMethod);
+
+        // 🚀 새로운 표준 ORDER_CREATED 이벤트 발행
+        publishStandardOrderCreatedEvent(savedOrder);
 
         orderCacheService.evictMyOrdersCache(savedOrder.getCustomerId());
 
@@ -211,7 +198,7 @@ public class OrderCommandService {
             return;
         }
 
-        userClient.getDefaultAddress(command.getUserId())
+        orderUserLookupService.getDefaultAddress(command.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("기본 배송지가 필요합니다."));
     }
 
@@ -247,6 +234,12 @@ public class OrderCommandService {
             newStatus = OrderStatus.valueOf(status);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("올바르지 않은 주문 상태예요: " + status);
+        }
+
+        // 동일 상태 요청은 멱등 처리 (no-op)
+        if (currentStatus == newStatus) {
+            log.info("주문 상태 변경 멱등 처리 - 주문ID: {}, 상태: {}", orderId, newStatus);
+            return order;
         }
 
         // 4. 도메인 규칙 검증
@@ -354,7 +347,7 @@ public class OrderCommandService {
                 .unitPrice(unitPrice)
                 .lineAmount(lineAmount)
                 .sessionOptionId(itemCommand.getSessionId())
-                .goodsVariantId(itemCommand.getGoodsVariantId())
+                .goodsId(itemCommand.getGoodsId())
                 .build();
     }
 
@@ -375,11 +368,11 @@ public class OrderCommandService {
 
         } else if (OrderItemType.GOODS.equals(itemType)) {
             // 구매형: 굿즈 가격 조회
-            UUID goodsVariantId = itemCommand.getGoodsVariantId();
-            if (goodsVariantId == null) {
+            UUID goodsId = itemCommand.getGoodsId();
+            if (goodsId == null) {
                 throw new RuntimeException("구매형 상품은 굿즈 정보가 필요해요");
             }
-            return getGoodsVariantPrice(goodsVariantId);
+            return getGoodsVariantPrice(goodsId);
 
         } else {
             throw new RuntimeException("알 수 없는 상품 타입이에요: " + itemType);
@@ -394,13 +387,11 @@ public class OrderCommandService {
         try {
             log.info("세션 가격 조회 요청 - sessionId: {}", sessionId);
 
-            // Store 서비스에서 실제 세션 가격 조회
-            var sessionPriceResponse = storeClient.getSessionPrice(sessionId);
-
-            if (sessionPriceResponse != null && sessionPriceResponse.getPrice() != null) {
+            Integer price = orderPriceLookupService.requestSessionPrice(sessionId);
+            if (price != null) {
                 log.info("세션 가격 조회 성공 - sessionId: {}, price: {}원",
-                        sessionId, sessionPriceResponse.getPrice());
-                return sessionPriceResponse.getPrice();
+                        sessionId, price);
+                return price;
             } else {
                 log.warn("세션 가격 정보가 비어있습니다 - sessionId: {}, 기본값 사용", sessionId);
                 return 15000; // 기본 가격
@@ -415,153 +406,25 @@ public class OrderCommandService {
      * 굿즈 상품 변형 가격 조회
      * Store 서비스의 실제 API를 통해 굿즈 가격 정보 조회
      */
-    private Integer getGoodsVariantPrice(UUID goodsVariantId) {
+    private Integer getGoodsVariantPrice(UUID goodsId) {
         try {
-            log.info("굿즈 가격 조회 요청 - goodsVariantId: {}", goodsVariantId);
+            log.info("굿즈 가격 조회 요청 (Redis Stream 이벤트 기반) - goodsId: {}", goodsId);
 
-            // Store 서비스에서 실제 굿즈 가격 조회
-            var goodsPriceResponse = storeClient.getGoodsVariantPrice(goodsVariantId);
-
-            if (goodsPriceResponse != null && goodsPriceResponse.getPrice() != null) {
-                log.info("굿즈 가격 조회 성공 - goodsVariantId: {}, price: {}원, stock: {}개",
-                        goodsVariantId, goodsPriceResponse.getPrice(), goodsPriceResponse.getStockQuantity());
-                return goodsPriceResponse.getPrice();
+            Integer price = orderPriceLookupService.requestGoodsPrice(goodsId);
+            if (price != null) {
+                log.info("굿즈 가격 조회 성공 - goodsId: {}, price: {}원",
+                        goodsId, price);
+                return price;
             } else {
-                log.warn("굿즈 가격 정보가 비어있습니다 - goodsVariantId: {}, 기본값 사용", goodsVariantId);
-                return 25000; // 기본 가격
+                log.warn("굿즈 가격 정보가 비어있습니다 - goodsId: {}, 기본값 사용", goodsId);
+                return 5000; // Store DB에 넣은 실제 가격과 동일한 기본값
             }
         } catch (Exception e) {
-            log.error("굿즈 가격 조회 실패 - goodsVariantId: {}, 기본값 사용, 에러: {}", goodsVariantId, e.getMessage(), e);
-            return 25000; // 기본 가격
+            log.error("굿즈 가격 조회 실패 - goodsId: {}, 기본값 사용, 에러: {}", goodsId, e.getMessage(), e);
+            return 5000; // Store DB에 넣은 실제 가격과 동일한 기본값
         }
     }
 
-    /**
-     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (비동기 처리)
-     *
-     * [개선사항]
-     * - Payment 서비스 호출은 비동기로 수행
-     * - 결제 URL은 즉시 발급하여 응답에 포함
-     * - 결제 실패 시에도 주문은 유지되며 나중에 결제 가능
-     */
-    private CreatePaymentResponse startPaymentProcessAndGetUrl(Order order, CreateOrderCommand command) {
-        log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
-                order.getOrderNo(), order.getTotalAmount());
-
-        // 1. 주문 상태를 결제 대기로 변경
-        order.setStatus(OrderStatus.PAYMENT_PENDING);
-        orderRepository.save(order);
-
-        // 2. 상태 변경 이력 저장
-        OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
-                .orderId(order.getId())
-                .fromStatus(OrderStatus.REQUESTED)
-                .toStatus(OrderStatus.PAYMENT_PENDING)
-                .reason("결제 프로세스 시작")
-                .changedAt(LocalDateTime.now())
-                .build();
-        orderStatusHistoryRepository.save(paymentPendingHistory);
-
-        // 비동기 결제 요청 및 토큰 URL 발급
-        return requestPaymentUrl(order, determinePaymentMethod(order));
-    }
-
-    /**
-     * 주문 생성 후 결제 프로세스 시작 (기존 비동기 방식 - 호환성 유지)
-     *
-     * [초보자 가이드]
-     * 주문이 생성된 후 자동으로 결제를 시작합니다.
-     * - 주문 상태 → PAYMENT_PENDING으로 변경
-     * - Payment 마이크로서비스에 결제 요청
-     * - 비동기로 처리 (결제 실패해도 주문은 유지)
-     *
-     * @deprecated 새로운 동기 방식으로 대체됨. startPaymentProcessAndGetUrl() 사용 권장
-     */
-    @Deprecated
-    private void startPaymentProcess(Order order, CreateOrderCommand command) {
-        log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
-                order.getOrderNo(), order.getTotalAmount());
-
-        // 1. 주문 상태를 결제 대기로 변경
-        order.setStatus(OrderStatus.PAYMENT_PENDING);
-        orderRepository.save(order);
-
-        // 2. 상태 변경 이력 저장
-        OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
-                .orderId(order.getId())
-                .fromStatus(OrderStatus.REQUESTED)
-                .toStatus(OrderStatus.PAYMENT_PENDING)
-                .reason("결제 프로세스 시작")
-                .changedAt(LocalDateTime.now())
-                .build();
-        orderStatusHistoryRepository.save(paymentPendingHistory);
-
-        // 3. Payment 서비스에 결제 요청 (비동기)
-        CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
-                order.getId(),
-                order.getCustomerId(),
-                order.getOrderNo(),
-                order.getTotalAmount(),
-                determinePaymentMethod(order) // 사용자가 선택한 결제 방법 결정
-        );
-
-        // 4. 비동기로 Payment 서비스 호출
-        paymentClient.createPayment(paymentRequest)
-                .subscribe(
-                    // 결제 생성 성공
-                    this::handlePaymentSuccess,
-                    // 결제 생성 실패
-                    error -> handlePaymentError(order.getId(), error)
-                );
-
-        log.info("결제 요청 전송 완료 - 주문번호: {}", order.getOrderNo());
-    }
-
-    /**
-     * 결제 생성 성공 처리
-     */
-    private void handlePaymentSuccess(CreatePaymentResponse paymentResponse) {
-        try {
-            log.info("결제 생성 성공 - 주문ID: {}, 결제ID: {}, 상태: {}",
-                    paymentResponse.getOrderId(), paymentResponse.getPaymentId(), paymentResponse.getStatus());
-
-            // 결제가 즉시 완료된 경우 (예: 간편결제)
-            if (paymentResponse.isCompleted()) {
-                updateOrderStatus(paymentResponse.getOrderId(),
-                                OrderStatus.PAID.name(),
-                                "결제 완료");
-            }
-            // 결제 대기 상태라면 별도 처리 불필요 (이미 PAYMENT_PENDING)
-
-            // 결제 URL이 있다면 고객에게 알림 발송 (결제 대기 상태인 경우만)
-            if (!paymentResponse.isCompleted() && paymentResponse.getPaymentUrl() != null) {
-                sendPaymentUrlNotificationToCustomer(paymentResponse);
-            }
-
-        } catch (Exception e) {
-            log.error("결제 성공 처리 중 오류 - 주문ID: {}, 에러: {}",
-                    paymentResponse.getOrderId(), e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 결제 생성 실패 처리
-     */
-    private void handlePaymentError(UUID orderId, Throwable error) {
-        try {
-            log.error("결제 생성 실패 - 주문ID: {}, 에러: {}", orderId, error.getMessage());
-
-            // 주문 상태를 다시 요청 상태로 되돌림 (수동 결제 대기)
-            updateOrderStatus(orderId, OrderStatus.REQUESTED.name(),
-                            "결제 생성 실패, 수동 처리 필요: " + error.getMessage());
-
-            // 관리자에게 결제 시스템 장애 알림 발송
-            sendPaymentErrorNotificationToAdmin(orderId, error);
-
-        } catch (Exception e) {
-            log.error("결제 실패 처리 중 오류 - 주문ID: {}, 에러: {}", orderId, e.getMessage(), e);
-        }
-    }
 
     /**
      * 결제 방법 결정
@@ -642,26 +505,8 @@ public class OrderCommandService {
             log.info("💳 결제 생성 + 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
                     order.getOrderNo(), order.getTotalAmount(), paymentMethod);
 
-            // 1단계: Payment 서비스에 실제 결제 생성 요청
-            CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
-                    order.getId(),
-                    order.getCustomerId(),
-                    order.getOrderNo(),
-                    order.getTotalAmount(),
-                    paymentMethod
-            );
-
-            log.info("🔄 Payment 서비스 비동기 호출 시작 - 주문번호: {}", order.getOrderNo());
-            paymentClient.createPayment(paymentRequest)
-                    .doOnSuccess(response ->
-                        log.info("✅ Payment 서비스 비동기 응답 수신 - 주문번호: {}, 결제ID: {}, 상태: {}",
-                                order.getOrderNo(),
-                                response != null ? response.getPaymentId() : null,
-                                response != null ? response.getStatus() : null))
-                    .doOnError(error ->
-                        log.error("❌ Payment 서비스 비동기 호출 실패 - 주문번호: {}, 에러: {}",
-                                order.getOrderNo(), error.getMessage(), error))
-                    .subscribe();
+            // 1단계: 결제 생성 요청은 재고 예약 완료 이벤트 수신 후 진행
+            log.info("🔄 결제 생성 이벤트는 재고 예약 완료 후 발행됩니다 - 주문번호: {}", order.getOrderNo());
 
             // 2단계: 토큰 생성 및 프론트엔드 URL 생성
             // 고객 키 생성 (사용자 ID 기반)
@@ -783,9 +628,9 @@ public class OrderCommandService {
 
         List<com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem> reservationItems =
                 goodsItems.stream()
-                        .filter(item -> item.getGoodsVariantId() != null)
+                        .filter(item -> item.getGoodsId() != null)
                         .map(item -> com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem.create(
-                                item.getGoodsVariantId(),
+                                item.getGoodsId(),
                                 item.getQty()
                         ))
                         .toList();
@@ -799,6 +644,18 @@ public class OrderCommandService {
 
         log.info("주문 재고 예약 요청 이벤트 발행 완료 - 주문번호: {}, items: {}",
                 order.getOrderNo(), reservationItems.size());
+    }
+
+    public void publishPaymentCreateRequestedEvent(UUID orderId) {
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            String paymentMethod = determinePaymentMethod(order);
+            orderEventPublisher.publishPaymentCreateRequestedEvent(order, paymentMethod);
+        } catch (Exception e) {
+            log.error("결제 생성 요청 이벤트 발행 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+        }
     }
 
     /**
@@ -817,26 +674,26 @@ public class OrderCommandService {
                 break;
             }
 
-            if (item.getGoodsVariantId() == null) {
+            if (item.getGoodsId() == null) {
                 continue;
             }
 
             try {
                 log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
+                        order.getOrderNo(), item.getGoodsId(), item.getQty());
 
-                storeClient.cancelGoodsReservation(
-                        order.getPopupId(),
-                        item.getGoodsVariantId(),
+                orderEventPublisher.publishGoodsReservationCancelRequestedEvent(
+                        order,
+                        item.getGoodsId(),
                         item.getQty()
                 );
 
                 log.info("굿즈 재고 예약 취소 성공 - 주문번호: {}, 굿즈변형ID: {}",
-                        order.getOrderNo(), item.getGoodsVariantId());
+                        order.getOrderNo(), item.getGoodsId());
 
             } catch (Exception e) {
                 log.error("굿즈 재고 예약 취소 실패 - 주문번호: {}, 굿즈변형ID: {}, 에러: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), e.getMessage(), e);
+                        order.getOrderNo(), item.getGoodsId(), e.getMessage(), e);
                 // 롤백 실패는 로그만 남기고 계속 진행
             }
         }
@@ -872,9 +729,9 @@ public class OrderCommandService {
     private void publishStockReservedEvent(Order order, List<OrderItem> goodsItems) {
         try {
             List<StockReservedEvent.ReservedStockItem> reservedItems = goodsItems.stream()
-                    .filter(item -> item.getGoodsVariantId() != null)
+                    .filter(item -> item.getGoodsId() != null)
                     .map(item -> StockReservedEvent.ReservedStockItem.create(
-                            item.getGoodsVariantId(),
+                            item.getGoodsId(),
                             item.getQty(),
                             item.getUnitPrice(),
                             generateProductName(item)
@@ -903,7 +760,7 @@ public class OrderCommandService {
         try {
             List<StockReservationFailedEvent.FailedStockItem> failedItems = List.of(
                     StockReservationFailedEvent.FailedStockItem.create(
-                            failedItem.getGoodsVariantId(),
+                            failedItem.getGoodsId(),
                             failedItem.getQty(),
                             0, // 사용 가능한 수량은 Store에서만 알 수 있음
                             generateProductName(failedItem),
@@ -917,6 +774,266 @@ public class OrderCommandService {
             log.error("재고 예약 실패 이벤트 발행 실패 - 주문번호: {}, 에러: {}",
                     order.getOrderNo(), e.getMessage(), e);
             // 이벤트 발행 실패는 주문 처리에 영향을 주지 않음
+        }
+    }
+
+    /**
+     * 🚀 표준 ORDER_CREATED 이벤트 발행
+     */
+    private void publishStandardOrderCreatedEvent(Order order) {
+        try {
+            log.info("🚀 [STANDARD-ORDER] 표준 ORDER_CREATED 이벤트 발행 시작 - 주문번호: {}", order.getOrderNo());
+
+            // Order 엔티티 → 표준 이벤트 변환
+            StandardOrderCreatedEvent event = convertToStandardOrderCreatedEvent(order);
+
+            // 표준 이벤트 발행
+            standardOrderEventPublisher.publishOrderCreatedEvent(event);
+
+            log.info("✅ [STANDARD-ORDER] 표준 ORDER_CREATED 이벤트 발행 완료 - 주문번호: {}, eventId: {}",
+                    order.getOrderNo(), event.getEventId());
+
+        } catch (Exception e) {
+            log.error("❌ [STANDARD-ORDER] 표준 ORDER_CREATED 이벤트 발행 실패 - 주문번호: {}, 에러: {}",
+                    order.getOrderNo(), e.getMessage(), e);
+            // 이벤트 발행 실패는 주문 처리에 영향을 주지 않음
+        }
+    }
+
+    /**
+     * Order 엔티티를 표준 ORDER_CREATED 이벤트로 변환
+     */
+    private StandardOrderCreatedEvent convertToStandardOrderCreatedEvent(Order order) {
+        // lines 배열 생성
+        List<com.popcorn.order.event.standard.EventLineItem> lines = order.getOrderItems().stream()
+                .map(this::convertToEventLineItem)
+                .collect(java.util.stream.Collectors.toList());
+
+        return StandardOrderCreatedEvent.builder()
+                .eventType(com.popcorn.order.event.standard.StandardEventType.ORDER_CREATED)
+                .producer("order-service")
+                .orderId(order.getId())
+                .orderNo(order.getOrderNo())
+                .userId(order.getCustomerId())
+                .storeId(null) // 추후 추가
+                .popupId(order.getPopupId())
+                .orderedAt(order.getCreatedAt())
+                .orderStatus(order.getStatus().toString())
+                .totalAmount(order.getTotalAmount())
+                .hasReservation(hasReservation(order))
+                .hasGoods(hasGoods(order))
+                .lines(lines)
+                .build();
+    }
+
+    /**
+     * OrderItem을 EventLineItem으로 변환
+     */
+    private com.popcorn.order.event.standard.EventLineItem convertToEventLineItem(OrderItem orderItem) {
+        return com.popcorn.order.event.standard.EventLineItem.builder()
+                .orderGoodsId(orderItem.getId())
+                .itemType(orderItem.getOrderItemType().toString())
+                .scheduleId(orderItem.getSessionOptionId())
+                .goodsId(orderItem.getGoodsId())
+                .qty(orderItem.getQty())
+                .unitPrice(orderItem.getUnitPrice())
+                .linePrice(orderItem.getLineAmount())
+                .build();
+    }
+
+    /**
+     * 주문에 예약이 포함되어 있는지 확인
+     */
+    private Boolean hasReservation(Order order) {
+        return order.getOrderItems().stream()
+                .anyMatch(item -> OrderItemType.RESERVATION.equals(item.getOrderItemType()));
+    }
+
+    /**
+     * 주문에 굿즈가 포함되어 있는지 확인
+     */
+    private Boolean hasGoods(Order order) {
+        return order.getOrderItems().stream()
+                .anyMatch(item -> OrderItemType.GOODS.equals(item.getOrderItemType()));
+    }
+
+    /**
+     * 주문 완료 이벤트 발행 (결제 완료 시 호출)
+     */
+    public void publishOrderCompletedEvent(UUID orderId) {
+        try {
+            log.info("주문 완료 이벤트 발행 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 완료 이벤트 발행
+            orderEventPublisher.publishOrderCompletedEvent(order);
+
+            log.info("✅ 주문 완료 이벤트 발행 완료 - orderId: {}, orderNo: {}", orderId, order.getOrderNo());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 완료 이벤트 발행 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 이벤트 발행 실패는 주문 처리에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * 주문의 재고 예약 취소 (결제 실패 시 호출)
+     */
+    public void cancelStockReservationsForOrder(UUID orderId) {
+        try {
+            log.info("주문 재고 예약 취소 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 항목들 조회
+            List<com.popcorn.order.entity.OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+            // 굿즈 항목만 필터링
+            List<com.popcorn.order.entity.OrderItem> goodsItems = orderItems.stream()
+                    .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
+                    .toList();
+
+            if (goodsItems.isEmpty()) {
+                log.info("굿즈 항목이 없어 재고 예약 취소를 건너뜁니다 - orderId: {}", orderId);
+                return;
+            }
+
+            // 각 굿즈 항목에 대해 재고 예약 취소
+            for (com.popcorn.order.entity.OrderItem item : goodsItems) {
+                if (item.getGoodsId() == null) {
+                    log.warn("굿즈 변형 ID가 없어 재고 예약 취소를 건너뜁니다 - orderId: {}, 항목ID: {}",
+                            orderId, item.getId());
+                    continue;
+                }
+
+                try {
+                    log.info("굿즈 재고 예약 취소 시도 - orderId: {}, 굿즈변형ID: {}, 수량: {}",
+                            orderId, item.getGoodsId(), item.getQty());
+
+                    orderEventPublisher.publishGoodsReservationCancelRequestedEvent(
+                            order,
+                            item.getGoodsId(),
+                            item.getQty()
+                    );
+
+                    log.info("✅ 굿즈 재고 예약 취소 완료 - orderId: {}, 굿즈변형ID: {}",
+                            orderId, item.getGoodsId());
+
+                } catch (Exception e) {
+                    log.error("❌ 굿즈 재고 예약 취소 실패 - orderId: {}, 굿즈변형ID: {}, error: {}",
+                            orderId, item.getGoodsId(), e.getMessage(), e);
+                    // 개별 항목 취소 실패는 전체 처리를 중단시키지 않음
+                }
+            }
+
+            log.info("✅ 주문 재고 예약 취소 완료 - orderId: {}, 처리된 굿즈 수: {}",
+                    orderId, goodsItems.size());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 재고 예약 취소 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 재고 예약 취소 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * 주문의 결제 취소 (결제 실패 시 호출)
+     */
+    public void cancelPaymentForOrder(UUID orderId, String paymentId, String reason) {
+        try {
+            log.info("주문 결제 취소 시작 - orderId: {}, paymentId: {}, reason: {}", orderId, paymentId, reason);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 결제 취소 요청 이벤트 발행 (Payment 서비스가 처리)
+            orderEventPublisher.publishPaymentCancelRequestedEvent(
+                    order,
+                    paymentId != null ? paymentId : "",
+                    reason != null ? reason : "주문 결제 실패로 인한 자동 취소"
+            );
+
+            log.info("✅ 결제 취소 요청 이벤트 발행 완료 - orderId: {}, paymentId: {}", orderId, paymentId);
+
+        } catch (Exception e) {
+            log.error("❌ 주문 결제 취소 실패 - orderId: {}, paymentId: {}, error: {}",
+                    orderId, paymentId, e.getMessage(), e);
+            // 결제 취소 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * 주문의 재고 차감 요청 (결제 완료 시 호출)
+     */
+    public void requestStockDeduction(UUID orderId) {
+        try {
+            log.info("주문 재고 차감 요청 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 항목들 조회
+            List<com.popcorn.order.entity.OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+            // 굿즈 항목만 필터링 (예약형은 재고 차감 불필요)
+            List<com.popcorn.order.entity.OrderItem> goodsItems = orderItems.stream()
+                    .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
+                    .filter(item -> item.getGoodsId() != null)
+                    .toList();
+
+            if (goodsItems.isEmpty()) {
+                log.info("굿즈 항목이 없어 재고 차감을 건너뜁니다 - orderId: {}", orderId);
+                return;
+            }
+
+            // 재고 차감 항목 리스트 생성
+            List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems = goodsItems.stream()
+                    .map(item -> StockDeductionRequestedEvent.StockDeductionItem.builder()
+                            .goodsId(item.getGoodsId())
+                            .quantity(item.getQty())
+                            .productName(generateProductName(item))
+                            .variantName(generateProductVariantName(item))
+                            .build())
+                    .toList();
+
+            // 재고 차감 요청 이벤트 발행
+            orderEventPublisher.publishStockDeductionRequestedEvent(
+                    orderId,
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    deductionItems
+            );
+
+            log.info("✅ 주문 재고 차감 요청 완료 - orderId: {}, 굿즈 항목 수: {}",
+                    orderId, deductionItems.size());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 재고 차감 요청 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 재고 차감 요청 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * OrderItem에서 상품 변형명 생성
+     */
+    private String generateProductVariantName(OrderItem item) {
+        if (item == null || item.getOrderItemType() == null) {
+            return "기본";
+        }
+
+        switch (item.getOrderItemType()) {
+            case RESERVATION:
+                return "예약형";
+            case GOODS:
+                return "굿즈";
+            default:
+                return "기본";
         }
     }
 

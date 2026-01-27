@@ -60,7 +60,7 @@ class InventoryServiceTest {
                 .build();
         OrderItem goods = OrderItem.builder()
                 .id(UUID.randomUUID())
-                .goodsVariantId(goodsId)
+                .goodsId(goodsId)
                 .qty(3)
                 .build();
 
@@ -109,7 +109,7 @@ class InventoryServiceTest {
                 .build();
         OrderItem goods = OrderItem.builder()
                 .id(UUID.randomUUID())
-                .goodsVariantId(goodsId)
+                .goodsId(goodsId)
                 .qty(1)
                 .build();
 
@@ -177,7 +177,7 @@ class InventoryServiceTest {
         OrderItem unknownItem = OrderItem.builder()
                 .id(UUID.randomUUID())
                 .qty(1)
-                .build(); // Neither sessionOptionId nor goodsVariantId set
+                .build(); // Neither sessionOptionId nor goodsId set
 
         service.deductInventoryForOrder(UUID.randomUUID(), List.of(unknownItem));
         // Should log warning but not throw exception
@@ -191,7 +191,7 @@ class InventoryServiceTest {
         UUID goodsId = UUID.randomUUID();
         OrderItem goods = OrderItem.builder()
                 .id(UUID.randomUUID())
-                .goodsVariantId(goodsId)
+                .goodsId(goodsId)
                 .qty(1)
                 .build();
 
@@ -231,7 +231,7 @@ class InventoryServiceTest {
         UUID goodsId = UUID.randomUUID();
         OrderItem goods = OrderItem.builder()
                 .id(UUID.randomUUID())
-                .goodsVariantId(goodsId)
+                .goodsId(goodsId)
                 .qty(10)
                 .build();
 
@@ -251,7 +251,7 @@ class InventoryServiceTest {
         UUID goodsId = UUID.randomUUID();
         OrderItem goods = OrderItem.builder()
                 .id(UUID.randomUUID())
-                .goodsVariantId(goodsId)
+                .goodsId(goodsId)
                 .qty(1)
                 .build();
 

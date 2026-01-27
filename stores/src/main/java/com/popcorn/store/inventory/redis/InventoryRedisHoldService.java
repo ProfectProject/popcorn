@@ -184,7 +184,7 @@ public class InventoryRedisHoldService {
 
     private List<String> buildGoodsKeys(UUID popupId, List<GoodsHoldItem> items) {
         return items.stream()
-                .map(item -> String.format(GOODS_KEY_TEMPLATE, popupId, item.getGoodsVariantId()))
+                .map(item -> String.format(GOODS_KEY_TEMPLATE, popupId, item.getGoodsId()))
                 .collect(Collectors.toList());
     }
 
@@ -199,7 +199,7 @@ public class InventoryRedisHoldService {
     private String buildGoodsJson(List<GoodsHoldItem> items) {
         try {
             return objectMapper.writeValueAsString(items.stream()
-                    .map(item -> new GoodsPayload(item.getGoodsVariantId(), item.getQuantity()))
+                    .map(item -> new GoodsPayload(item.getGoodsId(), item.getQuantity()))
                     .collect(Collectors.toList()));
         } catch (JsonProcessingException e) {
             log.warn("goods json serialization failed - fallback to []", e);
@@ -277,11 +277,11 @@ public class InventoryRedisHoldService {
 
     @Getter
     public static class GoodsHoldItem {
-        private final UUID goodsVariantId;
+        private final UUID goodsId;
         private final int quantity;
 
-        public GoodsHoldItem(UUID goodsVariantId, int quantity) {
-            this.goodsVariantId = goodsVariantId;
+        public GoodsHoldItem(UUID goodsId, int quantity) {
+            this.goodsId = goodsId;
             this.quantity = quantity;
         }
     }

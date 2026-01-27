@@ -60,7 +60,7 @@ public class OrderItemView extends BaseEntity {
 
     // goods fields
     @Column(name = "goods_variant_id")
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     @Column(name = "goods_name", length = 100)
     private String goodsName;

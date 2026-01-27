@@ -15,7 +15,6 @@ import com.popcorn.order.entity.OrderItemType;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.service.OrderService;
-import com.popcorn.order.client.StoreClient;
 
 import java.util.UUID;
 import java.util.List;
@@ -45,7 +44,6 @@ public class OrderEventListener {
     private final OrderEventPublisher eventPublisher;
     private final RedisEventPublisher redisEventPublisher;
     private final ObjectMapper objectMapper;
-    private final StoreClient storeClient;
 
     /**
      * Store 모듈의 재고 차감 실패 이벤트 수신 (Kafka로 대체 예정)
@@ -140,17 +138,17 @@ public class OrderEventListener {
             List<OrderPaidEvent.OrderItemInfo> orderItems = event.getOrderItems();
             for (OrderPaidEvent.OrderItemInfo item : orderItems) {
                 if (item.isGoodsItem()) {
-                    if (item.getGoodsVariantId() == null || item.getQuantity() == null) {
-                        log.warn("굿즈 재고 차감 스킵 - orderId: {}, goodsVariantId: {}",
-                                event.getOrderId(), item.getGoodsVariantId());
+                    if (item.getGoodsId() == null || item.getQuantity() == null) {
+                        log.warn("굿즈 재고 차감 스킵 - orderId: {}, goodsId: {}",
+                                event.getOrderId(), item.getGoodsId());
                         continue;
                     }
-                    log.info("굿즈 재고 차감 요청 수집 - orderId: {}, popupId: {}, goodsVariantId: {}, quantity: {}",
-                            event.getOrderId(), event.getPopupId(), item.getGoodsVariantId(), item.getQuantity());
+                    log.info("굿즈 재고 차감 요청 수집 - orderId: {}, popupId: {}, goodsId: {}, quantity: {}",
+                            event.getOrderId(), event.getPopupId(), item.getGoodsId(), item.getQuantity());
 
                     // 재고 차감 항목 수집
                     deductionItems.add(StockDeductionRequestedEvent.StockDeductionItem.create(
-                            item.getGoodsVariantId(),
+                            item.getGoodsId(),
                             item.getQuantity()
                     ));
                 } else {
@@ -319,7 +317,7 @@ public class OrderEventListener {
 
         // 각 굿즈 항목에 대해 재고 예약 취소
         for (OrderItem item : goodsItems) {
-            if (item.getGoodsVariantId() == null) {
+            if (item.getGoodsId() == null) {
                 log.warn("굿즈 변형 ID가 없어 재고 예약 취소를 건너뜁니다 - 주문번호: {}, 항목ID: {}",
                         order.getOrderNo(), item.getId());
                 continue;
@@ -327,20 +325,20 @@ public class OrderEventListener {
 
             try {
                 log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
+                        order.getOrderNo(), item.getGoodsId(), item.getQty());
 
-                storeClient.cancelGoodsReservation(
-                        order.getPopupId(),
-                        item.getGoodsVariantId(),
+                eventPublisher.publishGoodsReservationCancelRequestedEvent(
+                        order,
+                        item.getGoodsId(),
                         item.getQty()
                 );
 
                 log.info("굿즈 재고 예약 취소 성공 - 주문번호: {}, 굿즈변형ID: {}",
-                        order.getOrderNo(), item.getGoodsVariantId());
+                        order.getOrderNo(), item.getGoodsId());
 
             } catch (Exception e) {
                 log.error("굿즈 재고 예약 취소 실패 - 주문번호: {}, 굿즈변형ID: {}, 에러: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), e.getMessage(), e);
+                        order.getOrderNo(), item.getGoodsId(), e.getMessage(), e);
                 // 개별 항목 실패는 로그만 남기고 계속 진행
             }
         }

@@ -83,6 +83,83 @@ public class OrderEventPublisher {
     }
 
     /**
+     * 굿즈 예약 취소 요청 이벤트 발행
+     */
+    public void publishGoodsReservationCancelRequestedEvent(Order order, java.util.UUID goodsId, Integer quantity) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("굿즈 예약 취소 요청 이벤트 발행 - orderId: {}, goodsId: {}",
+                    order.getId(), goodsId);
+
+            redisEventPublisher.publishGoodsReservationCancelRequestedEvent(
+                    eventId,
+                    order.getId(),
+                    order.getPopupId(),
+                    goodsId,
+                    quantity
+            );
+
+        } catch (Exception e) {
+            log.error("굿즈 예약 취소 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
+     * 결제 생성 요청 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param paymentMethod 결제 수단
+     */
+    public void publishPaymentCreateRequestedEvent(Order order, String paymentMethod) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("결제 생성 요청 이벤트 발행 - orderId: {}, paymentMethod: {}",
+                    order.getId(), paymentMethod);
+
+            String paymentKey = "order:" + order.getId();
+
+            redisEventPublisher.publishPaymentCreateRequestedEvent(
+                    eventId,
+                    order.getId(),
+                    order.getOrderNo(),
+                    order.getTotalAmount(),
+                    paymentMethod,
+                    order.getCustomerId(),
+                    paymentKey
+            );
+
+        } catch (Exception e) {
+            log.error("결제 생성 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
+     * 결제 취소 요청 이벤트 발행
+     */
+    public void publishPaymentCancelRequestedEvent(Order order, String paymentId, String reason) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("결제 취소 요청 이벤트 발행 - orderId: {}, paymentId: {}",
+                    order.getId(), paymentId);
+
+            redisEventPublisher.publishPaymentCancelRequestedEvent(
+                    eventId,
+                    order.getId(),
+                    order.getOrderNo(),
+                    paymentId,
+                    reason,
+                    order.getCustomerId()
+            );
+
+        } catch (Exception e) {
+            log.error("결제 취소 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
      * 주문 취소 이벤트 발행
      *
      * @param order 취소된 주문
@@ -156,6 +233,9 @@ public class OrderEventPublisher {
                     .orderNo(order.getOrderNo())
                     .customerId(order.getCustomerId())
                     .popupId(order.getPopupId())
+                    .orderDate(order.getCreatedAt())
+                    .finalAmount(order.getTotalAmount())
+                    .itemCount(order.getTotalQuantity())
                     .completedAt(java.time.LocalDateTime.now())
                     .eventTime(java.time.LocalDateTime.now())
                     .build();
@@ -244,19 +324,23 @@ public class OrderEventPublisher {
                                                    java.util.UUID popupId,
                                                    java.util.List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems) {
         try {
-            log.info("재고 차감 요청 이벤트 발행 시작 - orderId: {}", orderId);
+            log.info("📦 [ORDER] 재고 차감 요청 이벤트 발행 시작 - orderId: {}, 항목 수: {}", orderId, deductionItems.size());
 
             StockDeductionRequestedEvent event = StockDeductionRequestedEvent.create(
                     orderId, orderNo, popupId, deductionItems
             );
 
+            // 1. 내부 이벤트 발행 (Spring Events)
             applicationEventPublisher.publishEvent(event);
 
-            log.info("재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
+            // 2. Redis Stream 이벤트 발행 (Store 서비스로 전송)
+            redisEventPublisher.publishStockDeductionRequestedEvent(event);
+
+            log.info("📦✅ [ORDER] 재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
                     orderId, event.getEventId());
 
         } catch (Exception e) {
-            log.error("재고 차감 요청 이벤트 발행 실패 - orderId: {}", orderId, e);
+            log.error("📦❌ [ORDER] 재고 차감 요청 이벤트 발행 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
         }
     }
 }

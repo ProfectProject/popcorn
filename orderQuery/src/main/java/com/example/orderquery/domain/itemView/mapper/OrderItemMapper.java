@@ -22,7 +22,7 @@ public final class OrderItemMapper {
                 .scheduleId(view.getScheduleId())
                 .scheduleStartAt(view.getScheduleStartAt())
                 .scheduleEndAt(view.getScheduleEndAt())
-                .goodsVariantId(view.getGoodsVariantId())
+                .goodsId(view.getGoodsId())
                 .goodsName(view.getGoodsName())
                 .stockUnit(view.getStockUnit())
                 .qty(view.getQty())

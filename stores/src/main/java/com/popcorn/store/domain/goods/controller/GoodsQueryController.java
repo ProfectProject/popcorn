@@ -278,4 +278,5 @@ public class GoodsQueryController extends BaseController {
         response.setOrderId(orderId);
         return ok(response);
     }
+
 }

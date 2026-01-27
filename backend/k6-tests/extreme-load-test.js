@@ -81,7 +81,7 @@ const testOrders = new SharedArray('orders', function () {
       popupId: `popup-${Math.floor(Math.random() * 100) + 1}`,
       items: [
         {
-          goodsVariantId: `goods-${Math.floor(Math.random() * 1000) + 1}`,
+          goodsId: `goods-${Math.floor(Math.random() * 1000) + 1}`,
           qty: Math.floor(Math.random() * 5) + 1,
           unitPrice: (Math.floor(Math.random() * 50) + 1) * 1000
         }

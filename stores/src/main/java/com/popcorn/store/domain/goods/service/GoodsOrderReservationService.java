@@ -20,14 +20,14 @@ public class GoodsOrderReservationService {
 
     @Transactional
     public GoodsOrderReservation createReservation(UUID orderId, String orderNo, UUID popupId,
-                                                   UUID goodsVariantId, UUID scheduleId,
+                                                   UUID goodsId, UUID scheduleId,
                                                    int quantity, ReservationType reservationType) {
         GoodsOrderReservation reservation = GoodsOrderReservation.builder()
                 .id(UUID.randomUUID())
                 .orderId(orderId)
                 .orderNo(orderNo)
                 .popupId(popupId)
-                .goodsVariantId(goodsVariantId)
+                .goodsId(goodsId)
                 .scheduleId(scheduleId)
                 .quantity(quantity)
                 .reservationType(reservationType)
@@ -40,8 +40,8 @@ public class GoodsOrderReservationService {
 
     @Transactional
     public GoodsOrderReservation createGoodsReservation(UUID orderId, String orderNo, UUID popupId,
-                                                        UUID goodsVariantId, int quantity) {
-        return createReservation(orderId, orderNo, popupId, goodsVariantId, null,
+                                                        UUID goodsId, int quantity) {
+        return createReservation(orderId, orderNo, popupId, goodsId, null,
                 quantity, ReservationType.GOODS);
     }
 

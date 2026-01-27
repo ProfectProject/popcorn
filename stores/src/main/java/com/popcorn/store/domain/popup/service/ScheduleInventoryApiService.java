@@ -2,6 +2,7 @@ package com.popcorn.store.domain.popup.service;
 
 import com.popcorn.store.domain.popup.dto.query.response.PopupScheduleCapacity;
 import com.popcorn.store.domain.popup.exception.PopupException;
+import com.popcorn.store.domain.popup.repository.PopupScheduleQueryRepository;
 import com.popcorn.store.inventory.redis.InventoryRedisHoldService;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -22,6 +23,7 @@ public class ScheduleInventoryApiService {
 
     private final InventoryRedisHoldService holdService;
     private final StringRedisTemplate redisTemplate;
+    private final PopupScheduleQueryRepository popupScheduleQueryRepository;
 
     public HoldResult reserve(UUID popupId, UUID scheduleId, int quantity, UUID orderId) {
         if (orderId == null) {
@@ -55,6 +57,22 @@ public class ScheduleInventoryApiService {
 
     public int available(UUID popupId, UUID scheduleId) {
         return readAvailability(buildKey(popupId, scheduleId));
+    }
+
+    public void ensureScheduleKey(UUID popupId, UUID scheduleId) {
+        if (popupId == null || scheduleId == null) {
+            return;
+        }
+        String key = buildKey(popupId, scheduleId);
+        Boolean exists = redisTemplate.hasKey(key);
+        if (Boolean.TRUE.equals(exists)) {
+            return;
+        }
+        Integer remaining = popupScheduleQueryRepository.findRemainingCapacity(popupId, scheduleId);
+        int value = remaining != null ? remaining : 0;
+        redisTemplate.opsForValue().setIfAbsent(key, String.valueOf(value));
+        log.info("[SCHEDULE_INIT] key initialized - popupId={}, scheduleId={}, remaining={}",
+                popupId, scheduleId, value);
     }
 
     private int readAvailability(String key) {

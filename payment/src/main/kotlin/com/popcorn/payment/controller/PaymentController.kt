@@ -285,6 +285,52 @@ class PaymentController(
     }
 
     /**
+     * 결제 토큰 재발급 (재결제용)
+     */
+    @GetMapping("/refresh")
+    suspend fun refreshPaymentToken(
+        @RequestParam token: String
+    ): ResponseEntity<ApiResponse<PaymentTokenRefreshResponse>> {
+        return try {
+            log.info("🔄 결제 토큰 재발급 요청 - 토큰 길이: {}자", token.length)
+
+            val paymentData = paymentTokenUtil.decryptPaymentToken(token)
+            if (!paymentTokenUtil.validatePaymentToken(paymentData)) {
+                throw PaymentException.invalidRequest("결제 토큰이 유효하지 않습니다.")
+            }
+
+            val orderId = paymentData["orderId"] as String
+            val orderNo = paymentData["orderNo"] as String
+            val amount = paymentData["amount"] as Int
+            val customerKey = paymentData["customerKey"] as String
+
+            val newToken = paymentTokenUtil.generatePaymentToken(
+                orderId = orderId,
+                orderNo = orderNo,
+                amount = amount,
+                customerKey = customerKey
+            )
+
+            val paymentUrl = "http://localhost:3000/auto-payment?token=$newToken"
+
+            ResponseEntity.ok(
+                ApiResponse.success(
+                    PaymentTokenRefreshResponse(newToken, paymentUrl),
+                    "결제 토큰 재발급 성공"
+                )
+            )
+        } catch (e: PaymentException) {
+            log.error("❌ 결제 토큰 재발급 실패 - PaymentException: {}", e.message)
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(e.message ?: "결제 토큰 재발급 실패"))
+        } catch (e: Exception) {
+            log.error("❌ 결제 토큰 재발급 중 예외 발생", e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(genericErrorMessage))
+        }
+    }
+
+    /**
      * 결제 상세 조회
      */
     @GetMapping("/{paymentId}")

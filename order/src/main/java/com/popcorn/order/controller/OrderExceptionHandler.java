@@ -360,7 +360,7 @@ public class OrderExceptionHandler {
             case "qty" -> "수량";
             case "unitPrice" -> "단가";
             case "sessionId" -> "세션 ID";
-            case "goodsVariantId" -> "상품 변형 ID";
+            case "goodsId" -> "상품 변형 ID";
             default -> fieldName;
         };
     }

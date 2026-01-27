@@ -13,9 +13,10 @@ import com.popcorn.common.filter.PassportPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.popcorn.common.dto.BaseResponse;
+import com.popcorn.common.cache.IdempotencyService;
 import com.popcorn.order.dto.command.CreateOrderCommand;
-import com.popcorn.order.dto.request.CreateOrderRequest;
-import com.popcorn.order.dto.response.CreateOrderResponse;
+import com.popcorn.order.dto.request.OrderCreateRequest;
+import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.dto.response.OrderResponseCode;
 import com.popcorn.order.service.OrderCommandService;
 
@@ -118,7 +119,7 @@ public class OrderCommandController {
             required = true,
             content = @io.swagger.v3.oas.annotations.media.Content(
                 mediaType = "application/json",
-                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = CreateOrderRequest.class),
+                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = OrderCreateRequest.class),
                 examples = {
                     @io.swagger.v3.oas.annotations.media.ExampleObject(
                         name = "1. 예약형 주문",
@@ -155,7 +156,7 @@ public class OrderCommandController {
                                   "orderItemType": "GOODS",
                                   "qty": 3,
                                   "unitPrice": 5000,
-                                  "goodsVariantId": "00000000-0000-0000-0000-000000000301"
+                                  "goodsId": "00000000-0000-0000-0000-000000000301"
                                 }
                               ]
                             }
@@ -182,7 +183,7 @@ public class OrderCommandController {
                                   "orderItemType": "GOODS",
                                   "qty": 2,
                                   "unitPrice": 5000,
-                                  "goodsVariantId": "00000000-0000-0000-0000-000000000301"
+                                  "goodsId": "00000000-0000-0000-0000-000000000301"
                                 }
                               ]
                             }
@@ -193,8 +194,8 @@ public class OrderCommandController {
         )
     )
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<BaseResponse<CreateOrderResponse>> createOrder(
-            @Valid @RequestBody CreateOrderRequest request,
+    public ResponseEntity<BaseResponse<OrderCreateResponse>> createOrder(
+            @Valid @RequestBody OrderCreateRequest request,
             @AuthenticationPrincipal PassportPrincipal principal,
             Authentication authentication,
             HttpServletRequest httpRequest) {
@@ -222,6 +223,7 @@ public class OrderCommandController {
         long startTime = System.currentTimeMillis();
 
         try {
+            validateOrderRequest(request);
             log.info("🔄 [REQ-{}] 1단계: Request → Command 변환 시작", requestId);
             // 1. Request를 Command 객체로 변환 (JWT에서 추출한 userId 포함)
             // Command 패턴: 요청을 객체로 캡슐화하여 처리
@@ -231,7 +233,7 @@ public class OrderCommandController {
             log.info("🔄 [REQ-{}] 2단계: 주문 생성 서비스 호출 시작", requestId);
             // 2. CQRS Command 서비스 호출
             // 실제 비즈니스 로직은 Service 계층에서 처리
-            CreateOrderResponse response = orderCommandService.createOrder(command);
+            OrderCreateResponse response = orderCommandService.createOrder(command);
 
             long processingTime = System.currentTimeMillis() - startTime;
 
@@ -240,7 +242,7 @@ public class OrderCommandController {
 
             log.info("🔄 [REQ-{}] 3단계: 성공 응답 생성", requestId);
             // 3. 성공 응답 생성
-            BaseResponse<CreateOrderResponse> baseResponse = BaseResponse.from(
+            BaseResponse<OrderCreateResponse> baseResponse = BaseResponse.from(
                     OrderResponseCode.ORDER_CREATED, response);
 
             log.info("📤 [REQ-{}] 응답 전송 - 상태: {}, 크기: {} bytes",
@@ -250,6 +252,18 @@ public class OrderCommandController {
             return ResponseEntity.status(OrderResponseCode.ORDER_CREATED.getHttpStatus())
                     .body(baseResponse);
 
+        } catch (IdempotencyService.IdempotencyException e) {
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            log.warn("⏳ [REQ-{}] 주문 생성 중복 요청 - {}ms: {}",
+                    requestId, processingTime, e.getMessage());
+
+            BaseResponse<OrderCreateResponse> errorResponse = BaseResponse.from(
+                    OrderResponseCode.IDEMPOTENCY_REQUEST_IN_PROGRESS, null);
+
+            return ResponseEntity.status(OrderResponseCode.IDEMPOTENCY_REQUEST_IN_PROGRESS.getHttpStatus())
+                    .body(errorResponse);
+
         } catch (IllegalArgumentException e) {
             // 요청 데이터가 잘못된 경우 (검증 실패)
             long processingTime = System.currentTimeMillis() - startTime;
@@ -258,7 +272,7 @@ public class OrderCommandController {
                     requestId, processingTime, e.getMessage());
             log.debug("❌ [REQ-{}] 상세 오류 스택:", requestId, e);
 
-            BaseResponse<CreateOrderResponse> errorResponse = BaseResponse.from(
+            BaseResponse<OrderCreateResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.INVALID_ORDER_REQUEST, null);
 
             log.info("📤 [REQ-{}] 잘못된 요청 응답 전송 - 상태: {}",
@@ -273,7 +287,7 @@ public class OrderCommandController {
 
             log.error("💥 [REQ-{}] 주문 생성 실패 - 서버 내부 오류 ({}ms)", requestId, processingTime, e);
 
-            BaseResponse<CreateOrderResponse> errorResponse = BaseResponse.from(
+            BaseResponse<OrderCreateResponse> errorResponse = BaseResponse.from(
                     OrderResponseCode.ORDER_CREATION_FAILED, null);
 
             log.info("📤 [REQ-{}] 서버 오류 응답 전송 - 상태: {}",
@@ -299,6 +313,32 @@ public class OrderCommandController {
             ip = request.getRemoteAddr();
         }
         return ip;
+    }
+
+    private void validateOrderRequest(OrderCreateRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("주문 요청이 비어있습니다.");
+        }
+
+        if (request.isReservationType() && !request.isValidReservationRequest()) {
+            throw new IllegalArgumentException("예약형 주문 요청이 올바르지 않습니다.");
+        }
+
+        if (request.isGoodsType() && !request.isValidGoodsRequest()) {
+            throw new IllegalArgumentException("굿즈 주문 요청이 올바르지 않습니다.");
+        }
+
+        if (request.isMixedType() && !request.isValidMixedRequest()) {
+            throw new IllegalArgumentException("혼합 주문 요청이 올바르지 않습니다.");
+        }
+
+        if (!request.isReservationType() && !request.isGoodsType() && !request.isMixedType()) {
+            throw new IllegalArgumentException("주문 타입이 올바르지 않습니다.");
+        }
+
+        if (request.requiresShippingAddress()) {
+            log.debug("배송지 필요 주문 - 기본 배송지 확인은 서비스에서 처리합니다.");
+        }
     }
 
 

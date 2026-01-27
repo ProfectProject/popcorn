@@ -49,7 +49,7 @@ public class StockReservedEvent {
     @Builder
     @ToString
     public static class ReservedStockItem {
-        private UUID goodsVariantId;
+        private UUID goodsId;
         private UUID scheduleId;
         private Integer quantity;
         private Integer unitPrice;
@@ -58,10 +58,10 @@ public class StockReservedEvent {
         private Integer reservationDetails;
         private ReservationCategory reservationCategory;
 
-        public static ReservedStockItem goods(UUID goodsVariantId, Integer quantity,
+        public static ReservedStockItem goods(UUID goodsId, Integer quantity,
                                               Integer unitPrice, String productName) {
             return ReservedStockItem.builder()
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .quantity(quantity)
                     .unitPrice(unitPrice)
                     .productName(productName)

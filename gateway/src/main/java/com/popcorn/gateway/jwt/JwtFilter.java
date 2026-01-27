@@ -36,6 +36,7 @@ public class JwtFilter implements GlobalFilter, Ordered{
             "/api/users/v1/auth/",
             "/api/users/v1/users/signup",
             "/api/pay/v1/payments/decode",
+            "/api/pay/v1/payments/refresh",
             "/api/pay/v1/payments/confirm-async",
             "/api/pay/v1/payments/orders",
             "/api/stores/v1/popups",

@@ -11,9 +11,12 @@ import org.springframework.stereotype.Component
  * - Redis 이벤트 구독
  * - Spring Application 이벤트 구독
  * - 모든 이벤트를 로그로 기록
+ * - PaymentCompletedEvent를 Redis Stream으로 발행
  */
 @Component
-class PaymentRedisEventListener : MessageListener {
+class PaymentRedisEventListener(
+    private val paymentRedisEventPublisher: PaymentRedisEventPublisher
+) : MessageListener {
     private val log = LoggerFactory.getLogger(PaymentRedisEventListener::class.java)
 
     override fun onMessage(message: Message, pattern: ByteArray?) {
@@ -59,6 +62,12 @@ class PaymentRedisEventListener : MessageListener {
             val eventType = event.javaClass.simpleName
             if (eventType.contains("Payment") || eventType.contains("Order")) {
                 log.info("🌟 [PAYMENT] Application 이벤트 수신 - type: {}, event: {}", eventType, event.toString())
+
+                // PaymentCompletedEvent를 Redis Stream으로 발행
+                if (event is PaymentCompletedEvent) {
+                    log.info("💳✅ [PAYMENT] PaymentCompletedEvent를 Redis Stream으로 발행 - eventId: {}", event.eventId)
+                    paymentRedisEventPublisher.publish(event)
+                }
             } else {
                 log.debug("🔔 [PAYMENT] Application 이벤트 수신 - type: {}", eventType)
             }

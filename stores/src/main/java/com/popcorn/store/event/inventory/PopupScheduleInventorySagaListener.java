@@ -70,6 +70,7 @@ public class PopupScheduleInventorySagaListener {
                 .findFirst()
                 .orElse(null);
         if (primarySchedule != null) {
+            scheduleInventoryApiService.ensureScheduleKey(popupId, primarySchedule.getSessionId());
             holdResult = inventoryHoldService.holdSchedule(
                     event.getOrderId(),
                     popupId,
@@ -79,7 +80,22 @@ public class PopupScheduleInventorySagaListener {
             if (!holdResult.isSuccess()) {
                 log.warn("[SCHEDULE_HOLD_FAIL] popupId={}, orderId={}, reason={}",
                         popupId, event.getOrderId(), holdResult.getDetail());
-                throw new RuntimeException("Redis 스케줄 HOLD 실패: " + holdResult.getDetail());
+                if (InventoryRedisHoldService.HoldCode.KEY_NOT_INITIALIZED == holdResult.getCode()) {
+                    scheduleInventoryApiService.ensureScheduleKey(popupId, primarySchedule.getSessionId());
+                    holdResult = inventoryHoldService.holdSchedule(
+                            event.getOrderId(),
+                            popupId,
+                            primarySchedule.getSessionId(),
+                            primarySchedule.getQuantity()
+                    );
+                    if (holdResult.isSuccess()) {
+                        log.info("[SCHEDULE_HOLD] re-try success - orderId={}", event.getOrderId());
+                    } else {
+                        throw new RuntimeException("Redis 스케줄 HOLD 실패: " + holdResult.getDetail());
+                    }
+                } else {
+                    throw new RuntimeException("Redis 스케줄 HOLD 실패: " + holdResult.getDetail());
+                }
             }
             if (holdResult.isAlreadyHeld()) {
                 log.info("[SCHEDULE_HOLD] 이미 HOLD 존재 - orderId={}", event.getOrderId());

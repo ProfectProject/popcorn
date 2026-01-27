@@ -7,6 +7,9 @@ import com.popcorn.payment.entity.PaymentMethod
 import com.popcorn.payment.entity.PaymentStatus
 import com.popcorn.payment.exception.PaymentException
 import com.popcorn.payment.repository.PaymentRepository
+import com.popcorn.payment.event.standard.StandardPaymentEventPublisher
+import com.popcorn.payment.event.standard.StandardPaymentCreatedEvent
+import com.popcorn.payment.event.standard.StandardPaymentApprovedEvent
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -28,7 +31,9 @@ import java.util.*
 @Service
 class PaymentCommandCoroutineService(
     private val transactionManager: CoroutineTransactionManager,
-    private val paymentRepository: PaymentRepository
+    private val paymentRepository: PaymentRepository,
+    private val standardPaymentEventPublisher: StandardPaymentEventPublisher,
+    private val paymentOrderInfoService: PaymentOrderInfoService
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentCommandCoroutineService::class.java)
@@ -103,6 +108,9 @@ class PaymentCommandCoroutineService(
         log.info("✅ 결제 기록 생성 완료: paymentId={}, status={}",
             savedPayment.id, savedPayment.status)
 
+        // 🚀 표준 PAYMENT_CREATED 이벤트 발행
+        publishStandardPaymentCreatedEvent(savedPayment)
+
         return PaymentCreationResult(
             paymentId = savedPayment.id,
             status = savedPayment.status.name,
@@ -163,6 +171,11 @@ class PaymentCommandCoroutineService(
 
         log.info("✅ 결제 상태 업데이트 완료: paymentId={}, newStatus={}",
             savedPayment.id, savedPayment.status)
+
+        // 🚀 결제 승인 시 표준 PAYMENT_APPROVED 이벤트 발행
+        if (savedPayment.status == PaymentStatus.PAID) {
+            publishStandardPaymentApprovedEvent(savedPayment)
+        }
 
         return PaymentDetailResult(
             paymentId = savedPayment.id,
@@ -238,6 +251,104 @@ class PaymentCommandCoroutineService(
         if (paymentMethod !in validMethods) {
             throw PaymentException.invalidRequest("지원하지 않는 결제 수단입니다: $paymentMethod")
         }
+    }
+
+    /**
+     * 🚀 표준 PAYMENT_CREATED 이벤트 발행
+     */
+    private fun publishStandardPaymentCreatedEvent(payment: Payment) {
+        try {
+            log.info("🚀 [STANDARD-PAYMENT] 표준 PAYMENT_CREATED 이벤트 발행 시작 - paymentId: {}", payment.id)
+
+            val event = StandardPaymentCreatedEvent.create(
+                paymentId = payment.id,
+                orderId = payment.orderId,
+                orderNo = generateTempOrderNo(payment.orderId), // 임시 주문번호 생성
+                userId = null,  // Order 이벤트로부터 수신하여 보완 예정
+                popupId = null, // Order 이벤트로부터 수신하여 보완 예정
+                amount = payment.amount,
+                paymentMethod = payment.paymentMethod.name,
+                paymentStatus = payment.status.name
+            )
+
+            standardPaymentEventPublisher.publishPaymentCreatedEvent(event)
+
+            log.info("✅ [STANDARD-PAYMENT] 표준 PAYMENT_CREATED 이벤트 발행 완료 - paymentId: {}, eventId: {}",
+                payment.id, event.eventId)
+
+        } catch (e: Exception) {
+            log.error("❌ [STANDARD-PAYMENT] 표준 PAYMENT_CREATED 이벤트 발행 실패 - paymentId: {}, error: {}",
+                payment.id, e.message, e)
+            // 이벤트 발행 실패는 결제 처리에 영향을 주지 않음
+        }
+    }
+
+    /**
+     * 🚀 표준 PAYMENT_APPROVED 이벤트 발행 (Order 정보 조회 포함)
+     */
+    private fun publishStandardPaymentApprovedEvent(payment: Payment) {
+        try {
+            log.info("🚀 [STANDARD-PAYMENT] 표준 PAYMENT_APPROVED 이벤트 발행 시작 - paymentId: {}", payment.id)
+
+            // Order 정보 비동기 조회 시도
+            val orderInfoFuture = paymentOrderInfoService.requestOrderInfo(payment.orderId!!)
+
+            orderInfoFuture.thenAccept { orderInfo ->
+                val event = if (orderInfo?.success == true) {
+                    log.info("🔄 Order 정보 조회 성공 - orderId: {}, actualOrderNo: {}",
+                        payment.orderId, orderInfo.actualOrderNo)
+
+                    StandardPaymentApprovedEvent.create(
+                        paymentId = payment.id,
+                        orderId = payment.orderId,
+                        orderNo = orderInfo.actualOrderNo, // 실제 주문번호 사용
+                        userId = orderInfo.actualUserId,   // 실제 사용자 ID
+                        popupId = orderInfo.actualPopupId?.let { java.util.UUID.fromString(it) },
+                        amount = payment.amount,
+                        paymentMethod = payment.paymentMethod.name,
+                        hasReservation = orderInfo.actualHasReservation,
+                        hasGoods = orderInfo.actualHasGoods,
+                        lines = orderInfo.actualLines ?: emptyList()
+                    )
+                } else {
+                    log.warn("⚠️ Order 정보 조회 실패 - 기본값으로 이벤트 발행: orderId={}", payment.orderId)
+
+                    StandardPaymentApprovedEvent.create(
+                        paymentId = payment.id,
+                        orderId = payment.orderId,
+                        orderNo = generateTempOrderNo(payment.orderId!!),
+                        userId = null,
+                        popupId = null,
+                        amount = payment.amount,
+                        paymentMethod = payment.paymentMethod.name,
+                        hasReservation = null,
+                        hasGoods = null,
+                        lines = emptyList()
+                    )
+                }
+
+                standardPaymentEventPublisher.publishPaymentApprovedEvent(event)
+                log.info("✅ [STANDARD-PAYMENT] 표준 PAYMENT_APPROVED 이벤트 발행 완료 - paymentId: {}, eventId: {}",
+                    payment.id, event.eventId)
+            }.exceptionally { error ->
+                log.error("❌ [STANDARD-PAYMENT] Order 정보 조회 중 오류 - paymentId: {}, error: {}",
+                    payment.id, error.message, error)
+                null
+            }
+
+        } catch (e: Exception) {
+            log.error("❌ [STANDARD-PAYMENT] 표준 PAYMENT_APPROVED 이벤트 발행 실패 - paymentId: {}, error: {}",
+                payment.id, e.message, e)
+            // 이벤트 발행 실패는 결제 처리에 영향을 주지 않음
+        }
+    }
+
+    /**
+     * 임시 주문번호 생성 (이벤트 기반 아키텍처에서 실제 orderNo는 Order 이벤트로부터 수신)
+     */
+    private fun generateTempOrderNo(orderId: UUID): String {
+        // orderId 앞 8자리로 임시 주문번호 생성
+        return "TEMP-${orderId.toString().substring(0, 8).uppercase()}"
     }
 }
 

@@ -224,7 +224,7 @@ public class StoreRedisEventListener implements MessageListener {
             }
 
             java.util.List<GoodsReservationItem> validItems = payload.reservationItems.stream()
-                    .filter(item -> item.goodsVariantId != null && item.quantity != null && item.quantity > 0)
+                    .filter(item -> item.goodsId != null && item.quantity != null && item.quantity > 0)
                     .toList();
             if (validItems.isEmpty()) {
                 log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 없음 - orderId: {}", payload.orderId);
@@ -233,7 +233,7 @@ public class StoreRedisEventListener implements MessageListener {
 
             java.util.UUID resolvedPopupId = payload.popupId;
             if (resolvedPopupId == null) {
-                resolvedPopupId = goodsService.resolvePopupId(validItems.get(0).goodsVariantId);
+                resolvedPopupId = goodsService.resolvePopupId(validItems.get(0).goodsId);
             }
 
             java.util.List<GoodsHoldItem> holdItems = aggregateGoodsItems(validItems);
@@ -247,18 +247,18 @@ public class StoreRedisEventListener implements MessageListener {
                         payload.orderId,
                         payload.orderNo,
                         resolvedPopupId,
-                        item.goodsVariantId,
+                        item.goodsId,
                         item.quantity
                 );
                 createdReservations.add(reservation);
 
-                log.info("✅ [STORES] Redis HOLD 완료 - orderId: {}, goodsVariantId: {}, qty: {}",
-                        payload.orderId, item.goodsVariantId, item.quantity);
+                log.info("✅ [STORES] Redis HOLD 완료 - orderId: {}, goodsId: {}, qty: {}",
+                        payload.orderId, item.goodsId, item.quantity);
 
                 storeRedisEventPublisher.publishGoodsReservedEvent(
                         payload.orderId,
                         resolvedPopupId,
-                        item.goodsVariantId,
+                        item.goodsId,
                         item.quantity
                 );
             }
@@ -279,7 +279,7 @@ public class StoreRedisEventListener implements MessageListener {
                 storeRedisEventPublisher.publishGoodsReservationFailedEvent(
                         reservation.getOrderId(),
                         reservation.getPopupId(),
-                        reservation.getGoodsVariantId(),
+                        reservation.getGoodsId(),
                         reservation.getQuantity(),
                         0,
                         e.getMessage()
@@ -314,7 +314,7 @@ public class StoreRedisEventListener implements MessageListener {
     private List<GoodsHoldItem> aggregateGoodsItems(List<GoodsReservationItem> items) {
         Map<UUID, Integer> aggregated = new LinkedHashMap<>();
         for (GoodsReservationItem item : items) {
-            aggregated.merge(item.goodsVariantId, item.quantity, Integer::sum);
+            aggregated.merge(item.goodsId, item.quantity, Integer::sum);
         }
         return aggregated.entrySet().stream()
                 .map(entry -> new GoodsHoldItem(entry.getKey(), entry.getValue()))
@@ -341,7 +341,7 @@ public class StoreRedisEventListener implements MessageListener {
     }
 
     private static class GoodsReservationItem {
-        public java.util.UUID goodsVariantId;
+        public java.util.UUID goodsId;
         public Integer quantity;
     }
 }

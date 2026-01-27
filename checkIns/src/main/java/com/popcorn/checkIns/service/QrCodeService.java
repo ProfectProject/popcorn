@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.checkIns.dto.response.QrCodeResponse;
 import com.popcorn.checkIns.dto.response.QrVerifyResponse;
 import com.popcorn.checkIns.event.QrCheckinRequestedEvent;
+import com.popcorn.checkIns.event.standard.StandardCheckinsEventPublisher;
+import com.popcorn.checkIns.event.standard.StandardQrGeneratedEvent;
+import com.popcorn.checkIns.event.standard.StandardCheckinCreatedEvent;
 import com.popcorn.checkIns.exception.QrException;
 import com.popcorn.checkIns.repository.QrCodeRepository;
 import com.popcorn.checkIns.repository.QrCodeRow;
@@ -28,6 +31,7 @@ public class QrCodeService {
 	private final QrCodeRepository qrCodeRepository;
 	private final CheckinRepository checkinRepository;
 	private final ApplicationEventPublisher eventPublisher;
+	private final StandardCheckinsEventPublisher standardCheckinsEventPublisher;
 
 	@Transactional
 	public QrCodeResponse issue(UUID orderId) {
@@ -54,6 +58,10 @@ public class QrCodeService {
 		);
 
 		qrCodeRepository.insert(created);
+
+		// 표준 QR 생성 이벤트 발행
+		publishStandardQrGeneratedEvent(created);
+
 		return toResponse(created);
 	}
 
@@ -112,7 +120,7 @@ public class QrCodeService {
 				now
 		);
 
-		// 체크인 요청 이벤트 발행 (비동기 후처리)
+		// 기존 체크인 요청 이벤트 발행 (비동기 후처리)
 		eventPublisher.publishEvent(new QrCheckinRequestedEvent(
 				this,
 				row.qrId(),
@@ -121,6 +129,9 @@ public class QrCodeService {
 				row.expiresAt(),
 				now
 		));
+
+		// 표준 체크인 생성 이벤트 발행
+		publishStandardCheckinCreatedEvent(checkinId, row, null, null);
 
 		return QrVerifyResponse.builder()
 				.valid(true)
@@ -149,5 +160,56 @@ public class QrCodeService {
 		// QR 코드는 결제 완료된 예약 주문에만 발급됨
 		// 추가적인 예약 주문 검증이 필요한 경우, 별도의 서비스 호출로 처리
 		// 현재는 결제 상태만 확인하여 단순화
+	}
+
+	/**
+	 * 표준 QR 생성 이벤트 발행
+	 */
+	private void publishStandardQrGeneratedEvent(QrCodeRow qrCodeRow) {
+		try {
+			StandardQrGeneratedEvent event = StandardQrGeneratedEvent.create(
+					qrCodeRow.orderId(),
+					null, // orderNo는 현재 조회 불가
+					null, // userId는 현재 조회 불가
+					null, // storeId는 현재 조회 불가
+					null, // popupId는 현재 조회 불가
+					qrCodeRow.qrId(),
+					qrCodeRow.qrCode(),
+					qrCodeRow.expiresAt(),
+					DEFAULT_TTL.getSeconds(),
+					null  // qrCreatedBy는 현재 조회 불가
+			);
+
+			standardCheckinsEventPublisher.publishQrGeneratedEvent(event);
+		} catch (Exception e) {
+			// 로깅만 수행하고 메인 흐름에 영향을 주지 않음
+			System.out.println("표준 QR 생성 이벤트 발행 실패: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * 표준 체크인 생성 이벤트 발행
+	 */
+	private void publishStandardCheckinCreatedEvent(UUID checkinId, QrCodeRow qrCodeRow,
+													String storeId, String checkinLocation) {
+		try {
+			StandardCheckinCreatedEvent event = StandardCheckinCreatedEvent.create(
+					qrCodeRow.orderId(),
+					null, // orderNo는 현재 조회 불가
+					null, // userId는 현재 조회 불가
+					storeId != null ? UUID.fromString(storeId) : null,
+					null, // popupId는 현재 조회 불가
+					checkinId,
+					qrCodeRow.qrId(),
+					qrCodeRow.qrCode(),
+					null, // checkinCreatedBy는 현재 조회 불가
+					checkinLocation
+			);
+
+			standardCheckinsEventPublisher.publishCheckinCreatedEvent(event);
+		} catch (Exception e) {
+			// 로깅만 수행하고 메인 흐름에 영향을 주지 않음
+			System.out.println("표준 체크인 생성 이벤트 발행 실패: " + e.getMessage());
+		}
 	}
 }

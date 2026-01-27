@@ -24,6 +24,22 @@ spring:
   cache:
     type: simple
 
+  # Redis 설정 (Order 서비스와 동일한 database 사용)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      database: 0  # Payment, Order 서비스와 동일한 database 0 사용
+      connection-timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 10
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+
   flyway:
     enabled: true
     user: ${STORE_FLYWAY_USERNAME:store_migrator}

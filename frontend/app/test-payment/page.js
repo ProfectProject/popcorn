@@ -26,7 +26,7 @@ export default function TestPaymentPage() {
     items: [
       {
         orderItemType: "GOODS",
-        goodsVariantId: "00000000-0000-0000-0000-000000000301",
+        goodsId: "00000000-0000-0000-0000-000000000301",
         qty: 1,
         unitPrice: 15000
       }

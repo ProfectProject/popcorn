@@ -3,7 +3,7 @@ package com.popcorn.order.dto.command;
 import java.util.List;
 import java.util.UUID;
 
-import com.popcorn.order.dto.request.CreateOrderRequest;
+import com.popcorn.order.dto.request.OrderCreateRequest;
 import com.popcorn.order.dto.request.OrderItemRequest;
 import com.popcorn.order.entity.OrderItemType;
 
@@ -61,26 +61,24 @@ public class CreateOrderCommand {
         private final UUID optionId;
 
         /** 굿즈 변형 ID - 구매형 상품의 경우 */
-        private final UUID goodsVariantId;
+        private final UUID goodsId;
 
         /** 수량 */
         private final Integer qty;
 
-        /** 단가 (원) */
-        private final Integer unitPrice;
 
     }
 
     // ================ Factory Methods ================
 
     /**
-     * CreateOrderRequest로부터 CreateOrderCommand 생성
+     * 주문 생성 요청 DTO로부터 CreateOrderCommand 생성
      *
      * @param request 주문 생성 요청 DTO
      * @param userId JWT에서 추출한 사용자 ID
      * @return 변환된 주문 생성 명령
      */
-    public static CreateOrderCommand fromRequest(CreateOrderRequest request, Long userId) {
+    public static CreateOrderCommand fromRequest(OrderCreateRequest request, Long userId) {
         List<OrderItemCommand> itemCommands = request.getItems().stream()
                 .map(CreateOrderCommand::convertOrderItemRequest)
                 .toList();
@@ -94,7 +92,7 @@ public class CreateOrderCommand {
     }
 
     /**
-     * OrderItemRequest를 OrderItemCommand로 변환
+     * 주문 항목 요청을 OrderItemCommand로 변환
      *
      * @param itemRequest 주문 항목 요청
      * @return 변환된 주문 항목 명령
@@ -103,76 +101,9 @@ public class CreateOrderCommand {
         return OrderItemCommand.builder()
                 .orderItemType(OrderItemType.valueOf(itemRequest.getOrderItemType()))
                 .sessionId(itemRequest.getSessionId())
-                .goodsVariantId(itemRequest.getGoodsVariantId())
+                .goodsId(itemRequest.getGoodsId())
                 .qty(itemRequest.getQty())
-                .unitPrice(calculateItemPrice(itemRequest)) // 실제 가격 조회
                 .build();
-    }
-
-    /**
-     * 주문 항목의 실제 가격 조회
-     *
-     * @param itemRequest 주문 항목 요청
-     * @return 계산된 단가
-     */
-    private static Integer calculateItemPrice(OrderItemRequest itemRequest) {
-        try {
-            // 주문 항목 타입에 따라 가격 조회
-            OrderItemType itemType = OrderItemType.valueOf(itemRequest.getOrderItemType());
-
-            switch (itemType) {
-                case RESERVATION:
-                    // 예약형: 세션 ID로 가격 조회
-                    return getSessionPrice(itemRequest.getSessionId());
-
-                case GOODS:
-                    // 굿즈형: 굿즈 변형 ID로 가격 조회
-                    return getGoodsVariantPrice(itemRequest.getGoodsVariantId());
-
-                default:
-                    // 알 수 없는 타입인 경우 기본값
-                    return 10000; // 기본 가격 (1만원)
-            }
-        } catch (Exception e) {
-            // 가격 조회 실패 시 기본값 반환 (실제로는 로그 기록 필요)
-            return 10000;
-        }
-    }
-
-    /**
-     * 세션 가격 조회 (예약형)
-     * TODO: 실제로는 Store 서비스나 Session 서비스와 연동 필요
-     */
-    private static Integer getSessionPrice(UUID sessionId) {
-        if (sessionId == null) {
-            return 10000; // 기본 예약 가격
-        }
-
-        // 실제 구현 시에는 다음과 같이 처리:
-        // 1. Store 서비스 API 호출
-        // 2. 세션 정보 조회
-        // 3. 세션의 가격 정보 반환
-
-        // 임시 가격 (세션 ID 기반 간단 계산)
-        return 15000; // 예약 기본 가격
-    }
-
-    /**
-     * 굿즈 변형 가격 조회 (구매형)
-     * TODO: 실제로는 Store 서비스나 Goods 서비스와 연동 필요
-     */
-    private static Integer getGoodsVariantPrice(UUID goodsVariantId) {
-        if (goodsVariantId == null) {
-            return 5000; // 기본 굿즈 가격
-        }
-
-        // 실제 구현 시에는 다음과 같이 처리:
-        // 1. Store 서비스 API 호출
-        // 2. 굿즈 변형 정보 조회
-        // 3. 변형의 가격 정보 반환
-
-        // 임시 가격 (굿즈 변형 ID 기반 간단 계산)
-        return 8000; // 굿즈 기본 가격
     }
 
 }

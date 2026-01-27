@@ -26,7 +26,7 @@ public class InventoryItemDto {
     private UUID sessionOptionId;
 
     /** 굿즈 변형 ID - 일반 상품의 경우 */
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     /** 수량 */
     private Integer qty;
@@ -35,11 +35,11 @@ public class InventoryItemDto {
      * OrderItem에서 InventoryItemDto로 변환하는 팩토리 메서드
      * (주문 마이크로서비스에서 사용)
      */
-    public static InventoryItemDto of(UUID id, UUID sessionOptionId, UUID goodsVariantId, Integer qty) {
+    public static InventoryItemDto of(UUID id, UUID sessionOptionId, UUID goodsId, Integer qty) {
         return InventoryItemDto.builder()
                 .id(id)
                 .sessionOptionId(sessionOptionId)
-                .goodsVariantId(goodsVariantId)
+                .goodsId(goodsId)
                 .qty(qty)
                 .build();
     }

@@ -79,7 +79,7 @@ public class StockReservationFailedEvent {
     @ToString
     public static class FailedStockItem {
         /** 굿즈 변형 ID */
-        private UUID goodsVariantId;
+        private UUID goodsId;
 
         /** 요청 수량 */
         private Integer requestedQuantity;
@@ -93,11 +93,11 @@ public class StockReservationFailedEvent {
         /** 실패 이유 */
         private String failureReason;
 
-        public static FailedStockItem create(UUID goodsVariantId, Integer requestedQuantity,
+        public static FailedStockItem create(UUID goodsId, Integer requestedQuantity,
                                            Integer availableQuantity, String productName,
                                            String failureReason) {
             return FailedStockItem.builder()
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .requestedQuantity(requestedQuantity)
                     .availableQuantity(availableQuantity)
                     .productName(productName)
