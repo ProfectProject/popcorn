@@ -43,18 +43,18 @@ jobs:
               - 'users/**'
               - 'common-lib/**'
 
-  # ci-process:
-  #   needs: detect-changes
-  #   # 변경 사항이 있을 때만 실행
-  #   if: needs.detect-changes.outputs.services != '[]'
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       # 감지된 서비스 리스트를 기반으로 병렬 작업 생성
-  #       service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+  ci-process:
+    needs: detect-changes
+    # 변경 사항이 있을 때만 실행
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 감지된 서비스 리스트를 기반으로 병렬 작업 생성
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     
-  #   name: ${{ matrix.service }} Module CI
+    name: ${{ matrix.service }} Module CI
     
 
 
