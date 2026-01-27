@@ -61,7 +61,7 @@ public class CreateOrderCommand {
         private final UUID optionId;
 
         /** 굿즈 변형 ID - 구매형 상품의 경우 */
-        private final UUID goodsVariantId;
+        private final UUID goodsId;
 
         /** 수량 */
         private final Integer qty;
@@ -101,7 +101,7 @@ public class CreateOrderCommand {
         return OrderItemCommand.builder()
                 .orderItemType(OrderItemType.valueOf(itemRequest.getOrderItemType()))
                 .sessionId(itemRequest.getSessionId())
-                .goodsVariantId(itemRequest.getGoodsVariantId())
+                .goodsId(itemRequest.getGoodsId())
                 .qty(itemRequest.getQty())
                 .build();
     }

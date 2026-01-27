@@ -50,17 +50,17 @@ public class StockReservationFailedEvent {
     @Builder
     @ToString
     public static class FailedStockItem {
-        private UUID goodsVariantId;
+        private UUID goodsId;
         private Integer requestedQuantity;
         private Integer availableQuantity;
         private String productName;
         private String failureReason;
 
-        public static FailedStockItem create(UUID goodsVariantId, Integer requestedQuantity,
+        public static FailedStockItem create(UUID goodsId, Integer requestedQuantity,
                                              Integer availableQuantity, String productName,
                                              String failureReason) {
             return FailedStockItem.builder()
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .requestedQuantity(requestedQuantity)
                     .availableQuantity(availableQuantity)
                     .productName(productName)

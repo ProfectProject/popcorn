@@ -113,18 +113,18 @@ public class StoreRedisEventPublisher {
     /**
      * 재고 업데이트 이벤트 발행 (일반적인 재고 변경)
      */
-    public void publishInventoryUpdatedEvent(java.util.UUID popupId, java.util.UUID goodsVariantId,
+    public void publishInventoryUpdatedEvent(java.util.UUID popupId, java.util.UUID goodsId,
                                            int oldQuantity, int newQuantity, String reason) {
         try {
-            log.info("🚀 [STORES] 재고 업데이트 이벤트 Stream 발행 - popupId: {}, goodsVariantId: {}, {}→{}, reason: {}",
-                    popupId, goodsVariantId, oldQuantity, newQuantity, reason);
+            log.info("🚀 [STORES] 재고 업데이트 이벤트 Stream 발행 - popupId: {}, goodsId: {}, {}→{}, reason: {}",
+                    popupId, goodsId, oldQuantity, newQuantity, reason);
 
             String eventId = java.util.UUID.randomUUID().toString();
             Map<String, Object> eventData = Map.of(
                 "eventType", "inventory-updated",
                 "eventId", eventId,
                 "popupId", popupId.toString(),
-                "goodsVariantId", goodsVariantId.toString(),
+                "goodsId", goodsId.toString(),
                 "oldQuantity", Integer.toString(oldQuantity),
                 "newQuantity", Integer.toString(newQuantity),
                 "reason", reason,
@@ -154,10 +154,10 @@ public class StoreRedisEventPublisher {
      * 굿즈 예약 성공 이벤트 발행
      */
     public void publishGoodsReservedEvent(java.util.UUID orderId, java.util.UUID popupId,
-                                        java.util.UUID goodsVariantId, int quantity) {
+                                        java.util.UUID goodsId, int quantity) {
         try {
-            log.info("🚀 [STORES] 굿즈 예약 성공 이벤트 Stream 발행 - orderId: {}, goodsVariantId: {}, quantity: {}",
-                    orderId, goodsVariantId, quantity);
+            log.info("🚀 [STORES] 굿즈 예약 성공 이벤트 Stream 발행 - orderId: {}, goodsId: {}, quantity: {}",
+                    orderId, goodsId, quantity);
 
             String eventId = java.util.UUID.randomUUID().toString();
             Map<String, Object> eventData = Map.of(
@@ -165,7 +165,7 @@ public class StoreRedisEventPublisher {
                 "eventId", eventId,
                 "orderId", orderId.toString(),
                 "popupId", popupId.toString(),
-                "goodsVariantId", goodsVariantId.toString(),
+                "goodsId", goodsId.toString(),
                 "quantity", Integer.toString(quantity),
                 "reservedAt", java.time.LocalDateTime.now().toString(),
                 "eventTime", java.time.LocalDateTime.now().toString()
@@ -195,11 +195,11 @@ public class StoreRedisEventPublisher {
      * 굿즈 예약 실패 이벤트 발행
      */
     public void publishGoodsReservationFailedEvent(java.util.UUID orderId, java.util.UUID popupId,
-                                                  java.util.UUID goodsVariantId, int requestedQuantity,
+                                                  java.util.UUID goodsId, int requestedQuantity,
                                                   int availableQuantity, String reason) {
         try {
-            log.info("🚀 [STORES] 굿즈 예약 실패 이벤트 Stream 발행 - orderId: {}, goodsVariantId: {}, reason: {}",
-                    orderId, goodsVariantId, reason);
+            log.info("🚀 [STORES] 굿즈 예약 실패 이벤트 Stream 발행 - orderId: {}, goodsId: {}, reason: {}",
+                    orderId, goodsId, reason);
 
             String eventId = java.util.UUID.randomUUID().toString();
             Map<String, Object> eventData = Map.of(
@@ -207,7 +207,7 @@ public class StoreRedisEventPublisher {
                 "eventId", eventId,
                 "orderId", orderId.toString(),
                 "popupId", popupId != null ? popupId.toString() : "",
-                "goodsVariantId", goodsVariantId.toString(),
+                "goodsId", goodsId.toString(),
                 "requestedQuantity", Integer.toString(requestedQuantity),
                 "availableQuantity", Integer.toString(availableQuantity),
                 "reason", reason,
@@ -247,7 +247,7 @@ public class StoreRedisEventPublisher {
             eventData.put("correlationId", event.getCorrelationId());
             eventData.put("requestType", event.getRequestType());
             eventData.put("sessionId", event.getSessionId() != null ? event.getSessionId().toString() : "");
-            eventData.put("goodsVariantId", event.getGoodsVariantId() != null ? event.getGoodsVariantId().toString() : "");
+            eventData.put("goodsId", event.getGoodsId() != null ? event.getGoodsId().toString() : "");
             eventData.put("price", event.getPrice() != null ? event.getPrice().toString() : "");
             eventData.put("stockQuantity", event.getStockQuantity() != null ? event.getStockQuantity().toString() : "");
             eventData.put("success", Boolean.toString(event.isSuccess()));
@@ -309,7 +309,7 @@ public class StoreRedisEventPublisher {
         private String correlationId;
         private String requestType;
         private java.util.UUID sessionId;
-        private java.util.UUID goodsVariantId;
+        private java.util.UUID goodsId;
         private Integer price;
         private Integer stockQuantity;
         private boolean success;

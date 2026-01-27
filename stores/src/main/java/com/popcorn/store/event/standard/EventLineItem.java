@@ -42,7 +42,7 @@ public class EventLineItem {
     /**
      * 굿즈 변형 ID (굿즈용)
      */
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     /**
      * 굿즈 이름

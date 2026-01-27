@@ -32,7 +32,7 @@ public class OrderItemDto {
     private final LocalDateTime scheduleEndAt;
 
     // goods
-    private final UUID goodsVariantId;
+    private final UUID goodsId;
     private final String goodsName;
     private final String stockUnit;
 

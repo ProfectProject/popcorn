@@ -94,6 +94,10 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     log.info("❌ [ORDER] 결제 실패 이벤트 수신");
                     handlePaymentFailed(values);
                     break;
+                case "payment-cancelled":
+                    log.info("↩️ [ORDER] 결제 취소 이벤트 수신");
+                    handlePaymentCancelled(values);
+                    break;
                 case "stock-deduction-success":
                     log.info("📦✅ [ORDER] 재고 차감 성공 이벤트 수신");
                     handleStockDeductionSuccess(values);
@@ -172,7 +176,7 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
             Integer price = null;
             Integer stockQuantity = null;
             UUID sessionId = null;
-            UUID goodsVariantId = null;
+            UUID goodsId = null;
 
             if (success) {
                 try {
@@ -204,7 +208,7 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     if (goodsIdStr != null && !goodsIdStr.isEmpty()) {
                         goodsIdStr = goodsIdStr.trim().replaceAll("^\"|\"$", "");
                         if (!goodsIdStr.isEmpty() && !goodsIdStr.equals("null")) {
-                            goodsVariantId = UUID.fromString(goodsIdStr);
+                            goodsId = UUID.fromString(goodsIdStr);
                         }
                     }
 
@@ -222,7 +226,7 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     .correlationId(correlationId)
                     .requestType(requestType)
                     .sessionId(sessionId)
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .price(price)
                     .stockQuantity(stockQuantity)
                     .success(success)
@@ -601,25 +605,52 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
             if (orderId != null && !orderId.isEmpty()) {
                 UUID orderUuid = UUID.fromString(orderId);
 
-                // 1. 주문 상태를 CANCELLED로 업데이트 (재고 차감 실패)
+                // 1. 결제 취소 요청 (보상 트랜잭션)
+                orderCommandService.cancelPaymentForOrder(orderUuid, null,
+                    "재고 차감 실패로 인한 자동 환불: " + reason);
+
+                // 2. 재고 예약 해제
+                orderCommandService.cancelStockReservationsForOrder(orderUuid);
+
+                // 3. 주문 상태를 CANCELLED로 업데이트 (재고 차감 실패)
                 orderCommandService.updateOrderStatus(orderUuid, OrderStatus.CANCELLED.name(),
                     "재고 차감 실패로 인한 주문 취소 - " + reason);
-
-                // 2. 결제 환불 처리 (결제가 완료된 상태에서 재고 차감 실패 시)
-                try {
-                    // 결제 정보는 별도 조회가 필요할 수 있음 (임시로 orderId 사용)
-                    orderCommandService.cancelPaymentForOrder(orderUuid, orderUuid.toString(),
-                        "재고 차감 실패로 인한 자동 환불: " + reason);
-                } catch (Exception paymentCancelEx) {
-                    log.error("📦❌ [ORDER] 재고 차감 실패 후 결제 환불 처리 실패 - orderId: {}, error: {}",
-                            orderId, paymentCancelEx.getMessage(), paymentCancelEx);
-                }
 
                 log.info("📦❌ [ORDER] 재고 차감 실패로 주문 취소 처리 완료 - orderId: {}", orderId);
             }
 
         } catch (Exception e) {
             log.error("🚨 [ORDER] 재고 차감 실패 이벤트 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 결제 취소 이벤트 처리
+     */
+    private void handlePaymentCancelled(Map<String, Object> values) {
+        try {
+            String orderId = (String) values.get("orderId");
+            String reason = (String) values.get("cancelReason");
+
+            if (orderId != null) orderId = orderId.trim().replaceAll("^\"|\"$", "");
+            if (reason != null) reason = reason.trim().replaceAll("^\"|\"$", "");
+
+            log.info("↩️ [ORDER] 결제 취소 처리 - orderId: {}, reason: {}", orderId, reason);
+
+            if (orderId != null && !orderId.isEmpty()) {
+                UUID orderUuid = UUID.fromString(orderId);
+
+                // 재고 예약 해제
+                orderCommandService.cancelStockReservationsForOrder(orderUuid);
+
+                // 주문 취소
+                orderCommandService.updateOrderStatus(orderUuid, OrderStatus.CANCELLED.name(),
+                        "결제 취소 - " + (reason != null ? reason : ""));
+            }
+
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 결제 취소 이벤트 처리 실패 - values: {}, error: {}",
                     values, e.getMessage(), e);
         }
     }

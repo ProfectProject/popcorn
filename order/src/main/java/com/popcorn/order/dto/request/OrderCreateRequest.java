@@ -101,7 +101,7 @@ public class OrderCreateRequest {
         return items.stream()
                 .allMatch(item ->
                         "GOODS".equals(item.getOrderItemType())
-                                && item.getGoodsVariantId() != null
+                                && item.getGoodsId() != null
                 );
     }
 

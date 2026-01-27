@@ -32,7 +32,7 @@ data class EventLineItem(
     /**
      * 굿즈 변형 ID (굿즈용)
      */
-    val goodsVariantId: UUID? = null,
+    val goodsId: UUID? = null,
 
     /**
      * 굿즈 이름

@@ -26,7 +26,7 @@ public class PriceLookupRequestedEvent {
     private String correlationId;
     private String requestType;
     private UUID sessionId;
-    private UUID goodsVariantId;
+    private UUID goodsId;
     private LocalDateTime requestedAt;
     private LocalDateTime eventTime;
 
@@ -42,13 +42,13 @@ public class PriceLookupRequestedEvent {
                 .build();
     }
 
-    public static PriceLookupRequestedEvent forGoods(UUID goodsVariantId, String correlationId) {
+    public static PriceLookupRequestedEvent forGoods(UUID goodsId, String correlationId) {
         LocalDateTime now = LocalDateTime.now();
         return PriceLookupRequestedEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .correlationId(correlationId)
                 .requestType(TYPE_GOODS)
-                .goodsVariantId(goodsVariantId)
+                .goodsId(goodsId)
                 .requestedAt(now)
                 .eventTime(now)
                 .build();

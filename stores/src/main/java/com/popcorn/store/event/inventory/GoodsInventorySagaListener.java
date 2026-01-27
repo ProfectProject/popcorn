@@ -66,9 +66,9 @@ public class GoodsInventorySagaListener {
 
         if (!heldReservations.isEmpty()) {
             List<StockReservedEvent.ReservedStockItem> reservedItems = goodsItems.stream()
-                    .filter(item -> item.getGoodsVariantId() != null && item.getQuantity() != null && item.getQuantity() > 0)
+                    .filter(item -> item.getGoodsId() != null && item.getQuantity() != null && item.getQuantity() > 0)
                     .map(item -> StockReservedEvent.ReservedStockItem.goods(
-                            item.getGoodsVariantId(),
+                            item.getGoodsId(),
                             item.getQuantity(),
                             item.getUnitPrice(),
                             resolveProductName(item)
@@ -115,28 +115,28 @@ public class GoodsInventorySagaListener {
             }
 
             for (OrderPaidEvent.OrderItemInfo item : goodsItems) {
-                if (item.getGoodsVariantId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+                if (item.getGoodsId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
                     log.warn("잘못된 굿즈 항목 - orderId: {}, goodsId: {}, quantity: {}",
-                            event.getOrderId(), item.getGoodsVariantId(), item.getQuantity());
+                            event.getOrderId(), item.getGoodsId(), item.getQuantity());
                     continue;
                 }
 
                 UUID popupId = event.getPopupId();
                 if (popupId == null) {
-                    popupId = goodsService.resolvePopupId(item.getGoodsVariantId());
+                    popupId = goodsService.resolvePopupId(item.getGoodsId());
                 }
 
                 GoodsOrderReservation reservation = reservationService.createGoodsReservation(
                         event.getOrderId(),
                         event.getOrderNo(),
                         popupId,
-                        item.getGoodsVariantId(),
+                        item.getGoodsId(),
                         item.getQuantity()
                 );
                 createdReservations.add(reservation);
 
                 reservedItems.add(StockReservedEvent.ReservedStockItem.goods(
-                        item.getGoodsVariantId(),
+                        item.getGoodsId(),
                         item.getQuantity(),
                         item.getUnitPrice(),
                         resolveProductName(item)
@@ -193,7 +193,7 @@ public class GoodsInventorySagaListener {
                         continue;
                     }
                     goodsService.completeReservationGoods(reservation.getPopupId(),
-                            reservation.getGoodsVariantId(), reservation.getQuantity());
+                            reservation.getGoodsId(), reservation.getQuantity());
                     reservationService.updateStatus(reservation, ReservationStatus.COMMITTED, null);
                     details.add(formatDetail(reservation));
                 }
@@ -223,11 +223,11 @@ public class GoodsInventorySagaListener {
             List<OrderPaidEvent.OrderItemInfo> goodsItems, String failureReason) {
         List<StockReservationFailedEvent.FailedStockItem> failedItems = new ArrayList<>();
         for (OrderPaidEvent.OrderItemInfo item : goodsItems) {
-            if (item.getGoodsVariantId() == null || item.getQuantity() == null) {
+            if (item.getGoodsId() == null || item.getQuantity() == null) {
                 continue;
             }
             failedItems.add(StockReservationFailedEvent.FailedStockItem.create(
-                    item.getGoodsVariantId(),
+                    item.getGoodsId(),
                     item.getQuantity(),
                     0,
                     resolveProductName(item),
@@ -241,7 +241,7 @@ public class GoodsInventorySagaListener {
     }
 
     private String formatDetail(GoodsOrderReservation reservation) {
-        return String.format("goodsId=%s qty=%d", reservation.getGoodsVariantId(), reservation.getQuantity());
+        return String.format("goodsId=%s qty=%d", reservation.getGoodsId(), reservation.getQuantity());
     }
 
     private UUID resolvePopupIdForGoods(OrderPaidEvent event, List<GoodsHoldItem> goodsHoldItems) {
@@ -250,7 +250,7 @@ public class GoodsInventorySagaListener {
             return popupId;
         }
         if (!goodsHoldItems.isEmpty()) {
-            return goodsService.resolvePopupId(goodsHoldItems.get(0).getGoodsVariantId());
+            return goodsService.resolvePopupId(goodsHoldItems.get(0).getGoodsId());
         }
         throw new IllegalArgumentException("팝업 정보 또는 굿즈 ID가 필요합니다.");
     }
@@ -258,10 +258,10 @@ public class GoodsInventorySagaListener {
     private List<GoodsHoldItem> buildGoodsHoldItems(List<OrderPaidEvent.OrderItemInfo> goodsItems) {
         Map<UUID, Integer> aggregated = new LinkedHashMap<>();
         for (OrderPaidEvent.OrderItemInfo item : goodsItems) {
-            if (item.getGoodsVariantId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+            if (item.getGoodsId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
                 continue;
             }
-            aggregated.merge(item.getGoodsVariantId(), item.getQuantity(), Integer::sum);
+            aggregated.merge(item.getGoodsId(), item.getQuantity(), Integer::sum);
         }
         return aggregated.entrySet().stream()
                 .map(entry -> new GoodsHoldItem(entry.getKey(), entry.getValue()))

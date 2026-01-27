@@ -29,6 +29,9 @@ public class OrderPopupLookupService {
 
     private final ConcurrentHashMap<String, CompletableFuture<PopupInfoLookupResponseEvent>> pendingRequests = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Value("${order.popup-lookup.timeout-ms:300}")
+    private long timeoutMs;
+
     public Optional<PopupInfoResponse> getPopupInfo(UUID popupId) {
         try {
             String correlationId = UUID.randomUUID().toString();
@@ -50,7 +53,7 @@ public class OrderPopupLookupService {
             );
             log.info("팝업 정보 조회 요청 이벤트 발행 - popupId: {}, correlationId: {}", popupId, correlationId);
 
-            PopupInfoLookupResponseEvent response = future.get(2, TimeUnit.SECONDS);
+            PopupInfoLookupResponseEvent response = future.get(timeoutMs, TimeUnit.MILLISECONDS);
             if (!response.isSuccess()) {
                 return Optional.empty();
             }

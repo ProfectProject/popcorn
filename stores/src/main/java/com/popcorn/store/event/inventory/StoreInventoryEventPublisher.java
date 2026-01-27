@@ -37,10 +37,13 @@ public class StoreInventoryEventPublisher {
 
         // 2. Redis로 굿즈 예약 성공 이벤트 발행 (각 항목별로)
         for (StockReservedEvent.ReservedStockItem item : reservedItems) {
+            if (item.getGoodsId() == null || item.getQuantity() == null) {
+                continue;
+            }
             redisEventPublisher.publishGoodsReservedEvent(
                     event.getOrderId(),
                     event.getPopupId(),
-                    item.getGoodsVariantId(),
+                    item.getGoodsId(),
                     item.getQuantity()
             );
         }

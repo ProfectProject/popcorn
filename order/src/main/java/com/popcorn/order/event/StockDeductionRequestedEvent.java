@@ -80,7 +80,7 @@ public class StockDeductionRequestedEvent {
     @ToString
     public static class StockDeductionItem {
         /** 굿즈 변형 ID */
-        private UUID goodsVariantId;
+        private UUID goodsId;
 
         /** 차감할 수량 */
         private Integer quantity;
@@ -91,9 +91,9 @@ public class StockDeductionRequestedEvent {
         /** 변형명 */
         private String variantName;
 
-        public static StockDeductionItem create(UUID goodsVariantId, Integer quantity) {
+        public static StockDeductionItem create(UUID goodsId, Integer quantity) {
             return StockDeductionItem.builder()
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .quantity(quantity)
                     .productName("상품명 조회 예정") // Store 서비스에서 조회
                     .variantName("변형명 조회 예정") // Store 서비스에서 조회

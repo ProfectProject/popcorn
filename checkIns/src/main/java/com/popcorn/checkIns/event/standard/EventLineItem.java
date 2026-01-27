@@ -33,7 +33,7 @@ public class EventLineItem {
     /**
      * 굿즈 변형 ID (굿즈 아이템인 경우)
      */
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     /**
      * 수량

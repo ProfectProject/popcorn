@@ -85,18 +85,18 @@ public class OrderEventPublisher {
     /**
      * 굿즈 예약 취소 요청 이벤트 발행
      */
-    public void publishGoodsReservationCancelRequestedEvent(Order order, java.util.UUID goodsVariantId, Integer quantity) {
+    public void publishGoodsReservationCancelRequestedEvent(Order order, java.util.UUID goodsId, Integer quantity) {
         try {
             String eventId = java.util.UUID.randomUUID().toString();
 
-            log.info("굿즈 예약 취소 요청 이벤트 발행 - orderId: {}, goodsVariantId: {}",
-                    order.getId(), goodsVariantId);
+            log.info("굿즈 예약 취소 요청 이벤트 발행 - orderId: {}, goodsId: {}",
+                    order.getId(), goodsId);
 
             redisEventPublisher.publishGoodsReservationCancelRequestedEvent(
                     eventId,
                     order.getId(),
                     order.getPopupId(),
-                    goodsVariantId,
+                    goodsId,
                     quantity
             );
 

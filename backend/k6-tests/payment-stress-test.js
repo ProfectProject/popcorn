@@ -66,7 +66,7 @@ function generateOrderData(userId) {
     items: [
       {
         orderItemType: "GOODS",
-        goodsVariantId: `goods-${Math.floor(Math.random() * 200) + 1}`,
+        goodsId: `goods-${Math.floor(Math.random() * 200) + 1}`,
         qty: Math.floor(Math.random() * 3) + 1,
         unitPrice: (Math.floor(Math.random() * 30) + 5) * 1000 // 5천~35천원
       }

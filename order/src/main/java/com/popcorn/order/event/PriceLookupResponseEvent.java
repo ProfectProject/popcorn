@@ -23,7 +23,7 @@ public class PriceLookupResponseEvent {
     private String correlationId;
     private String requestType;
     private UUID sessionId;
-    private UUID goodsVariantId;
+    private UUID goodsId;
     private Integer price;
     private Integer stockQuantity;
     private boolean success;
@@ -32,14 +32,14 @@ public class PriceLookupResponseEvent {
     private LocalDateTime eventTime;
 
     public static PriceLookupResponseEvent failure(String correlationId, String requestType, UUID sessionId,
-                                                   UUID goodsVariantId, String message) {
+                                                   UUID goodsId, String message) {
         LocalDateTime now = LocalDateTime.now();
         return PriceLookupResponseEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .correlationId(correlationId)
                 .requestType(requestType)
                 .sessionId(sessionId)
-                .goodsVariantId(goodsVariantId)
+                .goodsId(goodsId)
                 .success(false)
                 .message(message)
                 .respondedAt(now)

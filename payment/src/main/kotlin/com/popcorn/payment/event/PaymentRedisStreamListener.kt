@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.popcorn.payment.service.PaymentOrderInfoService
 import com.popcorn.payment.event.standard.OrderInfoResponseEvent
 import com.popcorn.payment.service.TossPaymentCoroutineService
+import com.popcorn.payment.event.PaymentCancelFailedEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -187,6 +188,17 @@ class PaymentRedisStreamListener(
 
             } catch (e: Exception) {
                 log.error("🚨 [PAYMENT] 결제 취소 처리 실패 - orderId={}, error={}", orderId, e.message, e)
+                paymentEventPublisher.publishAsync(
+                    PaymentCancelFailedEvent(
+                        paymentId = java.util.UUID(0, 0),
+                        orderId = orderId,
+                        orderNo = orderNo ?: orderId.toString(),
+                        cancelReason = reason,
+                        failureReason = e.message ?: "결제 취소 실패",
+                        retryCount = 0,
+                        customerId = customerId
+                    )
+                )
             }
         }
     }

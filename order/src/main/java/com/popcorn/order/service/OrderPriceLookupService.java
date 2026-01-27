@@ -28,7 +28,7 @@ public class OrderPriceLookupService {
     private final ConcurrentHashMap<String, CompletableFuture<PriceLookupResponseEvent>> pendingResponses =
             new ConcurrentHashMap<>();
 
-    @Value("${order.price-lookup.timeout-ms:1500}")
+    @Value("${order.price-lookup.timeout-ms:300}")
     private long timeoutMs;
 
     public Integer requestSessionPrice(UUID sessionId) {
@@ -41,9 +41,9 @@ public class OrderPriceLookupService {
         return null;
     }
 
-    public Integer requestGoodsPrice(UUID goodsVariantId) {
+    public Integer requestGoodsPrice(UUID goodsId) {
         PriceLookupResponseEvent response = requestPrice(
-                PriceLookupRequestedEvent.forGoods(goodsVariantId, UUID.randomUUID().toString())
+                PriceLookupRequestedEvent.forGoods(goodsId, UUID.randomUUID().toString())
         );
         if (response != null && response.isSuccess() && response.getPrice() != null) {
             return response.getPrice();

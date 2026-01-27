@@ -2,6 +2,7 @@ package com.popcorn.order.dto.request;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -40,7 +41,8 @@ public class OrderItemRequest {
     private UUID optionId;
 
     /** 굿즈 변형 ID - 구매형 상품의 경우 (색상, 사이즈 등) */
-    private UUID goodsVariantId;
+    @JsonAlias("goodsVariantId")
+    private UUID goodsId;
 
     public boolean isReservationType() {
         return "RESERVATION".equals(orderItemType);
@@ -59,7 +61,7 @@ public class OrderItemRequest {
 
     public boolean isValidGoodsItem() {
         return isGoodsType()
-                && goodsVariantId != null
+                && goodsId != null
                 && qty != null
                 && qty > 0;
     }
@@ -76,7 +78,7 @@ public class OrderItemRequest {
 
     public boolean hasUnnecessaryFields() {
         if (isReservationType()) {
-            return goodsVariantId != null;
+            return goodsId != null;
         }
         if (isGoodsType()) {
             return sessionId != null || optionId != null;
@@ -96,7 +98,7 @@ public class OrderItemRequest {
             return getSessionOptionKey();
         }
         if (isGoodsType()) {
-            return "VARIANT_" + goodsVariantId;
+            return "VARIANT_" + goodsId;
         }
         return null;
     }

@@ -81,7 +81,7 @@ public class OrderPaidEvent {
         private UUID sessionId;
 
         /** 굿즈 변형 ID (구매형인 경우) */
-        private UUID goodsVariantId;
+        private UUID goodsId;
 
         /**
          * 예약형 아이템인지 확인
@@ -105,7 +105,7 @@ public class OrderPaidEvent {
                 return "SESSION:" + sessionId;
             }
             if (isGoodsItem()) {
-                return "GOODS:" + goodsVariantId;
+                return "GOODS:" + goodsId;
             }
             return null;
         }
@@ -145,7 +145,7 @@ public class OrderPaidEvent {
                         .orderItemType(item.getOrderItemType() != null ? item.getOrderItemType().name() : null)
                         .quantity(item.getQty())
                         .sessionId(item.getSessionOptionId()) // OrderItem에서는 sessionOptionId 필드명 사용
-                        .goodsVariantId(item.getGoodsVariantId())
+                        .goodsId(item.getGoodsId())
                         .build())
                 .toList();
     }

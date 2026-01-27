@@ -29,6 +29,9 @@ public class OrderUserLookupService {
     // 비동기 응답 대기를 위한 맵
     private final ConcurrentHashMap<String, CompletableFuture<UserAddressLookupResponseEvent>> pendingRequests = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Value("${order.user-lookup.timeout-ms:1200}")
+    private long timeoutMs;
+
     /**
      * 사용자 기본 주소 조회 (이벤트 기반)
      */
@@ -52,8 +55,8 @@ public class OrderUserLookupService {
             redisEventPublisher.publishUserAddressLookupRequest(requestEvent);
             log.info("사용자 주소 조회 요청 이벤트 발행 - userId: {}, correlationId: {}", userId, correlationId);
 
-            // 응답 대기 (2초 타임아웃)
-            UserAddressLookupResponseEvent response = future.get(2, TimeUnit.SECONDS);
+            // 응답 대기 (짧은 타임아웃)
+            UserAddressLookupResponseEvent response = future.get(timeoutMs, TimeUnit.MILLISECONDS);
 
             if (response.isSuccess() && response.getAddresses() != null && !response.getAddresses().isEmpty()) {
                 return response.getAddresses().stream()

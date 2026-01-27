@@ -156,7 +156,7 @@ public class OrderCommandController {
                                   "orderItemType": "GOODS",
                                   "qty": 3,
                                   "unitPrice": 5000,
-                                  "goodsVariantId": "00000000-0000-0000-0000-000000000301"
+                                  "goodsId": "00000000-0000-0000-0000-000000000301"
                                 }
                               ]
                             }
@@ -183,7 +183,7 @@ public class OrderCommandController {
                                   "orderItemType": "GOODS",
                                   "qty": 2,
                                   "unitPrice": 5000,
-                                  "goodsVariantId": "00000000-0000-0000-0000-000000000301"
+                                  "goodsId": "00000000-0000-0000-0000-000000000301"
                                 }
                               ]
                             }

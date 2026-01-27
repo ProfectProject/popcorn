@@ -31,7 +31,6 @@ import com.popcorn.order.event.StockDeductionRequestedEvent;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
-import com.popcorn.order.client.UserClient;
 import com.popcorn.order.service.OrderUserLookupService;
 import com.popcorn.order.dto.payment.CreatePaymentRequest;
 import com.popcorn.order.dto.payment.CreatePaymentResponse;
@@ -58,7 +57,6 @@ public class OrderCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final OrderEventPublisher orderEventPublisher;
     private final StandardOrderEventPublisher standardOrderEventPublisher;
-    private final UserClient userClient;
     private final OrderUserLookupService orderUserLookupService;
     private final PaymentTokenUtil paymentTokenUtil;
     private final OrderCacheService orderCacheService;
@@ -349,7 +347,7 @@ public class OrderCommandService {
                 .unitPrice(unitPrice)
                 .lineAmount(lineAmount)
                 .sessionOptionId(itemCommand.getSessionId())
-                .goodsVariantId(itemCommand.getGoodsVariantId())
+                .goodsId(itemCommand.getGoodsId())
                 .build();
     }
 
@@ -370,11 +368,11 @@ public class OrderCommandService {
 
         } else if (OrderItemType.GOODS.equals(itemType)) {
             // 구매형: 굿즈 가격 조회
-            UUID goodsVariantId = itemCommand.getGoodsVariantId();
-            if (goodsVariantId == null) {
+            UUID goodsId = itemCommand.getGoodsId();
+            if (goodsId == null) {
                 throw new RuntimeException("구매형 상품은 굿즈 정보가 필요해요");
             }
-            return getGoodsVariantPrice(goodsVariantId);
+            return getGoodsVariantPrice(goodsId);
 
         } else {
             throw new RuntimeException("알 수 없는 상품 타입이에요: " + itemType);
@@ -408,145 +406,25 @@ public class OrderCommandService {
      * 굿즈 상품 변형 가격 조회
      * Store 서비스의 실제 API를 통해 굿즈 가격 정보 조회
      */
-    private Integer getGoodsVariantPrice(UUID goodsVariantId) {
+    private Integer getGoodsVariantPrice(UUID goodsId) {
         try {
-            log.info("굿즈 가격 조회 요청 (Redis Stream 이벤트 기반) - goodsVariantId: {}", goodsVariantId);
+            log.info("굿즈 가격 조회 요청 (Redis Stream 이벤트 기반) - goodsId: {}", goodsId);
 
-            Integer price = orderPriceLookupService.requestGoodsPrice(goodsVariantId);
+            Integer price = orderPriceLookupService.requestGoodsPrice(goodsId);
             if (price != null) {
-                log.info("굿즈 가격 조회 성공 - goodsVariantId: {}, price: {}원",
-                        goodsVariantId, price);
+                log.info("굿즈 가격 조회 성공 - goodsId: {}, price: {}원",
+                        goodsId, price);
                 return price;
             } else {
-                log.warn("굿즈 가격 정보가 비어있습니다 - goodsVariantId: {}, 기본값 사용", goodsVariantId);
+                log.warn("굿즈 가격 정보가 비어있습니다 - goodsId: {}, 기본값 사용", goodsId);
                 return 5000; // Store DB에 넣은 실제 가격과 동일한 기본값
             }
         } catch (Exception e) {
-            log.error("굿즈 가격 조회 실패 - goodsVariantId: {}, 기본값 사용, 에러: {}", goodsVariantId, e.getMessage(), e);
+            log.error("굿즈 가격 조회 실패 - goodsId: {}, 기본값 사용, 에러: {}", goodsId, e.getMessage(), e);
             return 5000; // Store DB에 넣은 실제 가격과 동일한 기본값
         }
     }
 
-    /**
-     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (비동기 처리)
-     *
-     * [개선사항]
-     * - Payment 서비스 호출은 비동기로 수행
-     * - 결제 URL은 즉시 발급하여 응답에 포함
-     * - 결제 실패 시에도 주문은 유지되며 나중에 결제 가능
-     */
-    private CreatePaymentResponse startPaymentProcessAndGetUrl(Order order, CreateOrderCommand command) {
-        log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
-                order.getOrderNo(), order.getTotalAmount());
-
-        // 1. 주문 상태를 결제 대기로 변경
-        order.setStatus(OrderStatus.PAYMENT_PENDING);
-        orderRepository.save(order);
-
-        // 2. 상태 변경 이력 저장
-        OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
-                .orderId(order.getId())
-                .fromStatus(OrderStatus.REQUESTED)
-                .toStatus(OrderStatus.PAYMENT_PENDING)
-                .reason("결제 프로세스 시작")
-                .changedAt(LocalDateTime.now())
-                .build();
-        orderStatusHistoryRepository.save(paymentPendingHistory);
-
-        // 비동기 결제 요청 및 토큰 URL 발급
-        return requestPaymentUrl(order, determinePaymentMethod(order));
-    }
-
-    /**
-     * 주문 생성 후 결제 프로세스 시작 (기존 비동기 방식 - 호환성 유지)
-     *
-     * [초보자 가이드]
-     * 주문이 생성된 후 자동으로 결제를 시작합니다.
-     * - 주문 상태 → PAYMENT_PENDING으로 변경
-     * - Payment 마이크로서비스에 결제 요청
-     * - 비동기로 처리 (결제 실패해도 주문은 유지)
-     *
-     * @deprecated 새로운 동기 방식으로 대체됨. startPaymentProcessAndGetUrl() 사용 권장
-     */
-    @Deprecated
-    private void startPaymentProcess(Order order, CreateOrderCommand command) {
-        log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
-                order.getOrderNo(), order.getTotalAmount());
-
-        // 1. 주문 상태를 결제 대기로 변경
-        order.setStatus(OrderStatus.PAYMENT_PENDING);
-        orderRepository.save(order);
-
-        // 2. 상태 변경 이력 저장
-        OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
-                .orderId(order.getId())
-                .fromStatus(OrderStatus.REQUESTED)
-                .toStatus(OrderStatus.PAYMENT_PENDING)
-                .reason("결제 프로세스 시작")
-                .changedAt(LocalDateTime.now())
-                .build();
-        orderStatusHistoryRepository.save(paymentPendingHistory);
-
-        // 3. Payment 서비스에 결제 요청 (비동기)
-        CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
-                order.getId(),
-                order.getCustomerId(),
-                order.getOrderNo(),
-                order.getTotalAmount(),
-                determinePaymentMethod(order) // 사용자가 선택한 결제 방법 결정
-        );
-
-        // 4. 결제 생성 요청 이벤트 발행 (Payment 서비스가 승인 시점에 생성)
-        orderEventPublisher.publishPaymentCreateRequestedEvent(order, paymentRequest.getPaymentMethod());
-
-        log.info("결제 요청 전송 완료 - 주문번호: {}", order.getOrderNo());
-    }
-
-    /**
-     * 결제 생성 성공 처리
-     */
-    private void handlePaymentSuccess(CreatePaymentResponse paymentResponse) {
-        try {
-            log.info("결제 생성 성공 - 주문ID: {}, 결제ID: {}, 상태: {}",
-                    paymentResponse.getOrderId(), paymentResponse.getPaymentId(), paymentResponse.getStatus());
-
-            // 결제가 즉시 완료된 경우 (예: 간편결제)
-            if (paymentResponse.isCompleted()) {
-                updateOrderStatus(paymentResponse.getOrderId(),
-                                OrderStatus.PAID.name(),
-                                "결제 완료");
-            }
-            // 결제 대기 상태라면 별도 처리 불필요 (이미 PAYMENT_PENDING)
-
-            // 결제 URL이 있다면 고객에게 알림 발송 (결제 대기 상태인 경우만)
-            if (!paymentResponse.isCompleted() && paymentResponse.getPaymentUrl() != null) {
-                sendPaymentUrlNotificationToCustomer(paymentResponse);
-            }
-
-        } catch (Exception e) {
-            log.error("결제 성공 처리 중 오류 - 주문ID: {}, 에러: {}",
-                    paymentResponse.getOrderId(), e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 결제 생성 실패 처리
-     */
-    private void handlePaymentError(UUID orderId, Throwable error) {
-        try {
-            log.error("결제 생성 실패 - 주문ID: {}, 에러: {}", orderId, error.getMessage());
-
-            // 주문 상태를 다시 요청 상태로 되돌림 (수동 결제 대기)
-            updateOrderStatus(orderId, OrderStatus.REQUESTED.name(),
-                            "결제 생성 실패, 수동 처리 필요: " + error.getMessage());
-
-            // 관리자에게 결제 시스템 장애 알림 발송
-            sendPaymentErrorNotificationToAdmin(orderId, error);
-
-        } catch (Exception e) {
-            log.error("결제 실패 처리 중 오류 - 주문ID: {}, 에러: {}", orderId, e.getMessage(), e);
-        }
-    }
 
     /**
      * 결제 방법 결정
@@ -750,9 +628,9 @@ public class OrderCommandService {
 
         List<com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem> reservationItems =
                 goodsItems.stream()
-                        .filter(item -> item.getGoodsVariantId() != null)
+                        .filter(item -> item.getGoodsId() != null)
                         .map(item -> com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem.create(
-                                item.getGoodsVariantId(),
+                                item.getGoodsId(),
                                 item.getQty()
                         ))
                         .toList();
@@ -796,26 +674,26 @@ public class OrderCommandService {
                 break;
             }
 
-            if (item.getGoodsVariantId() == null) {
+            if (item.getGoodsId() == null) {
                 continue;
             }
 
             try {
                 log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
+                        order.getOrderNo(), item.getGoodsId(), item.getQty());
 
                 orderEventPublisher.publishGoodsReservationCancelRequestedEvent(
                         order,
-                        item.getGoodsVariantId(),
+                        item.getGoodsId(),
                         item.getQty()
                 );
 
                 log.info("굿즈 재고 예약 취소 성공 - 주문번호: {}, 굿즈변형ID: {}",
-                        order.getOrderNo(), item.getGoodsVariantId());
+                        order.getOrderNo(), item.getGoodsId());
 
             } catch (Exception e) {
                 log.error("굿즈 재고 예약 취소 실패 - 주문번호: {}, 굿즈변형ID: {}, 에러: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), e.getMessage(), e);
+                        order.getOrderNo(), item.getGoodsId(), e.getMessage(), e);
                 // 롤백 실패는 로그만 남기고 계속 진행
             }
         }
@@ -851,9 +729,9 @@ public class OrderCommandService {
     private void publishStockReservedEvent(Order order, List<OrderItem> goodsItems) {
         try {
             List<StockReservedEvent.ReservedStockItem> reservedItems = goodsItems.stream()
-                    .filter(item -> item.getGoodsVariantId() != null)
+                    .filter(item -> item.getGoodsId() != null)
                     .map(item -> StockReservedEvent.ReservedStockItem.create(
-                            item.getGoodsVariantId(),
+                            item.getGoodsId(),
                             item.getQty(),
                             item.getUnitPrice(),
                             generateProductName(item)
@@ -882,7 +760,7 @@ public class OrderCommandService {
         try {
             List<StockReservationFailedEvent.FailedStockItem> failedItems = List.of(
                     StockReservationFailedEvent.FailedStockItem.create(
-                            failedItem.getGoodsVariantId(),
+                            failedItem.getGoodsId(),
                             failedItem.getQty(),
                             0, // 사용 가능한 수량은 Store에서만 알 수 있음
                             generateProductName(failedItem),
@@ -956,7 +834,7 @@ public class OrderCommandService {
                 .orderGoodsId(orderItem.getId())
                 .itemType(orderItem.getOrderItemType().toString())
                 .scheduleId(orderItem.getSessionOptionId())
-                .goodsVariantId(orderItem.getGoodsVariantId())
+                .goodsId(orderItem.getGoodsId())
                 .qty(orderItem.getQty())
                 .unitPrice(orderItem.getUnitPrice())
                 .linePrice(orderItem.getLineAmount())
@@ -1027,7 +905,7 @@ public class OrderCommandService {
 
             // 각 굿즈 항목에 대해 재고 예약 취소
             for (com.popcorn.order.entity.OrderItem item : goodsItems) {
-                if (item.getGoodsVariantId() == null) {
+                if (item.getGoodsId() == null) {
                     log.warn("굿즈 변형 ID가 없어 재고 예약 취소를 건너뜁니다 - orderId: {}, 항목ID: {}",
                             orderId, item.getId());
                     continue;
@@ -1035,20 +913,20 @@ public class OrderCommandService {
 
                 try {
                     log.info("굿즈 재고 예약 취소 시도 - orderId: {}, 굿즈변형ID: {}, 수량: {}",
-                            orderId, item.getGoodsVariantId(), item.getQty());
+                            orderId, item.getGoodsId(), item.getQty());
 
                     orderEventPublisher.publishGoodsReservationCancelRequestedEvent(
                             order,
-                            item.getGoodsVariantId(),
+                            item.getGoodsId(),
                             item.getQty()
                     );
 
                     log.info("✅ 굿즈 재고 예약 취소 완료 - orderId: {}, 굿즈변형ID: {}",
-                            orderId, item.getGoodsVariantId());
+                            orderId, item.getGoodsId());
 
                 } catch (Exception e) {
                     log.error("❌ 굿즈 재고 예약 취소 실패 - orderId: {}, 굿즈변형ID: {}, error: {}",
-                            orderId, item.getGoodsVariantId(), e.getMessage(), e);
+                            orderId, item.getGoodsId(), e.getMessage(), e);
                     // 개별 항목 취소 실패는 전체 처리를 중단시키지 않음
                 }
             }
@@ -1076,7 +954,7 @@ public class OrderCommandService {
             // 결제 취소 요청 이벤트 발행 (Payment 서비스가 처리)
             orderEventPublisher.publishPaymentCancelRequestedEvent(
                     order,
-                    paymentId,
+                    paymentId != null ? paymentId : "",
                     reason != null ? reason : "주문 결제 실패로 인한 자동 취소"
             );
 
@@ -1106,7 +984,7 @@ public class OrderCommandService {
             // 굿즈 항목만 필터링 (예약형은 재고 차감 불필요)
             List<com.popcorn.order.entity.OrderItem> goodsItems = orderItems.stream()
                     .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
-                    .filter(item -> item.getGoodsVariantId() != null)
+                    .filter(item -> item.getGoodsId() != null)
                     .toList();
 
             if (goodsItems.isEmpty()) {
@@ -1117,7 +995,7 @@ public class OrderCommandService {
             // 재고 차감 항목 리스트 생성
             List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems = goodsItems.stream()
                     .map(item -> StockDeductionRequestedEvent.StockDeductionItem.builder()
-                            .goodsVariantId(item.getGoodsVariantId())
+                            .goodsId(item.getGoodsId())
                             .quantity(item.getQty())
                             .productName(generateProductName(item))
                             .variantName(generateProductVariantName(item))

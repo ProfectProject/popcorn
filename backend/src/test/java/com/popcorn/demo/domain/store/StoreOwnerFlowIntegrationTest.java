@@ -342,7 +342,7 @@ class StoreOwnerFlowIntegrationTest {
     private void createGoodsOrder(CustomUserDetails ownerDetails, String popupId, String goodsId) throws Exception {
         Map<String, Object> item = Map.of(
                 "orderItemType", "GOODS",
-                "goodsVariantId", goodsId,
+                "goodsId", goodsId,
                 "qty", 1
         );
         Map<String, Object> address = Map.of(

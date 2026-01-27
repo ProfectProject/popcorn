@@ -43,16 +43,20 @@ public class RedisEventPublisher {
             log.info("주문 결제 완료 이벤트 Stream 발행 시작 - orderId: {}, eventId: {}",
                     event.getOrderId(), event.getEventId());
 
-            Map<String, String> eventData = Map.of(
-                "eventType", "order-paid",
-                "orderId", event.getOrderId().toString(),
-                "eventId", event.getEventId(),
-                "orderNo", event.getOrderNo(),
-                "userId", event.getCustomerId() != null ? event.getCustomerId().toString() : "",
-                "totalAmount", event.getTotalAmount() != null ? event.getTotalAmount().toString() : "",
-                "paidAt", event.getPaidAt().toString(),
-                "eventTime", LocalDateTime.now().toString()
-            );
+            java.util.Map<String, String> eventData = new java.util.HashMap<>();
+            eventData.put("eventType", "order-paid");
+            eventData.put("orderId", event.getOrderId().toString());
+            eventData.put("eventId", event.getEventId());
+            eventData.put("orderNo", event.getOrderNo());
+            eventData.put("userId", event.getCustomerId() != null ? event.getCustomerId().toString() : "");
+            eventData.put("popupId", event.getPopupId() != null ? event.getPopupId().toString() : "");
+            eventData.put("orderType", event.getOrderType() != null ? event.getOrderType() : "");
+            eventData.put("totalAmount", event.getTotalAmount() != null ? event.getTotalAmount().toString() : "");
+            eventData.put("orderItems", objectMapper.writeValueAsString(
+                    event.getOrderItems() != null ? event.getOrderItems() : java.util.List.of()
+            ));
+            eventData.put("paidAt", event.getPaidAt().toString());
+            eventData.put("eventTime", LocalDateTime.now().toString());
 
             StringRecord record = StreamRecords.string(eventData).withStreamKey(ORDER_EVENTS_STREAM);
             redisTemplate.opsForStream().add(record);
@@ -136,7 +140,7 @@ public class RedisEventPublisher {
     public void publishGoodsReservationCancelRequestedEvent(String eventId,
                                                             java.util.UUID orderId,
                                                             java.util.UUID popupId,
-                                                            java.util.UUID goodsVariantId,
+                                                            java.util.UUID goodsId,
                                                             Integer quantity) {
         try {
             log.info("굿즈 예약 취소 요청 이벤트 Stream 발행 시작 - orderId: {}, eventId: {}",
@@ -147,7 +151,7 @@ public class RedisEventPublisher {
                 "eventId", eventId,
                 "orderId", orderId.toString(),
                 "popupId", popupId != null ? popupId.toString() : "",
-                "goodsVariantId", goodsVariantId != null ? goodsVariantId.toString() : "",
+                "goodsId", goodsId != null ? goodsId.toString() : "",
                 "quantity", quantity != null ? quantity.toString() : "",
                 "requestedAt", LocalDateTime.now().toString(),
                 "eventTime", LocalDateTime.now().toString()
@@ -281,8 +285,8 @@ public class RedisEventPublisher {
      */
     public void publishPriceLookupRequestedEvent(PriceLookupRequestedEvent event) {
         try {
-            log.warn("🔥 [DEBUG] 가격 조회 요청 이벤트 Stream 발행 시작 - correlationId: {}, type: {}, goodsVariantId: {}",
-                    event.getCorrelationId(), event.getRequestType(), event.getGoodsVariantId());
+            log.warn("🔥 [DEBUG] 가격 조회 요청 이벤트 Stream 발행 시작 - correlationId: {}, type: {}, goodsId: {}",
+                    event.getCorrelationId(), event.getRequestType(), event.getGoodsId());
 
             // Redis Template 연결 상태 확인
             log.warn("🔥 [DEBUG] RedisTemplate 상태: {}", redisTemplate != null ? "NOT NULL" : "NULL");
@@ -293,7 +297,7 @@ public class RedisEventPublisher {
                 "correlationId", event.getCorrelationId(),
                 "requestType", event.getRequestType(),
                 "sessionId", event.getSessionId() != null ? event.getSessionId().toString() : "",
-                "goodsId", event.getGoodsVariantId() != null ? event.getGoodsVariantId().toString() : "",
+                "goodsId", event.getGoodsId() != null ? event.getGoodsId().toString() : "",
                 "requestedAt", event.getRequestedAt().toString(),
                 "eventTime", LocalDateTime.now().toString()
             );

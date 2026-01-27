@@ -156,7 +156,7 @@ public class OrderInfoResponseService {
         item.put("orderGoodsId", orderItem.getId().toString());
         item.put("itemType", orderItem.getOrderItemType().toString());
         item.put("scheduleId", orderItem.getSessionOptionId() != null ? orderItem.getSessionOptionId().toString() : null);
-        item.put("goodsVariantId", orderItem.getGoodsVariantId() != null ? orderItem.getGoodsVariantId().toString() : null);
+        item.put("goodsId", orderItem.getGoodsId() != null ? orderItem.getGoodsId().toString() : null);
         item.put("qty", orderItem.getQty());
         item.put("unitPrice", orderItem.getUnitPrice());
         item.put("linePrice", orderItem.getLineAmount());

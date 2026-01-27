@@ -63,7 +63,7 @@ public class OrderItem extends BaseEntity {
 
     /** 굿즈 변형 ID - 구매형 상품의 상품 정보 (색상, 사이즈 등) */
     @Column(name = "goods_variant_id")
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     /** 수량 - 주문한 개수 */
     @Column(name = "qty")

@@ -92,13 +92,13 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                     publishGoodsReservationRequestedEvent(values);
                     break;
                 case "goods-reserved":
-                    log.info("✅ [STORES] 굿즈 재고 예약 성공 이벤트 수신 (내부) - orderId: {}, goodsVariantId: {}, quantity: {}개 예약 완료",
-                            values.get("orderId"), values.get("goodsVariantId"), values.get("quantity"));
+                    log.info("✅ [STORES] 굿즈 재고 예약 성공 이벤트 수신 (내부) - orderId: {}, goodsId: {}, quantity: {}개 예약 완료",
+                            values.get("orderId"), values.get("goodsId"), values.get("quantity"));
                     // 내부적으로 발행한 이벤트 - Order 서비스에서 처리 예정
                     break;
                 case "goods-reservation-failed":
-                    log.warn("❌ [STORES] 굿즈 재고 예약 실패 이벤트 수신 (내부) - orderId: {}, goodsVariantId: {}, reason: {}",
-                            values.get("orderId"), values.get("goodsVariantId"), values.get("reason"));
+                    log.warn("❌ [STORES] 굿즈 재고 예약 실패 이벤트 수신 (내부) - orderId: {}, goodsId: {}, reason: {}",
+                            values.get("orderId"), values.get("goodsId"), values.get("reason"));
                     // 내부적으로 발행한 이벤트 - Order 서비스에서 처리 예정
                     break;
                 case "goods-reservation-cancel-requested":
@@ -138,13 +138,42 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
 
     private void publishOrderPaidEvent(Map<String, Object> values) {
         try {
+            String eventId = normalizeQuotedString((String) values.get("eventId"));
+            String orderIdStr = normalizeUuidString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String userIdStr = normalizeQuotedString((String) values.get("userId"));
+            String popupIdStr = normalizeQuotedString((String) values.get("popupId"));
+            String orderType = normalizeQuotedString((String) values.get("orderType"));
+            String totalAmountStr = normalizeQuotedString((String) values.get("totalAmount"));
+            String paidAtStr = normalizeQuotedString((String) values.get("paidAt"));
+            String eventTimeStr = normalizeQuotedString((String) values.get("eventTime"));
+            String orderItemsJson = (String) values.get("orderItems");
+
+            if (orderItemsJson != null) {
+                orderItemsJson = orderItemsJson.trim().replaceAll("^\"|\"$", "");
+                orderItemsJson = orderItemsJson.replace("\\\"", "\"");
+            }
+
+            List<OrderPaidEvent.OrderItemInfo> orderItems = List.of();
+            if (orderItemsJson != null && !orderItemsJson.isBlank()) {
+                orderItems = objectMapper.readValue(
+                        orderItemsJson, new TypeReference<List<OrderPaidEvent.OrderItemInfo>>() {}
+                );
+            }
+
             OrderPaidEvent event = OrderPaidEvent.builder()
-                    .eventId((String) values.get("eventId"))
-                    .orderId(UUID.fromString((String) values.get("orderId")))
-                    .orderNo((String) values.get("orderNo"))
-                    .totalAmount(Integer.parseInt((String) values.get("totalAmount")))
-                    .paidAt(java.time.LocalDateTime.parse((String) values.get("paidAt")))
-                    .eventTime(java.time.LocalDateTime.parse((String) values.get("eventTime")))
+                    .eventId(eventId)
+                    .orderId(UUID.fromString(orderIdStr))
+                    .orderNo(orderNo)
+                    .customerId(userIdStr != null && !userIdStr.isBlank() ? Long.parseLong(userIdStr) : null)
+                    .popupId(popupIdStr != null && !popupIdStr.isBlank() ? UUID.fromString(normalizeUuidString(popupIdStr)) : null)
+                    .orderType(orderType)
+                    .totalAmount(totalAmountStr != null && !totalAmountStr.isBlank()
+                            ? Integer.parseInt(totalAmountStr)
+                            : null)
+                    .orderItems(orderItems)
+                    .paidAt(java.time.LocalDateTime.parse(paidAtStr))
+                    .eventTime(java.time.LocalDateTime.parse(eventTimeStr))
                     .build();
 
             eventPublisher.publishEvent(event);
@@ -203,7 +232,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
             }
 
             for (GoodsReservationItem item : reservationItems) {
-                if (item.goodsVariantId == null || item.quantity == null) {
+                if (item.goodsId == null || item.quantity == null) {
                     log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 누락 - orderId: {}, item: {}",
                             orderId, item);
                     continue;
@@ -212,27 +241,27 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 try {
                     UUID resolvedPopupId = popupId;
                     if (resolvedPopupId == null) {
-                        resolvedPopupId = goodsService.resolvePopupId(item.goodsVariantId);
+                        resolvedPopupId = goodsService.resolvePopupId(item.goodsId);
                     }
 
-                    goodsService.reservationGoods(resolvedPopupId, item.goodsVariantId, item.quantity);
+                    goodsService.reservationGoods(resolvedPopupId, item.goodsId, item.quantity);
                     reservationService.createGoodsReservation(
-                            orderId, orderNo, resolvedPopupId, item.goodsVariantId, item.quantity
+                            orderId, orderNo, resolvedPopupId, item.goodsId, item.quantity
                     );
 
-                    log.info("✅ [STORES] 굿즈 재고 예약 완료 - orderId: {}, goodsVariantId: {}, qty: {}",
-                            orderId, item.goodsVariantId, item.quantity);
+                    log.info("✅ [STORES] 굿즈 재고 예약 완료 - orderId: {}, goodsId: {}, qty: {}",
+                            orderId, item.goodsId, item.quantity);
 
                     storeRedisEventPublisher.publishGoodsReservedEvent(
-                            orderId, resolvedPopupId, item.goodsVariantId, item.quantity
+                            orderId, resolvedPopupId, item.goodsId, item.quantity
                     );
 
                 } catch (Exception e) {
-                    log.error("❌ [STORES] 굿즈 재고 예약 실패 - orderId: {}, goodsVariantId: {}, qty: {}, error: {}",
-                            orderId, item.goodsVariantId, item.quantity, e.getMessage(), e);
+                    log.error("❌ [STORES] 굿즈 재고 예약 실패 - orderId: {}, goodsId: {}, qty: {}, error: {}",
+                            orderId, item.goodsId, item.quantity, e.getMessage(), e);
 
                     storeRedisEventPublisher.publishGoodsReservationFailedEvent(
-                            orderId, popupId, item.goodsVariantId, item.quantity, 0, e.getMessage()
+                            orderId, popupId, item.goodsId, item.quantity, 0, e.getMessage()
                     );
                 }
             }
@@ -379,7 +408,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                             .eventId(UUID.randomUUID().toString())
                             .correlationId(correlationId)
                             .requestType(requestType)
-                            .goodsVariantId(goodsId)
+                            .goodsId(goodsId)
                             .price(variant.getGoodsPrice())
                             .stockQuantity(variant.getStock())
                             .success(true)
@@ -403,31 +432,31 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private void handleGoodsReservationCancelRequested(Map<String, Object> values) {
         try {
             String popupIdStr = (String) values.get("popupId");
-            String goodsVariantIdStr = (String) values.get("goodsVariantId");
+            String goodsIdStr = (String) values.get("goodsId");
             String quantityStr = (String) values.get("quantity");
 
             if (popupIdStr != null) {
                 popupIdStr = popupIdStr.trim().replaceAll("^\"|\"$", "");
             }
-            if (goodsVariantIdStr != null) {
-                goodsVariantIdStr = goodsVariantIdStr.trim().replaceAll("^\"|\"$", "");
+            if (goodsIdStr != null) {
+                goodsIdStr = goodsIdStr.trim().replaceAll("^\"|\"$", "");
             }
             if (quantityStr != null) {
                 quantityStr = quantityStr.trim().replaceAll("^\"|\"$", "");
             }
 
-            if (goodsVariantIdStr == null || goodsVariantIdStr.isEmpty() || quantityStr == null || quantityStr.isEmpty()) {
+            if (goodsIdStr == null || goodsIdStr.isEmpty() || quantityStr == null || quantityStr.isEmpty()) {
                 log.warn("↩️ [STORES] 굿즈 예약 취소 요청 데이터 누락 - values: {}", values);
                 return;
             }
 
-            UUID goodsVariantId = UUID.fromString(goodsVariantIdStr);
-            UUID popupId = popupIdStr != null && !popupIdStr.isEmpty() ? UUID.fromString(popupIdStr) : goodsService.resolvePopupId(goodsVariantId);
+            UUID goodsId = UUID.fromString(goodsIdStr);
+            UUID popupId = popupIdStr != null && !popupIdStr.isEmpty() ? UUID.fromString(popupIdStr) : goodsService.resolvePopupId(goodsId);
             int quantity = Integer.parseInt(quantityStr);
 
-            goodsService.cancelReservationGoods(popupId, goodsVariantId, quantity);
+            goodsService.cancelReservationGoods(popupId, goodsId, quantity);
 
-            log.info("↩️ [STORES] 굿즈 예약 취소 완료 - goodsVariantId: {}, quantity: {}", goodsVariantId, quantity);
+            log.info("↩️ [STORES] 굿즈 예약 취소 완료 - goodsId: {}, quantity: {}", goodsId, quantity);
 
         } catch (Exception e) {
             log.error("↩️ [STORES] 굿즈 예약 취소 처리 실패 - values: {}, error: {}", values, e.getMessage(), e);
@@ -504,7 +533,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private void publishPriceLookupFailure(Map<String, Object> values, String reason) {
         try {
             String sessionIdStr = (String) values.get("sessionId");
-            String goodsIdStr = (String) values.get("goodsId");  // goodsVariantId -> goodsId 수정
+            String goodsIdStr = (String) values.get("goodsId");  // goodsId -> goodsId 수정
             String correlationId = (String) values.get("correlationId");
             String requestType = (String) values.get("requestType");
 
@@ -532,10 +561,10 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 }
             }
 
-            UUID goodsVariantId = null;
+            UUID goodsId = null;
             if (goodsIdStr != null && !goodsIdStr.isEmpty() && !goodsIdStr.equals("null")) {
                 try {
-                    goodsVariantId = UUID.fromString(goodsIdStr);
+                    goodsId = UUID.fromString(goodsIdStr);
                 } catch (IllegalArgumentException e) {
                     log.warn("💰 [STORES] 유효하지 않은 goodsId UUID - goodsId: {}", goodsIdStr);
                 }
@@ -547,7 +576,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                             .correlationId(correlationId)
                             .requestType(requestType)
                             .sessionId(sessionId)
-                            .goodsVariantId(goodsVariantId)
+                            .goodsId(goodsId)
                             .success(false)
                             .message(reason)
                             .respondedAt(java.time.LocalDateTime.now())
@@ -607,7 +636,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
             // 각 항목에 대해 재고 차감 처리
             for (Map<String, Object> item : itemsList) {
                 try {
-                    String goodsVariantIdStr = (String) item.get("goodsVariantId");
+                    String goodsIdStr = (String) item.get("goodsId");
                     Integer quantity = null;
 
                     Object quantityObj = item.get("quantity");
@@ -617,38 +646,38 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                         quantity = Integer.parseInt((String) quantityObj);
                     }
 
-                    if (goodsVariantIdStr == null || quantity == null || quantity <= 0) {
-                        log.error("📦 [STORES] 재고 차감 항목 데이터 오류 - goodsVariantId: {}, quantity: {}",
-                                 goodsVariantIdStr, quantity);
+                    if (goodsIdStr == null || quantity == null || quantity <= 0) {
+                        log.error("📦 [STORES] 재고 차감 항목 데이터 오류 - goodsId: {}, quantity: {}",
+                                 goodsIdStr, quantity);
                         allSuccess = false;
                         failureReason = "항목 데이터 오류";
                         break;
                     }
 
-                    UUID goodsVariantId;
+                    UUID goodsId;
                     try {
-                        goodsVariantId = UUID.fromString(normalizeUuidString(goodsVariantIdStr));
+                        goodsId = UUID.fromString(normalizeUuidString(goodsIdStr));
                     } catch (Exception e) {
-                        log.error("📦 [STORES] 재고 차감 항목 goodsVariantId UUID 파싱 실패 - goodsVariantId: {}, error: {}",
-                                goodsVariantIdStr, e.getMessage(), e);
+                        log.error("📦 [STORES] 재고 차감 항목 goodsId UUID 파싱 실패 - goodsId: {}, error: {}",
+                                goodsIdStr, e.getMessage(), e);
                         allSuccess = false;
-                        failureReason = "goodsVariantId UUID 파싱 실패";
+                        failureReason = "goodsId UUID 파싱 실패";
                         break;
                     }
                     String productName = (String) item.get("productName");
                     String variantName = (String) item.get("variantName");
 
-                    log.info("📦 [STORES] 재고 차감 처리 - goodsVariantId: {}, quantity: {}, product: {}",
-                            goodsVariantId, quantity, productName);
+                    log.info("📦 [STORES] 재고 차감 처리 - goodsId: {}, quantity: {}, product: {}",
+                            goodsId, quantity, productName);
 
                     // 실제 재고 차감 처리 (GoodsService 호출)
-                    // popupId는 실제로는 별도 조회가 필요하지만, 임시로 goodsVariantId를 사용
+                    // popupId는 실제로는 별도 조회가 필요하지만, 임시로 goodsId를 사용
                     if (popupId == null) {
                         // 첫 번째 항목에서 popupId를 결정 (실제로는 goodsVariant에서 조회해야 함)
-                        popupId = goodsVariantId; // 임시 처리
+                        popupId = goodsId; // 임시 처리
                     }
 
-                    var stockResponse = goodsService.completeReservationGoods(popupId, goodsVariantId, quantity);
+                    var stockResponse = goodsService.completeReservationGoods(popupId, goodsId, quantity);
 
                     // 성공 정보 누적
                     if (stockDetails.length() > 0) {
@@ -660,12 +689,12 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                         quantity,
                         stockResponse.getStock()));
 
-                    log.info("📦 [STORES] 재고 차감 성공 - goodsVariantId: {}, quantity: {}, currentStock: {}",
-                            goodsVariantId, quantity, stockResponse.getStock());
+                    log.info("📦 [STORES] 재고 차감 성공 - goodsId: {}, quantity: {}, currentStock: {}",
+                            goodsId, quantity, stockResponse.getStock());
 
                 } catch (Exception e) {
-                    log.error("📦 [STORES] 재고 차감 실패 - goodsVariantId: {}, error: {}",
-                             item.get("goodsVariantId"), e.getMessage(), e);
+                    log.error("📦 [STORES] 재고 차감 실패 - goodsId: {}, error: {}",
+                             item.get("goodsId"), e.getMessage(), e);
                     allSuccess = false;
                     failureReason = e.getMessage();
                     break;
@@ -743,7 +772,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     }
 
     private static class GoodsReservationItem {
-        public UUID goodsVariantId;
+        public UUID goodsId;
         public Integer quantity;
     }
 

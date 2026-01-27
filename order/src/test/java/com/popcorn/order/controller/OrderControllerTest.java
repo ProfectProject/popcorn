@@ -18,7 +18,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.popcorn.order.client.StoreClient;
 import com.popcorn.common.security.JwtAuthenticationFilter;
 import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.service.OrderCommandService;
@@ -35,11 +34,10 @@ import com.popcorn.order.util.PaymentTokenUtil;
  * 테스트가 업데이트된 이유:
  * 1. MSA 구조: 여러 마이크로서비스와 통신하는 구조로 변경
  * 2. JWT 인증: 사용자 ID를 JWT에서 추출하는 방식으로 변경
- * 3. Store 서비스 연동: 실제 매장 정보를 조회하는 방식으로 변경
+ * 3. Store 서비스 연동: 이벤트 기반 조회로 변경
  *
  * 필요한 MockBean들:
  * - OrderCommandService, OrderQueryService: 비즈니스 로직
- * - StoreClient: Store 마이크로서비스와 통신
  * - OrderDomainService: 도메인 로직
  * - PaymentTokenUtil: JWT 토큰 관련
  */
@@ -58,9 +56,6 @@ class OrderControllerTest {
 
     @MockBean
     private OrderDomainService orderDomainService;
-
-    @MockBean
-    private StoreClient storeClient;
 
     @MockBean
     private PaymentTokenUtil paymentTokenUtil;

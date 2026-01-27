@@ -33,4 +33,14 @@ public interface PopupScheduleQueryRepository extends Repository<PopupSchedule, 
 	List<PopupScheduleView> findProductSessions(@Param("popupId") UUID popupId,
 												@Param("from") LocalDateTime from,
 												@Param("to") LocalDateTime to);
+
+	@Query(value = """
+			SELECT ps.remaining_capacity
+			  FROM popup_schedules ps
+			 WHERE ps.deleted_at IS NULL
+			   AND ps.popup_id = :popupId
+			   AND ps.schedule_id = :scheduleId
+			""", nativeQuery = true)
+	Integer findRemainingCapacity(@Param("popupId") UUID popupId,
+								  @Param("scheduleId") UUID scheduleId);
 }

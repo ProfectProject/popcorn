@@ -565,7 +565,7 @@ public class OrderQueryService {
      * 3. 변환 로직 변경 시 한 곳만 수정하면 됨
      *
      * Store 서비스 연동:
-     * - StoreClient를 사용해서 실제 팝업/매장 정보 조회
+     * - 이벤트 기반으로 팝업/매장 정보 조회
      * - 서비스 장애 시 기본값을 반환 (Fallback 패턴)
      */
     private com.popcorn.order.dto.response.MyOrderTimelineResponse.ItemDto convertToMyOrderTimelineItem(Order order) {
