@@ -59,7 +59,7 @@ class PaymentRepositoryTest {
         entityManager.flush()
 
         // When
-        val payments = paymentRepository.findAllByOrderIdAndIsDeletedFalseOrderByCreatedAtDesc(orderId)
+        val payments = paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
 
         // Then
         assertEquals(2, payments.size)
@@ -82,7 +82,7 @@ class PaymentRepositoryTest {
         entityManager.flush()
 
         // When
-        val payments = paymentRepository.findByPaymentKeyAndIsDeletedFalseOrderByCreatedAtDesc(paymentKey)
+        val payments = paymentRepository.findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey)
 
         // Then
         assertEquals(1, payments.size)
@@ -102,8 +102,8 @@ class PaymentRepositoryTest {
         entityManager.flush()
 
         // When
-        val paidPayments = paymentRepository.findAllByStatusAndIsDeletedFalse(PaymentStatus.PAID)
-        val readyPayments = paymentRepository.findAllByStatusAndIsDeletedFalse(PaymentStatus.READY)
+        val paidPayments = paymentRepository.findAllByStatusAndDeletedAtIsNull(PaymentStatus.PAID)
+        val readyPayments = paymentRepository.findAllByStatusAndDeletedAtIsNull(PaymentStatus.READY)
 
         // Then
         assertEquals(1, paidPayments.size)
@@ -188,7 +188,7 @@ class PaymentRepositoryTest {
         entityManager.flush()
 
         // When
-        val activePayments = paymentRepository.findAllByOrderIdAndIsDeletedFalseOrderByCreatedAtDesc(orderId)
+        val activePayments = paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
 
         // Then
         assertEquals(1, activePayments.size)
@@ -201,7 +201,7 @@ class PaymentRepositoryTest {
         val nonExistentOrderId = UUID.randomUUID()
 
         // When
-        val payments = paymentRepository.findAllByOrderIdAndIsDeletedFalseOrderByCreatedAtDesc(nonExistentOrderId)
+        val payments = paymentRepository.findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(nonExistentOrderId)
         val totalAmount = paymentRepository.sumPaidAmountByOrderId(nonExistentOrderId)
 
         // Then
@@ -223,9 +223,9 @@ class PaymentRepositoryTest {
         entityManager.flush()
 
         // When & Then
-        assertEquals(1, paymentRepository.findAllByStatusAndIsDeletedFalse(PaymentStatus.READY).size)
-        assertEquals(1, paymentRepository.findAllByStatusAndIsDeletedFalse(PaymentStatus.PAID).size)
-        assertEquals(1, paymentRepository.findAllByStatusAndIsDeletedFalse(PaymentStatus.FAILED).size)
-        assertEquals(1, paymentRepository.findAllByStatusAndIsDeletedFalse(PaymentStatus.CANCELLED).size)
+        assertEquals(1, paymentRepository.findAllByStatusAndDeletedAtIsNull(PaymentStatus.READY).size)
+        assertEquals(1, paymentRepository.findAllByStatusAndDeletedAtIsNull(PaymentStatus.PAID).size)
+        assertEquals(1, paymentRepository.findAllByStatusAndDeletedAtIsNull(PaymentStatus.FAILED).size)
+        assertEquals(1, paymentRepository.findAllByStatusAndDeletedAtIsNull(PaymentStatus.CANCELLED).size)
     }
 }
