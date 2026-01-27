@@ -6,6 +6,8 @@ on:
     branches: 
       - 'feature/**'
       - 'hotfix/**'
+  # 수동 실행
+  workflow_dispatch:
   # PR 검증용 (CI만, 배포 없음)
   pull_request:
     branches: [develop, main]
