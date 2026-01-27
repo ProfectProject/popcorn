@@ -106,7 +106,7 @@ jobs:
 
     env:
       AWS_REGION: ap-northeast-2
-      ECR_REPOSITORY: goorm-popcorn-user
+      ECR_REPOSITORY: goorm-popcorn
       SERVICE_DIR: users
 
     steps:
