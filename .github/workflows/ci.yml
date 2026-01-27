@@ -1,4 +1,4 @@
-name: CheckIns CI
+name: MSA CI
 
 on:
   push:
