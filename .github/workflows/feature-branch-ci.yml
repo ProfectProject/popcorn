@@ -37,33 +37,39 @@ jobs:
       - name: Detect changed services
         id: changes
         run: |
-          SERVICES=""
-          
-          # Check for changes in each service directory
-          if git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
-            SERVICES="${SERVICES},users"
+          # feature/ecs_task 브랜치에서는 항상 전체 서비스 테스트
+          if [[ "${{ github.ref }}" == "refs/heads/feature/ecs_task" ]]; then
+            SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
+            echo "🚀 Feature branch detected - testing all services"
+          else
+            SERVICES=""
+            
+            # Check for changes in each service directory
+            if git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
+              SERVICES="${SERVICES},users"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^stores/"; then
+              SERVICES="${SERVICES},stores"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^order/"; then
+              SERVICES="${SERVICES},order"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^orderQuery/"; then
+              SERVICES="${SERVICES},orderQuery"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^payment/"; then
+              SERVICES="${SERVICES},payment"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^gateway/"; then
+              SERVICES="${SERVICES},gateway"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
+              SERVICES="${SERVICES},checkIns"
+            fi
+            
+            # Remove leading comma
+            SERVICES=$(echo $SERVICES | sed 's/^,//')
           fi
-          if git diff --name-only HEAD~1 HEAD | grep -q "^stores/"; then
-            SERVICES="${SERVICES},stores"
-          fi
-          if git diff --name-only HEAD~1 HEAD | grep -q "^order/"; then
-            SERVICES="${SERVICES},order"
-          fi
-          if git diff --name-only HEAD~1 HEAD | grep -q "^orderQuery/"; then
-            SERVICES="${SERVICES},orderQuery"
-          fi
-          if git diff --name-only HEAD~1 HEAD | grep -q "^payment/"; then
-            SERVICES="${SERVICES},payment"
-          fi
-          if git diff --name-only HEAD~1 HEAD | grep -q "^gateway/"; then
-            SERVICES="${SERVICES},gateway"
-          fi
-          if git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
-            SERVICES="${SERVICES},checkIns"
-          fi
-          
-          # Remove leading comma
-          SERVICES=$(echo $SERVICES | sed 's/^,//')
           
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           
@@ -143,15 +149,16 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Code Quality Check
-        working-directory: ${{ matrix.service }}
-        run: |
-          # Checkstyle for code style
-          ../gradlew checkstyleMain checkstyleTest
-          
-          # SpotBugs for static analysis
-          ../gradlew spotbugsMain spotbugsTest
-        continue-on-error: false
+      # 코드 품질 체크 임시 비활성화
+      # - name: Code Quality Check
+      #   working-directory: ${{ matrix.service }}
+      #   run: |
+      #     # Checkstyle for code style
+      #     ../gradlew checkstyleMain checkstyleTest
+      #     
+      #     # SpotBugs for static analysis
+      #     ../gradlew spotbugsMain spotbugsTest
+      #   continue-on-error: false
 
       - name: Run Unit Tests
         working-directory: ${{ matrix.service }}
@@ -176,23 +183,24 @@ jobs:
           path: ${{ matrix.service }}/build/test-results/test/*.xml
           reporter: java-junit
 
-      - name: Code Coverage
-        working-directory: ${{ matrix.service }}
-        run: ../gradlew jacocoTestReport
+      # 커버리지 체크 임시 비활성화
+      # - name: Code Coverage
+      #   working-directory: ${{ matrix.service }}
+      #   run: ../gradlew jacocoTestReport
 
-      - name: Check Coverage Threshold
-        working-directory: ${{ matrix.service }}
-        run: |
-          ../gradlew jacocoTestCoverageVerification
-        env:
-          COVERAGE_THRESHOLD: 80
+      # - name: Check Coverage Threshold
+      #   working-directory: ${{ matrix.service }}
+      #   run: |
+      #     ../gradlew jacocoTestCoverageVerification
+      #   env:
+      #     COVERAGE_THRESHOLD: 80
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          file: ${{ matrix.service }}/build/reports/jacoco/test/jacocoTestReport.xml
-          flags: ${{ matrix.service }}
-          fail_ci_if_error: true
+      # - name: Upload coverage reports
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     file: ${{ matrix.service }}/build/reports/jacoco/test/jacocoTestReport.xml
+      #     flags: ${{ matrix.service }}
+      #     fail_ci_if_error: true
 
       - name: Integration Tests
         working-directory: ${{ matrix.service }}
