@@ -1,0 +1,127 @@
+# GitLeaks Configuration for Goorm Popcorn Project
+
+title = "Goorm Popcorn Secret Detection"
+
+[extend]
+# Use default rules as base
+useDefault = true
+
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret Key"
+regex = '''(?i)(jwt[_-]?secret[_-]?key|jwt[_-]?secret)\s*[:=]\s*['""]?([a-zA-Z0-9+/=]{32,})['""]?'''
+tags = ["jwt", "secret"]
+
+[[rules]]
+id = "database-password"
+description = "Database Password"
+regex = '''(?i)(db[_-]?password|database[_-]?password|postgres[_-]?password)\s*[:=]\s*['""]?([^'"\s]{8,})['""]?'''
+tags = ["database", "password"]
+
+[[rules]]
+id = "toss-payments-key"
+description = "Toss Payments API Key"
+regex = '''(?i)(toss[_-]?payments?[_-]?(secret|api)[_-]?key)\s*[:=]\s*['""]?(test_sk_[a-zA-Z0-9]{32,}|live_sk_[a-zA-Z0-9]{32,})['""]?'''
+tags = ["payment", "api-key"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["aws", "access-key"]
+
+[[rules]]
+id = "aws-secret-key"
+description = "AWS Secret Key"
+regex = '''(?i)aws[_-]?secret[_-]?access[_-]?key\s*[:=]\s*['""]?([a-zA-Z0-9+/]{40})['""]?'''
+tags = ["aws", "secret-key"]
+
+[[rules]]
+id = "discord-webhook"
+description = "Discord Webhook URL"
+regex = '''https://discord\.com/api/webhooks/[0-9]{18}/[a-zA-Z0-9_-]{68}'''
+tags = ["discord", "webhook"]
+
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+tags = ["github", "token"]
+
+[[rules]]
+id = "snyk-token"
+description = "Snyk API Token"
+regex = '''[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'''
+tags = ["snyk", "token"]
+
+[[rules]]
+id = "sonar-token"
+description = "SonarQube Token"
+regex = '''(?i)sonar[_-]?token\s*[:=]\s*['""]?([a-f0-9]{40})['""]?'''
+tags = ["sonar", "token"]
+
+[[rules]]
+id = "encryption-key"
+description = "Encryption Key"
+regex = '''(?i)(encryption[_-]?key|cipher[_-]?key|aes[_-]?key)\s*[:=]\s*['""]?([a-fA-F0-9]{32,})['""]?'''
+tags = ["encryption", "key"]
+
+# Allowlist for false positives
+[[allowlist]]
+description = "Environment variable placeholders"
+regex = '''\$\{[A-Z_]+\}'''
+
+[[allowlist]]
+description = "GitHub Secrets references"
+regex = '''\$\{\{\s*secrets\.[A-Z_]+\s*\}\}'''
+
+[[allowlist]]
+description = "AWS Secrets Manager references"
+regex = '''valueFrom.*secretsmanager'''
+
+[[allowlist]]
+description = "Test/Example values"
+regex = '''(test|example|sample|dummy|placeholder)'''
+
+[[allowlist]]
+description = "Documentation examples"
+regex = '''your-[a-z-]+-here'''
+
+[[allowlist]]
+description = "Base64 encoded test data"
+regex = '''dGVzdA=='''  # "test" in base64
+
+# File-specific allowlists
+[[allowlist]]
+description = "Task definition templates"
+paths = [".aws/task-definitions/*.json"]
+regex = '''goorm-popcorn-jwt-secret-key-for-\$\{ENVIRONMENT\}-environment'''
+
+[[allowlist]]
+description = "Workflow files with secret references"
+paths = [".github/workflows/*.yml", ".github/workflows/*.yaml"]
+regex = '''secrets\.'''
+
+# Global settings
+[allowlist.files]
+# Ignore common non-sensitive files
+paths = [
+    "*.md",
+    "*.txt",
+    "*.log",
+    ".gitignore",
+    ".gitleaks.toml",
+    "package-lock.json",
+    "yarn.lock"
+]
+
+[allowlist.commits]
+# Ignore specific commits if needed (example)
+# stopwords = ["allowlist", "ignore", "test"]
+
+# Entropy settings for generic secret detection
+[generic]
+# Minimum entropy for secret detection
+entropy = 3.5
+# Maximum line length to scan
+max-line-length = 1000

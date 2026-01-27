@@ -1,0 +1,375 @@
+name: Multi-Service Deployment
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - '.aws/**'
+      - 'gateway/**'
+      - 'users/**'
+      - 'stores/**'
+      - 'order/**'
+      - 'payment/**'
+      - 'qr/**'
+      - 'orderQuery/**'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - '.aws/**'
+      - 'gateway/**'
+      - 'users/**'
+      - 'stores/**'
+      - 'order/**'
+      - 'payment/**'
+      - 'qr/**'
+      - 'orderQuery/**'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      image_tag:
+        description: 'Image tag to deploy'
+        required: false
+        default: 'latest'
+        type: string
+
+env:
+  AWS_REGION: ap-northeast-2
+  AWS_ACCOUNT_ID: 375896310755
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            api-gateway:
+              - 'gateway/**'
+              - '.aws/task-definitions/api-gateway.json'
+            user-service:
+              - 'users/**'
+              - '.aws/task-definitions/user-service.json'
+            store-service:
+              - 'stores/**'
+              - '.aws/task-definitions/store-service.json'
+            order-service:
+              - 'order/**'
+              - '.aws/task-definitions/order-service.json'
+            payment-service:
+              - 'payment/**'
+              - '.aws/task-definitions/payment-service.json'
+            qr-service:
+              - 'qr/**'
+              - '.aws/task-definitions/qr-service.json'
+            order-query:
+              - 'orderQuery/**'
+              - '.aws/task-definitions/order-query.json'
+          list-files: json
+
+      - name: Set deployment matrix
+        id: set-matrix
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual trigger - use input services
+            if [[ "${{ github.event.inputs.services }}" == "all" ]]; then
+              SERVICES='["api-gateway","user-service","store-service","order-service","payment-service","qr-service","order-query"]'
+            else
+              # Convert comma-separated string to JSON array
+              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R 'split(",") | map(select(length > 0)) | map(gsub("^\\s+|\\s+$"; ""))')
+            fi
+          else
+            # Automatic trigger - use detected changes
+            SERVICES=$(echo '${{ steps.changes.outputs.changes }}' | jq -r '. | map(select(. != "")) | @json')
+          fi
+          
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "matrix={\"service\":$SERVICES}" >> $GITHUB_OUTPUT
+          echo "Detected services: $SERVICES"
+
+  # Group 1: Independent services (parallel deployment)
+  deploy-group-1:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]' && contains(needs.detect-changes.outputs.services, 'user-service') || contains(needs.detect-changes.outputs.services, 'qr-service')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, qr-service]
+      fail-fast: false
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Skip if service not in deployment list
+        id: check-service
+        run: |
+          if [[ ! "${{ needs.detect-changes.outputs.services }}" =~ "${{ matrix.service }}" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping ${{ matrix.service }} - not in deployment list"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Deploying ${{ matrix.service }}"
+          fi
+
+      - name: Checkout code
+        if: steps.check-service.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: steps.check-service.outputs.skip == 'false'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy service
+        if: steps.check-service.outputs.skip == 'false'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          
+          # Determine environment and image tag
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          else
+            ENVIRONMENT="${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}"
+            IMAGE_TAG="${{ github.sha }}"
+          fi
+          
+          echo "🚀 Deploying ${{ matrix.service }} to $ENVIRONMENT with tag $IMAGE_TAG"
+          ./deploy.sh ${{ matrix.service }} $ENVIRONMENT $IMAGE_TAG
+
+  # Group 2: Business logic services (parallel deployment after Group 1)
+  deploy-group-2:
+    needs: [detect-changes, deploy-group-1]
+    if: always() && needs.detect-changes.outputs.services != '[]' && (contains(needs.detect-changes.outputs.services, 'store-service') || contains(needs.detect-changes.outputs.services, 'order-service') || contains(needs.detect-changes.outputs.services, 'order-query'))
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [store-service, order-service, order-query]
+      fail-fast: false
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Skip if service not in deployment list
+        id: check-service
+        run: |
+          if [[ ! "${{ needs.detect-changes.outputs.services }}" =~ "${{ matrix.service }}" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping ${{ matrix.service }} - not in deployment list"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Deploying ${{ matrix.service }}"
+          fi
+
+      - name: Checkout code
+        if: steps.check-service.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: steps.check-service.outputs.skip == 'false'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy service
+        if: steps.check-service.outputs.skip == 'false'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          
+          # Determine environment and image tag
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          else
+            ENVIRONMENT="${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}"
+            IMAGE_TAG="${{ github.sha }}"
+          fi
+          
+          echo "🚀 Deploying ${{ matrix.service }} to $ENVIRONMENT with tag $IMAGE_TAG"
+          ./deploy.sh ${{ matrix.service }} $ENVIRONMENT $IMAGE_TAG
+
+  # Group 3: Critical services (sequential deployment after Group 2)
+  deploy-payment-service:
+    needs: [detect-changes, deploy-group-2]
+    if: always() && needs.detect-changes.outputs.services != '[]' && contains(needs.detect-changes.outputs.services, 'payment-service')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Payment Service
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          
+          # Determine environment and image tag
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          else
+            ENVIRONMENT="${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}"
+            IMAGE_TAG="${{ github.sha }}"
+          fi
+          
+          echo "🔒 Deploying payment-service to $ENVIRONMENT with tag $IMAGE_TAG"
+          ./deploy.sh payment-service $ENVIRONMENT $IMAGE_TAG
+
+  deploy-api-gateway:
+    needs: [detect-changes, deploy-payment-service]
+    if: always() && needs.detect-changes.outputs.services != '[]' && contains(needs.detect-changes.outputs.services, 'api-gateway')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy API Gateway
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          
+          # Determine environment and image tag
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          else
+            ENVIRONMENT="${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}"
+            IMAGE_TAG="${{ github.sha }}"
+          fi
+          
+          echo "🌐 Deploying api-gateway to $ENVIRONMENT with tag $IMAGE_TAG"
+          ./deploy.sh api-gateway $ENVIRONMENT $IMAGE_TAG
+
+  # Integration tests after all deployments
+  integration-tests:
+    needs: [detect-changes, deploy-group-1, deploy-group-2, deploy-payment-service, deploy-api-gateway]
+    if: always() && needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for services to be ready
+        run: |
+          echo "⏳ Waiting for services to be ready..."
+          sleep 120  # Wait 2 minutes for services to stabilize
+
+      - name: Run integration tests
+        run: |
+          echo "🧪 Running integration tests..."
+          # Add your integration test commands here
+          # Example: newman run postman-collection.json --environment staging.json
+
+      - name: Health check all services
+        run: |
+          echo "🔍 Performing health checks..."
+          # Add health check commands for all deployed services
+
+  notify-deployment:
+    needs: [detect-changes, deploy-group-1, deploy-group-2, deploy-payment-service, deploy-api-gateway, integration-tests]
+    if: always() && needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Determine deployment status
+        id: status
+        run: |
+          if [[ "${{ needs.deploy-group-1.result }}" == "success" && 
+                "${{ needs.deploy-group-2.result }}" == "success" && 
+                "${{ needs.deploy-payment-service.result }}" == "success" && 
+                "${{ needs.deploy-api-gateway.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ 모든 서비스 배포 성공" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ 일부 서비스 배포 실패" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "${{ steps.status.outputs.message }}",
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.status == 'success' && 'good' || 'danger' }}",
+                  "fields": [
+                    {
+                      "title": "배포된 서비스",
+                      "value": "${{ needs.detect-changes.outputs.services }}",
+                      "short": true
+                    },
+                    {
+                      "title": "환경",
+                      "value": "${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}",
+                      "short": true
+                    },
+                    {
+                      "title": "트리거",
+                      "value": "${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Automatic' }}",
+                      "short": true
+                    },
+                    {
+                      "title": "작성자",
+                      "value": "${{ github.actor }}",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            }
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

@@ -1,0 +1,415 @@
+name: Unified CI/CD Pipeline
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'backend/**'
+      - 'users/**'
+      - 'stores/**'
+      - 'order/**'
+      - 'orderQuery/**'
+      - 'payment/**'
+      - 'gateway/**'
+      - 'checkIns/**'
+      - '.aws/task-definitions/**'
+      - '.github/workflows/unified-cicd.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'backend/**'
+      - 'users/**'
+      - 'stores/**'
+      - 'order/**'
+      - 'orderQuery/**'
+      - 'payment/**'
+      - 'gateway/**'
+      - 'checkIns/**'
+      - '.aws/task-definitions/**'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      image_tag:
+        description: 'Image tag (default: latest)'
+        required: false
+        default: 'latest'
+        type: string
+
+env:
+  AWS_REGION: ap-northeast-2
+  AWS_ACCOUNT_ID: 375896310755
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    # 개별 서비스 워크플로우와 중복 실행 방지
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[unified]') || contains(github.event.head_commit.message, '[multi]')
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+      matrix: ${{ steps.changes.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.services }}" = "all" ]; then
+              SERVICES="backend,users,stores,order,orderQuery,payment,gateway,checkIns"
+            else
+              SERVICES="${{ github.event.inputs.services }}"
+            fi
+          else
+            SERVICES=""
+            
+            # Check for changes in each service directory
+            if git diff --name-only HEAD~1 HEAD | grep -q "^backend/"; then
+              SERVICES="${SERVICES},backend"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
+              SERVICES="${SERVICES},users"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^stores/"; then
+              SERVICES="${SERVICES},stores"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^order/"; then
+              SERVICES="${SERVICES},order"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^orderQuery/"; then
+              SERVICES="${SERVICES},orderQuery"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^payment/"; then
+              SERVICES="${SERVICES},payment"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^gateway/"; then
+              SERVICES="${SERVICES},gateway"
+            fi
+            if git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
+              SERVICES="${SERVICES},checkIns"
+            fi
+            
+            # Check for task definition changes
+            if git diff --name-only HEAD~1 HEAD | grep -q "^\.aws/task-definitions/"; then
+              CHANGED_TASKS=$(git diff --name-only HEAD~1 HEAD | grep "^\.aws/task-definitions/" | sed 's/.*\/\(.*\)\.json/\1/' | tr '\n' ',')
+              SERVICES="${SERVICES},${CHANGED_TASKS}"
+            fi
+            
+            # Remove leading comma
+            SERVICES=$(echo $SERVICES | sed 's/^,//')
+          fi
+          
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          
+          # Create matrix for parallel execution
+          if [ -n "$SERVICES" ]; then
+            MATRIX=$(echo $SERVICES | jq -R -s -c 'split(",") | map(select(length > 0))')
+          else
+            MATRIX="[]"
+          fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          
+          echo "Detected services: $SERVICES"
+          echo "Matrix: $MATRIX"
+
+  test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: goorm_popcorn_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      kafka:
+        image: confluentinc/cp-kafka:latest
+        env:
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports:
+          - 9092:9092
+
+      zookeeper:
+        image: confluentinc/cp-zookeeper:latest
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+        ports:
+          - 2181:2181
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run tests for ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          ../gradlew test
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: goorm_popcorn_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+
+      - name: Generate test report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: ${{ matrix.service }} Tests
+          path: ${{ matrix.service }}/build/test-results/test/*.xml
+          reporter: java-junit
+
+      - name: Code coverage
+        working-directory: ${{ matrix.service }}
+        run: ../gradlew jacocoTestReport
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ${{ matrix.service }}/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: ${{ matrix.service }}
+
+  security-scan:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/gradle@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=${{ matrix.service }}/build.gradle
+
+      - name: Enhanced security scan for payment service
+        if: matrix.service == 'payment'
+        uses: snyk/actions/gradle@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=medium --file=${{ matrix.service }}/build.gradle
+
+  build-and-deploy:
+    needs: [detect-changes, test, security-scan]
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services != '' && 
+      github.event_name == 'push' && 
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs.security-scan.result == 'success' || needs.security-scan.result == 'skipped')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build application
+        working-directory: ${{ matrix.service }}
+        run: |
+          chmod +x ../gradlew
+          ../gradlew build -x test
+
+      - name: Set ECR repository name
+        id: ecr-repo
+        run: |
+          case "${{ matrix.service }}" in
+            "backend") echo "repository=goorm-popcorn-backend" >> $GITHUB_OUTPUT ;;
+            "users") echo "repository=goorm-popcorn-user-service" >> $GITHUB_OUTPUT ;;
+            "stores") echo "repository=goorm-popcorn-store-service" >> $GITHUB_OUTPUT ;;
+            "order") echo "repository=goorm-popcorn-order-service" >> $GITHUB_OUTPUT ;;
+            "orderQuery") echo "repository=goorm-popcorn-order-query" >> $GITHUB_OUTPUT ;;
+            "payment") echo "repository=goorm-popcorn-payment-service" >> $GITHUB_OUTPUT ;;
+            "gateway") echo "repository=goorm-popcorn-api-gateway" >> $GITHUB_OUTPUT ;;
+            "checkIns") echo "repository=goorm-popcorn-checkin-service" >> $GITHUB_OUTPUT ;;
+            *) echo "repository=goorm-popcorn-${{ matrix.service }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          docker build \
+            --build-arg JAR_FILE=build/libs/*.jar \
+            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG \
+            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest \
+            .
+
+      - name: Scan Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $HOME/Library/Caches:/root/.cache/ \
+            aquasec/trivy:latest image \
+            --exit-code 1 --severity HIGH,CRITICAL \
+            $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
+
+      - name: Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest
+
+      - name: Deploy to Staging
+        if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/backend/backend-service/; s/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
+          ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
+
+      - name: Wait for manual approval (Production)
+        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && matrix.service == 'payment'
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PROD_APPROVERS }}
+          minimum-approvals: 2
+          issue-title: "Deploy ${{ matrix.service }} to Production (Enhanced Security)"
+          issue-body: |
+            **Service**: ${{ matrix.service }} (Payment Service - Enhanced Security)
+            **Version**: ${{ github.event.inputs.image_tag || github.sha }}
+            **Branch**: ${{ github.ref_name }}
+            **Author**: ${{ github.actor }}
+            
+            ⚠️ **SECURITY CRITICAL**: This is a payment service deployment.
+            Please review security checklist and approve with 2 approvers.
+
+      - name: Wait for manual approval (Production - Other Services)
+        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && matrix.service != 'payment'
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PROD_APPROVERS }}
+          minimum-approvals: 1
+          issue-title: "Deploy ${{ matrix.service }} to Production"
+          issue-body: |
+            **Service**: ${{ matrix.service }}
+            **Version**: ${{ github.event.inputs.image_tag || github.sha }}
+            **Branch**: ${{ github.ref_name }}
+            **Author**: ${{ github.actor }}
+            
+            Please review and approve the production deployment.
+
+      - name: Deploy to Production
+        if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/backend/backend-service/; s/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
+          ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
+
+  notify:
+    needs: [detect-changes, build-and-deploy]
+    if: always() && needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Notify Discord
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            🚀 **Unified CI/CD Pipeline** ${{ needs.build-and-deploy.result == 'success' && '✅ 성공' || '❌ 실패' }}
+            
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **환경**: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
+            **작성자**: ${{ github.actor }}
+            **트리거**: ${{ github.event_name }}
+            **실행 시간**: ${{ github.run_number }}번째 실행
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

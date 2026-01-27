@@ -1,0 +1,356 @@
+name: Feature Branch CI
+
+on:
+  push:
+    branches: 
+      - 'feature/**'
+      - 'hotfix/**'
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+      matrix: ${{ steps.changes.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          SERVICES=""
+          
+          # Check for changes in each service directory
+          if git diff --name-only HEAD~1 HEAD | grep -q "^backend/"; then
+            SERVICES="${SERVICES},backend"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
+            SERVICES="${SERVICES},users"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^stores/"; then
+            SERVICES="${SERVICES},stores"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^order/"; then
+            SERVICES="${SERVICES},order"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^orderQuery/"; then
+            SERVICES="${SERVICES},orderQuery"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^payment/"; then
+            SERVICES="${SERVICES},payment"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^gateway/"; then
+            SERVICES="${SERVICES},gateway"
+          fi
+          if git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
+            SERVICES="${SERVICES},checkIns"
+          fi
+          
+          # Remove leading comma
+          SERVICES=$(echo $SERVICES | sed 's/^,//')
+          
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          
+          # Create matrix for parallel execution
+          if [ -n "$SERVICES" ]; then
+            MATRIX=$(echo $SERVICES | jq -R -s -c 'split(",") | map(select(length > 0))')
+          else
+            MATRIX="[]"
+          fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          
+          echo "Detected services: $SERVICES"
+          echo "Matrix: $MATRIX"
+
+  feature-ci:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: goorm_popcorn_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      kafka:
+        image: confluentinc/cp-kafka:latest
+        env:
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports:
+          - 9092:9092
+
+      zookeeper:
+        image: confluentinc/cp-zookeeper:latest
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+        ports:
+          - 2181:2181
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Code Quality Check
+        working-directory: ${{ matrix.service }}
+        run: |
+          # Checkstyle for code style
+          ../gradlew checkstyleMain checkstyleTest
+          
+          # SpotBugs for static analysis
+          ../gradlew spotbugsMain spotbugsTest
+        continue-on-error: false
+
+      - name: Run Unit Tests
+        working-directory: ${{ matrix.service }}
+        run: |
+          ../gradlew test
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: goorm_popcorn_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+
+      - name: Generate test report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: ${{ matrix.service }} Tests
+          path: ${{ matrix.service }}/build/test-results/test/*.xml
+          reporter: java-junit
+
+      - name: Code Coverage
+        working-directory: ${{ matrix.service }}
+        run: ../gradlew jacocoTestReport
+
+      - name: Check Coverage Threshold
+        working-directory: ${{ matrix.service }}
+        run: |
+          ../gradlew jacocoTestCoverageVerification
+        env:
+          COVERAGE_THRESHOLD: 80
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ${{ matrix.service }}/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: ${{ matrix.service }}
+          fail_ci_if_error: true
+
+      - name: Integration Tests
+        working-directory: ${{ matrix.service }}
+        run: |
+          # API 테스트
+          ../gradlew integrationTest
+          
+          # 데이터베이스 연동 테스트
+          ../gradlew test --tests "*IntegrationTest"
+        env:
+          SPRING_PROFILES_ACTIVE: integration-test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: goorm_popcorn_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+
+      - name: Security Scan
+        uses: snyk/actions/gradle@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=${{ matrix.service }}/build.gradle
+
+      - name: Build Application
+        working-directory: ${{ matrix.service }}
+        run: |
+          ../gradlew build -x test
+
+      - name: Build Docker Image (for validation)
+        working-directory: ${{ matrix.service }}
+        run: |
+          docker build \
+            --build-arg JAR_FILE=build/libs/*.jar \
+            -t ${{ matrix.service }}:${{ github.sha }} \
+            .
+
+  hotfix-deploy:
+    needs: [detect-changes, feature-ci]
+    if: |
+      startsWith(github.ref, 'refs/heads/hotfix/') && 
+      github.event_name == 'push' &&
+      needs.feature-ci.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set ECR repository name
+        id: ecr-repo
+        run: |
+          case "${{ matrix.service }}" in
+            "backend") echo "repository=goorm-popcorn-backend" >> $GITHUB_OUTPUT ;;
+            "users") echo "repository=goorm-popcorn-user-service" >> $GITHUB_OUTPUT ;;
+            "stores") echo "repository=goorm-popcorn-store-service" >> $GITHUB_OUTPUT ;;
+            "order") echo "repository=goorm-popcorn-order-service" >> $GITHUB_OUTPUT ;;
+            "orderQuery") echo "repository=goorm-popcorn-order-query" >> $GITHUB_OUTPUT ;;
+            "payment") echo "repository=goorm-popcorn-payment-service" >> $GITHUB_OUTPUT ;;
+            "gateway") echo "repository=goorm-popcorn-api-gateway" >> $GITHUB_OUTPUT ;;
+            "checkIns") echo "repository=goorm-popcorn-checkin-service" >> $GITHUB_OUTPUT ;;
+            *) echo "repository=goorm-popcorn-${{ matrix.service }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Build and Push Docker Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: hotfix-${{ github.sha }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          chmod +x ../gradlew
+          ../gradlew build -x test
+          
+          docker build \
+            --build-arg JAR_FILE=build/libs/*.jar \
+            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG \
+            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:hotfix-latest \
+            .
+          
+          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:hotfix-latest
+
+      - name: Emergency Deploy to Production
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/backend/backend-service/; s/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
+          ./deploy.sh $SERVICE_NAME prod hotfix-${{ github.sha }}
+
+      - name: Create Hotfix Tag
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ matrix.service }}-hotfix-v${{ github.run_number }}
+          release_name: ${{ matrix.service }} Hotfix v${{ github.run_number }}
+          body: |
+            ## 🚨 Emergency Hotfix Release
+            
+            **Service**: ${{ matrix.service }}
+            **Hotfix Version**: hotfix-${{ github.sha }}
+            **Author**: ${{ github.actor }}
+            **Date**: ${{ github.event.head_commit.timestamp }}
+            
+            ### Hotfix Details
+            ${{ github.event.head_commit.message }}
+            
+            ### Deployment Info
+            - Environment: Production (Emergency)
+            - Image Tag: hotfix-${{ github.sha }}
+            - Branch: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Notify Discord (Hotfix)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            🚨 **HOTFIX DEPLOYED** 🚨
+            
+            **서비스**: ${{ matrix.service }}
+            **환경**: 🔴 Production (Emergency)
+            **버전**: `hotfix-${{ github.sha }}`
+            **작성자**: ${{ github.actor }}
+            **브랜치**: ${{ github.ref_name }}
+            **긴급 배포 완료**: ✅
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+  notify-feature:
+    needs: [detect-changes, feature-ci]
+    if: always() && needs.detect-changes.outputs.services != '' && startsWith(github.ref, 'refs/heads/feature/')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Notify Discord (Feature)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            ${{ needs.feature-ci.result == 'success' && '✅' || '❌' }} **Feature Branch CI** ${{ needs.feature-ci.result == 'success' && '성공' || '실패' }}
+            
+            **브랜치**: ${{ github.ref_name }}
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **작성자**: ${{ github.actor }}
+            **상태**: ${{ needs.feature-ci.result }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
