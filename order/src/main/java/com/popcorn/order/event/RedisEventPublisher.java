@@ -132,8 +132,11 @@ public class RedisEventPublisher {
      */
     public void publishPriceLookupRequestedEvent(PriceLookupRequestedEvent event) {
         try {
-            log.info("가격 조회 요청 이벤트 Stream 발행 시작 - correlationId: {}, type: {}",
-                    event.getCorrelationId(), event.getRequestType());
+            log.warn("🔥 [DEBUG] 가격 조회 요청 이벤트 Stream 발행 시작 - correlationId: {}, type: {}, goodsVariantId: {}",
+                    event.getCorrelationId(), event.getRequestType(), event.getGoodsVariantId());
+
+            // Redis Template 연결 상태 확인
+            log.warn("🔥 [DEBUG] RedisTemplate 상태: {}", redisTemplate != null ? "NOT NULL" : "NULL");
 
             Map<String, String> eventData = Map.of(
                 "eventType", "price-lookup-requested",
@@ -146,15 +149,22 @@ public class RedisEventPublisher {
                 "eventTime", LocalDateTime.now().toString()
             );
 
-            StringRecord record = StreamRecords.string(eventData).withStreamKey(PRICE_EVENTS_STREAM);
-            redisTemplate.opsForStream().add(record);
+            log.warn("🔥 [DEBUG] 이벤트 데이터: {}", eventData);
+            log.warn("🔥 [DEBUG] Stream 이름: {}", PRICE_EVENTS_STREAM);
 
-            log.info("가격 조회 요청 이벤트 Stream 발행 완료 - correlationId: {}, type: {}",
-                    event.getCorrelationId(), event.getRequestType());
+            StringRecord record = StreamRecords.string(eventData).withStreamKey(PRICE_EVENTS_STREAM);
+            log.warn("🔥 [DEBUG] StringRecord 생성 완료");
+
+            String recordId = redisTemplate.opsForStream().add(record).getValue();
+            log.warn("🔥 [DEBUG] Redis Stream 발행 완료 - recordId: {}", recordId);
+
+            log.info("✅ 가격 조회 요청 이벤트 Stream 발행 완료 - correlationId: {}, type: {}, recordId: {}",
+                    event.getCorrelationId(), event.getRequestType(), recordId);
 
         } catch (Exception e) {
-            log.error("가격 조회 요청 이벤트 Stream 발행 실패 - correlationId: {}, error: {}",
+            log.error("❌ 가격 조회 요청 이벤트 Stream 발행 실패 - correlationId: {}, error: {}",
                     event.getCorrelationId(), e.getMessage(), e);
+            e.printStackTrace(); // 스택 트레이스도 출력
             throw new RuntimeException("가격 조회 요청 이벤트 Stream 발행 실패", e);
         }
     }

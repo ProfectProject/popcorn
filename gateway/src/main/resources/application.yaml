@@ -12,7 +12,7 @@ spring:
         webflux:
           httpclient:
             connect-timeout: 3000    # 다운스트림 서비스 연결되는데 걸리는 시간
-            response-timeout: 5s     # 응답시간 초과
+            response-timeout: 10s    # 응답시간 초과 (5s → 10s 증가)
 
       routes:
         - id: checkIns
@@ -254,7 +254,7 @@ resilience4j:
         sliding-window-size: 100
         minimum-number-of-calls: 30
         failure-rate-threshold: 20
-        slow-call-duration-threshold: 3s
+        slow-call-duration-threshold: 8s    # 3s → 8s 증가
         slow-call-rate-threshold: 40
         wait-duration-in-open-state: 5s
         permitted-number-of-calls-in-half-open-state: 10
@@ -304,7 +304,7 @@ resilience4j:
       cbStoreService:
         timeout-duration: 700ms
       cbOrderService:
-        timeout-duration: 3000ms  # 주문 처리는 시간이 오래 걸릴 수 있음
+        timeout-duration: 8000ms  # 주문 처리는 시간이 오래 걸릴 수 있음 (3000ms → 8000ms 증가)
       cbPaymentService:
         timeout-duration: 1200ms  # 결제는 조금 더 여유 권장
       cbCheckInService:

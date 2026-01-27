@@ -46,6 +46,7 @@ public class RedisEventConfig {
             // Consumer Group 생성 (이미 존재하면 무시)
             createConsumerGroupIfNotExists(RESPONSE_EVENTS_STREAM);
             createConsumerGroupIfNotExists(STOCK_EVENTS_STREAM);
+            createConsumerGroupIfNotExists("order-info-requests"); // Order 정보 요청 처리용
 
             log.info("✅ Order Service Redis Stream Consumer Groups 초기화 완료");
         } catch (Exception e) {
@@ -89,6 +90,13 @@ public class RedisEventConfig {
         container.receive(
                 Consumer.from(ORDER_CONSUMER_GROUP, ORDER_CONSUMER_NAME),
                 StreamOffset.create(STOCK_EVENTS_STREAM, ReadOffset.lastConsumed()),
+                (org.springframework.data.redis.stream.StreamListener) orderRedisStreamListener
+        );
+
+        // Order 정보 요청 Stream 구독 (Payment 서비스 등에서 Order 정보 요청)
+        container.receive(
+                Consumer.from(ORDER_CONSUMER_GROUP, ORDER_CONSUMER_NAME),
+                StreamOffset.create("order-info-requests", ReadOffset.lastConsumed()),
                 (org.springframework.data.redis.stream.StreamListener) orderRedisStreamListener
         );
 

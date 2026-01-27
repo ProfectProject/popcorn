@@ -9,6 +9,7 @@ import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.stereotype.Component;
 
 import com.popcorn.order.service.OrderPriceLookupService;
+import com.popcorn.order.service.OrderInfoResponseService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -28,6 +29,7 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final OrderPriceLookupService orderPriceLookupService;
+    private final OrderInfoResponseService orderInfoResponseService;
 
     @Override
     public void onMessage(MapRecord<String, String, Object> record) {
@@ -39,8 +41,15 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
             log.info("🔔 [ORDER] Stream 메시지 수신 - stream: {}, recordId: {}, eventType: {}",
                     streamName, recordId, values.get("eventType"));
 
-            String eventType = (String) values.get("eventType");
-            handleStreamEvent(eventType, values);
+            // 스트림별 처리
+            if ("order-info-requests".equals(streamName)) {
+                log.info("📞 [ORDER] Order 정보 요청 수신");
+                orderInfoResponseService.handleOrderInfoRequest(values);
+            } else {
+                // 기존 eventType 기반 처리
+                String eventType = (String) values.get("eventType");
+                handleStreamEvent(eventType, values);
+            }
 
             // 메시지 처리 완료 후 ACK (자동으로 처리됨)
             log.debug("✅ [ORDER] 메시지 처리 완료 - stream: {}, recordId: {}", streamName, recordId);

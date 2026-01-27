@@ -224,4 +224,5 @@ public class GoodsQueryController extends BaseController {
         GoodsStockResponse response = goodsService.completeReservationGoods(popupId, goodsId, quantity);
         return ok(response);
     }
+
 }

@@ -1,6 +1,8 @@
 package com.popcorn.payment.event
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.popcorn.payment.service.PaymentOrderInfoService
+import com.popcorn.payment.event.standard.OrderInfoResponseEvent
 import org.slf4j.LoggerFactory
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.stream.StreamListener
@@ -14,7 +16,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class PaymentRedisStreamListener(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val paymentOrderInfoService: PaymentOrderInfoService
 ) : StreamListener<String, MapRecord<String, String, Any>> {
 
     private val log = LoggerFactory.getLogger(PaymentRedisStreamListener::class.java)
@@ -28,8 +31,15 @@ class PaymentRedisStreamListener(
             log.info("🔔 [PAYMENT] Stream 메시지 수신 - stream: {}, recordId: {}, eventType: {}",
                 streamName, recordId, values["eventType"])
 
-            val eventType = values["eventType"] as? String
-            handleStreamEvent(eventType, values)
+            // 스트림별 처리
+            if ("order-info-responses" == streamName) {
+                log.info("📞 [PAYMENT] Order 정보 응답 수신")
+                handleOrderInfoResponse(values)
+            } else {
+                // 기존 eventType 기반 처리
+                val eventType = values["eventType"] as? String
+                handleStreamEvent(eventType, values)
+            }
 
             // 메시지 처리 완료 후 ACK (자동으로 처리됨)
             log.debug("✅ [PAYMENT] 메시지 처리 완료 - stream: {}, recordId: {}", streamName, recordId)
@@ -124,6 +134,50 @@ class PaymentRedisStreamListener(
 
         } catch (e: Exception) {
             log.error("🚨 [PAYMENT] 결제 실패 처리 실패 - values: {}, error: {}", values, e.message, e)
+        }
+    }
+
+    /**
+     * Order 정보 응답 이벤트 처리
+     */
+    private fun handleOrderInfoResponse(values: Map<String, Any>) {
+        try {
+            log.info("📞 [PAYMENT] Order 정보 응답 처리 시작 - requestId: {}, success: {}",
+                values["requestId"], values["success"])
+
+            // Map을 OrderInfoResponseEvent로 변환
+            val response = OrderInfoResponseEvent().apply {
+                requestId = values["requestId"] as? String
+                success = (values["success"] as? String)?.toBoolean() ?: false
+                actualOrderNo = values["actualOrderNo"] as? String
+                actualUserId = (values["actualUserId"] as? String)?.toLongOrNull()
+                actualPopupId = values["actualPopupId"] as? String
+                actualHasReservation = (values["actualHasReservation"] as? String)?.toBoolean()
+                actualHasGoods = (values["actualHasGoods"] as? String)?.toBoolean()
+
+                // lines JSON 파싱
+                val linesJson = values["actualLines"] as? String
+                if (!linesJson.isNullOrBlank() && linesJson != "[]") {
+                    try {
+                        val typeRef = object : com.fasterxml.jackson.core.type.TypeReference<List<com.popcorn.payment.event.standard.EventLineItem>>() {}
+                        actualLines = objectMapper.readValue(linesJson, typeRef)
+                    } catch (e: Exception) {
+                        log.warn("Order lines JSON 파싱 실패: {}", e.message)
+                        actualLines = emptyList()
+                    }
+                } else {
+                    actualLines = emptyList()
+                }
+            }
+
+            // PaymentOrderInfoService에 응답 전달
+            paymentOrderInfoService.handleOrderInfoResponse(response)
+
+            log.info("✅ [PAYMENT] Order 정보 응답 처리 완료 - requestId: {}, success: {}",
+                response.requestId, response.success)
+
+        } catch (e: Exception) {
+            log.error("🚨 [PAYMENT] Order 정보 응답 처리 실패 - values: {}, error: {}", values, e.message, e)
         }
     }
 }

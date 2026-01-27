@@ -103,4 +103,4 @@ order:
   validation:
     max-quantity: 1000  # 로컬에서는 더 큰 수량 허용
   price-lookup:
-    timeout-ms: 5000  # 가격 조회 타임아웃 1500ms → 5000ms 증가
+    timeout-ms: 2000  # 가격 조회 타임아웃 5000ms → 2000ms 단축 (속도 개선)

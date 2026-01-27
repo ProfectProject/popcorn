@@ -46,6 +46,7 @@ class PaymentRedisStreamConfig(
             createConsumerGroupIfNotExists(ORDER_EVENTS_STREAM)
             createConsumerGroupIfNotExists(PAYMENT_EVENTS_STREAM)
             createConsumerGroupIfNotExists(INVENTORY_EVENTS_STREAM)
+            createConsumerGroupIfNotExists("order-info-responses") // Order 정보 응답 수신용
 
             log.info("✅ Payment Service Redis Stream Consumer Groups 초기화 완료")
         } catch (e: Exception) {
@@ -97,6 +98,14 @@ class PaymentRedisStreamConfig(
         container.receive(
             Consumer.from(PAYMENT_CONSUMER_GROUP, PAYMENT_CONSUMER_NAME),
             StreamOffset.create(INVENTORY_EVENTS_STREAM, ReadOffset.lastConsumed()),
+            @Suppress("UNCHECKED_CAST")
+            paymentRedisStreamListener as org.springframework.data.redis.stream.StreamListener<String, MapRecord<String, String, String>>
+        )
+
+        // Order 정보 응답 Stream 구독 (Payment에서 요청한 Order 정보 응답 수신)
+        container.receive(
+            Consumer.from(PAYMENT_CONSUMER_GROUP, PAYMENT_CONSUMER_NAME),
+            StreamOffset.create("order-info-responses", ReadOffset.lastConsumed()),
             @Suppress("UNCHECKED_CAST")
             paymentRedisStreamListener as org.springframework.data.redis.stream.StreamListener<String, MapRecord<String, String, String>>
         )
