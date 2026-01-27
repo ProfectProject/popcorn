@@ -270,13 +270,13 @@ jobs:
         id: ecr-repo
         run: |
           case "${{ matrix.service }}" in
-            "users") echo "repository=goorm-popcorn-user-service" >> $GITHUB_OUTPUT ;;
-            "stores") echo "repository=goorm-popcorn-store-service" >> $GITHUB_OUTPUT ;;
-            "order") echo "repository=goorm-popcorn-order-service" >> $GITHUB_OUTPUT ;;
+            "users") echo "repository=goorm-popcorn-user" >> $GITHUB_OUTPUT ;;
+            "stores") echo "repository=goorm-popcorn-store" >> $GITHUB_OUTPUT ;;
+            "order") echo "repository=goorm-popcorn-order" >> $GITHUB_OUTPUT ;;
             "orderQuery") echo "repository=goorm-popcorn-order-query" >> $GITHUB_OUTPUT ;;
-            "payment") echo "repository=goorm-popcorn-payment-service" >> $GITHUB_OUTPUT ;;
+            "payment") echo "repository=goorm-popcorn-payment" >> $GITHUB_OUTPUT ;;
             "gateway") echo "repository=goorm-popcorn-api-gateway" >> $GITHUB_OUTPUT ;;
-            "checkIns") echo "repository=goorm-popcorn-checkin-service" >> $GITHUB_OUTPUT ;;
+            "checkIns") echo "repository=goorm-popcorn-checkin" >> $GITHUB_OUTPUT ;;
             *) echo "repository=goorm-popcorn-${{ matrix.service }}" >> $GITHUB_OUTPUT ;;
           esac
 
