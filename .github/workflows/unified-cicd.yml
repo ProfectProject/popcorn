@@ -574,6 +574,59 @@ jobs:
           chmod +x deploy.sh
           ./deploy.sh api-gateway prod ${{ github.event.inputs.image_tag || github.sha }}
 
+  notify-cd-start:
+    needs: [detect-changes, build-and-deploy]
+    if: |
+      needs.detect-changes.outputs.services != '' &&
+      needs.build-and-deploy.result == 'success' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord (CD Start)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            🟡 **CD 시작**
+            
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **환경**: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
+            **작성자**: ${{ github.actor }}
+            **브랜치**: ${{ github.ref_name }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+  notify-cd-end:
+    needs: [detect-changes, deploy-group-1, deploy-group-2, deploy-payment, deploy-gateway]
+    if: always() && needs.detect-changes.outputs.services != '' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set CD status
+        id: status
+        run: |
+          results="${{ needs.deploy-group-1.result }} ${{ needs.deploy-group-2.result }} ${{ needs.deploy-payment.result }} ${{ needs.deploy-gateway.result }}"
+          if echo "$results" | grep -Eq "(failure|cancelled)"; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Discord (CD End)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            ${{ steps.status.outputs.status == 'success' && '✅' || '❌' }} **CD 종료** ${{ steps.status.outputs.status == 'success' && '성공' || '실패' }}
+            
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **환경**: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
+            **작성자**: ${{ github.actor }}
+            **브랜치**: ${{ github.ref_name }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
   notify:
     needs: [detect-changes, build-and-deploy]
     if: always() && needs.detect-changes.outputs.services != ''

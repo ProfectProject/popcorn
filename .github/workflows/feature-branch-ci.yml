@@ -350,6 +350,44 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
+  notify-ci-start:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord (CI Start)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            🟢 **CI 시작**
+            
+            **브랜치**: ${{ github.ref_name }}
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **작성자**: ${{ github.actor }}
+            **트리거**: ${{ github.event_name }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+  notify-ci-end:
+    needs: [detect-changes, feature-ci]
+    if: always() && needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord (CI End)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            ${{ needs.feature-ci.result == 'success' && '✅' || '❌' }} **CI 종료** ${{ needs.feature-ci.result == 'success' && '성공' || '실패' }}
+            
+            **브랜치**: ${{ github.ref_name }}
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **작성자**: ${{ github.actor }}
+            **상태**: ${{ needs.feature-ci.result }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
   notify-feature:
     needs: [detect-changes, feature-ci]
     if: always() && needs.detect-changes.outputs.services != '' && startsWith(github.ref, 'refs/heads/feature/')
