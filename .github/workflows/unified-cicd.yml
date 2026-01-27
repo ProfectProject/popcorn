@@ -387,6 +387,9 @@ jobs:
         if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev')
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/checkIns/checkin-service/')
           ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
@@ -404,6 +407,9 @@ jobs:
         if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/checkIns/checkin-service/')
           ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
@@ -451,6 +457,9 @@ jobs:
         if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev')
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/')
           ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
@@ -468,6 +477,9 @@ jobs:
         if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/')
           ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
@@ -500,6 +512,9 @@ jobs:
         if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev'
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           ./deploy.sh payment-service dev ${{ github.event.inputs.image_tag || github.sha }}
 
@@ -524,6 +539,9 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           ./deploy.sh payment-service prod ${{ github.event.inputs.image_tag || github.sha }}
 
@@ -555,6 +573,9 @@ jobs:
         if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev'
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           ./deploy.sh api-gateway dev ${{ github.event.inputs.image_tag || github.sha }}
 
@@ -571,6 +592,9 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
         working-directory: .aws
         run: |
+          if [ ! -f deploy.sh ]; then
+            cp ../local-docs/scripts/deploy.sh ./deploy.sh
+          fi
           chmod +x deploy.sh
           ./deploy.sh api-gateway prod ${{ github.event.inputs.image_tag || github.sha }}
 
