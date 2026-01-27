@@ -60,36 +60,27 @@ jobs:
       - name: Build common-lib
         run: ./gradlew :common-lib:build -x test
 
-      - name: Run CheckIns Tests
-        run: ./gradlew :checkIns:test --info
+      - name: Run Users Tests
+        run: ./gradlew :users:test --info
 
       - name: Generate Coverage Report
-        run: ./gradlew :checkIns:jacocoTestReport
+        run: ./gradlew :users:jacocoTestReport
 
       - name: Verify Coverage (80% minimum)
-        run: ./gradlew :checkIns:jacocoTestCoverageVerification
+        run: ./gradlew :users:jacocoTestCoverageVerification
 
-      - name: Upload Coverage to Codecov (optional)
-        if: success()
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./checkIns/build/reports/jacoco/test/jacocoTestReport.xml
-          flags: checkins
-          name: codecov-checkins
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload CheckIns Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: checkins-test-results
+          name: users-test-results
           path: |
             users/build/reports/tests/test/
             users/build/test-results/test/
           retention-days: 7
 
-      - name: Upload CheckIns Coverage Report
+      - name: Upload Users Coverage Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -125,7 +116,7 @@ jobs:
   build-users:
     runs-on: ubuntu-latest
     needs: test-checkins
-    name: CheckIns Module Build
+    name: Users Module Build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     steps:
@@ -142,7 +133,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build CheckIns Module
-        run: ./gradlew :checkIns:build -x test
+        run: ./gradlew :users:build -x test
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -154,7 +145,7 @@ jobs:
   docker-build-push-ecr:
     runs-on: ubuntu-latest
     needs: build-users
-    name: Build & Push CheckIns Image to ECR
+    name: Build & Push Users Image to ECR
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
     permissions:
