@@ -139,10 +139,15 @@ jobs:
   deploy-ecs:
     needs: docker-build-push-ecr
     runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-northeast-2
+
     steps:
       - name: Download Task Definition
         run: |
           aws ecs describe-task-definition --task-definition goorm-popcorn-dev-user-service \
+          --rigion ${{ env.AWS_REGION }} \
           --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
@@ -157,7 +162,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: goorm-popcorn-dev-user-service
-          service: ${{ matrix.service }}-service
+          service: goorm-popcorn-dev-user-service
           cluster: goorm-popcorn-dev-cluster
           wait-for-service-stability: true
           
