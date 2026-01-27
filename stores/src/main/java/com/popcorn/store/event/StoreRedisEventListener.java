@@ -9,11 +9,24 @@ import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
+import com.popcorn.store.domain.goods.entity.GoodsOrderReservation;
+import com.popcorn.store.domain.goods.entity.ReservationStatus;
 import com.popcorn.store.domain.goods.entity.ReservationType;
 import com.popcorn.store.domain.goods.service.GoodsService;
 import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
 
 /**
  * Store 서비스 범용 이벤트 리스너
@@ -31,6 +44,7 @@ public class StoreRedisEventListener implements MessageListener {
     private final GoodsOrderReservationService reservationService;
     private final GoodsService goodsService;
     private final StoreRedisEventPublisher storeRedisEventPublisher;
+    private final InventoryRedisHoldService inventoryHoldService;
 
     /**
      * Redis Pub/Sub 이벤트 수신
@@ -180,7 +194,16 @@ public class StoreRedisEventListener implements MessageListener {
         }
     }
 
+    /**
+     * Order 서비스에서 발행한 굿즈 재고 예약 요청을 처리하는 메서드
+     * 1. JSON 파싱 후 ORDER/POPUP 정보를 추출
+     * 2. 각 굿즈마다 availability 키를 계산하고 Redis Lua로 HOLD
+     * 3. HOLD 성공 시 예약 행을 HELD 상태로 저장하고, 실패 시 RELEASE + 실패 이벤트
+     * 4. Redis 이벤트를 통해 외부에 굿즈 예약 성공/실패를 알림
+     */
     private void publishGoodsReservationRequestedEvent(String body) {
+        java.util.UUID orderId = null;
+        java.util.List<GoodsOrderReservation> createdReservations = new java.util.ArrayList<>();
         try {
             String resolvedBody = body;
             try {
@@ -193,62 +216,75 @@ public class StoreRedisEventListener implements MessageListener {
 
             GoodsReservationRequestedPayload payload =
                     objectMapper.readValue(resolvedBody, GoodsReservationRequestedPayload.class);
+            orderId = payload.orderId;
 
             if (payload.reservationItems == null || payload.reservationItems.isEmpty()) {
                 log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목이 없음 - orderId: {}", payload.orderId);
                 return;
             }
 
-            for (GoodsReservationItem item : payload.reservationItems) {
-                if (item.goodsVariantId == null || item.quantity == null) {
-                    log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 누락 - orderId: {}, item: {}",
-                            payload.orderId, item);
-                    continue;
-                }
+            java.util.List<GoodsReservationItem> validItems = payload.reservationItems.stream()
+                    .filter(item -> item.goodsVariantId != null && item.quantity != null && item.quantity > 0)
+                    .toList();
+            if (validItems.isEmpty()) {
+                log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 없음 - orderId: {}", payload.orderId);
+                return;
+            }
 
-                java.util.UUID popupId = payload.popupId;
-                try {
-                    if (popupId == null) {
-                        popupId = goodsService.resolvePopupId(item.goodsVariantId);
-                    }
+            java.util.UUID resolvedPopupId = payload.popupId;
+            if (resolvedPopupId == null) {
+                resolvedPopupId = goodsService.resolvePopupId(validItems.get(0).goodsVariantId);
+            }
 
-                    goodsService.reservationGoods(popupId, item.goodsVariantId, item.quantity);
-                    reservationService.createGoodsReservation(
-                            payload.orderId,
-                            payload.orderNo,
-                            popupId,
-                            item.goodsVariantId,
-                            item.quantity
-                    );
+            java.util.List<GoodsHoldItem> holdItems = aggregateGoodsItems(validItems);
+            HoldResult holdResult = inventoryHoldService.holdGoods(payload.orderId, resolvedPopupId, holdItems);
+            if (!holdResult.isSuccess()) {
+                throw new RuntimeException("재고 부족으로 HOLD 실패: " + holdResult.getDetail());
+            }
 
-                    log.info("✅ [STORES] 굿즈 재고 예약 완료 - orderId: {}, goodsVariantId: {}, qty: {}",
-                            payload.orderId, item.goodsVariantId, item.quantity);
+            for (GoodsReservationItem item : validItems) {
+                GoodsOrderReservation reservation = reservationService.createGoodsReservation(
+                        payload.orderId,
+                        payload.orderNo,
+                        resolvedPopupId,
+                        item.goodsVariantId,
+                        item.quantity
+                );
+                createdReservations.add(reservation);
 
-                    storeRedisEventPublisher.publishGoodsReservedEvent(
-                            payload.orderId,
-                            popupId,
-                            item.goodsVariantId,
-                            item.quantity
-                    );
+                log.info("✅ [STORES] Redis HOLD 완료 - orderId: {}, goodsVariantId: {}, qty: {}",
+                        payload.orderId, item.goodsVariantId, item.quantity);
 
-                } catch (Exception e) {
-                    log.error("❌ [STORES] 굿즈 재고 예약 실패 - orderId: {}, goodsVariantId: {}, qty: {}, error: {}",
-                            payload.orderId, item.goodsVariantId, item.quantity, e.getMessage(), e);
-
-                    storeRedisEventPublisher.publishGoodsReservationFailedEvent(
-                            payload.orderId,
-                            popupId,
-                            item.goodsVariantId,
-                            item.quantity,
-                            0,
-                            e.getMessage()
-                    );
-                }
+                storeRedisEventPublisher.publishGoodsReservedEvent(
+                        payload.orderId,
+                        resolvedPopupId,
+                        item.goodsVariantId,
+                        item.quantity
+                );
             }
 
         } catch (Exception e) {
-            log.error("🚨 [STORES] 굿즈 재고 예약 요청 이벤트 변환 실패 - body: {}, error: {}",
+            log.error("🚨 [STORES] 굿즈 재고 예약 요청 처리 실패 - body: {}, error: {}",
                     body, e.getMessage(), e);
+            if (orderId != null) {
+                try {
+                    inventoryHoldService.releaseHold(orderId);
+                } catch (Exception releaseError) {
+                    log.error("🚨 [STORES] HOLD 복구 실패 - orderId: {}, error: {}",
+                            orderId, releaseError.getMessage(), releaseError);
+                }
+            }
+            for (GoodsOrderReservation reservation : createdReservations) {
+                reservationService.updateStatus(reservation, ReservationStatus.FAILED, e.getMessage());
+                storeRedisEventPublisher.publishGoodsReservationFailedEvent(
+                        reservation.getOrderId(),
+                        reservation.getPopupId(),
+                        reservation.getGoodsVariantId(),
+                        reservation.getQuantity(),
+                        0,
+                        e.getMessage()
+                );
+            }
         }
     }
 
@@ -273,6 +309,16 @@ public class StoreRedisEventListener implements MessageListener {
             log.error("🚨 [STORES] Application 이벤트 처리 실패 - event: {}, error: {}",
                     event.getClass().getSimpleName(), e.getMessage(), e);
         }
+    }
+
+    private List<GoodsHoldItem> aggregateGoodsItems(List<GoodsReservationItem> items) {
+        Map<UUID, Integer> aggregated = new LinkedHashMap<>();
+        for (GoodsReservationItem item : items) {
+            aggregated.merge(item.goodsVariantId, item.quantity, Integer::sum);
+        }
+        return aggregated.entrySet().stream()
+                .map(entry -> new GoodsHoldItem(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
     }
 
     private static class InventoryConfirmationPayload {

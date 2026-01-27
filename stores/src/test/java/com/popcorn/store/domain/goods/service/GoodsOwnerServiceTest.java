@@ -37,6 +37,7 @@ import com.popcorn.store.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.store.domain.popup.entity.enums.PopupStatus;
 import com.popcorn.store.domain.popup.exception.PopupException;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupRepository;
+import com.popcorn.store.domain.popup.cache.PopupDetailCacheManager;
 
 class GoodsOwnerServiceTest {
 
@@ -49,12 +50,15 @@ class GoodsOwnerServiceTest {
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
 
+	@Mock
+	private PopupDetailCacheManager popupDetailCacheManager;
+
 	private GoodsOwnerService service;
 
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		service = new GoodsOwnerService(goodsVariantRepository, ownerPopupRepository, eventPublisher);
+		service = new GoodsOwnerService(goodsVariantRepository, ownerPopupRepository, eventPublisher, popupDetailCacheManager);
 	}
 
 	@Test

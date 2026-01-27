@@ -43,6 +43,7 @@ import com.popcorn.store.domain.popup.event.PopupUpdatedEvent;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupRepository;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupScheduleRepository;
 import com.popcorn.store.domain.popup.repository.owner.view.OwnerPopupScheduleView;
+import com.popcorn.store.domain.popup.cache.PopupDetailCacheManager;
 
 class OwnerPopupServiceTest {
 
@@ -58,12 +59,16 @@ class OwnerPopupServiceTest {
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
 
+	@Mock
+	private PopupDetailCacheManager popupDetailCacheManager;
+
 	private OwnerPopupService service;
 
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		service = new OwnerPopupService(ownerPopupRepository, ownerPopupScheduleRepository, validationService, eventPublisher);
+		service = new OwnerPopupService(ownerPopupRepository, ownerPopupScheduleRepository, validationService, eventPublisher,
+				popupDetailCacheManager);
 	}
 
 	@Test

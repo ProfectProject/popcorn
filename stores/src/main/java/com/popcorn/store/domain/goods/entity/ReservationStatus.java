@@ -5,8 +5,8 @@ package com.popcorn.store.domain.goods.entity;
  */
 public enum ReservationStatus {
 
-    RESERVED,
-    CONFIRMED,
-    RESTORED,
+    HELD,
+    COMMITTED,
+    RELEASED,
     FAILED
 }
