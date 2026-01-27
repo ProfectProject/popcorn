@@ -83,6 +83,36 @@ public class OrderEventPublisher {
     }
 
     /**
+     * 결제 생성 요청 이벤트 발행
+     *
+     * @param order 주문 정보
+     * @param paymentMethod 결제 수단
+     */
+    public void publishPaymentCreateRequestedEvent(Order order, String paymentMethod) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("결제 생성 요청 이벤트 발행 - orderId: {}, paymentMethod: {}",
+                    order.getId(), paymentMethod);
+
+            String paymentKey = "order:" + order.getId();
+
+            redisEventPublisher.publishPaymentCreateRequestedEvent(
+                    eventId,
+                    order.getId(),
+                    order.getOrderNo(),
+                    order.getTotalAmount(),
+                    paymentMethod,
+                    order.getCustomerId(),
+                    paymentKey
+            );
+
+        } catch (Exception e) {
+            log.error("결제 생성 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
      * 주문 취소 이벤트 발행
      *
      * @param order 취소된 주문

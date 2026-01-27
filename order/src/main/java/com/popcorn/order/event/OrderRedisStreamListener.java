@@ -5,6 +5,7 @@ import com.popcorn.common.cache.IdempotencyService;
 import com.popcorn.order.dto.user.UserAddressResponse;
 import com.popcorn.order.entity.OrderItemType;
 import com.popcorn.order.entity.OrderStatus;
+import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.service.OrderCommandService;
 import com.popcorn.order.service.OrderPriceLookupService;
 import com.popcorn.order.service.OrderUserLookupService;
@@ -32,6 +33,7 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
     private final OrderPriceLookupService orderPriceLookupService;
     private final OrderUserLookupService orderUserLookupService;
     private final OrderCommandService orderCommandService;
+    private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -92,6 +94,24 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                 case "stock-deduction-failed":
                     log.info("📦❌ [ORDER] 재고 차감 실패 이벤트 수신");
                     handleStockDeductionFailed(values);
+                    break;
+                case "stock-deduction-requested":
+                    // Order가 발행한 이벤트이므로 수신 시 무시
+                    log.debug("🔕 [ORDER] 재고 차감 요청 이벤트 무시 - eventId: {}",
+                            values.get("eventId"));
+                    break;
+                case "goods-reserved":
+                    log.info("📦✅ [ORDER] 굿즈 예약 성공 이벤트 수신");
+                    handleGoodsReserved(values);
+                    break;
+                case "goods-reservation-failed":
+                    log.info("📦❌ [ORDER] 굿즈 예약 실패 이벤트 수신");
+                    handleGoodsReservationFailed(values);
+                    break;
+                case "payment-create-requested":
+                    // Order가 발행한 이벤트이므로 수신 시 무시
+                    log.debug("🔕 [ORDER] 결제 생성 요청 이벤트 무시 - eventId: {}",
+                            values.get("eventId"));
                     break;
                 default:
                     log.debug("🔔 [ORDER] 알 수 없는 이벤트 타입 - type: {}", eventType);
@@ -515,6 +535,103 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
 
         } catch (Exception e) {
             log.error("🚨 [ORDER] 재고 차감 실패 이벤트 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 굿즈 예약 성공 이벤트 처리
+     */
+    private void handleGoodsReserved(Map<String, Object> values) {
+        try {
+            String orderId = (String) values.get("orderId");
+            String orderNo = (String) values.get("orderNo");
+
+            if (orderId != null) orderId = orderId.trim().replaceAll("^\"|\"$", "");
+            if (orderNo != null) orderNo = orderNo.trim().replaceAll("^\"|\"$", "");
+
+            log.info("📦✅ [ORDER] 굿즈 예약 성공 처리 - orderId: {}, orderNo: {}", orderId, orderNo);
+
+            if (orderId != null && !orderId.isEmpty()) {
+                UUID orderUuid = UUID.fromString(orderId);
+
+                // 주문 생성 트랜잭션 커밋 전에 이벤트가 도착할 수 있으므로 재시도
+                boolean updated = tryUpdateOrderStatusWithRetry(orderUuid);
+                if (!updated) {
+                    log.warn("📦✅ [ORDER] 굿즈 예약 성공 처리 재시도 실패 - orderId: {}", orderId);
+                    return;
+                }
+
+                // 결제 생성 요청 이벤트 발행
+                orderCommandService.publishPaymentCreateRequestedEvent(orderUuid);
+            }
+
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 굿즈 예약 성공 이벤트 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    private boolean tryUpdateOrderStatusWithRetry(UUID orderId) {
+        int maxAttempts = 10;
+        long delayMillis = 200L;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                if (!orderRepository.existsById(orderId)) {
+                    if (attempt < maxAttempts) {
+                        try {
+                            Thread.sleep(delayMillis);
+                        } catch (InterruptedException interruptedException) {
+                            Thread.currentThread().interrupt();
+                            return false;
+                        }
+                        continue;
+                    }
+                    return false;
+                }
+
+                orderCommandService.updateOrderStatus(orderId, OrderStatus.PAYMENT_PENDING.name(),
+                        "재고 예약 완료 - 결제 진행");
+                return true;
+            } catch (Exception e) {
+                String message = e.getMessage() != null ? e.getMessage() : "";
+                if (message.contains("주문을 찾을 수 없어요") && attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(delayMillis);
+                    } catch (InterruptedException interruptedException) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                    continue;
+                }
+                throw e;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 굿즈 예약 실패 이벤트 처리
+     */
+    private void handleGoodsReservationFailed(Map<String, Object> values) {
+        try {
+            String orderId = (String) values.get("orderId");
+            String reason = (String) values.get("reason");
+
+            if (orderId != null) orderId = orderId.trim().replaceAll("^\"|\"$", "");
+            if (reason != null) reason = reason.trim().replaceAll("^\"|\"$", "");
+
+            log.warn("📦❌ [ORDER] 굿즈 예약 실패 처리 - orderId: {}, reason: {}", orderId, reason);
+
+            if (orderId != null && !orderId.isEmpty()) {
+                UUID orderUuid = UUID.fromString(orderId);
+                orderCommandService.updateOrderStatus(orderUuid, OrderStatus.REJECTED.name(),
+                        "재고 부족 - 주문 실패: " + (reason != null ? reason : "재고 부족"));
+            }
+
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 굿즈 예약 실패 이벤트 처리 실패 - values: {}, error: {}",
                     values, e.getMessage(), e);
         }
     }

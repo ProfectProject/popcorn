@@ -37,7 +37,8 @@ class PaymentRedisStreamListener(
                 handleOrderInfoResponse(values)
             } else {
                 // 기존 eventType 기반 처리
-                val eventType = values["eventType"] as? String
+                val rawEventType = values["eventType"] as? String
+                val eventType = rawEventType?.trim()?.trim('"')
                 handleStreamEvent(eventType, values)
             }
 
@@ -70,6 +71,10 @@ class PaymentRedisStreamListener(
                 // 결제 관련 이벤트 (자체 모니터링)
                 "payment-created" -> {
                     log.info("🧾 [PAYMENT] 결제 생성 이벤트 수신 - paymentId: {}", values["paymentId"])
+                }
+                "payment-create-requested" -> {
+                    log.info("🧾 [PAYMENT] 결제 생성 요청 이벤트 수신 - orderId: {}", values["orderId"])
+                    handlePaymentCreateRequested(values)
                 }
                 "payment-approved" -> {
                     log.info("✅ [PAYMENT] 결제 승인 이벤트 수신 - paymentId: {}", values["paymentId"])
@@ -134,6 +139,31 @@ class PaymentRedisStreamListener(
 
         } catch (e: Exception) {
             log.error("🚨 [PAYMENT] 결제 실패 처리 실패 - values: {}, error: {}", values, e.message, e)
+        }
+    }
+
+    /**
+     * 결제 생성 요청 이벤트 처리
+     */
+    private fun handlePaymentCreateRequested(values: Map<String, Any>) {
+        try {
+            val orderIdRaw = values["orderId"]?.toString()?.trim()?.trim('"')
+            val orderNo = values["orderNo"]?.toString()?.trim()?.trim('"')
+            val amountRaw = values["amount"]?.toString()?.trim()?.trim('"')
+            val paymentMethod = values["paymentMethod"]?.toString()?.trim()?.trim('"') ?: "CARD"
+            val customerIdRaw = values["customerId"]?.toString()?.trim()?.trim('"')
+
+            if (orderIdRaw.isNullOrBlank() || amountRaw.isNullOrBlank()) {
+                log.warn("⚠️ [PAYMENT] 결제 생성 요청 필수 데이터 누락 - values: {}", values)
+                return
+            }
+
+            log.info("📝 [PAYMENT] 결제 생성 요청 수신(대기) - orderId={}, method={}, amount={}원, orderNo={}, customerId={}",
+                orderIdRaw, paymentMethod, amountRaw, orderNo, customerIdRaw)
+            log.info("🕒 [PAYMENT] 결제 기록 생성은 승인 시점에 처리됩니다 - orderId={}", orderIdRaw)
+
+        } catch (e: Exception) {
+            log.error("🚨 [PAYMENT] 결제 생성 요청 처리 실패 - values: {}, error: {}", values, e.message, e)
         }
     }
 

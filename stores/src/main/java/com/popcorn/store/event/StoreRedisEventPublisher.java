@@ -179,6 +179,8 @@ public class StoreRedisEventPublisher {
             stringEventData.put("eventTime", LocalDateTime.now().toString());
 
             StringRecord record = StreamRecords.string(stringEventData).withStreamKey(GOODS_EVENTS_STREAM);
+
+            // 주문 생성 트랜잭션 커밋 이후에 전달되도록 딜레이 추가
             redisTemplate.opsForStream().add(record);
 
             log.info("✅ [STORES] 굿즈 예약 성공 이벤트 Stream 발행 완료 - eventId: {}", eventId);

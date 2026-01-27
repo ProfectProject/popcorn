@@ -35,6 +35,7 @@ public class RedisEventConfig {
     // Stream 이름 상수
     private static final String RESPONSE_EVENTS_STREAM = "response-events";
     private static final String STOCK_EVENTS_STREAM = "stock-events";
+    private static final String GOODS_EVENTS_STREAM = "goods-events";
     private static final String ADDRESS_RESPONSE_STREAM = "order-address-response";
     private static final String PAYMENT_EVENTS_STREAM = "payment-events";
 
@@ -52,6 +53,7 @@ public class RedisEventConfig {
             // Consumer Group 생성 (이미 존재하면 무시)
             createConsumerGroupIfNotExists(RESPONSE_EVENTS_STREAM);
             createConsumerGroupIfNotExists(STOCK_EVENTS_STREAM);
+            createConsumerGroupIfNotExists(GOODS_EVENTS_STREAM);
             createConsumerGroupIfNotExists(ADDRESS_RESPONSE_STREAM);  // User 서비스 응답 수신용
             createConsumerGroupIfNotExists("order-info-requests"); // Order 정보 요청 처리용
             createConsumerGroupIfNotExists(PAYMENT_EVENTS_STREAM); // Payment 이벤트 수신용
@@ -102,6 +104,14 @@ public class RedisEventConfig {
                 (org.springframework.data.redis.stream.StreamListener) orderRedisStreamListener
         );
         log.info("📝 Redis Stream Consumer 등록: {} - {}", STOCK_EVENTS_STREAM, STOCK_CONSUMER_NAME);
+
+        // 굿즈 예약 이벤트 Stream 구독 (재고 예약 성공/실패)
+        container.receive(
+                Consumer.from(ORDER_CONSUMER_GROUP, "goods-consumer-1"),
+                StreamOffset.create(GOODS_EVENTS_STREAM, ReadOffset.lastConsumed()),
+                (org.springframework.data.redis.stream.StreamListener) orderRedisStreamListener
+        );
+        log.info("📝 Redis Stream Consumer 등록: {} - {}", GOODS_EVENTS_STREAM, "goods-consumer-1");
 
         // Order 정보 요청 Stream 구독 (Payment 서비스 등에서 Order 정보 요청)
         container.receive(

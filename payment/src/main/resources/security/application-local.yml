@@ -37,8 +37,8 @@ spring:
     locations: classpath:db/migration/payment
     baseline-on-migrate: true
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user: ${PAYMENT_FLYWAY_USERNAME:payment_migrator}
-    password: ${PAYMENT_FLYWAY_PASSWORD:payment321}
+    user: ${PAYMENT_DB_MIGRATION_USERNAME:${PAYMENT_FLYWAY_USERNAME:${PAYMENT_DB_USERNAME:payment_app}}}
+    password: ${PAYMENT_DB_MIGRATION_PASSWORD:${PAYMENT_FLYWAY_PASSWORD:${PAYMENT_DB_PASSWORD:payment123}}}
     schemas: payment  # Payment 서비스 전용 스키마 사용
     default-schema: payment
 
@@ -48,7 +48,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      database: 1  # Payment 서비스 전용 DB
+      database: 0  # Payment 서비스 전용 DB
       timeout: 3000ms
       lettuce:
         pool:

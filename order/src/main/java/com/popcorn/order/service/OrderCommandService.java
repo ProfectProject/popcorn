@@ -131,46 +131,28 @@ public class OrderCommandService {
 
         orderStatusHistoryRepository.save(createdHistory);
 
-        // 6. 재고 예약 시도
-        try {
+        // 6. 재고 예약 요청 (이벤트 기반)
+        boolean hasGoodsItems = savedOrder.getOrderItems().stream()
+                .anyMatch(item -> OrderItemType.GOODS.equals(item.getOrderItemType()));
+
+        if (hasGoodsItems) {
             reserveStockForOrder(savedOrder);
-
-            // 재고 예약 성공 - 상태를 RESERVED로 변경
-            savedOrder.updateStatus(OrderStatus.RESERVED);
+            log.info("재고 예약 요청 완료 - 주문번호: {} (응답 이벤트 대기)", savedOrder.getOrderNo());
+        } else {
+            // 굿즈가 없으면 바로 결제 대기 상태로 전환
+            savedOrder.updateStatus(OrderStatus.PAYMENT_PENDING);
             orderRepository.save(savedOrder);
 
-            // 재고 예약 성공 이력 저장
-            OrderStatusHistory reservedHistory = OrderStatusHistory.builder()
+            OrderStatusHistory paymentPendingHistory = OrderStatusHistory.builder()
                     .orderId(savedOrder.getId())
                     .fromStatus(OrderStatus.REQUESTED)
-                    .toStatus(OrderStatus.RESERVED)
-                    .reason("재고 예약 완료")
+                    .toStatus(OrderStatus.PAYMENT_PENDING)
+                    .reason("굿즈 없음 - 결제 대기")
                     .changedAt(LocalDateTime.now())
                     .build();
+            orderStatusHistoryRepository.save(paymentPendingHistory);
 
-            orderStatusHistoryRepository.save(reservedHistory);
-
-            log.info("재고 예약 성공 - 주문번호: {}", savedOrder.getOrderNo());
-
-        } catch (Exception e) {
-            log.error("재고 예약 실패 - 주문번호: {}, 에러: {}", savedOrder.getOrderNo(), e.getMessage(), e);
-
-            // 재고 예약 실패 - 주문 취소
-            savedOrder.updateStatus(OrderStatus.CANCELLED);
-            orderRepository.save(savedOrder);
-
-            // 재고 예약 실패 이력 저장
-            OrderStatusHistory failedHistory = OrderStatusHistory.builder()
-                    .orderId(savedOrder.getId())
-                    .fromStatus(OrderStatus.REQUESTED)
-                    .toStatus(OrderStatus.CANCELLED)
-                    .reason("재고 예약 실패: " + e.getMessage())
-                    .changedAt(LocalDateTime.now())
-                    .build();
-
-            orderStatusHistoryRepository.save(failedHistory);
-
-            throw new RuntimeException("재고가 부족합니다. 주문이 취소되었습니다: " + e.getMessage(), e);
+            publishPaymentCreateRequestedEvent(savedOrder.getId());
         }
 
         // 7. 이벤트 발행
@@ -655,26 +637,8 @@ public class OrderCommandService {
             log.info("💳 결제 생성 + 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
                     order.getOrderNo(), order.getTotalAmount(), paymentMethod);
 
-            // 1단계: Payment 서비스에 실제 결제 생성 요청
-            CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
-                    order.getId(),
-                    order.getCustomerId(),
-                    order.getOrderNo(),
-                    order.getTotalAmount(),
-                    paymentMethod
-            );
-
-            log.info("🔄 Payment 서비스 비동기 호출 시작 - 주문번호: {}", order.getOrderNo());
-            paymentClient.createPayment(paymentRequest)
-                    .doOnSuccess(response ->
-                        log.info("✅ Payment 서비스 비동기 응답 수신 - 주문번호: {}, 결제ID: {}, 상태: {}",
-                                order.getOrderNo(),
-                                response != null ? response.getPaymentId() : null,
-                                response != null ? response.getStatus() : null))
-                    .doOnError(error ->
-                        log.error("❌ Payment 서비스 비동기 호출 실패 - 주문번호: {}, 에러: {}",
-                                order.getOrderNo(), error.getMessage(), error))
-                    .subscribe();
+            // 1단계: 결제 생성 요청은 재고 예약 완료 이벤트 수신 후 진행
+            log.info("🔄 결제 생성 이벤트는 재고 예약 완료 후 발행됩니다 - 주문번호: {}", order.getOrderNo());
 
             // 2단계: 토큰 생성 및 프론트엔드 URL 생성
             // 고객 키 생성 (사용자 ID 기반)
@@ -812,6 +776,18 @@ public class OrderCommandService {
 
         log.info("주문 재고 예약 요청 이벤트 발행 완료 - 주문번호: {}, items: {}",
                 order.getOrderNo(), reservationItems.size());
+    }
+
+    public void publishPaymentCreateRequestedEvent(UUID orderId) {
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            String paymentMethod = determinePaymentMethod(order);
+            orderEventPublisher.publishPaymentCreateRequestedEvent(order, paymentMethod);
+        } catch (Exception e) {
+            log.error("결제 생성 요청 이벤트 발행 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+        }
     }
 
     /**

@@ -32,6 +32,7 @@ public class RedisEventPublisher {
     private static final String GOODS_EVENTS_STREAM = "goods-events";
     private static final String STOCK_EVENTS_STREAM = "stock-events";
     private static final String PRICE_EVENTS_STREAM = "price-events";
+    private static final String PAYMENT_EVENTS_STREAM = "payment-events";
 
     /**
      * 주문 결제 완료 이벤트 발행 (Store 서비스에서 수신)
@@ -125,6 +126,46 @@ public class RedisEventPublisher {
             log.error("재고 차감 요청 이벤트 Stream 발행 실패 - orderId: {}, eventId: {}, error: {}",
                     event.getOrderId(), event.getEventId(), e.getMessage(), e);
             throw new RuntimeException("재고 차감 요청 이벤트 Stream 발행 실패", e);
+        }
+    }
+
+    /**
+     * 결제 생성 요청 이벤트 발행 (Payment 서비스에서 수신)
+     */
+    public void publishPaymentCreateRequestedEvent(String eventId,
+                                                   java.util.UUID orderId,
+                                                   String orderNo,
+                                                   Integer amount,
+                                                   String paymentMethod,
+                                                   Long customerId,
+                                                   String paymentKey) {
+        try {
+            log.info("결제 생성 요청 이벤트 Stream 발행 시작 - orderId: {}, eventId: {}",
+                    orderId, eventId);
+
+            Map<String, String> eventData = Map.of(
+                "eventType", "payment-create-requested",
+                "eventId", eventId,
+                "orderId", orderId.toString(),
+                "orderNo", orderNo != null ? orderNo : "",
+                "amount", amount != null ? amount.toString() : "",
+                "paymentMethod", paymentMethod != null ? paymentMethod : "",
+                "customerId", customerId != null ? customerId.toString() : "",
+                "paymentKey", paymentKey != null ? paymentKey : "",
+                "requestedAt", LocalDateTime.now().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            StringRecord record = StreamRecords.string(eventData).withStreamKey(PAYMENT_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("결제 생성 요청 이벤트 Stream 발행 완료 - orderId: {}, eventId: {}",
+                    orderId, eventId);
+
+        } catch (Exception e) {
+            log.error("결제 생성 요청 이벤트 Stream 발행 실패 - orderId: {}, eventId: {}, error: {}",
+                    orderId, eventId, e.getMessage(), e);
+            throw new RuntimeException("결제 생성 요청 이벤트 Stream 발행 실패", e);
         }
     }
 
