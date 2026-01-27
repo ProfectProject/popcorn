@@ -98,6 +98,11 @@ jobs:
             # Remove leading comma
             SERVICES=$(echo $SERVICES | sed 's/^,//')
           fi
+
+          # feature 브랜치에서 서비스 변경이 없더라도 배포 경로 테스트용으로 전체 서비스 지정
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/heads/feature/* ]] && [ -z "$SERVICES" ]; then
+            SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
+          fi
           
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           
