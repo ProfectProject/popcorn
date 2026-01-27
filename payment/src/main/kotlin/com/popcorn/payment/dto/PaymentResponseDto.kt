@@ -54,6 +54,14 @@ data class PaymentTokenDecodeResponse(
 )
 
 /**
+ * 결제 토큰 재발급 응답 DTO
+ */
+data class PaymentTokenRefreshResponse(
+    val token: String,
+    val paymentUrl: String
+)
+
+/**
  * 결제 상세 조회 응답 DTO
  */
 data class PaymentDetailResponse(

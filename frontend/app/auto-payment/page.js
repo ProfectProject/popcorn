@@ -19,6 +19,7 @@ export default function AutoPaymentPage() {
 
   const token = searchParams.get('token'); // 🔐 암호화된 토큰
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+  const paymentApiBase = process.env.NEXT_PUBLIC_PAYMENT_API_BASE_URL || "http://localhost:8080";
   const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || "test_ck_AQ92ymxN34LKgMYlpPZy3ajRKXvd";
 
   // 🔐 토큰 디코딩으로 결제 정보 가져오기
@@ -35,7 +36,7 @@ export default function AutoPaymentPage() {
       dataFetched.current = true;
 
       try {
-        const response = await fetch(`${apiBase}/api/pay/v1/payments/decode?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`${paymentApiBase}/api/pay/v1/payments/decode?token=${encodeURIComponent(token)}`);
 
         if (!response.ok) {
           setError('❌ 유효하지 않은 결제 토큰입니다.');
@@ -73,9 +74,19 @@ export default function AutoPaymentPage() {
     paymentExecuted.current = true;
     setPaymentStarted(true);
     if (typeof window !== 'undefined' && paymentInfo.orderId) {
-      const storageKey = `payment-started:${paymentInfo.orderId}`;
+      const storageKey = `payment-started:${token || paymentInfo.orderId}`;
       startKeyRef.current = storageKey;
       if (window.sessionStorage.getItem(storageKey)) {
+        try {
+          const refreshed = await refreshToken();
+          if (refreshed?.token) {
+            router.replace(`/auto-payment?token=${encodeURIComponent(refreshed.token)}`);
+            return;
+          }
+        } catch (e) {
+          console.error('❌ 토큰 재발급 실패:', e);
+        }
+        window.sessionStorage.removeItem(storageKey);
         setError('이미 결제가 진행 중입니다. 새로고침하지 마세요.');
         return;
       }
@@ -115,15 +126,44 @@ export default function AutoPaymentPage() {
         window.sessionStorage.removeItem(startKeyRef.current);
       }
 
-      // 5초 후 테스트 페이지로 리다이렉트
+      // 5초 후 새 토큰 발급 시도 → 실패 시 테스트 페이지로 이동
       setTimeout(() => {
-        router.push(`/test-payment?token=${encodeURIComponent(token)}&error=${encodeURIComponent(err.message || err)}`);
+        refreshToken()
+          .then((refreshed) => {
+            if (refreshed?.token) {
+              router.push(`/auto-payment?token=${encodeURIComponent(refreshed.token)}`);
+              return;
+            }
+            router.push(`/test-payment?token=${encodeURIComponent(token)}&error=${encodeURIComponent(err.message || err)}`);
+          })
+          .catch(() => {
+            router.push(`/test-payment?token=${encodeURIComponent(token)}&error=${encodeURIComponent(err.message || err)}`);
+          });
       }, 5000);
     }
   };
 
+  const refreshToken = async () => {
+    if (!token) return null;
+    const response = await fetch(`${paymentApiBase}/api/pay/v1/payments/refresh?token=${encodeURIComponent(token)}`);
+    if (!response.ok) {
+      return null;
+    }
+    const result = await response.json();
+    return result?.data || null;
+  };
+
   const goToTestPage = () => {
     router.push(`/test-payment?token=${encodeURIComponent(token)}`);
+  };
+
+  const retryWithNewToken = async () => {
+    const refreshed = await refreshToken();
+    if (refreshed?.token) {
+      router.replace(`/auto-payment?token=${encodeURIComponent(refreshed.token)}`);
+      return;
+    }
+    setError('재결제 토큰 발급에 실패했습니다. 잠시 후 다시 시도해주세요.');
   };
 
   return (
@@ -220,6 +260,21 @@ export default function AutoPaymentPage() {
             }}
           >
             🧪 테스트 페이지로 이동
+          </button>
+          <button
+            onClick={retryWithNewToken}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              marginLeft: '12px'
+            }}
+          >
+            🔄 재결제 (새 토큰)
           </button>
           <p style={{ color: '#666', fontSize: '14px', marginTop: '20px' }}>
             5초 후 자동으로 테스트 페이지로 이동합니다.

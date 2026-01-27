@@ -694,7 +694,8 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                if (!orderRepository.existsById(orderId)) {
+                var orderOpt = orderRepository.findById(orderId);
+                if (orderOpt.isEmpty()) {
                     if (attempt < maxAttempts) {
                         try {
                             Thread.sleep(delayMillis);
@@ -704,6 +705,20 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                         }
                         continue;
                     }
+                    return false;
+                }
+
+                OrderStatus currentStatus = orderOpt.get().getStatus();
+                if (currentStatus == OrderStatus.PAYMENT_PENDING) {
+                    log.info("📦✅ [ORDER] 이미 PAYMENT_PENDING 상태 - orderId: {}", orderId);
+                    return false;
+                }
+                if (currentStatus == OrderStatus.PAID
+                        || currentStatus == OrderStatus.COMPLETED
+                        || currentStatus == OrderStatus.CANCELLED
+                        || currentStatus == OrderStatus.REJECTED) {
+                    log.warn("📦✅ [ORDER] 예약 성공 이벤트 무시 - 현재 상태: {}, orderId: {}",
+                            currentStatus, orderId);
                     return false;
                 }
 

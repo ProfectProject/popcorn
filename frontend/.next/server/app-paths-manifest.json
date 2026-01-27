@@ -1,5 +1,5 @@
 {
-  "/page": "app/page.js",
+  "/auto-payment/page": "app/auto-payment/page.js",
   "/payments/success/page": "app/payments/success/page.js",
-  "/auto-payment/page": "app/auto-payment/page.js"
+  "/page": "app/page.js"
 }

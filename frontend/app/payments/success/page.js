@@ -12,6 +12,7 @@ function PaymentSuccessContent() {
   const orderId = searchParams.get("orderId");
   const amount = searchParams.get("amount");
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+  const paymentApiBase = process.env.NEXT_PUBLIC_PAYMENT_API_BASE_URL || "http://localhost:8080";
 
   // JWT 토큰 불필요 - orderId 기반 간단 결제 승인
 
@@ -58,7 +59,7 @@ function PaymentSuccessContent() {
           "Content-Type": "application/json"
         };
 
-        const response = await fetch(`${apiBase}/api/pay/v1/payments/confirm-async`, {
+        const response = await fetch(`${paymentApiBase}/api/pay/v1/payments/confirm-async`, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -107,7 +108,7 @@ function PaymentSuccessContent() {
     const intervalId = setInterval(async () => {
       attempts += 1;
       try {
-        const response = await fetch(`${apiBase}/api/pay/v1/payments/orders/${orderId}/latest`);
+        const response = await fetch(`${paymentApiBase}/api/pay/v1/payments/orders/${orderId}/latest`);
         if (!response.ok) {
           return;
         }
