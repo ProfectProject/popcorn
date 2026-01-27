@@ -14,11 +14,11 @@ on:
       - 'gradle/**'
       - '*.gradle'
       - 'gradle.properties'
-      - '.github/workflows/**' # 워크플로우 파일 자체 변경도 감지
+
   pull_request:
     branches: [develop, main]
     paths:
-      - 'user-service/**'
+      - 'users/**'
       - 'checkIns/**'
       - 'order/**'
       - 'store/**'
@@ -27,7 +27,6 @@ on:
       - 'common-lib/**'
       - 'gradle/**'
       - '*.gradle'
-      - 'gradle.properties'
 
 jobs:
   test-checkins:
