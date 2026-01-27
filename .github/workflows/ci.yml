@@ -21,7 +21,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18.1
         env:
           POSTGRES_DB: popcorn_test
           POSTGRES_USER: postgres
@@ -105,7 +105,7 @@ jobs:
                     issue_number: context.issue.number,
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    body: `## CheckIns Module Coverage Report 📊**Coverage: ${coverage}%** ${coverage >= 60 ? '✅' : '❌'}${coverage >= 60 ? 'Great! Coverage meets the 60% target.' : 'Coverage below 60% target.'}`
+                    body: `## User Module Coverage Report 📊**Coverage: ${coverage}%** ${coverage >= 60 ? '✅' : '❌'}${coverage >= 60 ? 'Great! Coverage meets the 60% target.' : 'Coverage below 60% target.'}`
                   });
                 }
               }
