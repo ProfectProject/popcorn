@@ -125,7 +125,7 @@ jobs:
               console.log('Could not post coverage comment:', error);
             }
 
-  build-checkins:
+  build-users:
     runs-on: ubuntu-latest
     needs: test-checkins
     name: CheckIns Module Build
@@ -150,13 +150,13 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: checkins-build
-          path: checkIns/build/libs/
+          name: users-build
+          path: users/build/libs/
           retention-days: 7
 
   docker-build-push-ecr:
     runs-on: ubuntu-latest
-    needs: build-checkins
+    needs: build-users
     name: Build & Push CheckIns Image to ECR
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
