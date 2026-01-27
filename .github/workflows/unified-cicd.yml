@@ -362,6 +362,15 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    
+    env:
+      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
+      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
+      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
+      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
+      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
+      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
+      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
 
     steps:
       - name: Skip if service not in deployment list
@@ -432,6 +441,15 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    
+    env:
+      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
+      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
+      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
+      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
+      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
+      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
+      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
 
     steps:
       - name: Skip if service not in deployment list
@@ -498,6 +516,15 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    
+    env:
+      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
+      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
+      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
+      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
+      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
+      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
+      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
 
     steps:
       - name: Checkout code
@@ -559,6 +586,15 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    
+    env:
+      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
+      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
+      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
+      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
+      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
+      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
+      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
 
     steps:
       - name: Checkout code

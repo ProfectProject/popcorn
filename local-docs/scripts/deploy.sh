@@ -64,28 +64,25 @@ show_help() {
     echo "  - all (모든 서비스)"
 }
 
-# 인프라 정보 가져오기
+escape_sed() {
+    printf '%s' "$1" | sed -e 's/[\\/&|]/\\&/g'
+}
+
+# 인프라 정보 가져오기 (Terraform 사용 안 함)
 get_infrastructure_info() {
     log_info "인프라 정보 가져오는 중..."
-    
-    # Terraform 출력에서 값 가져오기 (인프라 레포 경로 가정)
-    local terraform_dir="../popcorn-terraform-feature/envs/${ENVIRONMENT}"
-    
-    if [[ -d "$terraform_dir" ]]; then
-        DB_HOST=$(terraform -chdir="$terraform_dir" output -raw rds_endpoint 2>/dev/null || echo "")
-        DB_PORT="5432"
-        DB_NAME=$(terraform -chdir="$terraform_dir" output -raw rds_database_name 2>/dev/null || echo "goorm_popcorn_db")
-        DB_SECRET_ARN=$(terraform -chdir="$terraform_dir" output -raw rds_secret_arn 2>/dev/null || echo "")
-        REDIS_PRIMARY_ENDPOINT=$(terraform -chdir="$terraform_dir" output -raw elasticache_primary_endpoint 2>/dev/null || echo "")
-        KAFKA_BOOTSTRAP_SERVERS=$(terraform -chdir="$terraform_dir" output -raw kafka_bootstrap_servers 2>/dev/null || echo "")
-    else
-        log_warning "Terraform 디렉토리를 찾을 수 없습니다. 환경 변수를 수동으로 설정해주세요."
-        DB_HOST=${DB_HOST:-"localhost"}
-        DB_PORT=${DB_PORT:-"5432"}
-        DB_NAME=${DB_NAME:-"goorm_popcorn_db"}
-        DB_SECRET_ARN=${DB_SECRET_ARN:-""}
-        REDIS_PRIMARY_ENDPOINT=${REDIS_PRIMARY_ENDPOINT:-"localhost"}
-        KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-"localhost:9092"}
+
+    DB_HOST=${DB_HOST_TASK:-""}
+    DB_PORT=${DB_PORT_TASK:-"5432"}
+    DB_NAME=${DB_NAME_TASK:-""}
+    DB_USER=${DB_USER_TASK:-""}
+    DB_PASSWORD=${DB_PASSWORD_TASK:-""}
+    REDIS_PRIMARY_ENDPOINT=${REDIS_HOST_TASK:-""}
+    KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS_TASK:-""}
+
+    if [[ -z "$DB_HOST" || -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" ]]; then
+        log_error "필수 DB 환경 변수 누락: DB_HOST_TASK/DB_NAME_TASK/DB_USER_TASK/DB_PASSWORD_TASK"
+        exit 1
     fi
 }
 
@@ -94,16 +91,26 @@ substitute_variables() {
     local task_def_file=$1
     local temp_file="/tmp/task-definition-${SERVICE_NAME}-${ENVIRONMENT}.json"
     
+    local esc_db_host esc_db_port esc_db_name esc_db_user esc_db_password esc_redis esc_kafka
+    esc_db_host=$(escape_sed "$DB_HOST")
+    esc_db_port=$(escape_sed "$DB_PORT")
+    esc_db_name=$(escape_sed "$DB_NAME")
+    esc_db_user=$(escape_sed "$DB_USER")
+    esc_db_password=$(escape_sed "$DB_PASSWORD")
+    esc_redis=$(escape_sed "$REDIS_PRIMARY_ENDPOINT")
+    esc_kafka=$(escape_sed "$KAFKA_BOOTSTRAP_SERVERS")
+
     # 환경 변수 치환
     sed -e "s|\${AWS_ACCOUNT_ID}|${AWS_ACCOUNT_ID}|g" \
         -e "s|\${ENVIRONMENT}|${ENVIRONMENT}|g" \
         -e "s|\${IMAGE_TAG}|${IMAGE_TAG}|g" \
-        -e "s|\${DB_HOST}|${DB_HOST}|g" \
-        -e "s|\${DB_PORT}|${DB_PORT}|g" \
-        -e "s|\${DB_NAME}|${DB_NAME}|g" \
-        -e "s|\${DB_SECRET_ARN}|${DB_SECRET_ARN}|g" \
-        -e "s|\${REDIS_PRIMARY_ENDPOINT}|${REDIS_PRIMARY_ENDPOINT}|g" \
-        -e "s|\${KAFKA_BOOTSTRAP_SERVERS}|${KAFKA_BOOTSTRAP_SERVERS}|g" \
+        -e "s|\${DB_HOST}|${esc_db_host}|g" \
+        -e "s|\${DB_PORT}|${esc_db_port}|g" \
+        -e "s|\${DB_NAME}|${esc_db_name}|g" \
+        -e "s|\${DB_USER}|${esc_db_user}|g" \
+        -e "s|\${DB_PASSWORD}|${esc_db_password}|g" \
+        -e "s|\${REDIS_PRIMARY_ENDPOINT}|${esc_redis}|g" \
+        -e "s|\${KAFKA_BOOTSTRAP_SERVERS}|${esc_kafka}|g" \
         "$task_def_file" > "$temp_file"
     
     echo "$temp_file"
