@@ -43,7 +43,8 @@ env:
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
-    # 중복 실행 방지 조건 제거 (이제 push만 처리)
+    # 수동 실행 또는 [unified] 태그가 있는 커밋에서만 실행
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[unified]') || contains(github.event.head_commit.message, '[all]')
     outputs:
       services: ${{ steps.changes.outputs.services }}
       matrix: ${{ steps.changes.outputs.matrix }}
