@@ -65,7 +65,7 @@ jobs:
         run: ./gradlew :common-lib:build -x test
 
       - name: Run Users Tests
-        run: ./gradlew :users:test --info
+        run: ./gradlew :users:test --tests "*" --fail-fast --info
 
       - name: Generate Coverage Report
         run: ./gradlew :users:jacocoTestReport
@@ -116,7 +116,7 @@ jobs:
                     issue_number: context.issue.number,
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    body: `## User Module Coverage Report 📊**Coverage: ${coverage}%** ${coverage >= 60 ? '✅' : '❌'}${coverage >= 60 ? 'Great! Coverage meets the 60% target.' : 'Coverage below 60% target.'}`
+                    body: `## User Module Coverage Report 📊**Coverage: ${coverage}%** ${coverage >= 80 ? '✅' : '❌'}${coverage >= 80 ? 'Great! Coverage meets the 80% target.' : 'Coverage below 80% target.'}`
                   });
                 }
               }
@@ -143,7 +143,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build CheckIns Module
+      - name: Build Users Module
         run: ./gradlew :users:build -x test
 
       - name: Upload Build Artifacts
