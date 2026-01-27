@@ -35,9 +35,12 @@ jobs:
         id: filter
         with:
           filters: |
-            users:
-              - 'users/**'
-              - 'common-lib/**'
+            users: ['users/**', 'common-lib/**']
+            checkIns: ['checkIns/**', 'common-lib/**']
+            order: ['order/**', 'common-lib/**']
+            store: ['store/**', 'common-lib/**']
+            qr: ['qr/**', 'common-lib/**']
+            order_query: ['order_query/**', 'common-lib/**']
 
     services:
       postgres:
@@ -57,9 +60,13 @@ jobs:
   build-service:
     runs-on: ubuntu-latest
     needs: detect-changes
-    name: Users Module Build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    if: needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
 
+    name: Users Module Build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
