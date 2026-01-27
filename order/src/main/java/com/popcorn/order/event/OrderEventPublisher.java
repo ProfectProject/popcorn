@@ -247,19 +247,23 @@ public class OrderEventPublisher {
                                                    java.util.UUID popupId,
                                                    java.util.List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems) {
         try {
-            log.info("재고 차감 요청 이벤트 발행 시작 - orderId: {}", orderId);
+            log.info("📦 [ORDER] 재고 차감 요청 이벤트 발행 시작 - orderId: {}, 항목 수: {}", orderId, deductionItems.size());
 
             StockDeductionRequestedEvent event = StockDeductionRequestedEvent.create(
                     orderId, orderNo, popupId, deductionItems
             );
 
+            // 1. 내부 이벤트 발행 (Spring Events)
             applicationEventPublisher.publishEvent(event);
 
-            log.info("재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
+            // 2. Redis Stream 이벤트 발행 (Store 서비스로 전송)
+            redisEventPublisher.publishStockDeductionRequestedEvent(event);
+
+            log.info("📦✅ [ORDER] 재고 차감 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
                     orderId, event.getEventId());
 
         } catch (Exception e) {
-            log.error("재고 차감 요청 이벤트 발행 실패 - orderId: {}", orderId, e);
+            log.error("📦❌ [ORDER] 재고 차감 요청 이벤트 발행 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
         }
     }
 }

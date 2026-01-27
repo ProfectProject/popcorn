@@ -57,6 +57,10 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                     streamName, recordId, values.get("eventType"));
 
             String eventType = (String) values.get("eventType");
+            // eventType에서 따옴표 제거
+            if (eventType != null) {
+                eventType = eventType.trim().replaceAll("^\"|\"$", "");
+            }
             handleStreamEvent(eventType, values);
 
             // 메시지 처리 완료 후 ACK (자동으로 처리됨)
@@ -83,9 +87,29 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                     log.info("📋 [STORES] 굿즈 재고 예약 요청 이벤트 수신");
                     publishGoodsReservationRequestedEvent(values);
                     break;
+                case "goods-reserved":
+                    log.info("✅ [STORES] 굿즈 재고 예약 성공 이벤트 수신 (내부) - orderId: {}, goodsVariantId: {}, quantity: {}개 예약 완료",
+                            values.get("orderId"), values.get("goodsVariantId"), values.get("quantity"));
+                    // 내부적으로 발행한 이벤트 - Order 서비스에서 처리 예정
+                    break;
+                case "goods-reservation-failed":
+                    log.warn("❌ [STORES] 굿즈 재고 예약 실패 이벤트 수신 (내부) - orderId: {}, goodsVariantId: {}, reason: {}",
+                            values.get("orderId"), values.get("goodsVariantId"), values.get("reason"));
+                    // 내부적으로 발행한 이벤트 - Order 서비스에서 처리 예정
+                    break;
                 case "stock-deduction-requested":
                     log.info("📦 [STORES] 재고 차감 요청 이벤트 수신 - orderId: {}", values.get("orderId"));
                     handleStockDeductionRequest(values);
+                    break;
+                case "stock-deduction-success":
+                    log.info("📦✅ [STORES] 재고 차감 성공 이벤트 수신 (→Order 전송됨) - orderId: {}, orderNo: {}, stockDetails: {}",
+                            values.get("orderId"), values.get("orderNo"), values.get("stockDetails"));
+                    // Order 서비스로 성공 결과 전송 완료
+                    break;
+                case "stock-deduction-failed":
+                    log.warn("📦❌ [STORES] 재고 차감 실패 이벤트 수신 (→Order 전송됨) - orderId: {}, orderNo: {}, reason: {}",
+                            values.get("orderId"), values.get("orderNo"), values.get("reason"));
+                    // Order 서비스로 실패 결과 전송 완료
                     break;
                 case "price-lookup-requested":
                     log.info("💰 [STORES] 가격 조회 요청 이벤트 수신");
@@ -123,14 +147,36 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private void publishGoodsReservationRequestedEvent(Map<String, Object> values) {
         try {
             String reservationItemsJson = (String) values.get("reservationItems");
+
+            // JSON 문자열 정규화 (Redis Stream에서 전송된 JSON 문자열 처리)
+            if (reservationItemsJson != null) {
+                // 1. 시작/끝 따옴표 제거
+                reservationItemsJson = reservationItemsJson.trim().replaceAll("^\"|\"$", "");
+                // 2. 이스케이프된 따옴표를 정상 따옴표로 변환
+                reservationItemsJson = reservationItemsJson.replace("\\\"", "\"");
+
+                log.debug("🔧 [STORES] JSON 정규화 완료 - reservationItems: {}", reservationItemsJson);
+            }
+
             List<GoodsReservationItem> reservationItems = objectMapper.readValue(
                     reservationItemsJson, new TypeReference<List<GoodsReservationItem>>() {}
             );
 
-            UUID orderId = UUID.fromString((String) values.get("orderId"));
+            // orderId와 popupId에서 따옴표 제거
+            String orderIdStr = (String) values.get("orderId");
+            String popupIdStr = (String) values.get("popupId");
+
+            if (orderIdStr != null) {
+                orderIdStr = orderIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (popupIdStr != null) {
+                popupIdStr = popupIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+
+            UUID orderId = UUID.fromString(orderIdStr);
             String orderNo = (String) values.get("orderNo");
-            UUID popupId = values.get("popupId").toString().isEmpty() ?
-                    null : UUID.fromString((String) values.get("popupId"));
+            UUID popupId = (popupIdStr == null || popupIdStr.isEmpty()) ?
+                    null : UUID.fromString(popupIdStr);
 
             if (reservationItems == null || reservationItems.isEmpty()) {
                 log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목이 없음 - orderId: {}", orderId);
@@ -183,17 +229,30 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
             String correlationId = (String) values.get("correlationId");
             String requestType = (String) values.get("requestType");
 
+            // correlationId에서 따옴표 제거
+            if (correlationId != null) {
+                correlationId = correlationId.trim().replaceAll("^\"|\"$", "");
+            }
+
+            // requestType에서 따옴표 제거
+            if (requestType != null) {
+                requestType = requestType.trim().replaceAll("^\"|\"$", "");
+            }
+
             if (correlationId == null || requestType == null) {
                 log.warn("💰 [STORES] 가격 조회 요청 누락 - values: {}", values);
                 return;
             }
+
+            log.info("💰 [STORES] 가격 조회 요청 처리 - correlationId: {}, requestType: {}",
+                    correlationId, requestType);
 
             if ("SESSION".equals(requestType)) {
                 handleSessionPriceLookup(values);
             } else if ("GOODS".equals(requestType)) {
                 handleGoodsPriceLookup(values);
             } else {
-                log.warn("💰 [STORES] 지원하지 않는 가격 조회 타입 - type: {}", requestType);
+                log.warn("💰 [STORES] 지원하지 않는 가격 조회 타입 - type: \"{}\"", requestType);
                 publishPriceLookupFailure(values, "지원하지 않는 가격 조회 타입");
             }
 
@@ -204,90 +263,182 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     }
 
     private void handleSessionPriceLookup(Map<String, Object> values) {
-        String sessionIdStr = (String) values.get("sessionId");
-        if (sessionIdStr == null || sessionIdStr.isEmpty()) {
-            publishPriceLookupFailure(values, "sessionId가 없습니다.");
-            return;
+        try {
+            String sessionIdStr = (String) values.get("sessionId");
+            String correlationId = (String) values.get("correlationId");
+            String requestType = (String) values.get("requestType");
+
+            // 따옴표 제거
+            if (sessionIdStr != null) {
+                sessionIdStr = sessionIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (correlationId != null) {
+                correlationId = correlationId.trim().replaceAll("^\"|\"$", "");
+            }
+            if (requestType != null) {
+                requestType = requestType.trim().replaceAll("^\"|\"$", "");
+            }
+
+            if (sessionIdStr == null || sessionIdStr.isEmpty()) {
+                publishPriceLookupFailure(values, "sessionId가 없습니다.");
+                return;
+            }
+
+            UUID sessionId = UUID.fromString(sessionIdStr);
+            PopupSchedule schedule = popupScheduleRepository.findById(sessionId)
+                    .filter(value -> value.getDeletedAt() == null)
+                    .orElse(null);
+
+            if (schedule == null || schedule.getPrice() == null) {
+                publishPriceLookupFailure(values, "세션 정보를 찾을 수 없습니다.");
+                return;
+            }
+
+            StoreRedisEventPublisher.PriceLookupResponseEventDto response =
+                    StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .correlationId(correlationId)
+                            .requestType(requestType)
+                            .sessionId(sessionId)
+                            .price(schedule.getPrice())
+                            .success(true)
+                            .message("OK")
+                            .respondedAt(java.time.LocalDateTime.now())
+                            .eventTime(java.time.LocalDateTime.now())
+                            .build();
+
+            storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+
+            log.info("✅ [STORES] 세션 가격 조회 응답 완료 - sessionId: {}, price: {}원",
+                    sessionId, schedule.getPrice());
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 세션 가격 조회 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+            publishPriceLookupFailure(values, "세션 가격 조회 처리 실패");
         }
-
-        UUID sessionId = UUID.fromString(sessionIdStr);
-        PopupSchedule schedule = popupScheduleRepository.findById(sessionId)
-                .filter(value -> value.getDeletedAt() == null)
-                .orElse(null);
-
-        if (schedule == null || schedule.getPrice() == null) {
-            publishPriceLookupFailure(values, "세션 정보를 찾을 수 없습니다.");
-            return;
-        }
-
-        StoreRedisEventPublisher.PriceLookupResponseEventDto response =
-                StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
-                        .eventId(UUID.randomUUID().toString())
-                        .correlationId((String) values.get("correlationId"))
-                        .requestType((String) values.get("requestType"))
-                        .sessionId(sessionId)
-                        .price(schedule.getPrice())
-                        .success(true)
-                        .message("OK")
-                        .respondedAt(java.time.LocalDateTime.now())
-                        .eventTime(java.time.LocalDateTime.now())
-                        .build();
-
-        storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
     }
 
     private void handleGoodsPriceLookup(Map<String, Object> values) {
-        String goodsVariantIdStr = (String) values.get("goodsVariantId");
-        if (goodsVariantIdStr == null || goodsVariantIdStr.isEmpty()) {
-            publishPriceLookupFailure(values, "goodsVariantId가 없습니다.");
-            return;
+        try {
+            String goodsIdStr = (String) values.get("goodsId");
+            String correlationId = (String) values.get("correlationId");
+            String requestType = (String) values.get("requestType");
+
+            // 따옴표 제거
+            if (goodsIdStr != null) {
+                goodsIdStr = goodsIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (correlationId != null) {
+                correlationId = correlationId.trim().replaceAll("^\"|\"$", "");
+            }
+            if (requestType != null) {
+                requestType = requestType.trim().replaceAll("^\"|\"$", "");
+            }
+
+            if (goodsIdStr == null || goodsIdStr.isEmpty()) {
+                publishPriceLookupFailure(values, "goodsId가 없습니다.");
+                return;
+            }
+
+            log.info("💰 [STORES] 굿즈 가격 조회 시작 - goodsId: {}, correlationId: {}",
+                    goodsIdStr, correlationId);
+
+            UUID goodsId = UUID.fromString(goodsIdStr);
+            GoodsVariant variant = goodsVariantRepository.findById(goodsId)
+                    .filter(value -> value.getDeletedAt() == null)
+                    .orElse(null);
+
+            if (variant == null) {
+                log.warn("💰 [STORES] 굿즈 정보 없음 - goodsId: {}", goodsId);
+                publishPriceLookupFailure(values, "굿즈 정보를 찾을 수 없습니다.");
+                return;
+            }
+
+            StoreRedisEventPublisher.PriceLookupResponseEventDto response =
+                    StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .correlationId(correlationId)
+                            .requestType(requestType)
+                            .goodsVariantId(goodsId)
+                            .price(variant.getGoodsPrice())
+                            .stockQuantity(variant.getStock())
+                            .success(true)
+                            .message("OK")
+                            .respondedAt(java.time.LocalDateTime.now())
+                            .eventTime(java.time.LocalDateTime.now())
+                            .build();
+
+            storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+
+            log.info("✅ [STORES] 굿즈 가격 조회 응답 완료 - goodsId: {}, price: {}원, stock: {}개",
+                    goodsId, variant.getGoodsPrice(), variant.getStock());
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 굿즈 가격 조회 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+            publishPriceLookupFailure(values, "굿즈 가격 조회 처리 실패");
         }
-
-        UUID goodsVariantId = UUID.fromString(goodsVariantIdStr);
-        GoodsVariant variant = goodsVariantRepository.findById(goodsVariantId)
-                .filter(value -> value.getDeletedAt() == null)
-                .orElse(null);
-
-        if (variant == null) {
-            publishPriceLookupFailure(values, "굿즈 정보를 찾을 수 없습니다.");
-            return;
-        }
-
-        StoreRedisEventPublisher.PriceLookupResponseEventDto response =
-                StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
-                        .eventId(UUID.randomUUID().toString())
-                        .correlationId((String) values.get("correlationId"))
-                        .requestType((String) values.get("requestType"))
-                        .goodsVariantId(goodsVariantId)
-                        .price(variant.getGoodsPrice())
-                        .stockQuantity(variant.getStock())
-                        .success(true)
-                        .message("OK")
-                        .respondedAt(java.time.LocalDateTime.now())
-                        .eventTime(java.time.LocalDateTime.now())
-                        .build();
-
-        storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
     }
 
     private void publishPriceLookupFailure(Map<String, Object> values, String reason) {
-        String sessionIdStr = (String) values.get("sessionId");
-        String goodsVariantIdStr = (String) values.get("goodsVariantId");
+        try {
+            String sessionIdStr = (String) values.get("sessionId");
+            String goodsIdStr = (String) values.get("goodsId");  // goodsVariantId -> goodsId 수정
+            String correlationId = (String) values.get("correlationId");
+            String requestType = (String) values.get("requestType");
 
-        StoreRedisEventPublisher.PriceLookupResponseEventDto response =
-                StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
-                        .eventId(UUID.randomUUID().toString())
-                        .correlationId((String) values.get("correlationId"))
-                        .requestType((String) values.get("requestType"))
-                        .sessionId(sessionIdStr != null && !sessionIdStr.isEmpty() ? UUID.fromString(sessionIdStr) : null)
-                        .goodsVariantId(goodsVariantIdStr != null && !goodsVariantIdStr.isEmpty() ? UUID.fromString(goodsVariantIdStr) : null)
-                        .success(false)
-                        .message(reason)
-                        .respondedAt(java.time.LocalDateTime.now())
-                        .eventTime(java.time.LocalDateTime.now())
-                        .build();
+            // 따옴표 제거
+            if (correlationId != null) {
+                correlationId = correlationId.trim().replaceAll("^\"|\"$", "");
+            }
+            if (requestType != null) {
+                requestType = requestType.trim().replaceAll("^\"|\"$", "");
+            }
+            if (sessionIdStr != null) {
+                sessionIdStr = sessionIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (goodsIdStr != null) {
+                goodsIdStr = goodsIdStr.trim().replaceAll("^\"|\"$", "");
+            }
 
-        storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+            // UUID 안전 파싱
+            UUID sessionId = null;
+            if (sessionIdStr != null && !sessionIdStr.isEmpty() && !sessionIdStr.equals("null")) {
+                try {
+                    sessionId = UUID.fromString(sessionIdStr);
+                } catch (IllegalArgumentException e) {
+                    log.warn("💰 [STORES] 유효하지 않은 sessionId UUID - sessionId: {}", sessionIdStr);
+                }
+            }
+
+            UUID goodsVariantId = null;
+            if (goodsIdStr != null && !goodsIdStr.isEmpty() && !goodsIdStr.equals("null")) {
+                try {
+                    goodsVariantId = UUID.fromString(goodsIdStr);
+                } catch (IllegalArgumentException e) {
+                    log.warn("💰 [STORES] 유효하지 않은 goodsId UUID - goodsId: {}", goodsIdStr);
+                }
+            }
+
+            StoreRedisEventPublisher.PriceLookupResponseEventDto response =
+                    StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .correlationId(correlationId)
+                            .requestType(requestType)
+                            .sessionId(sessionId)
+                            .goodsVariantId(goodsVariantId)
+                            .success(false)
+                            .message(reason)
+                            .respondedAt(java.time.LocalDateTime.now())
+                            .eventTime(java.time.LocalDateTime.now())
+                            .build();
+
+            storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 가격 조회 실패 이벤트 발행 실패 - error: {}", e.getMessage(), e);
+        }
     }
 
     /**

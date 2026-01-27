@@ -36,6 +36,7 @@ public class UserRedisEventConfig {
     private static final String ORDER_EVENTS_STREAM = "order-events";
     private static final String PAYMENT_EVENTS_STREAM = "payment-events";
     private static final String USER_EVENTS_STREAM = "user-events";
+    private static final String USER_ADDRESS_EVENTS_STREAM = "user-address-events";
 
     // Consumer Group 이름
     private static final String USER_CONSUMER_GROUP = "user-service-group";
@@ -48,6 +49,7 @@ public class UserRedisEventConfig {
             createConsumerGroupIfNotExists(ORDER_EVENTS_STREAM);
             createConsumerGroupIfNotExists(PAYMENT_EVENTS_STREAM);
             createConsumerGroupIfNotExists(USER_EVENTS_STREAM);
+            createConsumerGroupIfNotExists(USER_ADDRESS_EVENTS_STREAM);
 
             log.info("✅ Users Service Redis Stream Consumer Groups 초기화 완료");
         } catch (Exception e) {
@@ -98,6 +100,13 @@ public class UserRedisEventConfig {
         container.receive(
                 Consumer.from(USER_CONSUMER_GROUP, USER_CONSUMER_NAME),
                 StreamOffset.create(USER_EVENTS_STREAM, ReadOffset.lastConsumed()),
+                (org.springframework.data.redis.stream.StreamListener) userRedisStreamListener
+        );
+
+        // 사용자 주소 이벤트 Stream 구독 (Order 서비스의 주소 조회 요청 처리)
+        container.receive(
+                Consumer.from(USER_CONSUMER_GROUP, USER_CONSUMER_NAME),
+                StreamOffset.create(USER_ADDRESS_EVENTS_STREAM, ReadOffset.lastConsumed()),
                 (org.springframework.data.redis.stream.StreamListener) userRedisStreamListener
         );
 

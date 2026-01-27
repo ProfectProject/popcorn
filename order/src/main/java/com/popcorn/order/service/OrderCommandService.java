@@ -27,11 +27,13 @@ import com.popcorn.order.event.standard.StandardOrderCreatedEvent;
 import com.popcorn.order.event.standard.StandardOrderStatusUpdatedEvent;
 import com.popcorn.order.event.StockReservedEvent;
 import com.popcorn.order.event.StockReservationFailedEvent;
+import com.popcorn.order.event.StockDeductionRequestedEvent;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
 import com.popcorn.order.client.PaymentClient;
 import com.popcorn.order.client.UserClient;
+import com.popcorn.order.service.OrderUserLookupService;
 import com.popcorn.order.client.StoreClient;
 import com.popcorn.order.dto.payment.CreatePaymentRequest;
 import com.popcorn.order.dto.payment.CreatePaymentResponse;
@@ -60,6 +62,7 @@ public class OrderCommandService {
     private final StandardOrderEventPublisher standardOrderEventPublisher;
     private final PaymentClient paymentClient;
     private final UserClient userClient;
+    private final OrderUserLookupService orderUserLookupService;
     private final PaymentTokenUtil paymentTokenUtil;
     private final StoreClient storeClient;
     private final OrderCacheService orderCacheService;
@@ -219,7 +222,7 @@ public class OrderCommandService {
             return;
         }
 
-        userClient.getDefaultAddress(command.getUserId())
+        orderUserLookupService.getDefaultAddress(command.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("기본 배송지가 필요합니다."));
     }
 
@@ -1002,6 +1005,192 @@ public class OrderCommandService {
     private Boolean hasGoods(Order order) {
         return order.getOrderItems().stream()
                 .anyMatch(item -> OrderItemType.GOODS.equals(item.getOrderItemType()));
+    }
+
+    /**
+     * 주문 완료 이벤트 발행 (결제 완료 시 호출)
+     */
+    public void publishOrderCompletedEvent(UUID orderId) {
+        try {
+            log.info("주문 완료 이벤트 발행 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 완료 이벤트 발행
+            orderEventPublisher.publishOrderCompletedEvent(order);
+
+            log.info("✅ 주문 완료 이벤트 발행 완료 - orderId: {}, orderNo: {}", orderId, order.getOrderNo());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 완료 이벤트 발행 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 이벤트 발행 실패는 주문 처리에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * 주문의 재고 예약 취소 (결제 실패 시 호출)
+     */
+    public void cancelStockReservationsForOrder(UUID orderId) {
+        try {
+            log.info("주문 재고 예약 취소 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 항목들 조회
+            List<com.popcorn.order.entity.OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+            // 굿즈 항목만 필터링
+            List<com.popcorn.order.entity.OrderItem> goodsItems = orderItems.stream()
+                    .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
+                    .toList();
+
+            if (goodsItems.isEmpty()) {
+                log.info("굿즈 항목이 없어 재고 예약 취소를 건너뜁니다 - orderId: {}", orderId);
+                return;
+            }
+
+            // 각 굿즈 항목에 대해 재고 예약 취소
+            for (com.popcorn.order.entity.OrderItem item : goodsItems) {
+                if (item.getGoodsVariantId() == null) {
+                    log.warn("굿즈 변형 ID가 없어 재고 예약 취소를 건너뜁니다 - orderId: {}, 항목ID: {}",
+                            orderId, item.getId());
+                    continue;
+                }
+
+                try {
+                    log.info("굿즈 재고 예약 취소 시도 - orderId: {}, 굿즈변형ID: {}, 수량: {}",
+                            orderId, item.getGoodsVariantId(), item.getQty());
+
+                    storeClient.cancelGoodsReservation(
+                            order.getPopupId(),
+                            item.getGoodsVariantId(),
+                            item.getQty()
+                    );
+
+                    log.info("✅ 굿즈 재고 예약 취소 완료 - orderId: {}, 굿즈변형ID: {}",
+                            orderId, item.getGoodsVariantId());
+
+                } catch (Exception e) {
+                    log.error("❌ 굿즈 재고 예약 취소 실패 - orderId: {}, 굿즈변형ID: {}, error: {}",
+                            orderId, item.getGoodsVariantId(), e.getMessage(), e);
+                    // 개별 항목 취소 실패는 전체 처리를 중단시키지 않음
+                }
+            }
+
+            log.info("✅ 주문 재고 예약 취소 완료 - orderId: {}, 처리된 굿즈 수: {}",
+                    orderId, goodsItems.size());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 재고 예약 취소 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 재고 예약 취소 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * 주문의 결제 취소 (결제 실패 시 호출)
+     */
+    public void cancelPaymentForOrder(UUID orderId, String paymentId, String reason) {
+        try {
+            log.info("주문 결제 취소 시작 - orderId: {}, paymentId: {}, reason: {}", orderId, paymentId, reason);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // PaymentClient를 통해 결제 취소 요청
+            try {
+                // 결제 취소 API 호출
+                UUID paymentUuid = UUID.fromString(paymentId);
+                paymentClient.cancelPayment(paymentUuid, reason != null ? reason : "주문 결제 실패로 인한 자동 취소")
+                        .block(); // 동기 처리 (결과 대기)
+
+                log.info("✅ 결제 취소 완료 - orderId: {}, paymentId: {}", orderId, paymentId);
+
+            } catch (Exception paymentCancelException) {
+                // 결제 취소 실패 시에도 주문 처리는 계속 진행 (수동 처리 필요)
+                log.error("❌ 결제 취소 실패 (수동 처리 필요) - orderId: {}, paymentId: {}, error: {}",
+                        orderId, paymentId, paymentCancelException.getMessage(), paymentCancelException);
+            }
+
+        } catch (Exception e) {
+            log.error("❌ 주문 결제 취소 실패 - orderId: {}, paymentId: {}, error: {}",
+                    orderId, paymentId, e.getMessage(), e);
+            // 결제 취소 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * 주문의 재고 차감 요청 (결제 완료 시 호출)
+     */
+    public void requestStockDeduction(UUID orderId) {
+        try {
+            log.info("주문 재고 차감 요청 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 항목들 조회
+            List<com.popcorn.order.entity.OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+            // 굿즈 항목만 필터링 (예약형은 재고 차감 불필요)
+            List<com.popcorn.order.entity.OrderItem> goodsItems = orderItems.stream()
+                    .filter(item -> OrderItemType.GOODS.equals(item.getOrderItemType()))
+                    .filter(item -> item.getGoodsVariantId() != null)
+                    .toList();
+
+            if (goodsItems.isEmpty()) {
+                log.info("굿즈 항목이 없어 재고 차감을 건너뜁니다 - orderId: {}", orderId);
+                return;
+            }
+
+            // 재고 차감 항목 리스트 생성
+            List<StockDeductionRequestedEvent.StockDeductionItem> deductionItems = goodsItems.stream()
+                    .map(item -> StockDeductionRequestedEvent.StockDeductionItem.builder()
+                            .goodsVariantId(item.getGoodsVariantId())
+                            .quantity(item.getQty())
+                            .productName(generateProductName(item))
+                            .variantName(generateProductVariantName(item))
+                            .build())
+                    .toList();
+
+            // 재고 차감 요청 이벤트 발행
+            orderEventPublisher.publishStockDeductionRequestedEvent(
+                    orderId,
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    deductionItems
+            );
+
+            log.info("✅ 주문 재고 차감 요청 완료 - orderId: {}, 굿즈 항목 수: {}",
+                    orderId, deductionItems.size());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 재고 차감 요청 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 재고 차감 요청 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * OrderItem에서 상품 변형명 생성
+     */
+    private String generateProductVariantName(OrderItem item) {
+        if (item == null || item.getOrderItemType() == null) {
+            return "기본";
+        }
+
+        switch (item.getOrderItemType()) {
+            case RESERVATION:
+                return "예약형";
+            case GOODS:
+                return "굿즈";
+            default:
+                return "기본";
+        }
     }
 
 }

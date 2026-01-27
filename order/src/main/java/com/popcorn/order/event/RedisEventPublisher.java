@@ -144,7 +144,7 @@ public class RedisEventPublisher {
                 "correlationId", event.getCorrelationId(),
                 "requestType", event.getRequestType(),
                 "sessionId", event.getSessionId() != null ? event.getSessionId().toString() : "",
-                "goodsVariantId", event.getGoodsVariantId() != null ? event.getGoodsVariantId().toString() : "",
+                "goodsId", event.getGoodsVariantId() != null ? event.getGoodsVariantId().toString() : "",
                 "requestedAt", event.getRequestedAt().toString(),
                 "eventTime", LocalDateTime.now().toString()
             );
@@ -166,6 +166,42 @@ public class RedisEventPublisher {
                     event.getCorrelationId(), e.getMessage(), e);
             e.printStackTrace(); // 스택 트레이스도 출력
             throw new RuntimeException("가격 조회 요청 이벤트 Stream 발행 실패", e);
+        }
+    }
+
+    /**
+     * User 주소 조회 요청 이벤트 발행
+     */
+    public void publishUserAddressLookupRequest(UserAddressLookupRequestedEvent event) {
+        try {
+            log.info("사용자 주소 조회 요청 이벤트 Stream 발행 시작 - userId: {}, correlationId: {}",
+                    event.getUserId(), event.getCorrelationId());
+
+            // 이벤트 데이터 맵 생성
+            Map<String, String> eventData = Map.of(
+                    "eventId", event.getEventId(),
+                    "correlationId", event.getCorrelationId(),
+                    "requestType", event.getRequestType(),
+                    "userId", String.valueOf(event.getUserId()),
+                    "requestedAt", event.getRequestedAt().toString(),
+                    "eventType", "user-address-lookup-requested",
+                    "eventTime", LocalDateTime.now().toString()
+            );
+
+            // StringRecord 생성
+            StringRecord record = StreamRecords.string(eventData)
+                    .withStreamKey("user-address-events");
+
+            // Redis Stream에 발행
+            String recordId = redisTemplate.opsForStream().add(record).getValue();
+
+            log.info("✅ 사용자 주소 조회 요청 이벤트 Stream 발행 완료 - userId: {}, correlationId: {}, recordId: {}",
+                    event.getUserId(), event.getCorrelationId(), recordId);
+
+        } catch (Exception e) {
+            log.error("❌ 사용자 주소 조회 요청 이벤트 Stream 발행 실패 - userId: {}, correlationId: {}, error: {}",
+                    event.getUserId(), event.getCorrelationId(), e.getMessage(), e);
+            throw new RuntimeException("사용자 주소 조회 요청 이벤트 Stream 발행 실패", e);
         }
     }
 

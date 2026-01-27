@@ -86,7 +86,7 @@ public abstract class StandardBaseEvent {
     /**
      * 기본값으로 현재 시간과 UUID 설정
      */
-    protected void setDefaults() {
+    public void setDefaults() {
         if (this.eventId == null) {
             this.eventId = UUID.randomUUID().toString();
         }

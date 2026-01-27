@@ -48,7 +48,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      database: 2  # Payment 서비스 전용 DB
+      database: 1  # Payment 서비스 전용 DB
       timeout: 3000ms
       lettuce:
         pool:

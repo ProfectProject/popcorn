@@ -35,6 +35,10 @@ public class CheckInRedisStreamListener implements StreamListener<String, MapRec
                     streamName, recordId, values.get("eventType"));
 
             String eventType = (String) values.get("eventType");
+            // eventType에서 따옴표 제거
+            if (eventType != null) {
+                eventType = eventType.trim().replaceAll("^\"|\"$", "");
+            }
             handleStreamEvent(eventType, values);
 
             // 메시지 처리 완료 후 ACK (자동으로 처리됨)
