@@ -3,7 +3,7 @@ name: Unified CI/CD Pipeline
 on:
   # 메인 브랜치 배포용 (PR 트리거 제거)
   push:
-    branches: [develop, main]
+    branches: [develop, main, "feature/**"]
     paths:
       - 'users/**'
       - 'stores/**'
@@ -44,7 +44,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     # 수동 실행 또는 [unified] 태그가 있는 커밋에서만 실행
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[unified]') || contains(github.event.head_commit.message, '[all]')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/feature/') || contains(github.event.head_commit.message, '[unified]') || contains(github.event.head_commit.message, '[all]')
     outputs:
       services: ${{ steps.changes.outputs.services }}
       matrix: ${{ steps.changes.outputs.matrix }}
@@ -373,7 +373,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy to Staging
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev')
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev')
         working-directory: .aws
         run: |
           chmod +x deploy.sh
@@ -437,7 +437,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy to Staging
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev')
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev')
         working-directory: .aws
         run: |
           chmod +x deploy.sh
@@ -486,7 +486,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy to Staging
-        if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+        if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev'
         working-directory: .aws
         run: |
           chmod +x deploy.sh
@@ -541,7 +541,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy to Staging
-        if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+        if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev'
         working-directory: .aws
         run: |
           chmod +x deploy.sh
