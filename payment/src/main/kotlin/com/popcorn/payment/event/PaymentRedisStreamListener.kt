@@ -3,6 +3,10 @@ package com.popcorn.payment.event
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.popcorn.payment.service.PaymentOrderInfoService
 import com.popcorn.payment.event.standard.OrderInfoResponseEvent
+import com.popcorn.payment.service.TossPaymentCoroutineService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.data.redis.connection.stream.MapRecord
 import org.springframework.data.redis.stream.StreamListener
@@ -17,10 +21,13 @@ import org.springframework.stereotype.Component
 @Component
 class PaymentRedisStreamListener(
     private val objectMapper: ObjectMapper,
-    private val paymentOrderInfoService: PaymentOrderInfoService
+    private val paymentOrderInfoService: PaymentOrderInfoService,
+    private val tossPaymentCoroutineService: TossPaymentCoroutineService,
+    private val paymentEventPublisher: PaymentEventPublisherImpl
 ) : StreamListener<String, MapRecord<String, String, Any>> {
 
     private val log = LoggerFactory.getLogger(PaymentRedisStreamListener::class.java)
+    private val eventScope = CoroutineScope(Dispatchers.Default)
 
     override fun onMessage(record: MapRecord<String, String, Any>) {
         try {
@@ -79,6 +86,10 @@ class PaymentRedisStreamListener(
                 "payment-approved" -> {
                     log.info("✅ [PAYMENT] 결제 승인 이벤트 수신 - paymentId: {}", values["paymentId"])
                     handlePaymentApproved(values)
+                }
+                "payment-cancel-requested" -> {
+                    log.info("↩️ [PAYMENT] 결제 취소 요청 이벤트 수신 - orderId: {}", values["orderId"])
+                    handlePaymentCancelRequested(values)
                 }
                 "payment-failed" -> {
                     log.warn("❌ [PAYMENT] 결제 실패 이벤트 수신 - paymentId: {}", values["paymentId"])
@@ -139,6 +150,44 @@ class PaymentRedisStreamListener(
 
         } catch (e: Exception) {
             log.error("🚨 [PAYMENT] 결제 실패 처리 실패 - values: {}, error: {}", values, e.message, e)
+        }
+    }
+
+    /**
+     * 결제 취소 요청 이벤트 처리
+     */
+    private fun handlePaymentCancelRequested(values: Map<String, Any>) {
+        val orderIdRaw = values["orderId"]?.toString()?.trim()?.trim('"')
+        val reason = values["reason"]?.toString()?.trim()?.trim('"') ?: "주문 취소"
+        val orderNo = values["orderNo"]?.toString()?.trim()?.trim('"') ?: orderIdRaw
+        val customerIdRaw = values["customerId"]?.toString()?.trim()?.trim('"')
+        val customerId = customerIdRaw?.toLongOrNull()
+
+        if (orderIdRaw.isNullOrBlank()) {
+            log.warn("⚠️ [PAYMENT] 결제 취소 요청 필수 데이터 누락 - values: {}", values)
+            return
+        }
+
+        val orderId = java.util.UUID.fromString(orderIdRaw)
+
+        eventScope.launch {
+            try {
+                val result = tossPaymentCoroutineService.cancelPayment(orderId, reason)
+
+                paymentEventPublisher.publishPaymentCancelled(
+                    paymentId = result.paymentId,
+                    orderId = orderId,
+                    orderNo = orderNo ?: orderId.toString(),
+                    cancelAmount = result.cancelAmount,
+                    cancelReason = result.cancelReason,
+                    customerId = customerId
+                )
+
+                log.info("✅ [PAYMENT] 결제 취소 처리 완료 - orderId={}, paymentId={}", orderId, result.paymentId)
+
+            } catch (e: Exception) {
+                log.error("🚨 [PAYMENT] 결제 취소 처리 실패 - orderId={}, error={}", orderId, e.message, e)
+            }
         }
     }
 

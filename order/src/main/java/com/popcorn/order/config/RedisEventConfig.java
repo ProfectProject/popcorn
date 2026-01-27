@@ -38,6 +38,7 @@ public class RedisEventConfig {
     private static final String GOODS_EVENTS_STREAM = "goods-events";
     private static final String ADDRESS_RESPONSE_STREAM = "order-address-response";
     private static final String PAYMENT_EVENTS_STREAM = "payment-events";
+    private static final String STORE_LOOKUP_RESPONSES_STREAM = "store-lookup-responses";
 
     // Consumer Group 이름
     private static final String ORDER_CONSUMER_GROUP = "order-service-group";
@@ -57,6 +58,7 @@ public class RedisEventConfig {
             createConsumerGroupIfNotExists(ADDRESS_RESPONSE_STREAM);  // User 서비스 응답 수신용
             createConsumerGroupIfNotExists("order-info-requests"); // Order 정보 요청 처리용
             createConsumerGroupIfNotExists(PAYMENT_EVENTS_STREAM); // Payment 이벤트 수신용
+            createConsumerGroupIfNotExists(STORE_LOOKUP_RESPONSES_STREAM); // Store 조회 응답 수신용
 
             log.info("✅ Order Service Redis Stream Consumer Groups 초기화 완료");
         } catch (Exception e) {
@@ -136,6 +138,14 @@ public class RedisEventConfig {
                 (org.springframework.data.redis.stream.StreamListener) orderRedisStreamListener
         );
         log.info("📝 Redis Stream Consumer 등록: {} - {}", PAYMENT_EVENTS_STREAM, PAYMENT_CONSUMER_NAME);
+
+        // Store 조회 응답 Stream 구독
+        container.receive(
+                Consumer.from(ORDER_CONSUMER_GROUP, "store-lookup-consumer-1"),
+                StreamOffset.create(STORE_LOOKUP_RESPONSES_STREAM, ReadOffset.lastConsumed()),
+                (org.springframework.data.redis.stream.StreamListener) orderRedisStreamListener
+        );
+        log.info("📝 Redis Stream Consumer 등록: {} - {}", STORE_LOOKUP_RESPONSES_STREAM, "store-lookup-consumer-1");
 
         try {
             container.start();

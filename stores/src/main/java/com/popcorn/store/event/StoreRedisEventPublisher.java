@@ -28,6 +28,7 @@ public class StoreRedisEventPublisher {
     // Stream 이름 상수
     private static final String STOCK_EVENTS_STREAM = "stock-events";
     private static final String RESPONSE_EVENTS_STREAM = "response-events";
+    private static final String STORE_LOOKUP_RESPONSES_STREAM = "store-lookup-responses";
     private static final String INVENTORY_EVENTS_STREAM = "inventory-events";
     private static final String GOODS_EVENTS_STREAM = "goods-events";
 
@@ -271,6 +272,29 @@ public class StoreRedisEventPublisher {
         } catch (Exception e) {
             log.error("❌ [STORES] 가격 조회 응답 이벤트 Stream 발행 실패 - correlationId: {}, error: {}",
                     event.getCorrelationId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 팝업 정보 조회 응답 이벤트 발행
+     */
+    public void publishPopupInfoLookupResponseEvent(Map<String, Object> eventData) {
+        try {
+            Map<String, String> stringEventData = eventData.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue() != null ? e.getValue().toString() : ""
+                ));
+            stringEventData.put("eventTime", LocalDateTime.now().toString());
+
+            StringRecord record = StreamRecords.string(stringEventData).withStreamKey(STORE_LOOKUP_RESPONSES_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("🏬 [STORES] 팝업 정보 조회 응답 이벤트 Stream 발행 완료 - correlationId: {}",
+                    stringEventData.get("correlationId"));
+
+        } catch (Exception e) {
+            log.error("🏬 [STORES] 팝업 정보 조회 응답 이벤트 발행 실패 - error: {}", e.getMessage(), e);
         }
     }
 

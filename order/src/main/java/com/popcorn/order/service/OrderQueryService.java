@@ -21,7 +21,6 @@ import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.entity.OrderStatusHistory;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
-import com.popcorn.order.client.StoreClient;
 import com.popcorn.order.dto.store.PopupInfoResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -50,7 +49,7 @@ public class OrderQueryService {
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderDomainService orderDomainService;
-    private final StoreClient storeClient;
+    private final OrderPopupLookupService orderPopupLookupService;
 
     // ================ 단일 주문 조회 ================
 
@@ -571,7 +570,20 @@ public class OrderQueryService {
      */
     private com.popcorn.order.dto.response.MyOrderTimelineResponse.ItemDto convertToMyOrderTimelineItem(Order order) {
         // 1. Store 서비스에서 팝업 정보 조회 (매장 정보 포함)
-        PopupInfoResponse popupInfo = storeClient.getPopupInfo(order.getPopupId());
+        PopupInfoResponse popupInfo = orderPopupLookupService.getPopupInfo(order.getPopupId())
+                .orElseGet(() -> PopupInfoResponse.builder()
+                        .popupId(order.getPopupId())
+                        .title("팝업 정보를 불러올 수 없습니다")
+                        .description("")
+                        .storeId(null)
+                        .storeInfo(PopupInfoResponse.StoreInfo.builder()
+                                .name("매장 정보 없음")
+                                .address1("")
+                                .address2("")
+                                .phoneNumber("")
+                                .build())
+                        .status("UNKNOWN")
+                        .build());
 
         return com.popcorn.order.dto.response.MyOrderTimelineResponse.ItemDto.builder()
             .type(order.getOrderType().name())

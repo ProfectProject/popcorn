@@ -15,7 +15,6 @@ import com.popcorn.order.entity.OrderItemType;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.service.OrderService;
-import com.popcorn.order.client.StoreClient;
 
 import java.util.UUID;
 import java.util.List;
@@ -45,7 +44,6 @@ public class OrderEventListener {
     private final OrderEventPublisher eventPublisher;
     private final RedisEventPublisher redisEventPublisher;
     private final ObjectMapper objectMapper;
-    private final StoreClient storeClient;
 
     /**
      * Store 모듈의 재고 차감 실패 이벤트 수신 (Kafka로 대체 예정)
@@ -329,8 +327,8 @@ public class OrderEventListener {
                 log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
                         order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
 
-                storeClient.cancelGoodsReservation(
-                        order.getPopupId(),
+                eventPublisher.publishGoodsReservationCancelRequestedEvent(
+                        order,
                         item.getGoodsVariantId(),
                         item.getQty()
                 );

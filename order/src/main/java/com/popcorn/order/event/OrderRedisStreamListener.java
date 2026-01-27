@@ -5,8 +5,10 @@ import com.popcorn.common.cache.IdempotencyService;
 import com.popcorn.order.dto.user.UserAddressResponse;
 import com.popcorn.order.entity.OrderItemType;
 import com.popcorn.order.entity.OrderStatus;
+import com.popcorn.order.event.PopupInfoLookupResponseEvent;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.service.OrderCommandService;
+import com.popcorn.order.service.OrderPopupLookupService;
 import com.popcorn.order.service.OrderPriceLookupService;
 import com.popcorn.order.service.OrderUserLookupService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
     private final OrderUserLookupService orderUserLookupService;
     private final OrderCommandService orderCommandService;
     private final OrderRepository orderRepository;
+    private final OrderPopupLookupService orderPopupLookupService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -75,6 +78,10 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     log.info("🏠 [ORDER] 사용자 주소 조회 응답 이벤트 수신");
                     handleUserAddressLookupResponse(values);
                     break;
+                case "popup-info-lookup-response":
+                    log.info("🏬 [ORDER] 팝업 정보 조회 응답 이벤트 수신");
+                    handlePopupInfoLookupResponse(values);
+                    break;
                 case "payment-approved":
                     log.info("💳 [ORDER] 결제 승인 이벤트 수신");
                     handlePaymentApproved(values);
@@ -107,6 +114,11 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                 case "goods-reservation-failed":
                     log.info("📦❌ [ORDER] 굿즈 예약 실패 이벤트 수신");
                     handleGoodsReservationFailed(values);
+                    break;
+                case "goods-reservation-cancel-requested":
+                    // Order가 발행한 이벤트이므로 수신 시 무시
+                    log.debug("🔕 [ORDER] 굿즈 예약 취소 요청 이벤트 무시 - eventId: {}",
+                            values.get("eventId"));
                     break;
                 case "payment-create-requested":
                     // Order가 발행한 이벤트이므로 수신 시 무시
@@ -344,6 +356,79 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
             log.error("🚨 [ORDER] 사용자 주소 조회 응답 처리 실패 - values: {}, error: {}",
                     values, e.getMessage(), e);
         }
+    }
+
+    private void handlePopupInfoLookupResponse(Map<String, Object> values) {
+        try {
+            String correlationId = (String) values.get("correlationId");
+            String successStr = (String) values.get("success");
+            String popupIdStr = (String) values.get("popupId");
+
+            if (correlationId != null) {
+                correlationId = correlationId.trim().replaceAll("^\"|\"$", "");
+            }
+            if (successStr != null) {
+                successStr = successStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (popupIdStr != null) {
+                popupIdStr = popupIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+
+            boolean success = Boolean.parseBoolean(successStr);
+
+            java.util.UUID popupId = null;
+            if (popupIdStr != null && !popupIdStr.isEmpty()) {
+                popupId = java.util.UUID.fromString(popupIdStr);
+            }
+
+            PopupInfoLookupResponseEvent response = PopupInfoLookupResponseEvent.builder()
+                    .eventId((String) values.get("eventId"))
+                    .correlationId(correlationId)
+                    .popupId(popupId)
+                    .success(success)
+                    .message((String) values.get("message"))
+                    .title((String) values.get("title"))
+                    .description((String) values.get("description"))
+                    .storeId(parseUuidValue(values.get("storeId")))
+                    .storeName((String) values.get("storeName"))
+                    .address1((String) values.get("address1"))
+                    .address2((String) values.get("address2"))
+                    .phoneNumber((String) values.get("phoneNumber"))
+                    .status((String) values.get("status"))
+                    .startDate(parseDateValue(values.get("startDate")))
+                    .endDate(parseDateValue(values.get("endDate")))
+                    .respondedAt(parseDateValue(values.get("respondedAt")))
+                    .eventTime(parseDateValue(values.get("eventTime")))
+                    .build();
+
+            orderPopupLookupService.handlePopupInfoLookupResponse(response);
+
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 팝업 정보 조회 응답 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    private java.util.UUID parseUuidValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String raw = value.toString().trim().replaceAll("^\"|\"$", "");
+        if (raw.isEmpty()) {
+            return null;
+        }
+        return java.util.UUID.fromString(raw);
+    }
+
+    private java.time.LocalDateTime parseDateValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String raw = value.toString().trim().replaceAll("^\"|\"$", "");
+        if (raw.isEmpty()) {
+            return null;
+        }
+        return java.time.LocalDateTime.parse(raw);
     }
 
     /**

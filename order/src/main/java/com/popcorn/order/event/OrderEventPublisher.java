@@ -83,6 +83,29 @@ public class OrderEventPublisher {
     }
 
     /**
+     * 굿즈 예약 취소 요청 이벤트 발행
+     */
+    public void publishGoodsReservationCancelRequestedEvent(Order order, java.util.UUID goodsVariantId, Integer quantity) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("굿즈 예약 취소 요청 이벤트 발행 - orderId: {}, goodsVariantId: {}",
+                    order.getId(), goodsVariantId);
+
+            redisEventPublisher.publishGoodsReservationCancelRequestedEvent(
+                    eventId,
+                    order.getId(),
+                    order.getPopupId(),
+                    goodsVariantId,
+                    quantity
+            );
+
+        } catch (Exception e) {
+            log.error("굿즈 예약 취소 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
      * 결제 생성 요청 이벤트 발행
      *
      * @param order 주문 정보
@@ -109,6 +132,30 @@ public class OrderEventPublisher {
 
         } catch (Exception e) {
             log.error("결제 생성 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
+        }
+    }
+
+    /**
+     * 결제 취소 요청 이벤트 발행
+     */
+    public void publishPaymentCancelRequestedEvent(Order order, String paymentId, String reason) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("결제 취소 요청 이벤트 발행 - orderId: {}, paymentId: {}",
+                    order.getId(), paymentId);
+
+            redisEventPublisher.publishPaymentCancelRequestedEvent(
+                    eventId,
+                    order.getId(),
+                    order.getOrderNo(),
+                    paymentId,
+                    reason,
+                    order.getCustomerId()
+            );
+
+        } catch (Exception e) {
+            log.error("결제 취소 요청 이벤트 발행 실패 - orderId: {}", order.getId(), e);
         }
     }
 

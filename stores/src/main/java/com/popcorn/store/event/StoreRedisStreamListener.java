@@ -18,6 +18,8 @@ import com.popcorn.store.event.order.StockDeductionFailedEvent;
 import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
 import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
 import com.popcorn.store.domain.popup.entity.PopupSchedule;
+import com.popcorn.store.domain.popup.repository.owner.jpa.JpaOwnerPopupRepository;
+import com.popcorn.store.domain.store.repository.jpa.JpaStoreRepository;
 import com.popcorn.store.domain.popup.repository.owner.jpa.JpaOwnerPopupScheduleRepository;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
@@ -44,6 +46,8 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private final StoreRedisEventPublisher storeRedisEventPublisher;
     private final GoodsVariantRepository goodsVariantRepository;
     private final JpaOwnerPopupScheduleRepository popupScheduleRepository;
+    private final JpaOwnerPopupRepository popupRepository;
+    private final JpaStoreRepository storeRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
@@ -97,6 +101,10 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                             values.get("orderId"), values.get("goodsVariantId"), values.get("reason"));
                     // 내부적으로 발행한 이벤트 - Order 서비스에서 처리 예정
                     break;
+                case "goods-reservation-cancel-requested":
+                    log.info("↩️ [STORES] 굿즈 예약 취소 요청 이벤트 수신");
+                    handleGoodsReservationCancelRequested(values);
+                    break;
                 case "stock-deduction-requested":
                     log.info("📦 [STORES] 재고 차감 요청 이벤트 수신 - orderId: {}", values.get("orderId"));
                     handleStockDeductionRequest(values);
@@ -114,6 +122,10 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 case "price-lookup-requested":
                     log.info("💰 [STORES] 가격 조회 요청 이벤트 수신");
                     publishPriceLookupResponseEvent(values);
+                    break;
+                case "popup-info-lookup-requested":
+                    log.info("🏬 [STORES] 팝업 정보 조회 요청 이벤트 수신");
+                    handlePopupInfoLookupRequested(values);
                     break;
                 default:
                     log.info("🔔 [STORES] 알 수 없는 이벤트 타입 - type: {}", eventType);
@@ -386,6 +398,107 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                     values, e.getMessage(), e);
             publishPriceLookupFailure(values, "굿즈 가격 조회 처리 실패");
         }
+    }
+
+    private void handleGoodsReservationCancelRequested(Map<String, Object> values) {
+        try {
+            String popupIdStr = (String) values.get("popupId");
+            String goodsVariantIdStr = (String) values.get("goodsVariantId");
+            String quantityStr = (String) values.get("quantity");
+
+            if (popupIdStr != null) {
+                popupIdStr = popupIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (goodsVariantIdStr != null) {
+                goodsVariantIdStr = goodsVariantIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (quantityStr != null) {
+                quantityStr = quantityStr.trim().replaceAll("^\"|\"$", "");
+            }
+
+            if (goodsVariantIdStr == null || goodsVariantIdStr.isEmpty() || quantityStr == null || quantityStr.isEmpty()) {
+                log.warn("↩️ [STORES] 굿즈 예약 취소 요청 데이터 누락 - values: {}", values);
+                return;
+            }
+
+            UUID goodsVariantId = UUID.fromString(goodsVariantIdStr);
+            UUID popupId = popupIdStr != null && !popupIdStr.isEmpty() ? UUID.fromString(popupIdStr) : goodsService.resolvePopupId(goodsVariantId);
+            int quantity = Integer.parseInt(quantityStr);
+
+            goodsService.cancelReservationGoods(popupId, goodsVariantId, quantity);
+
+            log.info("↩️ [STORES] 굿즈 예약 취소 완료 - goodsVariantId: {}, quantity: {}", goodsVariantId, quantity);
+
+        } catch (Exception e) {
+            log.error("↩️ [STORES] 굿즈 예약 취소 처리 실패 - values: {}, error: {}", values, e.getMessage(), e);
+        }
+    }
+
+    private void handlePopupInfoLookupRequested(Map<String, Object> values) {
+        try {
+            String popupIdStr = (String) values.get("popupId");
+            String correlationId = (String) values.get("correlationId");
+
+            if (popupIdStr != null) {
+                popupIdStr = popupIdStr.trim().replaceAll("^\"|\"$", "");
+            }
+            if (correlationId != null) {
+                correlationId = correlationId.trim().replaceAll("^\"|\"$", "");
+            }
+
+            if (popupIdStr == null || popupIdStr.isEmpty() || correlationId == null || correlationId.isEmpty()) {
+                log.warn("🏬 [STORES] 팝업 정보 조회 요청 누락 - values: {}", values);
+                return;
+            }
+
+            UUID popupId = UUID.fromString(popupIdStr);
+            var popupOpt = popupRepository.findById(popupId);
+            if (popupOpt.isEmpty() || popupOpt.get().getDeletedAt() != null) {
+                publishPopupInfoLookupFailure(correlationId, popupId, "팝업 정보를 찾을 수 없습니다.");
+                return;
+            }
+
+            var popup = popupOpt.get();
+            var storeOpt = storeRepository.findById(popup.getStoreId());
+
+            String storeName = storeOpt.map(s -> s.getName()).orElse("");
+
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("eventType", "popup-info-lookup-response");
+            response.put("eventId", UUID.randomUUID().toString());
+            response.put("correlationId", correlationId);
+            response.put("popupId", popup.getId().toString());
+            response.put("success", true);
+            response.put("message", "OK");
+            response.put("title", popup.getTitle());
+            response.put("description", popup.getDescription());
+            response.put("storeId", popup.getStoreId() != null ? popup.getStoreId().toString() : "");
+            response.put("storeName", storeName);
+            response.put("address1", popup.getAddressRoad());
+            response.put("address2", popup.getAddressDetail());
+            response.put("phoneNumber", "");
+            response.put("status", popup.getStatus() != null ? popup.getStatus().name() : "");
+            response.put("startDate", popup.getReservationOpenAt() != null ? popup.getReservationOpenAt().toString() : "");
+            response.put("endDate", "");
+            response.put("respondedAt", java.time.LocalDateTime.now().toString());
+
+            storeRedisEventPublisher.publishPopupInfoLookupResponseEvent(response);
+
+        } catch (Exception e) {
+            log.error("🏬 [STORES] 팝업 정보 조회 처리 실패 - values: {}, error: {}", values, e.getMessage(), e);
+        }
+    }
+
+    private void publishPopupInfoLookupFailure(String correlationId, UUID popupId, String message) {
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("eventType", "popup-info-lookup-response");
+        response.put("eventId", UUID.randomUUID().toString());
+        response.put("correlationId", correlationId);
+        response.put("popupId", popupId.toString());
+        response.put("success", false);
+        response.put("message", message);
+        response.put("respondedAt", java.time.LocalDateTime.now().toString());
+        storeRedisEventPublisher.publishPopupInfoLookupResponseEvent(response);
     }
 
     private void publishPriceLookupFailure(Map<String, Object> values, String reason) {

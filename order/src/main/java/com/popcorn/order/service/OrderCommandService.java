@@ -31,10 +31,8 @@ import com.popcorn.order.event.StockDeductionRequestedEvent;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderItemRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
-import com.popcorn.order.client.PaymentClient;
 import com.popcorn.order.client.UserClient;
 import com.popcorn.order.service.OrderUserLookupService;
-import com.popcorn.order.client.StoreClient;
 import com.popcorn.order.dto.payment.CreatePaymentRequest;
 import com.popcorn.order.dto.payment.CreatePaymentResponse;
 
@@ -60,11 +58,9 @@ public class OrderCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final OrderEventPublisher orderEventPublisher;
     private final StandardOrderEventPublisher standardOrderEventPublisher;
-    private final PaymentClient paymentClient;
     private final UserClient userClient;
     private final OrderUserLookupService orderUserLookupService;
     private final PaymentTokenUtil paymentTokenUtil;
-    private final StoreClient storeClient;
     private final OrderCacheService orderCacheService;
     private final OrderPriceLookupService orderPriceLookupService;
 
@@ -500,14 +496,8 @@ public class OrderCommandService {
                 determinePaymentMethod(order) // 사용자가 선택한 결제 방법 결정
         );
 
-        // 4. 비동기로 Payment 서비스 호출
-        paymentClient.createPayment(paymentRequest)
-                .subscribe(
-                    // 결제 생성 성공
-                    this::handlePaymentSuccess,
-                    // 결제 생성 실패
-                    error -> handlePaymentError(order.getId(), error)
-                );
+        // 4. 결제 생성 요청 이벤트 발행 (Payment 서비스가 승인 시점에 생성)
+        orderEventPublisher.publishPaymentCreateRequestedEvent(order, paymentRequest.getPaymentMethod());
 
         log.info("결제 요청 전송 완료 - 주문번호: {}", order.getOrderNo());
     }
@@ -814,8 +804,8 @@ public class OrderCommandService {
                 log.info("굿즈 재고 예약 취소 시도 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
                         order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
 
-                storeClient.cancelGoodsReservation(
-                        order.getPopupId(),
+                orderEventPublisher.publishGoodsReservationCancelRequestedEvent(
+                        order,
                         item.getGoodsVariantId(),
                         item.getQty()
                 );
@@ -1047,8 +1037,8 @@ public class OrderCommandService {
                     log.info("굿즈 재고 예약 취소 시도 - orderId: {}, 굿즈변형ID: {}, 수량: {}",
                             orderId, item.getGoodsVariantId(), item.getQty());
 
-                    storeClient.cancelGoodsReservation(
-                            order.getPopupId(),
+                    orderEventPublisher.publishGoodsReservationCancelRequestedEvent(
+                            order,
                             item.getGoodsVariantId(),
                             item.getQty()
                     );
@@ -1083,20 +1073,14 @@ public class OrderCommandService {
             Order order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
 
-            // PaymentClient를 통해 결제 취소 요청
-            try {
-                // 결제 취소 API 호출
-                UUID paymentUuid = UUID.fromString(paymentId);
-                paymentClient.cancelPayment(paymentUuid, reason != null ? reason : "주문 결제 실패로 인한 자동 취소")
-                        .block(); // 동기 처리 (결과 대기)
+            // 결제 취소 요청 이벤트 발행 (Payment 서비스가 처리)
+            orderEventPublisher.publishPaymentCancelRequestedEvent(
+                    order,
+                    paymentId,
+                    reason != null ? reason : "주문 결제 실패로 인한 자동 취소"
+            );
 
-                log.info("✅ 결제 취소 완료 - orderId: {}, paymentId: {}", orderId, paymentId);
-
-            } catch (Exception paymentCancelException) {
-                // 결제 취소 실패 시에도 주문 처리는 계속 진행 (수동 처리 필요)
-                log.error("❌ 결제 취소 실패 (수동 처리 필요) - orderId: {}, paymentId: {}, error: {}",
-                        orderId, paymentId, paymentCancelException.getMessage(), paymentCancelException);
-            }
+            log.info("✅ 결제 취소 요청 이벤트 발행 완료 - orderId: {}, paymentId: {}", orderId, paymentId);
 
         } catch (Exception e) {
             log.error("❌ 주문 결제 취소 실패 - orderId: {}, paymentId: {}, error: {}",
