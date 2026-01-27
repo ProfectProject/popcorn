@@ -614,7 +614,7 @@ jobs:
             🟡 **CD 시작**
             
             **서비스**: ${{ needs.detect-changes.outputs.services }}
-            **환경**: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **환경**: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && 'Production' || 'Dev' }}
             **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
             **작성자**: ${{ github.actor }}
             **브랜치**: ${{ github.ref_name }}
@@ -644,7 +644,7 @@ jobs:
             ${{ steps.status.outputs.status == 'success' && '✅' || '❌' }} **CD 종료** ${{ steps.status.outputs.status == 'success' && '성공' || '실패' }}
             
             **서비스**: ${{ needs.detect-changes.outputs.services }}
-            **환경**: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **환경**: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && 'Production' || 'Dev' }}
             **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
             **작성자**: ${{ github.actor }}
             **브랜치**: ${{ github.ref_name }}
@@ -664,7 +664,7 @@ jobs:
             🚀 **Unified CI/CD Pipeline** ${{ needs.build-and-deploy.result == 'success' && '✅ 성공' || '❌ 실패' }}
             
             **서비스**: ${{ needs.detect-changes.outputs.services }}
-            **환경**: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **환경**: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && 'Production' || 'Dev' }}
             **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
             **작성자**: ${{ github.actor }}
             **트리거**: ${{ github.event_name }}
