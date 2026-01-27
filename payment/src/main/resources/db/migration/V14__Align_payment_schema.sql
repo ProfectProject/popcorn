@@ -23,7 +23,10 @@ EXCEPTION WHEN undefined_object THEN
 END $$;
 
 ALTER TABLE IF EXISTS payment.payments
-    ADD COLUMN IF NOT EXISTS payment_key VARCHAR(200);
+    ADD COLUMN IF NOT EXISTS payment_key VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_payment_key
     ON payment.payments (payment_key);

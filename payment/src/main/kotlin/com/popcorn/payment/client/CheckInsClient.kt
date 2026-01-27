@@ -3,6 +3,7 @@ package com.popcorn.payment.client
 import com.popcorn.common.dto.BaseResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
@@ -17,6 +18,7 @@ import java.util.UUID
  * Order 서비스가 이 이벤트를 구독하여 QR 생성을 담당합니다.
  */
 @Component
+@ConditionalOnProperty(value = ["microservices.checkins.base-url"])
 class CheckInsClient(
     private val webClient: WebClient,
     @param:Value("\${microservices.checkins.base-url}")

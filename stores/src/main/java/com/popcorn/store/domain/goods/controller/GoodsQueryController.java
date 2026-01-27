@@ -100,6 +100,20 @@ public class GoodsQueryController extends BaseController {
         return ok(response);
     }
 
+    @PostMapping("/api/stores/v1/goods/{goodsId}/reservation")
+    @Operation(summary = "굿즈 예약 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> reserveGoodsWithoutPopup(
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        UUID popupId = goodsService.resolvePopupId(goodsId);
+        GoodsStockResponse response = goodsService.reservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
     @PostMapping("/{goodsId}/reservation/cancel")
     @Operation(summary = "굿즈 예약 취소", description = "굿즈 예약을 취소합니다.")
     @ApiResponses({
@@ -119,6 +133,20 @@ public class GoodsQueryController extends BaseController {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
+        GoodsStockResponse response = goodsService.cancelReservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
+    @PostMapping("/api/stores/v1/goods/{goodsId}/reservation/cancel")
+    @Operation(summary = "굿즈 예약 취소 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약을 취소합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> cancelGoodsReservationWithoutPopup(
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        UUID popupId = goodsService.resolvePopupId(goodsId);
         GoodsStockResponse response = goodsService.cancelReservationGoods(popupId, goodsId, quantity);
         return ok(response);
     }
@@ -146,6 +174,20 @@ public class GoodsQueryController extends BaseController {
         return ok(response);
     }
 
+    @PostMapping("/api/stores/v1/goods/{goodsId}/reservation/fail")
+    @Operation(summary = "굿즈 예약 실패 처리 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약 실패 처리를 합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> failGoodsReservationWithoutPopup(
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        UUID popupId = goodsService.resolvePopupId(goodsId);
+        GoodsStockResponse response = goodsService.failReservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
     @PostMapping("/{goodsId}/reservation/complete")
     @Operation(summary = "굿즈 예약 완료", description = "예약 완료 후 재고를 확정합니다.")
     @ApiResponses({
@@ -165,6 +207,20 @@ public class GoodsQueryController extends BaseController {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
+        GoodsStockResponse response = goodsService.completeReservationGoods(popupId, goodsId, quantity);
+        return ok(response);
+    }
+
+    @PostMapping("/api/stores/v1/goods/{goodsId}/reservation/complete")
+    @Operation(summary = "굿즈 예약 완료 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약을 확정합니다.")
+    public ResponseEntity<BaseResponse<GoodsStockResponse>> completeGoodsReservationWithoutPopup(
+            @PathVariable UUID goodsId,
+            @RequestParam Integer quantity
+    ) {
+        if (quantity == null || quantity <= 0) {
+            throw GoodsException.invalidQuantity();
+        }
+        UUID popupId = goodsService.resolvePopupId(goodsId);
         GoodsStockResponse response = goodsService.completeReservationGoods(popupId, goodsId, quantity);
         return ok(response);
     }

@@ -437,12 +437,12 @@ public class OrderCommandService {
     }
 
     /**
-     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (동기 처리)
+     * 주문 생성 후 결제 프로세스 시작 및 결제 URL 받기 (비동기 처리)
      *
      * [개선사항]
-     * - 기존 비동기 처리 → 동기 처리로 변경
-     * - 결제 URL을 즉시 받아서 주문 생성 응답에 포함
-     * - 결제 실패 시에도 주문은 유지되며 나중에 수동 결제 가능
+     * - Payment 서비스 호출은 비동기로 수행
+     * - 결제 URL은 즉시 발급하여 응답에 포함
+     * - 결제 실패 시에도 주문은 유지되며 나중에 결제 가능
      */
     private CreatePaymentResponse startPaymentProcessAndGetUrl(Order order, CreateOrderCommand command) {
         log.info("결제 프로세스 시작 - 주문번호: {}, 금액: {}원",
@@ -462,43 +462,8 @@ public class OrderCommandService {
                 .build();
         orderStatusHistoryRepository.save(paymentPendingHistory);
 
-        // 3. Payment 서비스에 결제 요청 (동기 처리로 변경)
-        CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
-                order.getId(),
-                order.getCustomerId(),
-                order.getOrderNo(),
-                order.getTotalAmount(),
-                determinePaymentMethod(order)
-        );
-
-        // 4. 동기로 Payment 서비스 호출하여 결제 URL 받기
-        try {
-            CreatePaymentResponse paymentResponse = paymentClient.createPaymentSync(paymentRequest);
-
-            log.info("결제 생성 성공 - 주문번호: {}, 결제ID: {}, 결제URL: {}",
-                    order.getOrderNo(), paymentResponse.getPaymentId(), paymentResponse.getPaymentUrl());
-
-            return paymentResponse;
-
-        } catch (Exception e) {
-            log.error("결제 생성 실패 - 주문번호: {}, 에러: {}", order.getOrderNo(), e.getMessage(), e);
-
-            // 주문 상태를 다시 요청 상태로 되돌림
-            order.setStatus(OrderStatus.REQUESTED);
-            orderRepository.save(order);
-
-            // 상태 변경 이력 저장
-            OrderStatusHistory failedHistory = OrderStatusHistory.builder()
-                    .orderId(order.getId())
-                    .fromStatus(OrderStatus.PAYMENT_PENDING)
-                    .toStatus(OrderStatus.REQUESTED)
-                    .reason("결제 생성 실패: " + e.getMessage())
-                    .changedAt(LocalDateTime.now())
-                    .build();
-            orderStatusHistoryRepository.save(failedHistory);
-
-            return null; // 결제 실패
-        }
+        // 비동기 결제 요청 및 토큰 URL 발급
+        return requestPaymentUrl(order, determinePaymentMethod(order));
     }
 
     /**
@@ -665,19 +630,40 @@ public class OrderCommandService {
     }
 
     /**
-     * 프론트엔드 결제 페이지 URL 생성 (암호화된 토큰 방식)
+     * 프론트엔드 결제 페이지 URL 생성 + Payment 서비스에 결제 생성 요청
      *
-     * [새로운 결제 플로우]
-     * - Order 서비스에서 결제 정보를 AES-256-GCM으로 암호화하여 토큰 생성
-     * - 프론트엔드 URL: http://localhost:3000/auto-payment?token={암호화된토큰}
-     * - Payment 서비스 호출하지 않음 (HTTP 요청 제거)
-     * - 실제 결제 기록은 결제 완료 시점에 Payment 모듈에서 생성
+     * [수정된 결제 플로우]
+     * - 1단계: Payment 서비스에 실제 결제 생성 요청
+     * - 2단계: 토큰 생성하여 프론트엔드 URL 생성
+     * - 이렇게 하면 결제 승인 로그도 정상적으로 기록됨
      */
     private CreatePaymentResponse requestPaymentUrl(Order order, String paymentMethod) {
         try {
-            log.info("💳 암호화된 결제 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
+            log.info("💳 결제 생성 + 토큰 URL 생성 시작 - 주문번호: {}, 금액: {}원, 결제방법: {}",
                     order.getOrderNo(), order.getTotalAmount(), paymentMethod);
 
+            // 1단계: Payment 서비스에 실제 결제 생성 요청
+            CreatePaymentRequest paymentRequest = CreatePaymentRequest.fromOrder(
+                    order.getId(),
+                    order.getCustomerId(),
+                    order.getOrderNo(),
+                    order.getTotalAmount(),
+                    paymentMethod
+            );
+
+            log.info("🔄 Payment 서비스 비동기 호출 시작 - 주문번호: {}", order.getOrderNo());
+            paymentClient.createPayment(paymentRequest)
+                    .doOnSuccess(response ->
+                        log.info("✅ Payment 서비스 비동기 응답 수신 - 주문번호: {}, 결제ID: {}, 상태: {}",
+                                order.getOrderNo(),
+                                response != null ? response.getPaymentId() : null,
+                                response != null ? response.getStatus() : null))
+                    .doOnError(error ->
+                        log.error("❌ Payment 서비스 비동기 호출 실패 - 주문번호: {}, 에러: {}",
+                                order.getOrderNo(), error.getMessage(), error))
+                    .subscribe();
+
+            // 2단계: 토큰 생성 및 프론트엔드 URL 생성
             // 고객 키 생성 (사용자 ID 기반)
             String customerKey = "customer_" + order.getCustomerId().toString().replace("-", "");
 
@@ -695,26 +681,26 @@ public class OrderCommandService {
                         paymentMethod
                 );
 
-                // 프론트엔드 결제 페이지 URL 생성 (기존 backend 호환 방식)
+                // 프론트엔드 결제 페이지 URL 생성
                 String paymentUrl = String.format("%s/auto-payment?token=%s", frontendBaseUrl, paymentToken);
 
-                // CreatePaymentResponse 생성
-                CreatePaymentResponse paymentResponse = CreatePaymentResponse.builder()
-                        .paymentId(null) // 실제 결제 기록은 결제 완료 시점에 생성
+                // CreatePaymentResponse 생성 (Payment 서비스 응답 우선, 실패시 토큰 정보 사용)
+                CreatePaymentResponse finalResponse = CreatePaymentResponse.builder()
+                        .paymentId(null) // 비동기 요청이므로 즉시 결제 ID 미확정
                         .orderId(order.getId())
                         .amount(order.getTotalAmount())
                         .status("READY") // 결제 준비 상태
                         .paymentMethod(paymentMethod)
-                        .paymentUrl(paymentUrl) // 암호화된 토큰 방식 프론트엔드 URL
-                        .expiresAt(LocalDateTime.now().plusMinutes(30)) // 30분 후 만료
+                        .paymentUrl(paymentUrl) // 토큰 방식 URL
+                        .expiresAt(LocalDateTime.now().plusMinutes(30))
                         .createdAt(LocalDateTime.now())
                         .build();
 
-                log.info("✅ 암호화된 결제 토큰 URL 생성 완료 - 주문번호: {}, 고객키: {}, 토큰 길이: {}자",
-                        order.getOrderNo(), customerKey, paymentToken.length());
-                log.debug("🔗 생성된 암호화 결제 URL: {}", paymentUrl);
+                log.info("✅ 결제 생성 + 토큰 URL 생성 완료 - 주문번호: {}, 결제ID: {}, 토큰 길이: {}자",
+                        order.getOrderNo(), finalResponse.getPaymentId(), paymentToken.length());
+                log.debug("🔗 생성된 결제 URL: {}", paymentUrl);
 
-                return paymentResponse;
+                return finalResponse;
 
             } catch (Exception e) {
                 log.error("💥 결제 토큰 암호화 실패 - 주문번호: {}, 에러: {}",
@@ -723,12 +709,12 @@ public class OrderCommandService {
             }
 
         } catch (Exception e) {
-            log.error("💥 암호화된 결제 토큰 URL 생성 실패 - 주문번호: {}, 에러: {}",
+            log.error("💥 결제 생성 + 토큰 URL 생성 실패 - 주문번호: {}, 에러: {}",
                     order.getOrderNo(), e.getMessage(), e);
 
             // 실패 시에도 기본 응답 반환 (프론트엔드 에러 페이지 URL 포함)
-            String errorUrl = frontendBaseUrl + "/payments/fail?reason=token-generation-failed&orderId=" + order.getId();
-            log.warn("🚨 결제 토큰 생성 실패로 프론트엔드 에러 페이지 반환: {}", errorUrl);
+            String errorUrl = frontendBaseUrl + "/payments/fail?reason=payment-creation-failed&orderId=" + order.getId();
+            log.warn("🚨 결제 생성 실패로 프론트엔드 에러 페이지 반환: {}", errorUrl);
 
             return CreatePaymentResponse.builder()
                     .paymentId(null)
@@ -783,7 +769,7 @@ public class OrderCommandService {
      * @throws RuntimeException 재고 부족 또는 예약 실패 시
      */
     private void reserveStockForOrder(Order order) {
-        log.info("주문 재고 예약 시작 - 주문번호: {}", order.getOrderNo());
+        log.info("주문 재고 예약 요청 시작(이벤트) - 주문번호: {}", order.getOrderNo());
 
         // 굿즈 항목만 필터링 (예약형 상품은 재고 예약 불필요)
         List<OrderItem> goodsItems = order.getOrderItems().stream()
@@ -795,46 +781,24 @@ public class OrderCommandService {
             return;
         }
 
-        // 각 굿즈 항목에 대해 재고 예약 시도
-        for (OrderItem item : goodsItems) {
-            if (item.getGoodsVariantId() == null) {
-                log.warn("굿즈 변형 ID가 없어 재고 예약을 건너뜁니다 - 주문번호: {}, 항목ID: {}",
-                        order.getOrderNo(), item.getId());
-                continue;
-            }
+        List<com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem> reservationItems =
+                goodsItems.stream()
+                        .filter(item -> item.getGoodsVariantId() != null)
+                        .map(item -> com.popcorn.order.event.GoodsReservationRequestedEvent.ReservationItem.create(
+                                item.getGoodsVariantId(),
+                                item.getQty()
+                        ))
+                        .toList();
 
-            try {
-                log.info("굿즈 재고 예약 시도 - 주문번호: {}, 팝업ID: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), order.getPopupId(), item.getGoodsVariantId(), item.getQty());
-
-                storeClient.reserveGoods(
-                        order.getPopupId(),
-                        item.getGoodsVariantId(),
-                        item.getQty()
-                );
-
-                log.info("굿즈 재고 예약 성공 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty());
-
-            } catch (Exception e) {
-                log.error("굿즈 재고 예약 실패 - 주문번호: {}, 굿즈변형ID: {}, 수량: {}, 에러: {}",
-                        order.getOrderNo(), item.getGoodsVariantId(), item.getQty(), e.getMessage(), e);
-
-                // 이전에 예약한 항목들 롤백
-                rollbackStockReservations(order, goodsItems, item);
-
-                // 재고 예약 실패 이벤트 발행
-                publishStockReservationFailedEvent(order, item, e.getMessage());
-
-                throw new RuntimeException("재고 예약 실패 - 굿즈변형ID: " + item.getGoodsVariantId() +
-                        ", 수량: " + item.getQty() + ", 에러: " + e.getMessage(), e);
-            }
+        if (reservationItems.isEmpty()) {
+            log.warn("굿즈 변형 ID가 없어 재고 예약 요청을 건너뜁니다 - 주문번호: {}", order.getOrderNo());
+            return;
         }
 
-        // 재고 예약 성공 이벤트 발행
-        publishStockReservedEvent(order, goodsItems);
+        orderEventPublisher.publishGoodsReservationRequestedEvent(order, reservationItems);
 
-        log.info("주문 재고 예약 완료 - 주문번호: {}", order.getOrderNo());
+        log.info("주문 재고 예약 요청 이벤트 발행 완료 - 주문번호: {}, items: {}",
+                order.getOrderNo(), reservationItems.size());
     }
 
     /**

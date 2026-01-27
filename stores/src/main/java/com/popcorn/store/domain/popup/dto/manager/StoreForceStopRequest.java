@@ -13,5 +13,5 @@ import lombok.Setter;
 @Builder
 public class StoreForceStopRequest {
 
-    private Long managerId;
+    private String reason;
 }

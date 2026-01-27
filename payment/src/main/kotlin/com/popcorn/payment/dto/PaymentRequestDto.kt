@@ -1,5 +1,6 @@
 package com.popcorn.payment.dto
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import jakarta.validation.constraints.*
 import java.util.*
 
@@ -33,6 +34,7 @@ data class PaymentCancelRequest(
 /**
  * 결제 생성 요청 DTO
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class PaymentCreateRequest(
     @field:NotNull(message = "주문ID는 필수입니다")
     val orderId: UUID,

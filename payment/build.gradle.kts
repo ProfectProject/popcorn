@@ -62,6 +62,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    implementation(project(":common-lib"))
 
     // === JWT 보안 처리 (기존 backend 호환용) ===
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")

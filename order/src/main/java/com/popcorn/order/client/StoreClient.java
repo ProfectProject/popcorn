@@ -186,6 +186,49 @@ public class StoreClient {
     }
 
     /**
+     * 재고 차감 요청 이벤트 전송 (이벤트 기반 비동기 처리)
+     *
+     * 나중에 Kafka로 전환할 때는 이 메서드만 Kafka Producer로 교체하면 됩니다.
+     *
+     * @param event 재고 차감 요청 이벤트
+     * @throws IllegalStateException 이벤트 전송 실패 시
+     */
+    public void sendStockDeductionRequestedEvent(com.popcorn.order.event.StockDeductionRequestedEvent event) {
+        log.info("재고 차감 요청 이벤트 전송 - orderId: {}, eventId: {}",
+                event.getOrderId(), event.getEventId());
+
+        try {
+            BaseResponse<Object> response = storeWebClient()
+                    .post()
+                    .uri("/api/stores/v1/events/stock-deduction-requested")
+                    .headers(headers -> {
+                        String authHeader = resolveAuthHeader();
+                        if (authHeader != null) {
+                            headers.set("Authorization", authHeader);
+                        }
+                        headers.set("Content-Type", "application/json");
+                    })
+                    .bodyValue(event)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<BaseResponse<Object>>() {})
+                    .block();
+
+            if (response == null || response.getCode() != 200) {
+                String message = response != null ? response.getMessage() : "Store 서비스 응답이 비어 있습니다.";
+                throw new IllegalStateException("재고 차감 요청 이벤트 전송 실패: " + message);
+            }
+
+            log.info("재고 차감 요청 이벤트 전송 성공 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+        } catch (Exception e) {
+            log.error("재고 차감 요청 이벤트 전송 중 오류 - orderId: {}, eventId: {}, error: {}",
+                    event.getOrderId(), event.getEventId(), e.getMessage(), e);
+            throw new IllegalStateException("재고 차감 요청 이벤트 전송 실패", e);
+        }
+    }
+
+    /**
      * 매장 정보 조회 (Redis 캐시 적용)
      *
      * [Java 초보자를 위한 가이드]

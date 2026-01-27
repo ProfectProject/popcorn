@@ -13,6 +13,8 @@ import reactor.netty.http.client.HttpClient
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
+import com.popcorn.payment.http.EventHttpLoggingFilter
+
 /**
  * WebClient 설정 클래스 (Non-blocking HTTP 클라이언트)
  *
@@ -26,7 +28,9 @@ import java.util.concurrent.TimeUnit
  * - 응답 시간 개선 (네트워크 대기 시간 중 다른 요청 처리)
  */
 @Configuration
-class WebClientConfig {
+class WebClientConfig(
+    private val eventHttpLoggingFilter: EventHttpLoggingFilter
+) {
 
     /**
      * 토스페이먼츠 전용 WebClient 빈 생성
@@ -68,6 +72,7 @@ class WebClientConfig {
                 headers.add("Accept", "application/json")
                 headers.add("Content-Type", "application/json")
             }
+            .filter(eventHttpLoggingFilter)
             .build()
 
         // 💡 이렇게 설정된 WebClient의 장점:
@@ -87,6 +92,7 @@ class WebClientConfig {
             .codecs { configurer ->
                 configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024) // 2MB
             }
+            .filter(eventHttpLoggingFilter)
             .build()
     }
 }

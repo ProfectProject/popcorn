@@ -30,9 +30,16 @@ public class PopupSummaryEventListener {
     @EventListener
     public void handlePopupEvent(Object event) {
         String eventType = event == null ? null : event.getClass().getName();
+
+        // 모든 이벤트 수신 로그
+        log.info("🔔 [ORDERQUERY] 이벤트 수신 - type: {}", eventType);
+
         if (eventType == null || !SUPPORTED_EVENTS.contains(eventType)) {
+            log.debug("🔍 [ORDERQUERY] 지원하지 않는 이벤트 타입 - type: {}", eventType);
             return;
         }
+
+        log.info("📋 [ORDERQUERY] Popup 이벤트 처리 시작 - type: {}", eventType);
 
         Object popup = invoke(event, "getPopup");
         if (popup == null) {
