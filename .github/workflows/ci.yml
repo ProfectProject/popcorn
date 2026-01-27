@@ -1,171 +1,147 @@
-# .github/workflows/user-service.yml
-name: User Service CI/CD
+name: MSA CI
 
 on:
   push:
-    branches: [develop, main]
+    branches: [main, develop]
     paths:
-      - 'user-service/**'
-      - '.github/workflows/user-service.yml'
+      - 'users/**'
+      - 'checkIns/**'
+      - 'order/**'
+      - 'store/**'
+      - 'qr/**'
+      - 'order_query/**'
+      - 'common-lib/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - 'gradle.properties'
+
   pull_request:
     branches: [develop, main]
-    paths:
-      - 'user-service/**'
 
-env:
-  AWS_REGION: ap-northeast-2
-  ECR_REGISTRY: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com
-  SERVICE_NAME: user-service
-  
+permissions: 
+  contents: read
+  id-token: write
+
 jobs:
-  test:
+  detect-changes:
     runs-on: ubuntu-latest
-    
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            users:
+              - 'users/**'
+              - 'common-lib/**'
+
+    services:
+      postgres:
+        image: postgres:18.1
+        env:
+          POSTGRES_DB: popcorn_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d popcorn_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+  build-service:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    name: Users Module Build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: ${{ env.SERVICE_NAME }}/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: ${{ env.SERVICE_NAME }}
-        run: npm ci
-      
-      - name: Lint
-        working-directory: ${{ env.SERVICE_NAME }}
-        run: npm run lint
-      
-      - name: Unit tests
-        working-directory: ${{ env.SERVICE_NAME }}
-        run: npm run test:unit
-        env:
-          NODE_ENV: test
-      
-      - name: Integration tests
-        working-directory: ${{ env.SERVICE_NAME }}
-        run: npm run test:integration
-        env:
-          NODE_ENV: test
 
-      - name: Code coverage
-        working-directory: ${{ env.SERVICE_NAME }}
-        run: npm run test:coverage
-        env:
-          COVERAGE_THRESHOLD: 80
-      
-      - name: Security scan
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          args: --severity-threshold=high
+          java-version: '17'
+          distribution: 'temurin'
 
-    
-    services:
-      postgres:
-        image: postgres:15-alpine
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Users Module
+        run: ./gradlew :users:build -x test
         env:
-          POSTGRES_DB: goorm_popcorn_test
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
-  build-and-deploy:
-    needs: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: popcorn_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: test123
+          USER_AUTH_DB_USERNAME: user_auth_app
+          USER_AUTH_DB_PASSWORD: user123
+          USER_AUTH_FLYWAY_USERNAME: user_auth_migrator
+          USER_AUTH_FLYWAY_PASSWORD: user321
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: users-build
+          path: users/build/libs/
+          retention-days: 7
+
+  docker-build-push-ecr:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    
+    needs: build-service
+    name: Build & Push Users Image to ECR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+
     permissions:
       id-token: write
       contents: read
-    
+
+    env:
+      AWS_REGION: ap-northeast-2
+      ECR_REPOSITORY: goorm-popcorn-user
+      SERVICE_DIR: users
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-      
-      - name: Build Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        working-directory: ${{ env.SERVICE_NAME }}
-        run: |
-          docker build \
-            --build-arg NODE_ENV=production \
-            -t $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:$IMAGE_TAG \
-            -t $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:latest \
-            .
-      
-      - name: Push to ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker push $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:$IMAGE_TAG
-          docker push $ECR_REGISTRY/goorm-popcorn/${{ env.SERVICE_NAME }}:latest
-      
-      - name: Deploy to Staging (Rolling Update)
-        if: github.ref == 'refs/heads/develop'
-        run: |
-          aws ecs update-service \
-            --cluster goorm-popcorn-cluster-staging \
-            --service ${{ env.SERVICE_NAME }} \
-            --force-new-deployment \
-            --task-definition ${{ env.SERVICE_NAME }}:${{ github.sha }}
-      
-      - name: Wait for approval (Production)
-        if: github.ref == 'refs/heads/main'
-        uses: trstringer/manual-approval@v1
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
         with:
-          approvers: tech-lead-team
-          minimum-approvals: 1
-          issue-title: "Deploy ${{ env.SERVICE_NAME }} to Production"
-      
-      - name: Deploy to Production (Blue/Green via CodeDeploy)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # CodeDeploy를 통한 블루/그린 배포
-          aws deploy create-deployment \
-            --application-name goorm-popcorn-${{ env.SERVICE_NAME }} \
-            --deployment-group-name production \
-            --revision revisionType=S3,s3Location="{bucket=goorm-popcorn-deployments,key=${{ env.SERVICE_NAME }}/appspec.yml,bundleType=zip}" \
-            --deployment-config-name CodeDeployDefault.ECSBlueGreenCanary10Percent5Minutes \
-            --description "Deploy ${{ env.SERVICE_NAME }} version ${{ github.sha }}"
-      
-      - name: Notify Slack
-        if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-          text: "${{ env.SERVICE_NAME }} 배포 ${{ job.status }}"
+          context: .
+          file: ${{ env.SERVICE_DIR }}/Dockerfile
+          push: true
+          platforms: linux/amd64
+
+          provenance: false
+          sbom: false
+
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}-${{ matrix.service }}:test-${{ github.run_number }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=image,oci-mediatypes=true
