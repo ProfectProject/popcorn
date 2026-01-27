@@ -10,9 +10,25 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 public class InventoryRedisConfig {
 
     @Bean
-    public DefaultRedisScript<Long> holdStockScript() {
+    public DefaultRedisScript<Long> holdScheduleScript() {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("redis/hold_stock.lua")));
+        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("redis/hold_schedule.lua")));
+        script.setResultType(Long.class);
+        return script;
+    }
+
+    @Bean
+    public DefaultRedisScript<Long> holdGoodsScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("redis/hold_goods.lua")));
+        script.setResultType(Long.class);
+        return script;
+    }
+
+    @Bean
+    public DefaultRedisScript<Long> holdBothScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("redis/hold_both.lua")));
         script.setResultType(Long.class);
         return script;
     }

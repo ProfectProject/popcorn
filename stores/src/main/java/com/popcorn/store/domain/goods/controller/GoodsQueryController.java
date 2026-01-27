@@ -5,6 +5,7 @@ import com.popcorn.common.dto.BaseResponse;
 import com.popcorn.store.domain.goods.dto.GoodsListResponse;
 import com.popcorn.store.domain.goods.dto.GoodsStockResponse;
 import com.popcorn.store.domain.goods.exception.GoodsException;
+import com.popcorn.store.domain.goods.service.GoodsInventoryApiService;
 import com.popcorn.store.domain.goods.service.GoodsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/stores/v1/popups/{popupId}/goods")
 public class GoodsQueryController extends BaseController {
     private final GoodsService goodsService;
+    private final GoodsInventoryApiService inventoryApiService;
 
     @GetMapping
     @Operation(summary = "팝업 굿즈 목록 조회", description = "팝업에 등록된 활성 굿즈 목록을 조회합니다.")
@@ -91,12 +93,20 @@ public class GoodsQueryController extends BaseController {
     public ResponseEntity<BaseResponse<GoodsStockResponse>> reserveGoods(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam(required = false) UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
-        GoodsStockResponse response = goodsService.reservationGoods(popupId, goodsId, quantity);
+        UUID resolvedOrderId = orderId == null ? UUID.randomUUID() : orderId;
+        GoodsInventoryApiService.HoldResult result = inventoryApiService.reserve(popupId, goodsId, quantity, resolvedOrderId);
+        GoodsStockResponse response = GoodsStockResponse.builder()
+                .goodsId(goodsId)
+                .orderId(result.getOrderId())
+                .stock(result.getRemaining())
+                .reservationStock(result.getQuantity())
+                .build();
         return ok(response);
     }
 
@@ -104,13 +114,21 @@ public class GoodsQueryController extends BaseController {
     @Operation(summary = "굿즈 예약 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약합니다.")
     public ResponseEntity<BaseResponse<GoodsStockResponse>> reserveGoodsWithoutPopup(
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam(required = false) UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
         UUID popupId = goodsService.resolvePopupId(goodsId);
-        GoodsStockResponse response = goodsService.reservationGoods(popupId, goodsId, quantity);
+        UUID resolvedOrderId = orderId == null ? UUID.randomUUID() : orderId;
+        GoodsInventoryApiService.HoldResult result = inventoryApiService.reserve(popupId, goodsId, quantity, resolvedOrderId);
+        GoodsStockResponse response = GoodsStockResponse.builder()
+                .goodsId(goodsId)
+                .orderId(result.getOrderId())
+                .stock(result.getRemaining())
+                .reservationStock(result.getQuantity())
+                .build();
         return ok(response);
     }
 
@@ -128,12 +146,18 @@ public class GoodsQueryController extends BaseController {
     public ResponseEntity<BaseResponse<GoodsStockResponse>> cancelGoodsReservation(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
-        GoodsStockResponse response = goodsService.cancelReservationGoods(popupId, goodsId, quantity);
+        if (orderId == null) {
+            throw GoodsException.missingOrderId();
+        }
+        inventoryApiService.release(orderId);
+        GoodsStockResponse response = inventoryApiService.currentStock(popupId, goodsId, 0);
+        response.setOrderId(orderId);
         return ok(response);
     }
 
@@ -141,13 +165,19 @@ public class GoodsQueryController extends BaseController {
     @Operation(summary = "굿즈 예약 취소 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약을 취소합니다.")
     public ResponseEntity<BaseResponse<GoodsStockResponse>> cancelGoodsReservationWithoutPopup(
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
+        if (orderId == null) {
+            throw GoodsException.missingOrderId();
+        }
         UUID popupId = goodsService.resolvePopupId(goodsId);
-        GoodsStockResponse response = goodsService.cancelReservationGoods(popupId, goodsId, quantity);
+        inventoryApiService.release(orderId);
+        GoodsStockResponse response = inventoryApiService.currentStock(popupId, goodsId, 0);
+        response.setOrderId(orderId);
         return ok(response);
     }
 
@@ -165,12 +195,18 @@ public class GoodsQueryController extends BaseController {
     public ResponseEntity<BaseResponse<GoodsStockResponse>> failGoodsReservation(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
-        GoodsStockResponse response = goodsService.failReservationGoods(popupId, goodsId, quantity);
+        if (orderId == null) {
+            throw GoodsException.missingOrderId();
+        }
+        inventoryApiService.release(orderId);
+        GoodsStockResponse response = inventoryApiService.currentStock(popupId, goodsId, 0);
+        response.setOrderId(orderId);
         return ok(response);
     }
 
@@ -178,13 +214,19 @@ public class GoodsQueryController extends BaseController {
     @Operation(summary = "굿즈 예약 실패 처리 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약 실패 처리를 합니다.")
     public ResponseEntity<BaseResponse<GoodsStockResponse>> failGoodsReservationWithoutPopup(
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
+        if (orderId == null) {
+            throw GoodsException.missingOrderId();
+        }
         UUID popupId = goodsService.resolvePopupId(goodsId);
-        GoodsStockResponse response = goodsService.failReservationGoods(popupId, goodsId, quantity);
+        inventoryApiService.release(orderId);
+        GoodsStockResponse response = inventoryApiService.currentStock(popupId, goodsId, 0);
+        response.setOrderId(orderId);
         return ok(response);
     }
 
@@ -202,12 +244,18 @@ public class GoodsQueryController extends BaseController {
     public ResponseEntity<BaseResponse<GoodsStockResponse>> completeGoodsReservation(
             @PathVariable UUID popupId,
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
+        if (orderId == null) {
+            throw GoodsException.missingOrderId();
+        }
         GoodsStockResponse response = goodsService.completeReservationGoods(popupId, goodsId, quantity);
+        inventoryApiService.releaseQuietly(orderId);
+        response.setOrderId(orderId);
         return ok(response);
     }
 
@@ -215,13 +263,19 @@ public class GoodsQueryController extends BaseController {
     @Operation(summary = "굿즈 예약 완료 (팝업 ID 없이)", description = "굿즈 ID로 팝업을 조회해 예약을 확정합니다.")
     public ResponseEntity<BaseResponse<GoodsStockResponse>> completeGoodsReservationWithoutPopup(
             @PathVariable UUID goodsId,
-            @RequestParam Integer quantity
+            @RequestParam Integer quantity,
+            @RequestParam UUID orderId
     ) {
         if (quantity == null || quantity <= 0) {
             throw GoodsException.invalidQuantity();
         }
+        if (orderId == null) {
+            throw GoodsException.missingOrderId();
+        }
         UUID popupId = goodsService.resolvePopupId(goodsId);
         GoodsStockResponse response = goodsService.completeReservationGoods(popupId, goodsId, quantity);
+        inventoryApiService.releaseQuietly(orderId);
+        response.setOrderId(orderId);
         return ok(response);
     }
 }

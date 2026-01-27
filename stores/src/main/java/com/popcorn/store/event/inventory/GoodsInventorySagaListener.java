@@ -11,7 +11,10 @@ import com.popcorn.store.event.order.StockDeductionSuccessEvent;
 import com.popcorn.store.event.order.StockReservedEvent;
 import com.popcorn.store.event.order.StockReservationFailedEvent;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
+import com.popcorn.store.inventory.redis.InventoryEventIdempotencyService;
 import com.popcorn.store.inventory.redis.InventoryRedisHoldService;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +22,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -28,21 +33,31 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GoodsInventorySagaListener {
 
+    private static final String ORDER_PAID_GOODS_SCOPE = "order-paid-goods";
+    private static final String INVENTORY_CONFIRMATION_GOODS_SCOPE = "inventory-confirmation-goods";
+
     private final GoodsService goodsService;
     private final GoodsOrderReservationService reservationService;
     private final StoreInventoryEventPublisher eventPublisher;
     private final InventoryRedisHoldService inventoryHoldService;
+    private final InventoryEventIdempotencyService idempotencyService;
 
+    /**
+     * OrderPaidEvent가 도착하면 Redis HOLD를 먼저 시도하고 예약 테이블에 HELD 상태로 기록한다.
+     * 이미 처리된 eventId/주문이면 중복 처리를 막고, Redis HOLD 실패 시 기존 HELD를 rollback한 뒤 실패 이벤트를 발행한다.
+     */
     @EventListener
     @Transactional
     public void handleOrderPaid(OrderPaidEvent event) {
+        if (!shouldProcessOrderPaid(event)) {
+            return;
+        }
         List<OrderPaidEvent.OrderItemInfo> goodsItems = event.getGoodsItems();
         if (goodsItems.isEmpty()) {
             log.info("굿즈가 포함되지 않은 주문 - orderId: {}", event.getOrderId());
             return;
         }
 
-        // 이미 HELD 상태인 예약이 있다면 Redis HOLD 재시도 없이 기존 상태를 사용
         List<GoodsOrderReservation> existingReservations =
                 reservationService.findByOrderIdAndType(event.getOrderId(), ReservationType.GOODS);
         List<GoodsOrderReservation> heldReservations = existingReservations.stream()
@@ -68,8 +83,37 @@ public class GoodsInventorySagaListener {
 
         List<GoodsOrderReservation> createdReservations = new ArrayList<>();
         List<StockReservedEvent.ReservedStockItem> reservedItems = new ArrayList<>();
+        List<OrderPaidEvent.OrderItemInfo> scheduleItems = event.getReservationItems();
+        List<GoodsHoldItem> goodsHoldItems = buildGoodsHoldItems(goodsItems);
+        HoldResult holdResult = null;
 
         try {
+            if (!goodsHoldItems.isEmpty()) {
+                UUID resolvedPopupId = resolvePopupIdForGoods(event, goodsHoldItems);
+                if (!scheduleItems.isEmpty()) {
+                    OrderPaidEvent.OrderItemInfo scheduleItem = scheduleItems.get(0);
+                    if (scheduleItem.getSessionId() != null && scheduleItem.getQuantity() != null
+                            && scheduleItem.getQuantity() > 0) {
+                        holdResult = inventoryHoldService.holdBoth(
+                                event.getOrderId(),
+                                resolvedPopupId,
+                                scheduleItem.getSessionId(),
+                                scheduleItem.getQuantity(),
+                                goodsHoldItems
+                        );
+                    }
+                } else {
+                    holdResult = inventoryHoldService.holdGoods(
+                            event.getOrderId(),
+                            resolvedPopupId,
+                            goodsHoldItems
+                    );
+                }
+                if (holdResult != null && !holdResult.isSuccess()) {
+                    throw new RuntimeException("Redis HOLD 실패: " + holdResult.getDetail());
+                }
+            }
+
             for (OrderPaidEvent.OrderItemInfo item : goodsItems) {
                 if (item.getGoodsVariantId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
                     log.warn("잘못된 굿즈 항목 - orderId: {}, goodsId: {}, quantity: {}",
@@ -77,14 +121,9 @@ public class GoodsInventorySagaListener {
                     continue;
                 }
 
-                java.util.UUID popupId = event.getPopupId();
+                UUID popupId = event.getPopupId();
                 if (popupId == null) {
                     popupId = goodsService.resolvePopupId(item.getGoodsVariantId());
-                }
-
-                String availabilityKey = String.format("goods_avail:%s:%s", popupId, item.getGoodsVariantId());
-                if (!inventoryHoldService.holdAvailability(event.getOrderId(), availabilityKey, item.getQuantity())) {
-                    throw new RuntimeException("Redis HOLD 실패");
                 }
 
                 GoodsOrderReservation reservation = reservationService.createGoodsReservation(
@@ -121,9 +160,15 @@ public class GoodsInventorySagaListener {
         }
     }
 
+    /**
+     * Payment로부터 재고 COMMIT/RELEASE 요청을 받으면 HELD 상태를 기준으로 DB 차감 또는 Redis RELEASE를 수행한다.
+     */
     @EventListener
     @Transactional
     public void handleInventoryConfirmation(InventoryConfirmationRequestedEvent event) {
+        if (!shouldProcessInventoryConfirmation(event)) {
+            return;
+        }
         List<GoodsOrderReservation> reservations = reservationService.findByOrderIdAndType(event.getOrderId(), ReservationType.GOODS);
         if (reservations.isEmpty()) {
             log.warn("예약 정보 없음 - inventory event: {}", event.getOrderId());
@@ -174,30 +219,6 @@ public class GoodsInventorySagaListener {
         }
     }
 
-    /**
-     * 예약 생성 중 오류가 발생하면 Redis HOLD를 복구하고 예약 상태를 FAILED로 업데이트.
-     */
-    private void rollbackReservations(List<GoodsOrderReservation> reservations) {
-        if (reservations.isEmpty()) {
-            return;
-        }
-        java.util.UUID orderId = reservations.stream()
-                .findFirst()
-                .map(GoodsOrderReservation::getOrderId)
-                .orElse(null);
-        if (orderId != null) {
-            try {
-                inventoryHoldService.releaseHold(orderId);
-            } catch (Exception e) {
-                log.error("재고 롤백 중 HOLD 복구 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
-            }
-        }
-        for (GoodsOrderReservation reservation : reservations) {
-            reservationService.updateStatus(reservation, ReservationStatus.FAILED,
-                    "rollback after failure");
-        }
-    }
-
     private List<StockReservationFailedEvent.FailedStockItem> buildFailedItems(
             List<OrderPaidEvent.OrderItemInfo> goodsItems, String failureReason) {
         List<StockReservationFailedEvent.FailedStockItem> failedItems = new ArrayList<>();
@@ -221,5 +242,49 @@ public class GoodsInventorySagaListener {
 
     private String formatDetail(GoodsOrderReservation reservation) {
         return String.format("goodsId=%s qty=%d", reservation.getGoodsVariantId(), reservation.getQuantity());
+    }
+
+    private UUID resolvePopupIdForGoods(OrderPaidEvent event, List<GoodsHoldItem> goodsHoldItems) {
+        UUID popupId = event.getPopupId();
+        if (popupId != null) {
+            return popupId;
+        }
+        if (!goodsHoldItems.isEmpty()) {
+            return goodsService.resolvePopupId(goodsHoldItems.get(0).getGoodsVariantId());
+        }
+        throw new IllegalArgumentException("팝업 정보 또는 굿즈 ID가 필요합니다.");
+    }
+
+    private List<GoodsHoldItem> buildGoodsHoldItems(List<OrderPaidEvent.OrderItemInfo> goodsItems) {
+        Map<UUID, Integer> aggregated = new LinkedHashMap<>();
+        for (OrderPaidEvent.OrderItemInfo item : goodsItems) {
+            if (item.getGoodsVariantId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+                continue;
+            }
+            aggregated.merge(item.getGoodsVariantId(), item.getQuantity(), Integer::sum);
+        }
+        return aggregated.entrySet().stream()
+                .map(entry -> new GoodsHoldItem(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    private boolean shouldProcessOrderPaid(OrderPaidEvent event) {
+        boolean registered = idempotencyService.registerEvent(
+                event.getEventId(), event.getOrderId(), ORDER_PAID_GOODS_SCOPE
+        );
+        if (!registered) {
+            log.info("중복 OrderPaidEvent 스킵 - orderId={}, eventId={}", event.getOrderId(), event.getEventId());
+        }
+        return registered;
+    }
+
+    private boolean shouldProcessInventoryConfirmation(InventoryConfirmationRequestedEvent event) {
+        boolean registered = idempotencyService.registerEvent(
+                event.getEventId(), event.getOrderId(), INVENTORY_CONFIRMATION_GOODS_SCOPE
+        );
+        if (!registered) {
+            log.info("중복 InventoryConfirmation 이벤트 스킵 - orderId={}, eventId={}", event.getOrderId(), event.getEventId());
+        }
+        return registered;
     }
 }

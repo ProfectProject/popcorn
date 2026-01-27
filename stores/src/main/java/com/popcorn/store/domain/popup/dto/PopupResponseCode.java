@@ -11,7 +11,8 @@ public enum PopupResponseCode implements ResponseCode {
 	POPUP_NOT_FOUND(2101, 404, "팝업 정보를 찾을 수 없습니다."),
 	Quantity_is_Null(2101, 400, "수량이 null 입니다."),
 	Positive_Quantity(2101, 400, "수량이 양수가 아닙니다."),
-	INSUFFICIENT_RESERVATION_CAPACITY(2102, 400, "예약 가능 수량이 부족합니다.");
+	INSUFFICIENT_RESERVATION_CAPACITY(2102, 400, "예약 가능 수량이 부족합니다."),
+	MISSING_ORDER_ID(2103, 400, "주문 ID가 필요합니다.");
 
 	private final int code;
 	private final int httpStatus;

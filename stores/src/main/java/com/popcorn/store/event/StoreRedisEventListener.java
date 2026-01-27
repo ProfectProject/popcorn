@@ -17,6 +17,16 @@ import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
 import com.popcorn.store.inventory.redis.InventoryRedisHoldService;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
 
 /**
  * Store 서비스 범용 이벤트 리스너
@@ -213,27 +223,26 @@ public class StoreRedisEventListener implements MessageListener {
                 return;
             }
 
-            java.util.UUID commonPopupId = payload.popupId;
+            java.util.List<GoodsReservationItem> validItems = payload.reservationItems.stream()
+                    .filter(item -> item.goodsVariantId != null && item.quantity != null && item.quantity > 0)
+                    .toList();
+            if (validItems.isEmpty()) {
+                log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 없음 - orderId: {}", payload.orderId);
+                return;
+            }
 
-            for (GoodsReservationItem item : payload.reservationItems) {
-                if (item.goodsVariantId == null || item.quantity == null || item.quantity <= 0) {
-                    log.warn("📋 [STORES] 굿즈 재고 예약 요청 항목 누락 - orderId: {}, item: {}",
-                            payload.orderId, item);
-                    continue;
-                }
+            java.util.UUID resolvedPopupId = payload.popupId;
+            if (resolvedPopupId == null) {
+                resolvedPopupId = goodsService.resolvePopupId(validItems.get(0).goodsVariantId);
+            }
 
-                java.util.UUID resolvedPopupId = commonPopupId;
-                if (resolvedPopupId == null) {
-                    resolvedPopupId = goodsService.resolvePopupId(item.goodsVariantId);
-                }
+            java.util.List<GoodsHoldItem> holdItems = aggregateGoodsItems(validItems);
+            HoldResult holdResult = inventoryHoldService.holdGoods(payload.orderId, resolvedPopupId, holdItems);
+            if (!holdResult.isSuccess()) {
+                throw new RuntimeException("재고 부족으로 HOLD 실패: " + holdResult.getDetail());
+            }
 
-                // Redis에서 goods_avail:{popupId}:{goodsId}를 atomically HOLD
-                String availabilityKey = String.format("goods_avail:%s:%s",
-                        resolvedPopupId, item.goodsVariantId);
-                if (!inventoryHoldService.holdAvailability(payload.orderId, availabilityKey, item.quantity)) {
-                    throw new RuntimeException("재고 부족으로 HOLD 실패");
-                }
-
+            for (GoodsReservationItem item : validItems) {
                 GoodsOrderReservation reservation = reservationService.createGoodsReservation(
                         payload.orderId,
                         payload.orderNo,
@@ -300,6 +309,16 @@ public class StoreRedisEventListener implements MessageListener {
             log.error("🚨 [STORES] Application 이벤트 처리 실패 - event: {}, error: {}",
                     event.getClass().getSimpleName(), e.getMessage(), e);
         }
+    }
+
+    private List<GoodsHoldItem> aggregateGoodsItems(List<GoodsReservationItem> items) {
+        Map<UUID, Integer> aggregated = new LinkedHashMap<>();
+        for (GoodsReservationItem item : items) {
+            aggregated.merge(item.goodsVariantId, item.quantity, Integer::sum);
+        }
+        return aggregated.entrySet().stream()
+                .map(entry -> new GoodsHoldItem(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
     }
 
     private static class InventoryConfirmationPayload {
