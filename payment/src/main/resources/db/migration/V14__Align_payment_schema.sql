@@ -1,6 +1,6 @@
 -- Align payment schema with JPA mapping
+SET search_path TO payment;
 
-CREATE SCHEMA IF NOT EXISTS payment;
 
 DO $$ BEGIN
     CREATE TYPE payment.payment_method AS ENUM ('CARD','TRANSFER','EASY_PAY');
