@@ -14,7 +14,3 @@ EXPOSE 8082
 ENV TZ=Asia/Seoul
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
-#test
-#123456790
-#485dsf
-#94022342
