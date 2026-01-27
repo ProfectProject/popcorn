@@ -28,7 +28,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param orderId 주문 ID
      * @return 결제 목록
      */
-    fun findAllByOrderIdAndIsDeletedFalseOrderByCreatedAtDesc(orderId: UUID): List<Payment>
+    fun findAllByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId: UUID): List<Payment>
 
     /**
      * 주문 ID로 가장 최신 결제 조회
@@ -36,7 +36,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param orderId 주문 ID
      * @return 최신 결제 정보
      */
-    fun findFirstByOrderIdAndIsDeletedFalseOrderByCreatedAtDesc(orderId: UUID): Payment?
+    fun findFirstByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId: UUID): Payment?
 
     /**
      * 결제 상태로 결제 목록 조회
@@ -44,7 +44,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param status 결제 상태
      * @return 결제 목록
      */
-    fun findAllByStatusAndIsDeletedFalse(status: PaymentStatus): List<Payment>
+    fun findAllByStatusAndDeletedAtIsNull(status: PaymentStatus): List<Payment>
 
     /**
      * 특정 기간 내 결제 조회
@@ -53,7 +53,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param endDate 종료 일시
      * @return 결제 목록
      */
-    fun findAllByCreatedAtBetweenAndIsDeletedFalse(
+    fun findAllByCreatedAtBetweenAndDeletedAtIsNull(
         startDate: LocalDateTime,
         endDate: LocalDateTime
     ): List<Payment>
@@ -64,7 +64,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param paymentKey 토스페이먼츠 결제 키
      * @return 결제 목록
      */
-    fun findByPaymentKeyAndIsDeletedFalseOrderByCreatedAtDesc(paymentKey: String): List<Payment>
+    fun findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey: String): List<Payment>
 
     /**
      * 승인 완료된 결제 중 특정 금액으로 조회
@@ -72,7 +72,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param amount 결제 금액
      * @return 결제 목록
      */
-    fun findAllByStatusAndAmountAndIsDeletedFalse(
+    fun findAllByStatusAndAmountAndDeletedAtIsNull(
         status: PaymentStatus,
         amount: Int
     ): List<Payment>
@@ -88,7 +88,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
         FROM Payment p
         WHERE p.orderId = :orderId
         AND p.status = 'PAID'
-        AND p.isDeleted = false
+        AND p.deletedAt IS NULL
     """)
     fun sumPaidAmountByOrderId(@Param("orderId") orderId: UUID): Int
 
@@ -98,7 +98,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param beforeDate 특정 시간 이전
      * @return 실패한 결제 목록
      */
-    fun findAllByStatusAndCreatedAtBeforeAndIsDeletedFalse(
+    fun findAllByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
         status: PaymentStatus,
         beforeDate: LocalDateTime
     ): List<Payment>
@@ -114,7 +114,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
         FROM Payment p
         WHERE DATE(p.createdAt) = DATE(:date)
         AND p.status = 'PAID'
-        AND p.isDeleted = false
+        AND p.deletedAt IS NULL
     """)
     fun countPaidPaymentsByDate(@Param("date") date: LocalDateTime): Long
 
@@ -129,7 +129,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
         FROM Payment p
         WHERE DATE(p.createdAt) = DATE(:date)
         AND p.status = 'PAID'
-        AND p.isDeleted = false
+        AND p.deletedAt IS NULL
     """)
     fun sumPaidAmountByDate(@Param("date") date: LocalDateTime): Long
 
@@ -145,7 +145,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
         FROM Payment p
         WHERE p.createdAt BETWEEN :startDate AND :endDate
         AND p.status = 'PAID'
-        AND p.isDeleted = false
+        AND p.deletedAt IS NULL
         GROUP BY p.paymentMethod
     """)
     fun getPaymentStatsByMethod(
@@ -166,7 +166,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
         WHERE p.orderId = :orderId
         AND p.status IN ('READY', 'PAID')
         AND p.id != :excludePaymentId
-        AND p.isDeleted = false
+        AND p.deletedAt IS NULL
     """)
     fun existsActivePaymentForOrder(
         @Param("orderId") orderId: UUID,
@@ -184,7 +184,7 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
         FROM Payment p
         WHERE p.status = 'READY'
         AND p.createdAt < :beforeDate
-        AND p.isDeleted = false
+        AND p.deletedAt IS NULL
     """)
     fun findExpiredPayments(@Param("beforeDate") beforeDate: LocalDateTime): List<Payment>
 
@@ -195,5 +195,5 @@ interface PaymentRepository : JpaRepository<Payment, UUID> {
      * @param orderIds 사용자의 주문 ID 목록
      * @return 결제 내역
      */
-    fun findAllByOrderIdInAndIsDeletedFalseOrderByCreatedAtDesc(orderIds: List<UUID>): List<Payment>
+    fun findAllByOrderIdInAndDeletedAtIsNullOrderByCreatedAtDesc(orderIds: List<UUID>): List<Payment>
 }

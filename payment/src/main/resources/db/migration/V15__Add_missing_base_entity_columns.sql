@@ -1,4 +1,5 @@
 -- Add missing BaseEntity columns to payments table
+SET search_path TO payment;
 
 ALTER TABLE payment.payments
     ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false,

@@ -100,7 +100,7 @@ class PaymentCommandCoroutineService(
                 throw e
             }
             paymentRepository
-                .findByPaymentKeyAndIsDeletedFalseOrderByCreatedAtDesc(paymentKey)
+                .findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey)
                 .firstOrNull()
                 ?: throw e
         }
@@ -196,7 +196,7 @@ class PaymentCommandCoroutineService(
      */
     suspend fun findByPaymentKey(paymentKey: String): List<PaymentDetailResult> {
         return transactionManager.executeInReadOnlyTransactionSuspend {
-            paymentRepository.findByPaymentKeyAndIsDeletedFalseOrderByCreatedAtDesc(paymentKey)
+            paymentRepository.findByPaymentKeyAndDeletedAtIsNullOrderByCreatedAtDesc(paymentKey)
                 .map { payment ->
                     PaymentDetailResult(
                         paymentId = payment.id,
@@ -219,7 +219,7 @@ class PaymentCommandCoroutineService(
      */
     suspend fun getLatestPaymentByOrderId(orderId: UUID): PaymentDetailResult {
         return transactionManager.executeInReadOnlyTransactionSuspend {
-            val payment = paymentRepository.findFirstByOrderIdAndIsDeletedFalseOrderByCreatedAtDesc(orderId)
+            val payment = paymentRepository.findFirstByOrderIdAndDeletedAtIsNullOrderByCreatedAtDesc(orderId)
                 ?: throw PaymentException.paymentNotFound()
 
             PaymentDetailResult(

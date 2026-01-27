@@ -12,6 +12,7 @@ import java.util.UUID;
 public class GoodsStockResponse {
 
     private UUID goodsId;
+    private UUID orderId;
     private int stock;
     private int reservationStock;
 

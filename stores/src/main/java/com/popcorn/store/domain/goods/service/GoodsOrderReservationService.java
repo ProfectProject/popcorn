@@ -31,7 +31,7 @@ public class GoodsOrderReservationService {
                 .scheduleId(scheduleId)
                 .quantity(quantity)
                 .reservationType(reservationType)
-                .status(ReservationStatus.RESERVED)
+                .status(ReservationStatus.HELD)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

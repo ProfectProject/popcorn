@@ -128,10 +128,14 @@ springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
     groups-order: ASC
     operations-sorter: method
     tags-sorter: order
+    urls:
+      - name: stores-owner
+        url: /v3/api-docs/owner
+      - name: stores-manager
+        url: /v3/api-docs/manager
 
 ---
 # 기본 테스트 프로파일 설정

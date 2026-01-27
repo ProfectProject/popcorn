@@ -16,6 +16,8 @@ import com.popcorn.store.domain.popup.dto.query.response.PopupDetailResponse;
 import com.popcorn.store.domain.popup.dto.query.response.PopupListResponse;
 import com.popcorn.store.domain.popup.entity.enums.PopupCategory;
 import com.popcorn.store.domain.popup.service.PopupService;
+import com.popcorn.store.domain.popup.service.ScheduleInventoryApiService;
+import com.popcorn.store.domain.popup.service.ScheduleInventoryApiService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +38,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class PopupController extends BaseController {
 
 	private final PopupService popupService;
+	private final ScheduleInventoryApiService scheduleInventoryApiService;
 
 	@Operation(
 			summary = "팝업 목록 조회",
@@ -196,7 +199,8 @@ public class PopupController extends BaseController {
 	public ResponseEntity<BaseResponse<PopupScheduleCapacity>>  reservationPopupSchedule(
 			@PathVariable UUID popupId,
 			@PathVariable UUID scheduleId,
-			@RequestParam Integer quantity
+			@RequestParam Integer quantity,
+			@RequestParam UUID orderId
 		){
 			if (quantity == null) {
 				throw PopupException.isNullQuantity();
@@ -204,11 +208,21 @@ public class PopupController extends BaseController {
 			if (quantity <= 0){
 				throw PopupException.isNotPositiveQuantity();
 			}
+			if (orderId == null) {
+				throw PopupException.missingOrderId();
+			}
 
-			PopupScheduleCapacity response = popupService.reservationPopupSchedule(popupId, scheduleId, quantity);
+			ScheduleInventoryApiService.HoldResult holdResult =
+					scheduleInventoryApiService.reserve(popupId, scheduleId, quantity, orderId);
 
-			return ok(response);
-	}
+			try {
+				PopupScheduleCapacity response = popupService.reservationPopupSchedule(popupId, scheduleId, quantity);
+				return ok(response);
+			} catch (RuntimeException e) {
+				scheduleInventoryApiService.releaseQuietly(holdResult.getOrderId());
+				throw e;
+			}
+		}
 
 	@PostMapping("/{popupId}/popupschedule/{scheduleId}/cancel")
 	@Operation(summary = "팝업 스케줄 예약 취소", description = "예약된 수량을 취소하고 수용량을 복구합니다.")
@@ -221,7 +235,8 @@ public class PopupController extends BaseController {
 	public ResponseEntity<BaseResponse<PopupScheduleCapacity>>  cancelPopupScheduleReservation(
 			@PathVariable UUID popupId,
 			@PathVariable UUID scheduleId,
-			@RequestParam Integer quantity
+			@RequestParam Integer quantity,
+			@RequestParam UUID orderId
 		){
 			if (quantity == null) {
 				throw PopupException.isNullQuantity();
@@ -229,6 +244,11 @@ public class PopupController extends BaseController {
 			if (quantity <= 0){
 				throw PopupException.isNotPositiveQuantity();
 			}
+			if (orderId == null) {
+				throw PopupException.missingOrderId();
+			}
+
+			scheduleInventoryApiService.release(orderId);
 
 			PopupScheduleCapacity response = popupService.cancelPopupScheduleReservation(scheduleId, quantity);
 
@@ -246,7 +266,8 @@ public class PopupController extends BaseController {
 	public ResponseEntity<BaseResponse<PopupScheduleCapacity>> failPopupScheduleReservation(
 			@PathVariable UUID popupId,
 			@PathVariable UUID scheduleId,
-			@RequestParam Integer quantity
+			@RequestParam Integer quantity,
+			@RequestParam UUID orderId
 	) {
 		if (quantity == null) {
 			throw PopupException.isNullQuantity();
@@ -254,6 +275,11 @@ public class PopupController extends BaseController {
 		if (quantity <= 0) {
 			throw PopupException.isNotPositiveQuantity();
 		}
+		if (orderId == null) {
+			throw PopupException.missingOrderId();
+		}
+
+		scheduleInventoryApiService.release(orderId);
 
 		PopupScheduleCapacity response = popupService.failPopupScheduleReservation(scheduleId, quantity);
 		return ok(response);
@@ -270,7 +296,8 @@ public class PopupController extends BaseController {
 	public ResponseEntity<BaseResponse<PopupScheduleCapacity>>  completePopupScheduleReservation(
 			@PathVariable UUID popupId,
 			@PathVariable UUID scheduleId,
-			@RequestParam Integer quantity
+			@RequestParam Integer quantity,
+			@RequestParam UUID orderId
 		){
 			if (quantity == null) {
 				throw PopupException.isNullQuantity();
@@ -278,10 +305,15 @@ public class PopupController extends BaseController {
 			if (quantity <= 0){
 				throw PopupException.isNotPositiveQuantity();
 			}
+			if (orderId == null) {
+				throw PopupException.missingOrderId();
+			}
+
+			scheduleInventoryApiService.releaseQuietly(orderId);
 
 			PopupScheduleCapacity response = popupService.completePopupScheduleReservation(scheduleId, quantity);
 
 			return ok(response);
-	}
+		}
 
 }

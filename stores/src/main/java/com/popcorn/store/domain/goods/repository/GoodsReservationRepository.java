@@ -104,6 +104,7 @@ public class GoodsReservationRepository  {
     private GoodsStockResponse mapStock(ResultSet rs) throws SQLException {
         return new GoodsStockResponse(
                 UUID.fromString(rs.getString("goods_id")),
+                null,
                 rs.getInt("stock"),
                 rs.getInt("reservation_stock")
         );
