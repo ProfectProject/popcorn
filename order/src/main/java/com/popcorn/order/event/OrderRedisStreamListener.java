@@ -1,6 +1,7 @@
 package com.popcorn.order.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.popcorn.common.cache.IdempotencyService;
 import com.popcorn.order.dto.user.UserAddressResponse;
 import com.popcorn.order.entity.OrderItemType;
 import com.popcorn.order.entity.OrderStatus;
@@ -457,8 +458,14 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                 UUID orderUuid = UUID.fromString(orderId);
 
                 // 주문 상태를 COMPLETED로 업데이트 (재고 차감 성공 = 주문 완료)
-                orderCommandService.updateOrderStatus(orderUuid, OrderStatus.COMPLETED.name(),
-                    "재고 차감 완료 - 주문 완료: " + stockDetails);
+                try {
+                    orderCommandService.updateOrderStatus(orderUuid, OrderStatus.COMPLETED.name(),
+                        "재고 차감 완료 - 주문 완료: " + stockDetails);
+                } catch (IdempotencyService.IdempotencyException e) {
+                    log.warn("📦✅ [ORDER] 재고 차감 성공 멱등 처리 중복 - orderId: {}, reason: {}",
+                            orderId, e.getMessage());
+                    return;
+                }
 
                 log.info("📦✅ [ORDER] 재고 차감 성공으로 주문 완료 상태 업데이트 완료 - orderId: {}", orderId);
             }

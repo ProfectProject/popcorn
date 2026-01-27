@@ -260,6 +260,12 @@ public class OrderCommandService {
             throw new RuntimeException("올바르지 않은 주문 상태예요: " + status);
         }
 
+        // 동일 상태 요청은 멱등 처리 (no-op)
+        if (currentStatus == newStatus) {
+            log.info("주문 상태 변경 멱등 처리 - 주문ID: {}, 상태: {}", orderId, newStatus);
+            return order;
+        }
+
         // 4. 도메인 규칙 검증
         if (!orderDomainService.canChangeStatus(currentStatus, newStatus)) {
             throw new RuntimeException(String.format("상태 변경이 불가능해요: %s → %s", currentStatus, newStatus));

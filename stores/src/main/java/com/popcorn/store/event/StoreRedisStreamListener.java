@@ -173,7 +173,14 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 popupIdStr = popupIdStr.trim().replaceAll("^\"|\"$", "");
             }
 
-            UUID orderId = UUID.fromString(orderIdStr);
+            UUID orderId;
+            try {
+                orderId = UUID.fromString(normalizeUuidString(orderIdStr));
+            } catch (Exception e) {
+                log.error("📦 [STORES] 재고 차감 요청 orderId UUID 파싱 실패 - orderId: {}, error: {}",
+                        orderIdStr, e.getMessage(), e);
+                return;
+            }
             String orderNo = (String) values.get("orderNo");
             UUID popupId = (popupIdStr == null || popupIdStr.isEmpty()) ?
                     null : UUID.fromString(popupIdStr);
@@ -447,9 +454,9 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private void handleStockDeductionRequest(Map<String, Object> values) {
         try {
             // 이벤트 데이터 추출
-            String orderIdStr = (String) values.get("orderId");
-            String orderNo = (String) values.get("orderNo");
-            String itemsJson = (String) values.get("items");
+            String orderIdStr = normalizeQuotedString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String itemsJson = normalizeQuotedString((String) values.get("items"));
 
             if (orderIdStr == null || orderNo == null || itemsJson == null) {
                 log.error("📦 [STORES] 재고 차감 요청 필수 데이터 누락 - orderId: {}, orderNo: {}, items: {}",
@@ -457,7 +464,7 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 return;
             }
 
-            UUID orderId = UUID.fromString(orderIdStr);
+            UUID orderId = UUID.fromString(normalizeUuidString(orderIdStr));
             log.info("📦 [STORES] 재고 차감 요청 처리 시작 - orderId: {}, orderNo: {}", orderId, orderNo);
 
             // items JSON 역직렬화
@@ -505,7 +512,16 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                         break;
                     }
 
-                    UUID goodsVariantId = UUID.fromString(goodsVariantIdStr);
+                    UUID goodsVariantId;
+                    try {
+                        goodsVariantId = UUID.fromString(normalizeUuidString(goodsVariantIdStr));
+                    } catch (Exception e) {
+                        log.error("📦 [STORES] 재고 차감 항목 goodsVariantId UUID 파싱 실패 - goodsVariantId: {}, error: {}",
+                                goodsVariantIdStr, e.getMessage(), e);
+                        allSuccess = false;
+                        failureReason = "goodsVariantId UUID 파싱 실패";
+                        break;
+                    }
                     String productName = (String) item.get("productName");
                     String variantName = (String) item.get("variantName");
 
@@ -556,8 +572,14 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 String orderIdStr = (String) values.get("orderId");
                 String orderNo = (String) values.get("orderNo");
                 if (orderIdStr != null && orderNo != null) {
-                    publishStockDeductionFailure(UUID.fromString(orderIdStr), orderNo, null,
-                                                "시스템 오류", e.getMessage());
+                    UUID safeOrderId;
+                    try {
+                        safeOrderId = UUID.fromString(normalizeUuidString(orderIdStr));
+                    } catch (Exception ignored) {
+                        return;
+                    }
+                    publishStockDeductionFailure(safeOrderId, orderNo, null,
+                            "시스템 오류", e.getMessage());
                 }
             } catch (Exception ignored) {
                 // 추가 에러 발생 시 무시
@@ -610,5 +632,40 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private static class GoodsReservationItem {
         public UUID goodsVariantId;
         public Integer quantity;
+    }
+
+    private String normalizeUuidString(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() >= 2) {
+            char first = trimmed.charAt(0);
+            char last = trimmed.charAt(trimmed.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                return trimmed.substring(1, trimmed.length() - 1).trim();
+            }
+        }
+        return trimmed;
+    }
+
+    private String normalizeQuotedString(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() >= 2) {
+            char first = trimmed.charAt(0);
+            char last = trimmed.charAt(trimmed.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                try {
+                    // Decode JSON-escaped strings like "\"O2026\"" or "\"[{\\\"a\\\":1}]\""
+                    return objectMapper.readValue(trimmed, String.class).trim();
+                } catch (Exception ignored) {
+                    return trimmed.substring(1, trimmed.length() - 1).trim();
+                }
+            }
+        }
+        return trimmed;
     }
 }
