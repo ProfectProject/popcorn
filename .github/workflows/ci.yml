@@ -97,7 +97,7 @@ jobs:
     
     env:
       AWS_REGION: ap-northeast-2
-      ECR_REPOSITORY: goorm-popcorn
+      ECR_REPOSITORY: goorm-popcorn-user
 
     steps:
       - name: Checkout code
@@ -129,8 +129,8 @@ jobs:
           
           # ✅ 요청하신 dev-latest 태그 적용
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}-${{ matrix.service }}:dev-latest
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}-${{ matrix.service }}:test-${{ github.run_number }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:dev-latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:test-${{ github.run_number }}
           
           cache-from: type=gha
           cache-to: type=gha,mode=max
