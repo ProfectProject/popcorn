@@ -12,6 +12,7 @@ on:
       - 'payment/**'
       - 'gateway/**'
       - 'checkIns/**'
+      - 'common-lib/**'
       - '.aws/task-definitions/**'
       - '.github/workflows/unified-cicd.yml'
   # 수동 실행
@@ -257,7 +258,7 @@ jobs:
     if: |
       always() && 
       needs.detect-changes.outputs.services != '' && 
-      github.event_name == 'push' && 
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && 
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       (needs.security-scan.result == 'success' || needs.security-scan.result == 'skipped')
     runs-on: ubuntu-latest
