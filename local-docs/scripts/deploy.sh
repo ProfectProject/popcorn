@@ -59,7 +59,7 @@ show_help() {
     echo "  - store-service"
     echo "  - order-service"
     echo "  - payment-service"
-    echo "  - qr-service"
+    echo "  - checkin-service"
     echo "  - order-query"
     echo "  - all (모든 서비스)"
 }
@@ -195,7 +195,7 @@ main() {
     get_infrastructure_info
     
     # 서비스 목록
-    local services=("api-gateway" "user-service" "store-service" "order-service" "payment-service" "qr-service" "order-query")
+    local services=("api-gateway" "user-service" "store-service" "order-service" "payment-service" "checkin-service" "order-query")
     
     if [[ "$SERVICE_NAME" == "all" ]]; then
         log_info "모든 서비스 배포 중..."

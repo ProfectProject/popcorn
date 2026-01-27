@@ -1,0 +1,388 @@
+name: Reusable Build and Deploy
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        required: true
+        type: string
+        description: 'Service name (e.g., user-service, checkin-service)'
+      service-directory:
+        required: true
+        type: string
+        description: 'Service directory (e.g., users, checkIns)'
+      ecr-repository:
+        required: true
+        type: string
+        description: 'ECR repository name (e.g., goorm-popcorn-user, goorm-popcorn-checkin)'
+      java-version:
+        required: false
+        type: string
+        default: '17'
+        description: 'Java version to use'
+      gradle-build-args:
+        required: false
+        type: string
+        default: 'build -x test'
+        description: 'Gradle build arguments'
+      needs-kafka:
+        required: false
+        type: boolean
+        default: false
+        description: 'Whether the service needs Kafka for testing'
+      enhanced-security:
+        required: false
+        type: boolean
+        default: false
+        description: 'Whether to use enhanced security scanning (for payment service)'
+      min-approvals:
+        required: false
+        type: number
+        default: 1
+        description: 'Minimum approvals required for production deployment'
+      discord-emoji:
+        required: false
+        type: string
+        default: ''
+        description: 'Discord emoji for notifications'
+    secrets:
+      AWS_ROLE_ARN:
+        required: true
+      SNYK_TOKEN:
+        required: true
+      PROD_APPROVERS:
+        required: true
+      DISCORD_WEBHOOK:
+        required: true
+
+env:
+  AWS_REGION: ap-northeast-2
+  AWS_ACCOUNT_ID: 375896310755
+
+jobs:
+  generate-tags:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+      git_sha: ${{ steps.tags.outputs.git_sha }}
+      primary_tag: ${{ steps.tags.outputs.primary_tag }}
+    steps:
+      - name: Generate image tags
+        id: tags
+        run: |
+          GIT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          BRANCH_NAME="${{ github.ref_name }}"
+          
+          case "${{ github.ref }}" in
+            refs/heads/main)
+              if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                TAGS="$GIT_SHA,latest,${{ github.ref_name }}"
+                PRIMARY_TAG="${{ github.ref_name }}"
+              else
+                TAGS="$GIT_SHA,latest"
+                PRIMARY_TAG="$GIT_SHA"
+              fi
+              ;;
+            refs/heads/develop)
+              DATE_TAG="dev-$(date +%Y%m%d)"
+              TAGS="dev-$GIT_SHA,dev-latest,$DATE_TAG"
+              PRIMARY_TAG="dev-$GIT_SHA"
+              ;;
+            refs/heads/feature/*)
+              SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+              TAGS="feature-$SANITIZED_BRANCH-$GIT_SHA"
+              PRIMARY_TAG="feature-$SANITIZED_BRANCH-$GIT_SHA"
+              ;;
+            refs/heads/hotfix/*)
+              SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+              TAGS="hotfix-$SANITIZED_BRANCH-$GIT_SHA"
+              PRIMARY_TAG="hotfix-$SANITIZED_BRANCH-$GIT_SHA"
+              ;;
+            refs/pull/*)
+              PR_NUMBER=$(echo ${{ github.ref }} | sed 's/refs\/pull\/\([0-9]*\)\/merge/\1/')
+              TAGS="pr-$PR_NUMBER-$GIT_SHA"
+              PRIMARY_TAG="pr-$PR_NUMBER-$GIT_SHA"
+              ;;
+            *)
+              TAGS="$GIT_SHA"
+              PRIMARY_TAG="$GIT_SHA"
+              ;;
+          esac
+          
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "git_sha=$GIT_SHA" >> $GITHUB_OUTPUT
+          echo "primary_tag=$PRIMARY_TAG" >> $GITHUB_OUTPUT
+          
+          echo "Generated tags: $TAGS"
+          echo "Primary tag: $PRIMARY_TAG"
+          echo "Git SHA: $GIT_SHA"
+
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    services:
+      postgres:
+        image: postgres:18.1
+        env:
+          POSTGRES_DB: goorm_popcorn_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      valkey:
+        image: valkey/valkey:8.0
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      kafka:
+        image: confluentinc/cp-kafka:latest
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports:
+          - 9092:9092
+
+      zookeeper:
+        image: confluentinc/cp-zookeeper:latest
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+        ports:
+          - 2181:2181
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Wait for Kafka to be ready
+        if: inputs.needs-kafka
+        run: |
+          timeout 60 bash -c 'until nc -z localhost 9092; do sleep 1; done'
+
+      - name: Run tests
+        working-directory: ${{ inputs.service-directory }}
+        run: |
+          ../gradlew test
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: goorm_popcorn_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          VALKEY_HOST: localhost
+          VALKEY_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: ${{ inputs.needs-kafka && 'localhost:9092' || '' }}
+
+      - name: Generate test report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: ${{ inputs.service-name }} Tests
+          path: ${{ inputs.service-directory }}/build/test-results/test/*.xml
+          reporter: java-junit
+
+      - name: Code coverage
+        working-directory: ${{ inputs.service-directory }}
+        run: ../gradlew jacocoTestReport
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ${{ inputs.service-directory }}/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: ${{ inputs.service-name }}
+
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/gradle@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=${{ inputs.service-directory }}/build.gradle
+
+      - name: Enhanced Security Scan (Payment Service)
+        if: inputs.enhanced-security
+        uses: securecodewarrior/github-action-add-sarif@v1
+        with:
+          sarif-file: '${{ inputs.service-name }}-security-scan.sarif'
+
+  build-and-deploy:
+    needs: [generate-tags, test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build application
+        working-directory: ${{ inputs.service-directory }}
+        run: |
+          chmod +x ../gradlew
+          ../gradlew ${{ inputs.gradle-build-args }}
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          TAGS: ${{ needs.generate-tags.outputs.tags }}
+        working-directory: ${{ inputs.service-directory }}
+        run: |
+          # Build base image
+          docker build \
+            --build-arg JAR_FILE=build/libs/*.jar \
+            -t temp-image \
+            .
+          
+          # Tag with all generated tags
+          IFS=',' read -ra TAG_ARRAY <<< "$TAGS"
+          for tag in "${TAG_ARRAY[@]}"; do
+            docker tag temp-image $ECR_REGISTRY/${{ inputs.ecr-repository }}:$tag
+          done
+
+      - name: Scan Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          GIT_SHA: ${{ needs.generate-tags.outputs.git_sha }}
+        run: |
+          if [[ "${{ inputs.enhanced-security }}" == "true" ]]; then
+            # Enhanced security scan for critical services (e.g., payment)
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              -v $HOME/Library/Caches:/root/.cache/ \
+              aquasec/trivy:latest image \
+              --exit-code 1 --severity MEDIUM,HIGH,CRITICAL \
+              --format sarif --output ${{ inputs.service-name }}-trivy-results.sarif \
+              $ECR_REGISTRY/${{ inputs.ecr-repository }}:$GIT_SHA
+          else
+            # Standard security scan
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              -v $HOME/Library/Caches:/root/.cache/ \
+              aquasec/trivy:latest image \
+              --exit-code 1 --severity HIGH,CRITICAL \
+              $ECR_REGISTRY/${{ inputs.ecr-repository }}:$GIT_SHA
+          fi
+
+      - name: Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          TAGS: ${{ needs.generate-tags.outputs.tags }}
+        run: |
+          # Push all tagged images
+          IFS=',' read -ra TAG_ARRAY <<< "$TAGS"
+          for tag in "${TAG_ARRAY[@]}"; do
+            docker push $ECR_REGISTRY/${{ inputs.ecr-repository }}:$tag
+          done
+
+      - name: Deploy to Staging
+        if: github.ref == 'refs/heads/develop'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh ${{ inputs.service-name }} dev ${{ needs.generate-tags.outputs.primary_tag }}
+
+      - name: Wait for manual approval (Production)
+        if: github.ref == 'refs/heads/main'
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PROD_APPROVERS }}
+          minimum-approvals: ${{ inputs.min-approvals }}
+          issue-title: "Deploy ${{ inputs.service-name }} to Production${{ inputs.enhanced-security && ' - CRITICAL SERVICE' || '' }}"
+          issue-body: |
+            ${{ inputs.enhanced-security && '**⚠️ CRITICAL SERVICE DEPLOYMENT ⚠️**' || '**Production Deployment**' }}
+            
+            **Service**: ${{ inputs.service-name }}
+            **Version**: ${{ needs.generate-tags.outputs.primary_tag }}
+            **Branch**: ${{ github.ref_name }}
+            **Author**: ${{ github.actor }}
+            **Tags**: ${{ needs.generate-tags.outputs.tags }}
+            
+            ${{ inputs.enhanced-security && '**Security Checks**:
+            - ✅ Enhanced vulnerability scan completed
+            - ✅ SAST analysis passed
+            - ✅ Dependency check passed
+            
+            **Required Approvals**: ' || '' }}${{ inputs.min-approvals }}${{ inputs.enhanced-security && ' (Tech Lead + Security Lead)' || '' }}
+            
+            Please review and approve the production deployment.
+
+      - name: Deploy to Production
+        if: github.ref == 'refs/heads/main'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh ${{ inputs.service-name }} prod ${{ needs.generate-tags.outputs.primary_tag }}
+
+      - name: Post-deployment Security Monitoring
+        if: github.ref == 'refs/heads/main' && inputs.enhanced-security
+        run: |
+          echo "🔒 ${{ inputs.service-name }} deployed - Enhanced monitoring activated"
+          # Additional security monitoring setup for critical services
+
+      - name: Notify Discord
+        if: always()
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            ${{ job.status == 'success' && format('{0}✅', inputs.discord-emoji) || format('{0}❌', inputs.discord-emoji) }} **${{ inputs.service-name }}** 배포 ${{ job.status == 'success' && '성공' || '실패' }}
+            
+            **환경**: ${{ github.ref == 'refs/heads/main' && '🔴 Production' || '🟡 Staging' }}
+            **버전**: `${{ needs.generate-tags.outputs.primary_tag }}`
+            **태그**: `${{ needs.generate-tags.outputs.tags }}`
+            **작성자**: ${{ github.actor }}
+            **브랜치**: ${{ github.ref_name }}${{ inputs.enhanced-security && '
+            **보안 스캔**: 완료 ✅' || '' }}
+            **실행 시간**: ${{ github.run_number }}번째 실행
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

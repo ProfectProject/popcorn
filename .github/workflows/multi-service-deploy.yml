@@ -10,7 +10,7 @@ on:
       - 'stores/**'
       - 'order/**'
       - 'payment/**'
-      - 'qr/**'
+      - 'checkIns/**'
       - 'orderQuery/**'
   pull_request:
     branches: [develop, main]
@@ -21,7 +21,7 @@ on:
       - 'stores/**'
       - 'order/**'
       - 'payment/**'
-      - 'qr/**'
+      - 'checkIns/**'
       - 'orderQuery/**'
   workflow_dispatch:
     inputs:
@@ -80,9 +80,9 @@ jobs:
             payment-service:
               - 'payment/**'
               - '.aws/task-definitions/payment-service.json'
-            qr-service:
-              - 'qr/**'
-              - '.aws/task-definitions/qr-service.json'
+            checkin-service:
+              - 'checkIns/**'
+              - '.aws/task-definitions/checkin-service.json'
             order-query:
               - 'orderQuery/**'
               - '.aws/task-definitions/order-query.json'
@@ -94,7 +94,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Manual trigger - use input services
             if [[ "${{ github.event.inputs.services }}" == "all" ]]; then
-              SERVICES='["api-gateway","user-service","store-service","order-service","payment-service","qr-service","order-query"]'
+              SERVICES='["api-gateway","user-service","store-service","order-service","payment-service","checkin-service","order-query"]'
             else
               # Convert comma-separated string to JSON array
               SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R 'split(",") | map(select(length > 0)) | map(gsub("^\\s+|\\s+$"; ""))')
@@ -111,11 +111,11 @@ jobs:
   # Group 1: Independent services (parallel deployment)
   deploy-group-1:
     needs: detect-changes
-    if: needs.detect-changes.outputs.services != '[]' && contains(needs.detect-changes.outputs.services, 'user-service') || contains(needs.detect-changes.outputs.services, 'qr-service')
+    if: needs.detect-changes.outputs.services != '[]' && contains(needs.detect-changes.outputs.services, 'user-service') || contains(needs.detect-changes.outputs.services, 'checkin-service')
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [user-service, qr-service]
+        service: [user-service, checkin-service]
       fail-fast: false
     
     permissions:

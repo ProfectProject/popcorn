@@ -1,310 +1,231 @@
-# GitHub Actions CI/CD 워크플로우
+# GitHub Actions 워크플로우 가이드
 
-이 디렉토리는 Goorm Popcorn 마이크로서비스의 CI/CD 파이프라인을 포함합니다.
+## 개요
+이 프로젝트는 재사용 가능한 워크플로우를 사용하여 모든 마이크로서비스의 CI/CD를 표준화했습니다.
 
-## 📁 워크플로우 구조
+## 워크플로우 구조
+
+### 재사용 가능한 워크플로우
+- **`reusable-build-deploy.yml`**: 모든 서비스가 공통으로 사용하는 빌드/배포 워크플로우
+
+### 서비스별 워크플로우
+각 서비스는 재사용 가능한 워크플로우를 호출하며, 서비스별 특성을 매개변수로 전달합니다.
 
 ```
 .github/workflows/
-├── api-gateway.yml          # API Gateway 서비스 CI/CD
-├── user-service.yml         # User Service CI/CD
-├── store-service.yml        # Store Service CI/CD
-├── order-service.yml        # Order Service CI/CD
-├── payment-service.yml      # Payment Service CI/CD (강화된 보안)
-├── qr-service.yml          # QR Service CI/CD
-├── order-query.yml         # Order Query Service CI/CD
-├── multi-service-deploy.yml # 다중 서비스 배포
-└── README.md               # 이 문서
+├── reusable-build-deploy.yml    # 재사용 가능한 워크플로우
+├── api-gateway.yml              # API Gateway 서비스
+├── user-service.yml             # User Service
+├── store-service.yml            # Store Service  
+├── order-service.yml            # Order Service
+├── payment-service.yml          # Payment Service (보안 강화)
+├── checkin-service.yml          # CheckIn Service
+└── order-query.yml              # Order Query Service
 ```
 
-## 🚀 배포 전략
+## 서비스별 설정
 
-### 자동 배포 트리거
+| 서비스 | 디렉토리 | ECR 레포지토리 | Kafka 필요 | 보안 강화 | 승인 수 | 이모지 |
+|--------|----------|----------------|------------|-----------|---------|--------|
+| API Gateway | gateway | goorm-popcorn-api-gateway | ❌ | ❌ | 1 | 🚪 |
+| User Service | users | goorm-popcorn-user | ❌ | ❌ | 1 | 👤 |
+| Store Service | stores | goorm-popcorn-store | ❌ | ❌ | 1 | 🏪 |
+| Order Service | order | goorm-popcorn-order | ✅ | ❌ | 1 | 📦 |
+| Payment Service | payment | goorm-popcorn-payment | ❌ | ✅ | 2 | 🔒 |
+| CheckIn Service | checkIns | goorm-popcorn-checkin | ❌ | ❌ | 1 | 📱 |
+| Order Query | orderQuery | goorm-popcorn-order-query | ❌ | ❌ | 1 | 📊 |
 
-**개별 서비스 배포**:
-- **트리거**: 해당 서비스 디렉토리 또는 Task Definition 파일 변경
-- **브랜치**: `develop` (스테이징), `main` (프로덕션)
-- **예시**: `users/` 디렉토리 변경 시 `user-service.yml` 워크플로우 실행
+## 이미지 태그 전략
 
-**다중 서비스 배포**:
-- **트리거**: 여러 서비스 동시 변경 또는 수동 실행
-- **의존성 기반 순차 배포**: 서비스 간 의존성을 고려한 그룹별 배포
+### Production (main 브랜치)
+- `{git-sha-8자리}`: a1b2c3d4
+- `v{semantic-version}`: v1.2.3 (태그가 semantic version일 때)
+- `latest`: 최신 프로덕션 버전
 
-### 배포 그룹 및 순서
+### Development (develop 브랜치)
+- `dev-{git-sha-8자리}`: dev-a1b2c3d4
+- `dev-latest`: 최신 개발 버전
+- `dev-{YYYYMMDD}`: dev-20240120
 
+### Feature/Hotfix 브랜치
+- `feature-{sanitized-branch-name}-{git-sha-8자리}`
+- `hotfix-{sanitized-branch-name}-{git-sha-8자리}`
+- `pr-{pr-number}-{git-sha-8자리}`
+
+## 워크플로우 트리거
+
+### Push 이벤트
+각 서비스는 다음 경로 변경 시 트리거됩니다:
+- 서비스 디렉토리 (`users/**`, `gateway/**`, 등)
+- Task Definition (`.aws/task-definitions/{service}.json`)
+- 워크플로우 파일 (`.github/workflows/{service}.yml`)
+
+### Pull Request 이벤트
+- `develop`, `main` 브랜치로의 PR에서 테스트 및 보안 스캔 실행
+- 서비스 디렉토리와 Task Definition 변경 시에만 트리거
+
+## 보안 기능
+
+### 표준 보안 스캔
+- **Snyk**: 의존성 취약점 스캔
+- **Trivy**: 컨테이너 이미지 스캔 (HIGH, CRITICAL)
+- **코드 커버리지**: Codecov 업로드
+
+### 강화된 보안 스캔 (Payment Service)
+- **Enhanced Trivy**: MEDIUM, HIGH, CRITICAL 스캔
+- **SARIF 출력**: 보안 스캔 결과 저장
+- **추가 SAST**: 정적 분석 도구
+- **2단계 승인**: Tech Lead + Security Lead
+
+## 배포 프로세스
+
+### Development 환경
+1. `develop` 브랜치 푸시
+2. 자동 빌드 및 테스트
+3. ECR에 이미지 푸시 (`dev-*` 태그)
+4. 자동 배포 to Staging
+
+### Production 환경
+1. `main` 브랜치 푸시
+2. 자동 빌드 및 테스트
+3. ECR에 이미지 푸시 (production 태그)
+4. **수동 승인 대기**
+5. 승인 후 Production 배포
+
+### 승인 프로세스
+- **일반 서비스**: 1명 승인 필요
+- **Payment Service**: 2명 승인 필요 (보안 강화)
+
+## Discord 알림
+
+각 배포 완료 시 Discord로 알림이 전송됩니다:
+
+```
+🚪✅ api-gateway 배포 성공
+
+환경: 🟡 Staging
+버전: dev-a1b2c3d4
+태그: dev-a1b2c3d4,dev-latest,dev-20240120
+작성자: developer
+브랜치: develop
+실행 시간: 42번째 실행
+```
+
+## 새 서비스 추가 방법
+
+1. **서비스 워크플로우 생성**:
 ```yaml
-Group 1 (병렬 배포):
-  - user-service    # 독립적 인증 서비스
-  - qr-service      # 독립적 QR 생성 서비스
+name: New Service CI/CD
 
-Group 2 (병렬 배포):
-  - store-service   # user-service 의존
-  - order-service   # user-service, store-service 의존
-  - order-query     # 읽기 전용 서비스
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'newservice/**'
+      - '.aws/task-definitions/new-service.json'
+      - '.github/workflows/new-service.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'newservice/**'
+      - '.aws/task-definitions/new-service.json'
 
-Group 3 (순차 배포):
-  - payment-service # 결제 서비스 (높은 안정성 요구)
-  - api-gateway     # 모든 서비스 라우팅 (마지막 배포)
+jobs:
+  build-deploy:
+    uses: ./.github/workflows/reusable-build-deploy.yml
+    with:
+      service-name: new-service
+      service-directory: newservice
+      ecr-repository: goorm-popcorn-newservice
+      java-version: '17'
+      gradle-build-args: 'build -x test'
+      needs-kafka: false
+      enhanced-security: false
+      min-approvals: 1
+      discord-emoji: '🆕'
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 ```
 
-## 🔧 환경별 배포 방식
+2. **Task Definition 생성**: `.aws/task-definitions/new-service.json`
 
-### 스테이징 환경 (`develop` 브랜치)
-- **배포 방식**: Rolling Update (ECS 기본)
-- **승인**: 자동 배포
-- **목적**: QA 테스트 및 통합 검증
-- **리소스**: 비용 효율적 설정
+3. **배포 스크립트 업데이트**: `.aws/deploy.sh`에 서비스 추가
 
-### 프로덕션 환경 (`main` 브랜치)
-- **배포 방식**: Blue/Green (AWS CodeDeploy)
-- **승인**: 수동 승인 필요
-- **목적**: 무중단 서비스 제공
-- **리소스**: 고가용성 설정
-
-## 📋 필수 GitHub Secrets
-
-워크플로우 실행을 위해 다음 Secrets을 설정해야 합니다:
-
-### AWS 관련
-```yaml
-AWS_ROLE_ARN: arn:aws:iam::375896310755:role/github-actions-role
-```
-
-### 보안 스캔
-```yaml
-SNYK_TOKEN: your-snyk-token
-```
-
-### 알림
-```yaml
-DISCORD_WEBHOOK: https://discord.com/api/webhooks/...
-```
-
-### 승인자
-```yaml
-PROD_APPROVERS: tech-lead-team,security-team
-```
-
-## 🔍 워크플로우 상세 설명
-
-### 1. 개별 서비스 워크플로우
-
-각 서비스별 워크플로우는 다음 단계를 포함합니다:
-
-#### Pull Request 단계
-```yaml
-1. 코드 체크아웃
-2. 환경 설정 (JDK 17, Gradle)
-3. 테스트 실행
-   - 단위 테스트
-   - 통합 테스트 (PostgreSQL, Redis, Kafka)
-4. 코드 커버리지 측정
-5. 보안 스캔 (Snyk, Trivy)
-6. 테스트 리포트 생성
-```
-
-#### Push 단계 (배포)
-```yaml
-1. 애플리케이션 빌드
-2. Docker 이미지 빌드
-3. 보안 스캔 (이미지)
-4. ECR 푸시
-5. 환경별 배포
-   - develop → 스테이징 (자동)
-   - main → 프로덕션 (수동 승인)
-6. Slack 알림
-```
-
-### 2. 다중 서비스 워크플로우
-
-#### 변경 감지
-```yaml
-- 수정된 서비스 자동 감지
-- 의존성 기반 배포 순서 결정
-- 매트릭스 전략으로 병렬 배포
-```
-
-#### 수동 배포
-```yaml
-- 배포할 서비스 선택 가능
-- 환경 선택 (dev/prod)
-- 이미지 태그 지정 가능
-```
-
-## 🛡️ 보안 강화 (Payment Service)
-
-결제 서비스는 추가 보안 조치를 적용합니다:
-
-```yaml
-보안 스캔:
-  - 강화된 취약점 스캔 (MEDIUM 이상)
-  - SAST (정적 애플리케이션 보안 테스트)
-  - 의존성 보안 검사
-
-승인 프로세스:
-  - 최소 2명 승인 필요
-  - Tech Lead + Security Lead 승인
-  - 상세한 보안 체크리스트
-
-배포 후 모니터링:
-  - 강화된 모니터링 활성화
-  - 실시간 보안 알림
-```
-
-## 📊 모니터링 및 알림
-
-### Discord 알림
-모든 배포 상태는 Discord 채널로 알림됩니다:
-
-```yaml
-알림 내용:
-  - 배포 시작/완료/실패
-  - 환경 정보 (🟡 Staging/🔴 Production)
-  - 배포된 서비스 목록
-  - 작성자 정보
-  - 버전 정보 (Git SHA)
-  - 서비스별 이모지 구분
-```
-
-### 테스트 리포트
-- **단위 테스트**: JUnit 리포트 자동 생성
-- **커버리지**: Codecov 통합
-- **보안 스캔**: GitHub Security 탭에서 확인
-
-## 🚀 사용 방법
-
-### 1. 개별 서비스 배포
-
-**자동 배포**:
-```bash
-# 스테이징 배포
-git checkout develop
-git add users/src/main/java/...
-git commit -m "feat: 사용자 인증 기능 추가"
-git push origin develop
-# → user-service.yml 워크플로우 자동 실행
-
-# 프로덕션 배포
-git checkout main
-git merge develop
-git push origin main
-# → 수동 승인 후 배포
-```
-
-### 2. 다중 서비스 배포
-
-**수동 배포**:
-1. GitHub Actions 탭 이동
-2. "Multi-Service Deployment" 워크플로우 선택
-3. "Run workflow" 클릭
-4. 옵션 설정:
-   - Services: `user-service,order-service` 또는 `all`
-   - Environment: `dev` 또는 `prod`
-   - Image tag: `latest` 또는 특정 태그
-
-### 3. 긴급 롤백
-
-```bash
-# 이전 버전으로 긴급 롤백
-cd .aws
-./deploy.sh user-service prod previous-working-tag
-```
-
-## 🔧 로컬 테스트
-
-워크플로우를 로컬에서 테스트하려면:
-
-```bash
-# Act 도구 설치 (GitHub Actions 로컬 실행)
-brew install act
-
-# 워크플로우 테스트
-act -j test --secret-file .secrets
-```
-
-## 📈 성능 최적화
-
-### 빌드 캐시
-- **Gradle 캐시**: 의존성 다운로드 시간 단축
-- **Docker Layer 캐시**: 이미지 빌드 시간 단축
-- **테스트 결과 캐시**: 중복 테스트 방지
-
-### 병렬 실행
-- **서비스별 독립 실행**: 변경된 서비스만 빌드
-- **그룹별 병렬 배포**: 의존성 고려한 최적 순서
-- **매트릭스 전략**: 동일 그룹 내 병렬 처리
-
-## 🐛 문제 해결
+## 트러블슈팅
 
 ### 일반적인 문제
 
-**1. 테스트 실패**
-```yaml
-원인: 데이터베이스 연결 실패
-해결: services 설정에서 health check 확인
-```
+1. **워크플로우가 트리거되지 않음**
+   - 파일 경로가 `paths` 설정과 일치하는지 확인
+   - 브랜치 이름이 올바른지 확인
 
-**2. 보안 스캔 실패**
-```yaml
-원인: 취약한 의존성 발견
-해결: 의존성 업데이트 또는 예외 처리
-```
+2. **이미지 빌드 실패**
+   - Gradle 빌드 오류 확인
+   - Dockerfile 경로 확인
 
-**3. 배포 실패**
-```yaml
-원인: AWS 권한 부족
-해결: IAM 역할 권한 확인
-```
+3. **보안 스캔 실패**
+   - 취약점 해결 또는 예외 처리
+   - Snyk 토큰 확인
 
-### 디버깅 방법
+4. **배포 실패**
+   - AWS 권한 확인
+   - Task Definition 문법 확인
+   - ECR 레포지토리 존재 확인
 
-**1. 워크플로우 로그 확인**
-- GitHub Actions 탭에서 실행 로그 확인
-- 각 단계별 상세 로그 분석
+### 로그 확인 방법
 
-**2. 로컬 재현**
-```bash
-# 동일한 환경에서 로컬 테스트
-docker-compose -f docker-compose.test.yml up
-./gradlew test
-```
+1. **GitHub Actions 탭**에서 워크플로우 실행 로그 확인
+2. **AWS ECS 콘솔**에서 서비스 상태 확인
+3. **CloudWatch Logs**에서 애플리케이션 로그 확인
 
-**3. AWS 리소스 확인**
-```bash
-# ECS 서비스 상태 확인
-aws ecs describe-services --cluster goorm-popcorn-dev-cluster --services user-service
+## 모니터링
 
-# CloudWatch 로그 확인
-aws logs describe-log-groups --log-group-name-prefix "/aws/ecs/goorm-popcorn"
-```
+### 메트릭
+- 빌드 성공률
+- 배포 빈도
+- 평균 빌드 시간
+- 보안 스캔 결과
 
-## 📚 관련 문서
+### 알림 채널
+- **Discord**: 배포 상태 알림
+- **GitHub Issues**: 승인 요청
+- **AWS CloudWatch**: 인프라 모니터링
 
-- [CI/CD 아키텍처 설계](../../popcorn-terraform/docs/cicd-architecture.md)
-- [ECS Task Definition 관리](../docs/ecs-task-definition-management.md)
-- [AWS 인프라 아키텍처](../../popcorn-terraform/docs/aws-infrastructure-architecture.md)
-- [배포 스크립트 가이드](../.aws/README.md)
+## 보안 고려사항
 
-## 🔄 지속적 개선
+### Secrets 관리
+- AWS 역할 기반 인증 사용
+- 민감한 정보는 GitHub Secrets에 저장
+- 환경별 시크릿 분리
 
-### 단기 계획 (1-3개월)
-- [ ] E2E 테스트 자동화 추가
-- [ ] 성능 테스트 통합
-- [ ] 배포 메트릭 대시보드 구축
+### 이미지 보안
+- 정기적인 베이스 이미지 업데이트
+- 취약점 스캔 자동화
+- 최소 권한 원칙 적용
 
-### 중기 계획 (3-6개월)
-- [ ] Canary 배포 도입
-- [ ] Feature Flag 통합
-- [ ] GitOps 전환 (ArgoCD)
+### 네트워크 보안
+- VPC 내부 통신
+- 보안 그룹 최소화
+- TLS 암호화 적용
 
-### 장기 계획 (6-12개월)
-- [ ] EKS 전환 대비
-- [ ] 멀티 클라우드 지원
-- [ ] AI 기반 배포 최적화
+## 성능 최적화
 
----
+### 빌드 최적화
+- Gradle 캐시 활용
+- Docker 레이어 캐싱
+- 병렬 빌드 실행
 
-**문서 버전**: 1.0  
-**최종 업데이트**: 2024-01-26  
-**작성자**: DevOps Team  
-**검토자**: Tech Lead
+### 배포 최적화
+- 롤링 업데이트
+- 헬스 체크 최적화
+- 리소스 할당 조정
+
+## 참고 문서
+
+- [이미지 태그 전략](../aws/IMAGE_TAG_STRATEGY.md)
+- [배포 가이드](../aws/README.md)
+- [보안 가이드](../local-docs/SECRETS_MANAGEMENT.md)
+- [서비스 트리거 가이드](SERVICE_TRIGGER_GUIDE.md)

@@ -4,7 +4,6 @@ on:
   push:
     branches: [develop, main]
     paths:
-      - 'backend/**'
       - 'users/**'
       - 'stores/**'
       - 'order/**'
@@ -17,7 +16,6 @@ on:
   pull_request:
     branches: [develop, main]
     paths:
-      - 'backend/**'
       - 'users/**'
       - 'stores/**'
       - 'order/**'
@@ -70,7 +68,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.services }}" = "all" ]; then
-              SERVICES="backend,users,stores,order,orderQuery,payment,gateway,checkIns"
+              SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
             else
               SERVICES="${{ github.event.inputs.services }}"
             fi
@@ -78,9 +76,6 @@ jobs:
             SERVICES=""
             
             # Check for changes in each service directory
-            if git diff --name-only HEAD~1 HEAD | grep -q "^backend/"; then
-              SERVICES="${SERVICES},backend"
-            fi
             if git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
               SERVICES="${SERVICES},users"
             fi
@@ -137,7 +132,7 @@ jobs:
     
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:18.1
         env:
           POSTGRES_DB: goorm_popcorn_test
           POSTGRES_USER: test_user
@@ -150,10 +145,10 @@ jobs:
         ports:
           - 5432:5432
       
-      redis:
-        image: redis:7-alpine
+      valkey:
+        image: valkey/valkey:8.0
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "valkey-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -202,8 +197,8 @@ jobs:
           DB_NAME: goorm_popcorn_test
           DB_USER: test_user
           DB_PASSWORD: test_password
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
+          VALKEY_HOST: localhost
+          VALKEY_PORT: 6379
           KAFKA_BOOTSTRAP_SERVERS: localhost:9092
 
       - name: Generate test report
@@ -302,7 +297,6 @@ jobs:
         id: ecr-repo
         run: |
           case "${{ matrix.service }}" in
-            "backend") echo "repository=goorm-popcorn-backend" >> $GITHUB_OUTPUT ;;
             "users") echo "repository=goorm-popcorn-user-service" >> $GITHUB_OUTPUT ;;
             "stores") echo "repository=goorm-popcorn-store-service" >> $GITHUB_OUTPUT ;;
             "order") echo "repository=goorm-popcorn-order-service" >> $GITHUB_OUTPUT ;;
@@ -349,7 +343,7 @@ jobs:
         working-directory: .aws
         run: |
           chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/backend/backend-service/; s/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
           ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
 
       - name: Wait for manual approval (Production)
@@ -390,7 +384,7 @@ jobs:
         working-directory: .aws
         run: |
           chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/backend/backend-service/; s/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
           ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
 
   notify:

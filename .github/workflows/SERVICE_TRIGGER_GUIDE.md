@@ -10,19 +10,8 @@
 
 **트리거 파일:**
 ```yaml
-워크플로우: backend-service.yml
-트리거 조건:
-  - backend/** (모든 backend 디렉토리 파일)
-  - .aws/task-definitions/backend-service.json
-  - .github/workflows/backend-service.yml
-```
-
-**예시:**
-```bash
-# 이 변경사항들은 backend-service.yml만 실행
-git add backend/src/main/java/UserController.java
-git add backend/build.gradle
-git add .aws/task-definitions/backend-service.json
+워크플로우: backend-service.yml (삭제됨)
+트리거 조건: 더 이상 사용되지 않음
 ```
 
 ### 2. User Service
@@ -91,18 +80,7 @@ git add .aws/task-definitions/backend-service.json
   - .github/workflows/api-gateway.yml
 ```
 
-### 8. QR Service
-
-**트리거 파일:**
-```yaml
-워크플로우: qr-service.yml
-트리거 조건:
-  - qr/** (모든 qr 디렉토리 파일)
-  - .aws/task-definitions/qr-service.json
-  - .github/workflows/qr-service.yml
-```
-
-### 9. CheckIn Service
+### 8. CheckIn Service
 
 **트리거 파일:**
 ```yaml
@@ -144,14 +122,14 @@ git commit -m "feat: 사용자 인증 기능 추가"
 
 ```bash
 # 파일 수정
-echo "// 새로운 기능" >> users/src/main/java/UserService.java
+echo "// 새로운 기능" >> checkIns/src/main/java/CheckInService.java
 
 # 커밋 & 푸시
-git add users/
-git commit -m "feat: 사용자 프로필 기능 추가"
+git add checkIns/
+git commit -m "feat: 체크인 QR 기능 추가"
 git push origin develop
 
-# 결과: user-service.yml만 실행 ✅
+# 결과: checkin-service.yml만 실행 ✅
 # 다른 워크플로우는 실행되지 않음 ❌
 ```
 
@@ -159,14 +137,14 @@ git push origin develop
 
 ```bash
 # Task Definition 수정
-vim .aws/task-definitions/payment-service.json
+vim .aws/task-definitions/checkin-service.json
 
 # 커밋 & 푸시
-git add .aws/task-definitions/payment-service.json
-git commit -m "config: payment service 메모리 증가"
+git add .aws/task-definitions/checkin-service.json
+git commit -m "config: checkin service 메모리 증가"
 git push origin develop
 
-# 결과: payment-service.yml만 실행 ✅
+# 결과: checkin-service.yml만 실행 ✅
 ```
 
 ### 시나리오 3: 여러 서비스 동시 수정
