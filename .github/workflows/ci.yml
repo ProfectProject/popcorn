@@ -165,7 +165,7 @@ jobs:
 
   build-service:
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, ci-process]
     name: Users Module Build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
@@ -194,7 +194,7 @@ jobs:
 
   docker-build-push-ecr:
     runs-on: ubuntu-latest
-    needs: build-service
+    needs: [ci-process, build-service]
     name: Build & Push Users Image to ECR
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
