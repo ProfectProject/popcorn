@@ -1,6 +1,7 @@
 name: Unified CI/CD Pipeline
 
 on:
+  # 메인 브랜치 배포용 (PR 트리거 제거)
   push:
     branches: [develop, main]
     paths:
@@ -13,17 +14,7 @@ on:
       - 'checkIns/**'
       - '.aws/task-definitions/**'
       - '.github/workflows/unified-cicd.yml'
-  pull_request:
-    branches: [develop, main]
-    paths:
-      - 'users/**'
-      - 'stores/**'
-      - 'order/**'
-      - 'orderQuery/**'
-      - 'payment/**'
-      - 'gateway/**'
-      - 'checkIns/**'
-      - '.aws/task-definitions/**'
+  # 수동 실행
   workflow_dispatch:
     inputs:
       services:
@@ -52,8 +43,7 @@ env:
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
-    # 개별 서비스 워크플로우와 중복 실행 방지
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[unified]') || contains(github.event.head_commit.message, '[multi]')
+    # 중복 실행 방지 조건 제거 (이제 push만 처리)
     outputs:
       services: ${{ steps.changes.outputs.services }}
       matrix: ${{ steps.changes.outputs.matrix }}
@@ -123,7 +113,7 @@ jobs:
 
   test:
     needs: detect-changes
-    if: needs.detect-changes.outputs.services != '' && github.event_name == 'pull_request'
+    if: needs.detect-changes.outputs.services != '' && github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -221,7 +211,7 @@ jobs:
 
   security-scan:
     needs: detect-changes
-    if: needs.detect-changes.outputs.services != '' && github.event_name == 'pull_request'
+    if: needs.detect-changes.outputs.services != '' && github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -338,24 +328,266 @@ jobs:
           docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
           docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest
 
+  build-and-deploy:
+    needs: [detect-changes, test, security-scan]
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services != '' && 
+      github.event_name == 'push' && 
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs.security-scan.result == 'success' || needs.security-scan.result == 'skipped')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build application
+        working-directory: ${{ matrix.service }}
+        run: |
+          chmod +x ../gradlew
+          ../gradlew build -x test
+
+      - name: Set ECR repository name
+        id: ecr-repo
+        run: |
+          case "${{ matrix.service }}" in
+            "users") echo "repository=goorm-popcorn-user-service" >> $GITHUB_OUTPUT ;;
+            "stores") echo "repository=goorm-popcorn-store-service" >> $GITHUB_OUTPUT ;;
+            "order") echo "repository=goorm-popcorn-order-service" >> $GITHUB_OUTPUT ;;
+            "orderQuery") echo "repository=goorm-popcorn-order-query" >> $GITHUB_OUTPUT ;;
+            "payment") echo "repository=goorm-popcorn-payment-service" >> $GITHUB_OUTPUT ;;
+            "gateway") echo "repository=goorm-popcorn-api-gateway" >> $GITHUB_OUTPUT ;;
+            "checkIns") echo "repository=goorm-popcorn-checkin-service" >> $GITHUB_OUTPUT ;;
+            *) echo "repository=goorm-popcorn-${{ matrix.service }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          docker build \
+            --build-arg JAR_FILE=build/libs/*.jar \
+            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG \
+            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest \
+            .
+
+      - name: Scan Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $HOME/Library/Caches:/root/.cache/ \
+            aquasec/trivy:latest image \
+            --exit-code 1 --severity HIGH,CRITICAL \
+            $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
+
+      - name: Push to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest
+
+  # Group 1: Independent services (parallel deployment)
+  deploy-group-1:
+    needs: [detect-changes, build-and-deploy]
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services != '' && 
+      needs.build-and-deploy.result == 'success' &&
+      (contains(needs.detect-changes.outputs.services, 'users') || contains(needs.detect-changes.outputs.services, 'checkIns'))
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [users, checkIns]
+      fail-fast: false
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Skip if service not in deployment list
+        id: check-service
+        run: |
+          if [[ ! "${{ needs.detect-changes.outputs.services }}" =~ "${{ matrix.service }}" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check-service.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: steps.check-service.outputs.skip == 'false'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to Staging
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev')
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/checkIns/checkin-service/')
+          ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
+
+      - name: Wait for manual approval (Production)
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PROD_APPROVERS }}
+          minimum-approvals: 1
+          issue-title: "Deploy ${{ matrix.service }} to Production"
+
+      - name: Deploy to Production
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/checkIns/checkin-service/')
+          ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
+
+  # Group 2: Business logic services (after Group 1)
+  deploy-group-2:
+    needs: [detect-changes, build-and-deploy, deploy-group-1]
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services != '' && 
+      needs.build-and-deploy.result == 'success' &&
+      (contains(needs.detect-changes.outputs.services, 'stores') || contains(needs.detect-changes.outputs.services, 'order') || contains(needs.detect-changes.outputs.services, 'orderQuery'))
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [stores, order, orderQuery]
+      fail-fast: false
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Skip if service not in deployment list
+        id: check-service
+        run: |
+          if [[ ! "${{ needs.detect-changes.outputs.services }}" =~ "${{ matrix.service }}" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check-service.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: steps.check-service.outputs.skip == 'false'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to Staging
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev')
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/')
+          ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
+
+      - name: Wait for manual approval (Production)
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PROD_APPROVERS }}
+          minimum-approvals: 1
+          issue-title: "Deploy ${{ matrix.service }} to Production"
+
+      - name: Deploy to Production
+        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/')
+          ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
+
+  # Group 3: Critical services (after Group 2)
+  deploy-payment:
+    needs: [detect-changes, build-and-deploy, deploy-group-2]
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services != '' && 
+      needs.build-and-deploy.result == 'success' &&
+      contains(needs.detect-changes.outputs.services, 'payment')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Deploy to Staging
         if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
         working-directory: .aws
         run: |
           chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
-          ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
+          ./deploy.sh payment-service dev ${{ github.event.inputs.image_tag || github.sha }}
 
-      - name: Wait for manual approval (Production)
-        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && matrix.service == 'payment'
+      - name: Wait for manual approval (Production - Payment Service)
+        if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
           approvers: ${{ secrets.PROD_APPROVERS }}
           minimum-approvals: 2
-          issue-title: "Deploy ${{ matrix.service }} to Production (Enhanced Security)"
+          issue-title: "Deploy Payment Service to Production (Enhanced Security)"
           issue-body: |
-            **Service**: ${{ matrix.service }} (Payment Service - Enhanced Security)
+            **Service**: Payment Service (Enhanced Security)
             **Version**: ${{ github.event.inputs.image_tag || github.sha }}
             **Branch**: ${{ github.ref_name }}
             **Author**: ${{ github.actor }}
@@ -363,29 +595,59 @@ jobs:
             ⚠️ **SECURITY CRITICAL**: This is a payment service deployment.
             Please review security checklist and approve with 2 approvers.
 
-      - name: Wait for manual approval (Production - Other Services)
-        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && matrix.service != 'payment'
+      - name: Deploy to Production
+        if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh payment-service prod ${{ github.event.inputs.image_tag || github.sha }}
+
+  # Group 4: Gateway (final)
+  deploy-gateway:
+    needs: [detect-changes, build-and-deploy, deploy-payment]
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services != '' && 
+      needs.build-and-deploy.result == 'success' &&
+      contains(needs.detect-changes.outputs.services, 'gateway')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to Staging
+        if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+        working-directory: .aws
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh api-gateway dev ${{ github.event.inputs.image_tag || github.sha }}
+
+      - name: Wait for manual approval (Production)
+        if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
           approvers: ${{ secrets.PROD_APPROVERS }}
           minimum-approvals: 1
-          issue-title: "Deploy ${{ matrix.service }} to Production"
-          issue-body: |
-            **Service**: ${{ matrix.service }}
-            **Version**: ${{ github.event.inputs.image_tag || github.sha }}
-            **Branch**: ${{ github.ref_name }}
-            **Author**: ${{ github.actor }}
-            
-            Please review and approve the production deployment.
+          issue-title: "Deploy API Gateway to Production"
 
       - name: Deploy to Production
         if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
         working-directory: .aws
         run: |
           chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/; s/payment/payment-service/; s/gateway/api-gateway/; s/checkIns/checkin-service/')
-          ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
+          ./deploy.sh api-gateway prod ${{ github.event.inputs.image_tag || github.sha }}
 
   notify:
     needs: [detect-changes, build-and-deploy]

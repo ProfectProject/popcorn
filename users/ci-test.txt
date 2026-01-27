@@ -1,0 +1,2 @@
+CI Test for users service - $(date)
+This file is created to trigger CI/CD pipeline for testing all services.

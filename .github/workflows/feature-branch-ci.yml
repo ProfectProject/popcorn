@@ -1,13 +1,23 @@
 name: Feature Branch CI
 
 on:
+  # Feature/hotfix 브랜치 push 시에만 실행
   push:
     branches: 
       - 'feature/**'
       - 'hotfix/**'
+  # PR 검증용 (CI만, 배포 없음)
   pull_request:
     branches: [develop, main]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'users/**'
+      - 'stores/**'
+      - 'order/**'
+      - 'orderQuery/**'
+      - 'payment/**'
+      - 'gateway/**'
+      - 'checkIns/**'
 
 env:
   AWS_REGION: ap-northeast-2
