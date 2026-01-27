@@ -1,0 +1,109 @@
+package com.popcorn.payment.config
+
+import com.popcorn.payment.event.PaymentRedisStreamListener
+import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.data.redis.connection.RedisConnectionFactory
+import org.springframework.data.redis.connection.stream.Consumer
+import org.springframework.data.redis.connection.stream.MapRecord
+import org.springframework.data.redis.connection.stream.ReadOffset
+import org.springframework.data.redis.connection.stream.StreamOffset
+import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.stream.StreamMessageListenerContainer
+import jakarta.annotation.PostConstruct
+import java.time.Duration
+
+/**
+ * Payment 서비스 Redis Stream 이벤트 설정
+ *
+ * 주문/결제 관련 이벤트를 Stream으로 수신하여 로그 및 후속 처리 기반을 마련
+ */
+@Configuration
+@ConditionalOnProperty(name = ["redis.events.enabled"], havingValue = "true", matchIfMissing = true)
+class PaymentRedisStreamConfig(
+    private val paymentRedisStreamListener: PaymentRedisStreamListener,
+    private val redisTemplate: RedisTemplate<String, Any>
+) {
+    private val log = LoggerFactory.getLogger(PaymentRedisStreamConfig::class.java)
+
+    // Stream 이름 상수
+    companion object {
+        private const val ORDER_EVENTS_STREAM = "order-events"
+        private const val PAYMENT_EVENTS_STREAM = "payment-events"
+        private const val INVENTORY_EVENTS_STREAM = "inventory-events"
+
+        // Consumer Group 이름
+        private const val PAYMENT_CONSUMER_GROUP = "payment-service-group"
+        private const val PAYMENT_CONSUMER_NAME = "payment-consumer-1"
+    }
+
+    @PostConstruct
+    fun initializeStreamsAndConsumerGroups() {
+        try {
+            // Consumer Group 생성 (이미 존재하면 무시)
+            createConsumerGroupIfNotExists(ORDER_EVENTS_STREAM)
+            createConsumerGroupIfNotExists(PAYMENT_EVENTS_STREAM)
+            createConsumerGroupIfNotExists(INVENTORY_EVENTS_STREAM)
+
+            log.info("✅ Payment Service Redis Stream Consumer Groups 초기화 완료")
+        } catch (e: Exception) {
+            log.warn("⚠️ Redis Stream 초기화 중 오류 (정상 동작 가능): ${e.message}")
+        }
+    }
+
+    private fun createConsumerGroupIfNotExists(streamName: String) {
+        try {
+            redisTemplate.opsForStream<String, Any>().createGroup(streamName, ReadOffset.from("0"), PAYMENT_CONSUMER_GROUP)
+            log.info("📝 Payment Consumer Group 생성: {} - {}", streamName, PAYMENT_CONSUMER_GROUP)
+        } catch (e: Exception) {
+            // Consumer Group이 이미 존재하는 경우 무시
+            log.debug("Payment Consumer Group 이미 존재: {} - {}", streamName, PAYMENT_CONSUMER_GROUP)
+        }
+    }
+
+    @Bean
+    fun paymentStreamListenerContainer(
+        connectionFactory: RedisConnectionFactory
+    ): StreamMessageListenerContainer<*, *> {
+
+        @Suppress("UNCHECKED_CAST")
+        val options = StreamMessageListenerContainer.StreamMessageListenerContainerOptions
+            .builder()
+            .batchSize(10)  // Payment 관련 이벤트 처리량
+            .pollTimeout(Duration.ofMillis(100))
+            .build()
+
+        val container = StreamMessageListenerContainer.create(connectionFactory, options)
+
+        // 주문 이벤트 Stream 구독
+        container.receive(
+            Consumer.from(PAYMENT_CONSUMER_GROUP, PAYMENT_CONSUMER_NAME),
+            StreamOffset.create(ORDER_EVENTS_STREAM, ReadOffset.lastConsumed()),
+            @Suppress("UNCHECKED_CAST")
+            paymentRedisStreamListener as org.springframework.data.redis.stream.StreamListener<String, MapRecord<String, String, String>>
+        )
+
+        // 결제 이벤트 Stream 구독 (자체 모니터링)
+        container.receive(
+            Consumer.from(PAYMENT_CONSUMER_GROUP, PAYMENT_CONSUMER_NAME),
+            StreamOffset.create(PAYMENT_EVENTS_STREAM, ReadOffset.lastConsumed()),
+            @Suppress("UNCHECKED_CAST")
+            paymentRedisStreamListener as org.springframework.data.redis.stream.StreamListener<String, MapRecord<String, String, String>>
+        )
+
+        // 재고 이벤트 Stream 구독
+        container.receive(
+            Consumer.from(PAYMENT_CONSUMER_GROUP, PAYMENT_CONSUMER_NAME),
+            StreamOffset.create(INVENTORY_EVENTS_STREAM, ReadOffset.lastConsumed()),
+            @Suppress("UNCHECKED_CAST")
+            paymentRedisStreamListener as org.springframework.data.redis.stream.StreamListener<String, MapRecord<String, String, String>>
+        )
+
+        container.start()
+        log.info("🚀 Payment Redis Stream Listener Container 시작됨")
+
+        return container
+    }
+}

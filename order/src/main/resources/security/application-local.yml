@@ -102,3 +102,5 @@ order:
     timeout: 3600   # 로컬에서는 1시간
   validation:
     max-quantity: 1000  # 로컬에서는 더 큰 수량 허용
+  price-lookup:
+    timeout-ms: 5000  # 가격 조회 타임아웃 1500ms → 5000ms 증가
