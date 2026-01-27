@@ -111,6 +111,7 @@ jobs:
           
           # Create matrix for parallel execution
           SERVICES=$(printf '%s' "$SERVICES" | tr -d '\r\n')
+          SERVICES=$(printf '%s' "$SERVICES" | tr ',' '\n' | grep -E '^(users|stores|order|orderQuery|payment|gateway|checkIns)$' | paste -sd, -)
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           
           if [ -n "$SERVICES" ]; then
