@@ -1,0 +1,156 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:ap-northeast-2:375896310755:task-definition/goorm-popcorn-dev-user-service:2",
+    "containerDefinitions": [
+        {
+            "name": "user-service",
+            "image": "375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-user:dev-latest",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "REDIS_READER_ENDPOINT",
+                    "value": "goorm-popcorn-cache-dev-ro.mkltth.ng.0001.apn2.cache.amazonaws.com"
+                },
+                {
+                    "name": "KAFKA_BOOTSTRAP_SERVERS",
+                    "value": "10.0.11.91:9092"
+                },
+                {
+                    "name": "REDIS_PRIMARY_ENDPOINT",
+                    "value": "goorm-popcorn-cache-dev.mkltth.ng.0001.apn2.cache.amazonaws.com"
+                },
+                {
+                    "name": "REDIS_PORT",
+                    "value": "6379"
+                },
+                {
+                    "name": "DB_PORT",
+                    "value": "5432"
+                },
+                {
+                    "name": "SPRING_PROFILES_ACTIVE",
+                    "value": "dev"
+                },
+                {
+                    "name": "DB_NAME",
+                    "value": "goorm_popcorn_db"
+                },
+                {
+                    "name": "DB_HOST",
+                    "value": "goorm-popcorn-dev-postgres.cds4g0gykt3t.ap-northeast-2.rds.amazonaws.com:5432"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "DB_PASSWORD",
+                    "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:375896310755:secret:goorm-popcorn-dev/dev/db/master-password-V87aa2"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/aws/ecs/goorm-popcorn-dev/user-service",
+                    "awslogs-region": "ap-northeast-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost:8080/actuator/health || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 60
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "goorm-popcorn-dev-user-service",
+    "taskRoleArn": "arn:aws:iam::375896310755:role/goorm-popcorn-dev-ecs-task-role",
+    "executionRoleArn": "arn:aws:iam::375896310755:role/goorm-popcorn-dev-ecs-task-execution-role",
+    "networkMode": "awsvpc",
+    "revision": 2,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "ecs.capability.secrets.asm.environment-variables"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.container-health-check"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "MANAGED_INSTANCES",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "256",
+    "memory": "512",
+    "registeredAt": "2026-01-26T10:57:16.683Z",
+    "registeredBy": "arn:aws:iam::375896310755:user/junbeom-lee",
+    "tags": [
+        {
+            "key": "Project",
+            "value": "goorm-popcorn"
+        },
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "Service",
+            "value": "user-service"
+        },
+        {
+            "key": "ManagedBy",
+            "value": "terraform"
+        },
+        {
+            "key": "Name",
+            "value": "goorm-popcorn-dev-user-service-task"
+        }
+    ]
+}
