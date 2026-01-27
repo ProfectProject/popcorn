@@ -21,7 +21,7 @@ jobs:
       service-directory: checkIns
       ecr-repository: goorm-popcorn-checkin
       java-version: '17'
-      gradle-build-args: 'build -x test'
+      gradle-build-args: 'bootJar -x test -x javadoc'
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

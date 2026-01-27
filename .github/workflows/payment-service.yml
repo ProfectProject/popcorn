@@ -21,7 +21,7 @@ jobs:
       service-directory: payment
       ecr-repository: goorm-popcorn-payment
       java-version: '17'
-      gradle-build-args: 'build -x test'
+      gradle-build-args: 'bootJar -x test -x javadoc'
       needs-kafka: false
       enhanced-security: true
       min-approvals: 2

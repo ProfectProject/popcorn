@@ -23,7 +23,7 @@ on:
       gradle-build-args:
         required: false
         type: string
-        default: 'build -x test'
+        default: 'bootJar -x test -x javadoc'
         description: 'Gradle build arguments'
       needs-kafka:
         required: false

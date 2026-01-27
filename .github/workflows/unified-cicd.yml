@@ -104,11 +104,12 @@ jobs:
             SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
           fi
           
+          # Create matrix for parallel execution
+          SERVICES=$(printf '%s' "$SERVICES" | tr -d '\r\n')
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           
-          # Create matrix for parallel execution
           if [ -n "$SERVICES" ]; then
-            MATRIX=$(echo $SERVICES | jq -R -s -c 'split(",") | map(select(length > 0))')
+            MATRIX=$(printf '%s' "$SERVICES" | jq -R -s -c 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
           else
             MATRIX="[]"
           fi
@@ -289,7 +290,7 @@ jobs:
         working-directory: ${{ matrix.service }}
         run: |
           chmod +x ../gradlew
-          ../gradlew build -x test
+          ../gradlew bootJar -x test -x javadoc
 
       - name: Set ECR repository name
         id: ecr-repo

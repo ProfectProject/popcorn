@@ -65,11 +65,12 @@ jobs:
           # Remove leading comma
           SERVICES=$(echo $SERVICES | sed 's/^,//')
           
+          # Create matrix for parallel execution
+          SERVICES=$(printf '%s' "$SERVICES" | tr -d '\r\n')
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           
-          # Create matrix for parallel execution
           if [ -n "$SERVICES" ]; then
-            MATRIX=$(echo $SERVICES | jq -R -s -c 'split(",") | map(select(length > 0))')
+            MATRIX=$(printf '%s' "$SERVICES" | jq -R -s -c 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
           else
             MATRIX="[]"
           fi
@@ -225,7 +226,7 @@ jobs:
       - name: Build Application
         working-directory: ${{ matrix.service }}
         run: |
-          ../gradlew build -x test
+          ../gradlew bootJar -x test -x javadoc
 
       - name: Build Docker Image (for validation)
         working-directory: ${{ matrix.service }}
@@ -286,7 +287,7 @@ jobs:
         working-directory: ${{ matrix.service }}
         run: |
           chmod +x ../gradlew
-          ../gradlew build -x test
+          ../gradlew bootJar -x test -x javadoc
           
           docker build \
             --build-arg JAR_FILE=build/libs/*.jar \

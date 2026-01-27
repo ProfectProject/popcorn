@@ -138,7 +138,7 @@ jobs:
       service-directory: newservice
       ecr-repository: goorm-popcorn-newservice
       java-version: '17'
-      gradle-build-args: 'build -x test'
+      gradle-build-args: 'bootJar -x test -x javadoc'
       needs-kafka: false
       enhanced-security: false
       min-approvals: 1

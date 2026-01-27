@@ -21,7 +21,7 @@ jobs:
       service-directory: users
       ecr-repository: goorm-popcorn-user
       java-version: '17'
-      gradle-build-args: 'build -x test'
+      gradle-build-args: 'bootJar -x test -x javadoc'
       needs-kafka: false
       enhanced-security: false
       min-approvals: 1
