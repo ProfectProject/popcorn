@@ -77,6 +77,9 @@ public enum OrderResponseCode implements ResponseCode {
     /** 비즈니스 규칙 위반 */
     BUSINESS_RULE_VIOLATION(4011, 400, "비즈니스 규칙을 위반했습니다."),
 
+    /** 동일 요청 처리 중 */
+    IDEMPOTENCY_REQUEST_IN_PROGRESS(4012, 409, "이미 처리 중인 동일 요청이 있습니다."),
+
     // ================ 서버 오류 ================
 
     /** 주문 생성 실패 */

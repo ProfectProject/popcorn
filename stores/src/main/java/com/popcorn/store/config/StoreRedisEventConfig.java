@@ -56,6 +56,12 @@ public class StoreRedisEventConfig {
                 new PatternTopic("events:goods-*")
         );
 
+        // 가격 조회 요청 이벤트 구독
+        container.addMessageListener(
+                new MessageListenerAdapter(storeRedisEventListener),
+                new PatternTopic("events:price-*")
+        );
+
         return container;
     }
 }

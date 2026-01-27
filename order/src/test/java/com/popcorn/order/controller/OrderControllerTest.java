@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.order.client.StoreClient;
 import com.popcorn.common.security.JwtAuthenticationFilter;
-import com.popcorn.order.dto.response.CreateOrderResponse;
+import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.service.OrderCommandService;
 import com.popcorn.order.service.OrderQueryService;
 import com.popcorn.order.service.OrderDomainService;
@@ -83,7 +83,7 @@ class OrderControllerTest {
     @WithMockUser(username = "1", roles = "USER") // 테스트용 JWT 사용자 (ID: 1, ROLE: USER)
     void 주문생성_API_테스트() throws Exception {
         // Given
-        CreateOrderResponse response = CreateOrderResponse.builder()
+        OrderCreateResponse response = OrderCreateResponse.builder()
                 .orderId(UUID.randomUUID())
                 .orderNo("ORD-123456")
                 .build();

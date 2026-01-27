@@ -26,6 +26,7 @@ public class RedisEventPublisher {
     private static final String STOCK_DEDUCTION_REQUESTED_TOPIC = "events:stock-deduction-requested";
     private static final String STOCK_DEDUCTION_SUCCESS_TOPIC = "events:stock-deduction-success";
     private static final String STOCK_DEDUCTION_FAILED_TOPIC = "events:stock-deduction-failed";
+    private static final String PRICE_LOOKUP_REQUESTED_TOPIC = "events:price-lookup-requested";
 
     /**
      * 주문 결제 완료 이벤트 발행 (Store 서비스에서 수신)
@@ -87,6 +88,27 @@ public class RedisEventPublisher {
             log.error("재고 차감 요청 이벤트 발행 실패 - orderId: {}, eventId: {}, error: {}",
                     event.getOrderId(), event.getEventId(), e.getMessage(), e);
             throw new RuntimeException("재고 차감 요청 이벤트 발행 실패", e);
+        }
+    }
+
+    /**
+     * 가격 조회 요청 이벤트 발행 (Store 서비스에서 수신)
+     */
+    public void publishPriceLookupRequestedEvent(PriceLookupRequestedEvent event) {
+        try {
+            log.info("가격 조회 요청 이벤트 발행 시작 - correlationId: {}, type: {}",
+                    event.getCorrelationId(), event.getRequestType());
+
+            String eventJson = objectMapper.writeValueAsString(event);
+            redisTemplate.convertAndSend(PRICE_LOOKUP_REQUESTED_TOPIC, eventJson);
+
+            log.info("가격 조회 요청 이벤트 발행 완료 - correlationId: {}, type: {}",
+                    event.getCorrelationId(), event.getRequestType());
+
+        } catch (Exception e) {
+            log.error("가격 조회 요청 이벤트 발행 실패 - correlationId: {}, error: {}",
+                    event.getCorrelationId(), e.getMessage(), e);
+            throw new RuntimeException("가격 조회 요청 이벤트 발행 실패", e);
         }
     }
 

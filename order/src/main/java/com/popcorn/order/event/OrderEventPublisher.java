@@ -156,6 +156,9 @@ public class OrderEventPublisher {
                     .orderNo(order.getOrderNo())
                     .customerId(order.getCustomerId())
                     .popupId(order.getPopupId())
+                    .orderDate(order.getCreatedAt())
+                    .finalAmount(order.getTotalAmount())
+                    .itemCount(order.getTotalQuantity())
                     .completedAt(java.time.LocalDateTime.now())
                     .eventTime(java.time.LocalDateTime.now())
                     .build();

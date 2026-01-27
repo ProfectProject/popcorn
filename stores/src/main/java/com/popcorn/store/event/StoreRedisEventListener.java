@@ -10,8 +10,12 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Component;
 
 import com.popcorn.store.domain.goods.entity.ReservationType;
+import com.popcorn.store.domain.goods.entity.GoodsVariant;
 import com.popcorn.store.domain.goods.service.GoodsService;
 import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
+import com.popcorn.store.domain.goods.repository.GoodsVariantRepository;
+import com.popcorn.store.domain.popup.entity.PopupSchedule;
+import com.popcorn.store.domain.popup.repository.owner.jpa.JpaOwnerPopupScheduleRepository;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
 
@@ -31,6 +35,8 @@ public class StoreRedisEventListener implements MessageListener {
     private final GoodsOrderReservationService reservationService;
     private final GoodsService goodsService;
     private final StoreRedisEventPublisher storeRedisEventPublisher;
+    private final GoodsVariantRepository goodsVariantRepository;
+    private final JpaOwnerPopupScheduleRepository popupScheduleRepository;
 
     /**
      * Redis Pub/Sub 이벤트 수신
@@ -85,6 +91,10 @@ public class StoreRedisEventListener implements MessageListener {
                 case "events:goods-reservation-requested":
                     log.info("📋 [STORES] 굿즈 재고 예약 요청 이벤트 수신 - {}", body);
                     publishGoodsReservationRequestedEvent(body);
+                    break;
+                case "events:price-lookup-requested":
+                    log.info("💰 [STORES] 가격 조회 요청 이벤트 수신 - {}", body);
+                    publishPriceLookupResponseEvent(body);
                     break;
                 default:
                     log.info("🔔 [STORES] 기타 이벤트 수신 - channel: {}, body: {}", channel, body);
@@ -250,6 +260,130 @@ public class StoreRedisEventListener implements MessageListener {
             log.error("🚨 [STORES] 굿즈 재고 예약 요청 이벤트 변환 실패 - body: {}, error: {}",
                     body, e.getMessage(), e);
         }
+    }
+
+    private void publishPriceLookupResponseEvent(String body) {
+        try {
+            String resolvedBody = body;
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(body);
+                if (node != null && node.isTextual()) {
+                    resolvedBody = node.asText();
+                }
+            } catch (Exception ignored) {
+            }
+
+            PriceLookupRequestPayload payload =
+                    objectMapper.readValue(resolvedBody, PriceLookupRequestPayload.class);
+
+            if (payload.correlationId == null || payload.requestType == null) {
+                log.warn("💰 [STORES] 가격 조회 요청 누락 - payload: {}", payload);
+                return;
+            }
+
+            if ("SESSION".equals(payload.requestType)) {
+                handleSessionPriceLookup(payload);
+            } else if ("GOODS".equals(payload.requestType)) {
+                handleGoodsPriceLookup(payload);
+            } else {
+                log.warn("💰 [STORES] 지원하지 않는 가격 조회 타입 - type: {}", payload.requestType);
+                publishPriceLookupFailure(payload, "지원하지 않는 가격 조회 타입");
+            }
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 가격 조회 요청 이벤트 변환 실패 - body: {}, error: {}",
+                    body, e.getMessage(), e);
+        }
+    }
+
+    private void handleSessionPriceLookup(PriceLookupRequestPayload payload) {
+        if (payload.sessionId == null) {
+            publishPriceLookupFailure(payload, "sessionId가 없습니다.");
+            return;
+        }
+
+        PopupSchedule schedule = popupScheduleRepository.findById(payload.sessionId)
+                .filter(value -> value.getDeletedAt() == null)
+                .orElse(null);
+
+        if (schedule == null || schedule.getPrice() == null) {
+            publishPriceLookupFailure(payload, "세션 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        StoreRedisEventPublisher.PriceLookupResponseEventDto response =
+                StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
+                        .eventId(java.util.UUID.randomUUID().toString())
+                        .correlationId(payload.correlationId)
+                        .requestType(payload.requestType)
+                        .sessionId(payload.sessionId)
+                        .price(schedule.getPrice())
+                        .success(true)
+                        .message("OK")
+                        .respondedAt(java.time.LocalDateTime.now())
+                        .eventTime(java.time.LocalDateTime.now())
+                        .build();
+
+        storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+    }
+
+    private void handleGoodsPriceLookup(PriceLookupRequestPayload payload) {
+        if (payload.goodsVariantId == null) {
+            publishPriceLookupFailure(payload, "goodsVariantId가 없습니다.");
+            return;
+        }
+
+        GoodsVariant variant = goodsVariantRepository.findById(payload.goodsVariantId)
+                .filter(value -> value.getDeletedAt() == null)
+                .orElse(null);
+
+        if (variant == null) {
+            publishPriceLookupFailure(payload, "굿즈 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        StoreRedisEventPublisher.PriceLookupResponseEventDto response =
+                StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
+                        .eventId(java.util.UUID.randomUUID().toString())
+                        .correlationId(payload.correlationId)
+                        .requestType(payload.requestType)
+                        .goodsVariantId(payload.goodsVariantId)
+                        .price(variant.getGoodsPrice())
+                        .stockQuantity(variant.getStock())
+                        .success(true)
+                        .message("OK")
+                        .respondedAt(java.time.LocalDateTime.now())
+                        .eventTime(java.time.LocalDateTime.now())
+                        .build();
+
+        storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+    }
+
+    private void publishPriceLookupFailure(PriceLookupRequestPayload payload, String reason) {
+        StoreRedisEventPublisher.PriceLookupResponseEventDto response =
+                StoreRedisEventPublisher.PriceLookupResponseEventDto.builder()
+                        .eventId(java.util.UUID.randomUUID().toString())
+                        .correlationId(payload.correlationId)
+                        .requestType(payload.requestType)
+                        .sessionId(payload.sessionId)
+                        .goodsVariantId(payload.goodsVariantId)
+                        .success(false)
+                        .message(reason)
+                        .respondedAt(java.time.LocalDateTime.now())
+                        .eventTime(java.time.LocalDateTime.now())
+                        .build();
+
+        storeRedisEventPublisher.publishPriceLookupResponseEvent(response);
+    }
+
+    private static class PriceLookupRequestPayload {
+        public String eventId;
+        public String correlationId;
+        public String requestType;
+        public java.util.UUID sessionId;
+        public java.util.UUID goodsVariantId;
+        public java.time.LocalDateTime requestedAt;
+        public java.time.LocalDateTime eventTime;
     }
 
     /**

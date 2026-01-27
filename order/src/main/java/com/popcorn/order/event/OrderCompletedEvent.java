@@ -63,7 +63,7 @@ public class OrderCompletedEvent extends BaseOrderEvent {
     private static Map<String, Object> createEventMetadata(LocalDateTime orderDate,
                                                           String completedBy, Integer finalAmount, Integer itemCount) {
         return Map.of(
-            "orderDate", orderDate.toString(),
+            "orderDate", orderDate != null ? orderDate.toString() : "UNKNOWN",
             "completedBy", completedBy != null ? completedBy : "SYSTEM",
             "finalAmount", finalAmount != null ? finalAmount : 0,
             "itemCount", itemCount != null ? itemCount : 0

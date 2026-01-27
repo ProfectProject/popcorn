@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.popcorn.common.annotation.Idempotent;
 
 import com.popcorn.order.dto.command.CreateOrderCommand;
-import com.popcorn.order.dto.response.CreateOrderResponse;
+import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderItem;
 import com.popcorn.order.entity.OrderItemType;
@@ -59,6 +59,7 @@ public class OrderCommandService {
     private final PaymentTokenUtil paymentTokenUtil;
     private final StoreClient storeClient;
     private final OrderCacheService orderCacheService;
+    private final OrderPriceLookupService orderPriceLookupService;
 
     @org.springframework.beans.factory.annotation.Value("${frontend.base-url:${FRONTEND_BASE_URL:http://localhost:3000}}")
     private String frontendBaseUrl;
@@ -73,9 +74,9 @@ public class OrderCommandService {
         keyExpression = "#command.userId + ':' + #command.popupId",
         keyPrefix = "order:create",
         ttlSeconds = 300,  // 5분
-        responseType = CreateOrderResponse.class
+        responseType = OrderCreateResponse.class
     )
-    public CreateOrderResponse createOrder(CreateOrderCommand command) {
+    public OrderCreateResponse createOrder(CreateOrderCommand command) {
         log.info("주문 생성 시작 - 사용자: {}, 팝업: {}", command.getUserId(), command.getPopupId());
 
         try {
@@ -89,7 +90,7 @@ public class OrderCommandService {
     /**
      * 실제 주문 생성 로직 실행
      */
-    private CreateOrderResponse executeOrderCreation(CreateOrderCommand command) {
+    private OrderCreateResponse executeOrderCreation(CreateOrderCommand command) {
         // 1. 명령을 엔티티로 변환
         List<OrderItem> orderItems = convertToOrderItems(command.getItems());
         OrderType orderType = OrderType.valueOf(command.getOrderType());
@@ -183,7 +184,7 @@ public class OrderCommandService {
             : "결제가 준비 중입니다. 잠시 후 결제 링크를 받으실 수 있습니다.";
 
         // 8. 응답 생성 (결제 URL 포함, 실제 Payment 엔티티는 생성하지 않음)
-        CreateOrderResponse response = CreateOrderResponse.fromOrderWithPayment(
+        OrderCreateResponse response = OrderCreateResponse.fromOrderWithPayment(
                 savedOrder,
                 paymentResponse != null ? paymentResponse.getPaymentId() : null,
                 paymentStatus,
@@ -394,13 +395,11 @@ public class OrderCommandService {
         try {
             log.info("세션 가격 조회 요청 - sessionId: {}", sessionId);
 
-            // Store 서비스에서 실제 세션 가격 조회
-            var sessionPriceResponse = storeClient.getSessionPrice(sessionId);
-
-            if (sessionPriceResponse != null && sessionPriceResponse.getPrice() != null) {
+            Integer price = orderPriceLookupService.requestSessionPrice(sessionId);
+            if (price != null) {
                 log.info("세션 가격 조회 성공 - sessionId: {}, price: {}원",
-                        sessionId, sessionPriceResponse.getPrice());
-                return sessionPriceResponse.getPrice();
+                        sessionId, price);
+                return price;
             } else {
                 log.warn("세션 가격 정보가 비어있습니다 - sessionId: {}, 기본값 사용", sessionId);
                 return 15000; // 기본 가격
@@ -419,13 +418,11 @@ public class OrderCommandService {
         try {
             log.info("굿즈 가격 조회 요청 - goodsVariantId: {}", goodsVariantId);
 
-            // Store 서비스에서 실제 굿즈 가격 조회
-            var goodsPriceResponse = storeClient.getGoodsVariantPrice(goodsVariantId);
-
-            if (goodsPriceResponse != null && goodsPriceResponse.getPrice() != null) {
-                log.info("굿즈 가격 조회 성공 - goodsVariantId: {}, price: {}원, stock: {}개",
-                        goodsVariantId, goodsPriceResponse.getPrice(), goodsPriceResponse.getStockQuantity());
-                return goodsPriceResponse.getPrice();
+            Integer price = orderPriceLookupService.requestGoodsPrice(goodsVariantId);
+            if (price != null) {
+                log.info("굿즈 가격 조회 성공 - goodsVariantId: {}, price: {}원",
+                        goodsVariantId, price);
+                return price;
             } else {
                 log.warn("굿즈 가격 정보가 비어있습니다 - goodsVariantId: {}, 기본값 사용", goodsVariantId);
                 return 25000; // 기본 가격

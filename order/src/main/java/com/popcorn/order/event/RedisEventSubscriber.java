@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.popcorn.order.service.OrderPriceLookupService;
 /**
  * Redis Pub/Sub을 사용한 이벤트 구독자
  *
@@ -25,6 +26,7 @@ public class RedisEventSubscriber implements MessageListener {
 
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final OrderPriceLookupService orderPriceLookupService;
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
@@ -38,6 +40,8 @@ public class RedisEventSubscriber implements MessageListener {
                 handleStockDeductionSuccess(body);
             } else if ("events:stock-deduction-failed".equals(channel)) {
                 handleStockDeductionFailed(body);
+            } else if ("events:price-lookup-response".equals(channel)) {
+                handlePriceLookupResponse(body);
             }
 
         } catch (Exception e) {
@@ -103,6 +107,27 @@ public class RedisEventSubscriber implements MessageListener {
 
         } catch (Exception e) {
             log.error("재고 차감 실패 이벤트 처리 중 오류 - eventJson: {}, error: {}",
+                    eventJson, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 가격 조회 응답 이벤트 처리
+     */
+    private void handlePriceLookupResponse(String eventJson) {
+        try {
+            log.info("가격 조회 응답 이벤트 처리 시작 - eventJson: {}", eventJson);
+
+            String resolvedJson = resolveEventJson(eventJson);
+            PriceLookupResponseEvent response = objectMapper.readValue(
+                    resolvedJson, PriceLookupResponseEvent.class);
+
+            orderPriceLookupService.handlePriceLookupResponse(response);
+
+            log.info("가격 조회 응답 이벤트 처리 완료 - correlationId: {}, success: {}",
+                    response.getCorrelationId(), response.isSuccess());
+        } catch (Exception e) {
+            log.error("가격 조회 응답 이벤트 처리 중 오류 - eventJson: {}, error: {}",
                     eventJson, e.getMessage(), e);
         }
     }

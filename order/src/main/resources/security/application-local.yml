@@ -58,6 +58,11 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
+# Redis 이벤트 설정
+redis:
+  events:
+    enabled: true
+
 # 로깅 설정 (로컬 환경용)
 logging:
   level:

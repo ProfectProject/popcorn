@@ -43,6 +43,12 @@ public class RedisEventConfig {
                 new PatternTopic("events:stock-deduction-failed")
         );
 
+        // 가격 조회 응답 이벤트 구독
+        container.addMessageListener(
+                new MessageListenerAdapter(redisEventSubscriber),
+                new PatternTopic("events:price-lookup-response")
+        );
+
         return container;
     }
 }

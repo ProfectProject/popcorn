@@ -26,6 +26,7 @@ public class StoreRedisEventPublisher {
     private static final String INVENTORY_UPDATED_TOPIC = "events:inventory-updated";
     private static final String GOODS_RESERVED_TOPIC = "events:goods-reserved";
     private static final String GOODS_RESERVATION_FAILED_TOPIC = "events:goods-reservation-failed";
+    private static final String PRICE_LOOKUP_RESPONSE_TOPIC = "events:price-lookup-response";
 
     /**
      * 재고 차감 성공 이벤트 발행
@@ -155,6 +156,26 @@ public class StoreRedisEventPublisher {
         }
     }
 
+    /**
+     * 가격 조회 응답 이벤트 발행
+     */
+    public void publishPriceLookupResponseEvent(PriceLookupResponseEventDto event) {
+        try {
+            log.info("🚀 [STORES] 가격 조회 응답 이벤트 발행 - correlationId: {}, type: {}",
+                    event.getCorrelationId(), event.getRequestType());
+
+            String eventJson = objectMapper.writeValueAsString(event);
+            redisTemplate.convertAndSend(PRICE_LOOKUP_RESPONSE_TOPIC, eventJson);
+
+            log.info("✅ [STORES] 가격 조회 응답 이벤트 발행 완료 - correlationId: {}",
+                    event.getCorrelationId());
+
+        } catch (Exception e) {
+            log.error("❌ [STORES] 가격 조회 응답 이벤트 발행 실패 - correlationId: {}, error: {}",
+                    event.getCorrelationId(), e.getMessage(), e);
+        }
+    }
+
     // DTO classes for Redis serialization
 
     @lombok.Data
@@ -197,5 +218,23 @@ public class StoreRedisEventPublisher {
         private int availableQuantity;
         private String reason;
         private java.time.LocalDateTime failedAt;
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class PriceLookupResponseEventDto {
+        private String eventId;
+        private String correlationId;
+        private String requestType;
+        private java.util.UUID sessionId;
+        private java.util.UUID goodsVariantId;
+        private Integer price;
+        private Integer stockQuantity;
+        private boolean success;
+        private String message;
+        private java.time.LocalDateTime respondedAt;
+        private java.time.LocalDateTime eventTime;
     }
 }
