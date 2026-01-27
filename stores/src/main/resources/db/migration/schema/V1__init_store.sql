@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS store.stores (
 
 -- popups (store 내부 FK는 허용 가능)
 CREATE TABLE IF NOT EXISTS store.popups (
-                                            popup_id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    popup_id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id            UUID NOT NULL,
 
     title               VARCHAR(200) NOT NULL,
@@ -63,7 +63,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- popup_schedules
 CREATE TABLE IF NOT EXISTS store.popup_schedules (
-                                                     schedule_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    schedule_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     popup_id    UUID NOT NULL,
 
     start_at    TIMESTAMP NOT NULL,
@@ -92,7 +92,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- goods_variants
 CREATE TABLE IF NOT EXISTS store.goods_variants (
-                                                    goods_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    goods_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     popup_id    UUID NOT NULL,
 
     stock_unit  VARCHAR(64),
@@ -119,7 +119,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- outbox_events
 CREATE TABLE IF NOT EXISTS store.outbox_events (
-                                                   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate_id     UUID NOT NULL,
     aggregate_type   VARCHAR(100) NOT NULL,
     event_type       VARCHAR(100) NOT NULL,

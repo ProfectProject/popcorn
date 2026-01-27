@@ -91,17 +91,18 @@ public class PopupScheduleInventorySagaListener {
         UUID popupId = reservations.stream().findFirst().map(GoodsOrderReservation::getPopupId).orElse(null);
 
         if (event.isConfirmAction()) {
+            // 결제 성공이 확인되면 HELD 상태인 예약만 COMMITTED로 상태 전환하고 DB 재고 차감
             List<String> details = new ArrayList<>();
             try {
                 for (GoodsOrderReservation reservation : reservations) {
-                    if (ReservationStatus.RESERVED != reservation.getStatus()) {
+                    if (ReservationStatus.HELD != reservation.getStatus()) {
                         continue;
                     }
                     popupService.completePopupScheduleReservation(
                             reservation.getScheduleId(),
                             reservation.getQuantity()
                     );
-                    reservationService.updateStatus(reservation, ReservationStatus.CONFIRMED, null);
+                    reservationService.updateStatus(reservation, ReservationStatus.COMMITTED, null);
                     details.add(formatDetail(reservation));
                 }
                 eventPublisher.publishStockDeductionSuccessEvent(orderId, orderNo, popupId,
@@ -109,19 +110,20 @@ public class PopupScheduleInventorySagaListener {
             } catch (Exception e) {
                 log.error("팝업 스케줄 재고 확정 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
                 reservations.stream()
-                        .filter(res -> ReservationStatus.RESERVED == res.getStatus())
+                        .filter(res -> ReservationStatus.HELD == res.getStatus())
                         .forEach(res -> reservationService.updateStatus(res, ReservationStatus.FAILED, e.getMessage()));
                 eventPublisher.publishStockDeductionFailedEvent(orderId, orderNo, popupId,
                         "재고 차감 실패: " + e.getMessage(), "SYSTEM_ERROR", e.getMessage());
                 throw new RuntimeException("팝업 스케줄 재고 확정 실패", e);
             }
         } else if (event.isRestoreAction()) {
+            // 결제 실패/복구 흐름은 REDIS 릴리즈 전략이 담당하므로 예약 상태만 RELEASED로 전환
             reservations.stream()
-                    .filter(res -> ReservationStatus.RESERVED == res.getStatus())
+                    .filter(res -> ReservationStatus.HELD == res.getStatus())
                     .forEach(res -> {
                         try {
                             popupService.cancelPopupScheduleReservation(res.getScheduleId(), res.getQuantity());
-                            reservationService.updateStatus(res, ReservationStatus.RESTORED, event.getReason());
+                            reservationService.updateStatus(res, ReservationStatus.RELEASED, event.getReason());
                         } catch (Exception e) {
                             log.error("팝업 스케줄 재고 복구 실패 - orderId: {}, scheduleId: {}, error: {}",
                                     orderId, res.getScheduleId(), e.getMessage(), e);
@@ -150,7 +152,7 @@ public class PopupScheduleInventorySagaListener {
         for (GoodsOrderReservation reservation : reservations) {
             try {
                 popupService.cancelPopupScheduleReservation(reservation.getScheduleId(), reservation.getQuantity());
-                reservationService.updateStatus(reservation, ReservationStatus.RESTORED,
+                reservationService.updateStatus(reservation, ReservationStatus.FAILED,
                         "rollback after failure");
             } catch (Exception ex) {
                 log.error("팝업 스케줄 재고 롤백 실패 - scheduleId: {}, error: {}", reservation.getScheduleId(),
