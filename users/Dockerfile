@@ -15,4 +15,5 @@ ENV TZ=Asia/Seoul
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
 #test
-#12345
+#123456
+
