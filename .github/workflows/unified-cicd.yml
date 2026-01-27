@@ -88,6 +88,11 @@ jobs:
             if git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
               SERVICES="${SERVICES},checkIns"
             fi
+
+            # common-lib 변경 시 전체 서비스 빌드/배포
+            if git diff --name-only HEAD~1 HEAD | grep -q "^common-lib/"; then
+              SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
+            fi
             
             # Check for task definition changes
             if git diff --name-only HEAD~1 HEAD | grep -q "^\.aws/task-definitions/"; then
