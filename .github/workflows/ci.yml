@@ -139,7 +139,7 @@ jobs:
           sbom: false
 
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}-${{ matrix.service }}:test-${{ github.run_number }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
           cache-from: type=gha
