@@ -46,7 +46,7 @@ public class RedisEventPublisher {
                 "orderId", event.getOrderId().toString(),
                 "eventId", event.getEventId(),
                 "orderNo", event.getOrderNo(),
-                "userId", "", // userId 정보 별도 처리
+                "userId", event.getCustomerId() != null ? event.getCustomerId().toString() : "",
                 "totalAmount", event.getTotalAmount() != null ? event.getTotalAmount().toString() : "",
                 "paidAt", event.getPaidAt().toString(),
                 "eventTime", LocalDateTime.now().toString()
@@ -109,6 +109,7 @@ public class RedisEventPublisher {
                 "eventType", "stock-deduction-requested",
                 "eventId", event.getEventId(),
                 "orderId", event.getOrderId().toString(),
+                "orderNo", event.getOrderNo() != null ? event.getOrderNo() : "",
                 "items", objectMapper.writeValueAsString(event.getDeductionItems() != null ? event.getDeductionItems() : "[]"),
                 "requestedAt", event.getRequestedAt().toString(),
                 "eventTime", LocalDateTime.now().toString()
