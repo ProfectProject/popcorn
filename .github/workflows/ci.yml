@@ -9,7 +9,7 @@ on:
 jobs:
   test-checkins:
     runs-on: ubuntu-latest
-    name: CheckIns Module Test & Coverage
+    name: User Module Test & Coverage
 
     env:
       DB_HOST: localhost
@@ -17,6 +17,10 @@ jobs:
       DB_NAME: popcorn_test
       DB_USERNAME: postgres
       DB_PASSWORD: test123
+      USER_AUTH_DB_USERNAME: user_auth_app
+      USER_AUTH_DB_PASSWORD: user123
+      USER_AUTH_FLYWAY_USERNAME: user_auth_migrator
+      USER_AUTH_FLYWAY_PASSWORD: user321
       SPRING_PROFILES_ACTIVE: test
 
     services:
@@ -70,7 +74,7 @@ jobs:
         run: ./gradlew :users:jacocoTestCoverageVerification
 
 
-      - name: Upload CheckIns Test Results
+      - name: Upload Users Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -79,6 +83,13 @@ jobs:
             users/build/reports/tests/test/
             users/build/test-results/test/
           retention-days: 7
+
+      - name: Initialize DB Roles for Testing
+        run: |
+            # CI용 postgres 서비스에 접속하여 앱/마이그레이터 계정 미리 생성
+            docker exec ${{ job.services.postgres.id }} psql -U postgres -d popcorn_test -c "CREATE USER user_auth_app WITH PASSWORD 'user123';"
+            docker exec ${{ job.services.postgres.id }} psql -U postgres -d popcorn_test -c "CREATE USER user_auth_migrator WITH PASSWORD 'user321';"
+            docker exec ${{ job.services.postgres.id }} psql -U postgres -d popcorn_test -c "GRANT ALL PRIVILEGES ON DATABASE popcorn_test TO user_auth_migrator;"
 
       - name: Upload Users Coverage Report
         if: always()
