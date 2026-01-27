@@ -37,6 +37,16 @@ public class OpenApiConfig {
     }
 
     @Bean
+    public GroupedOpenApi managerApi() {
+        return GroupedOpenApi.builder()
+                .group("manager")
+                .pathsToMatch("/api/v1/manager/**")
+                .addOpenApiCustomizer(openApi ->
+                    openApi.addSecurityItem(new SecurityRequirement().addList("BearerAuth")))
+                .build();
+    }
+
+    @Bean
     public GroupedOpenApi publicApi() {
         return GroupedOpenApi.builder()
                 .group("public")
