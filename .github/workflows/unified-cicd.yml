@@ -159,10 +159,9 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build application
-        working-directory: ${{ matrix.service }}
         run: |
-          chmod +x ../gradlew
-          ../gradlew bootJar -x test -x javadoc
+          chmod +x ./gradlew
+          ./gradlew :${{ matrix.service }}:bootJar -x test -x javadoc
 
       - name: Set ECR repository name
         id: ecr-repo
@@ -182,9 +181,9 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
-        working-directory: ${{ matrix.service }}
         run: |
           docker build \
+            -f ${{ matrix.service }}/Dockerfile \
             --build-arg JAR_FILE=build/libs/*.jar \
             -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG \
             -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest \
