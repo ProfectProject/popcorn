@@ -15,6 +15,10 @@ on:
       - 'common-lib/**'
       - '.aws/task-definitions/checkin-service.json'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build-deploy:
     uses: ./.github/workflows/reusable-build-deploy.yml
@@ -24,4 +28,8 @@ jobs:
       ecr-repository: goorm-popcorn-checkin
       java-version: '17'
       gradle-build-args: 'bootJar -x test -x javadoc'
+      needs-kafka: false
+      enhanced-security: false
+      min-approvals: 1
+      discord-emoji: '✅'
     secrets: inherit

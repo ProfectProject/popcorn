@@ -15,6 +15,10 @@ on:
       - 'common-lib/**'
       - '.aws/task-definitions/store-service.json'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build-deploy:
     uses: ./.github/workflows/reusable-build-deploy.yml
