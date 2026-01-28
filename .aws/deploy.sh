@@ -105,6 +105,7 @@ get_infrastructure_info() {
     PAYMENT_FLYWAY_USERNAME=${PAYMENT_FLYWAY_USERNAME_TASK:-""}
     PAYMENT_FLYWAY_PASSWORD=${PAYMENT_FLYWAY_PASSWORD_TASK:-""}
     TOSS_PAYMENTS_CLIENT_KEY=${TOSS_PAYMENTS_CLIENT_KEY_TASK:-""}
+    TOSS_PAYMENTS_SECRET_KEY=${TOSS_PAYMENTS_SECRET_KEY_TASK:-""}
 
     QR_DB_USERNAME=${QR_DB_USERNAME_TASK:-""}
     QR_DB_PASSWORD=${QR_DB_PASSWORD_TASK:-""}
@@ -132,7 +133,7 @@ substitute_variables() {
     local esc_store_db_username esc_store_db_password esc_store_flyway_username esc_store_flyway_password
     local esc_order_db_username esc_order_db_password esc_order_flyway_username esc_order_flyway_password
     local esc_payment_db_username esc_payment_db_password esc_payment_flyway_username esc_payment_flyway_password
-    local esc_toss_payments_client_key
+    local esc_toss_payments_client_key esc_toss_payments_secret_key
     local esc_qr_db_username esc_qr_db_password esc_qr_flyway_password
     local esc_order_query_db_username esc_order_query_db_password esc_order_query_flyway_username esc_order_query_flyway_password
     esc_db_host=$(escape_sed "$DB_HOST")
@@ -164,6 +165,7 @@ substitute_variables() {
     esc_payment_flyway_username=$(escape_sed "$PAYMENT_FLYWAY_USERNAME")
     esc_payment_flyway_password=$(escape_sed "$PAYMENT_FLYWAY_PASSWORD")
     esc_toss_payments_client_key=$(escape_sed "$TOSS_PAYMENTS_CLIENT_KEY")
+    esc_toss_payments_secret_key=$(escape_sed "$TOSS_PAYMENTS_SECRET_KEY")
     esc_qr_db_username=$(escape_sed "$QR_DB_USERNAME")
     esc_qr_db_password=$(escape_sed "$QR_DB_PASSWORD")
     esc_qr_flyway_password=$(escape_sed "$QR_FLYWAY_PASSWORD")
@@ -205,6 +207,7 @@ substitute_variables() {
         -e "s|\${PAYMENT_FLYWAY_USERNAME}|${esc_payment_flyway_username}|g" \
         -e "s|\${PAYMENT_FLYWAY_PASSWORD}|${esc_payment_flyway_password}|g" \
         -e "s|\${TOSS_PAYMENTS_CLIENT_KEY}|${esc_toss_payments_client_key}|g" \
+        -e "s|\${TOSS_PAYMENTS_SECRET_KEY}|${esc_toss_payments_secret_key}|g" \
         -e "s|\${QR_DB_USERNAME}|${esc_qr_db_username}|g" \
         -e "s|\${QR_DB_PASSWORD}|${esc_qr_db_password}|g" \
         -e "s|\${QR_FLYWAY_PASSWORD}|${esc_qr_flyway_password}|g" \
