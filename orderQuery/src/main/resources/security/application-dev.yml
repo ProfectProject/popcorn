@@ -10,6 +10,9 @@ spring:
     username: ${ORDER_QUERY_DB_USERNAME:order_query_app}
     password: ${ORDER_QUERY_DB_PASSWORD:order_query123}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
   jpa:
     open-in-view: false
     hibernate:

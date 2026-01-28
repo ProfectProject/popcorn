@@ -10,6 +10,9 @@ spring:
     username: ${STORE_DB_USERNAME:store_app}
     password: ${STORE_DB_PASSWORD:store123}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
   jpa:
     open-in-view: false
     hibernate:
