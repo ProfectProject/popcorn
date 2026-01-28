@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
     paths:
       - 'order/**'
+      - 'gateway/**'
       - 'common-lib/**'
       - 'gradle/**'
       - '*.gradle'
@@ -31,6 +32,7 @@ jobs:
         with:
           filters: |
             users: ['users/**', 'common-lib/**']
+            gateway: ['gateway/**', 'common-lib/**']
             checkIns: ['checkIns/**', 'common-lib/**']
             order: ['order/**', 'common-lib/**']
             store: ['store/**', 'common-lib/**']
@@ -94,15 +96,19 @@ jobs:
       AWS_REGION: ap-northeast-2
       ECR_REPOSITORY: goorm-popcorn-user
       ECR_ORDER_REPOSITORY: goorm-popcorn-order
+      ECR_GATEWAY_REPOSITORY: goorm-popcorn-api-gateway
       
       ECS_TASK_DEFINITION: users/goorm-popcorn-dev-user-service-revision2.json
       ECS_TASK_ORDER_DEFINITION: order/goorm-popcorn-dev-order-service.json
+      ECS_TASK_GATEWAY_DEFINITION: gateway/goorm-popcorn-dev-api-gateway.json
       
       CONTAINER_NAME: user-service
       CONTAINER_ORDER_NAME: order-service
+      CONTAINER_GATEWAY_NAME: api-gateway
       
       ECS_SERVICE: goorm-popcorn-dev-user-service
       ECS_ORDER_SERVICE: goorm-popcorn-dev-order-service
+      ECS_APIGATE_SERVICE: goorm-popcorn-dev-api-gateway
       
       ECS_CLUSTER: goorm-popcorn-dev-cluster
 
@@ -129,6 +135,27 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+# 1️⃣ 서비스별 변수 동적 매핑 (여기에 order와 gateway 설정을 모두 넣습니다)
+      - name: Set service-specific variables
+        id: vars
+        run: |
+          if [ "${{ matrix.service }}" == "order" ]; then
+            echo "ecr_repo=goorm-popcorn-order" >> $GITHUB_OUTPUT
+            echo "task_def_file=order/goorm-popcorn-dev-order-service.json" >> $GITHUB_OUTPUT
+            echo "container_name=order-service" >> $GITHUB_OUTPUT
+            echo "ecs_service=goorm-popcorn-dev-order-service" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.service }}" == "gateway" ]; then
+            echo "ecr_repo=goorm-popcorn-api-gateway" >> $GITHUB_OUTPUT
+            echo "task_def_file=gateway/goorm-popcorn-dev-api-gateway.json" >> $GITHUB_OUTPUT
+            echo "container_name=api-gateway" >> $GITHUB_OUTPUT
+            echo "ecs_service=goorm-popcorn-dev-api-gateway" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.service }}" == "users" ]; then
+            echo "ecr_repo=goorm-popcorn-user" >> $GITHUB_OUTPUT
+            echo "task_def_file=users/goorm-popcorn-dev-user-service-revision2.json" >> $GITHUB_OUTPUT
+            echo "container_name=user-service" >> $GITHUB_OUTPUT
+            echo "ecs_service=goorm-popcorn-dev-user-service" >> $GITHUB_OUTPUT
+          fi
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -157,8 +184,8 @@ jobs:
           
           # ✅ 요청하신 dev-latest 태그 적용
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_ORDER_REPOSITORY }}:dev-latest
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_ORDER_REPOSITORY }}:test-${{ github.run_number }}
+            ${{ steps.ecr.outputs.registry }}/${{ steps.vars.outputs.ecr_repo }}:dev-latest
+            ${{ steps.ecr.outputs.registry }}/${{ steps.vars.outputs.ecr_repo }}:test-${{ github.run_number }}
           
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -167,7 +194,7 @@ jobs:
       - name: Download Task Definition
         run: |
           aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_TASK_ORDER_DEFINITION }} \
+            --task-definition ${{ steps.vars.outputs.ecr_repo }} \
             --query taskDefinition \
             | jq 'del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy)' > task-definition.json  
 
@@ -175,20 +202,14 @@ jobs:
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@c804dfbdd57f713b6c079302a4c01db7017a36fc
         with:
-          task-definition: ${{ env.ECS_TASK_ORDER_DEFINITION }}
-          container-name: ${{ env.CONTAINER_ORDER_NAME }}
-          image: ${{ env.ECR_ORDER_REPOSITORY }}:dev-latest
+          task-definition: ${{ steps.vars.outputs.ecr_repo }}
+          container-name: ${{ steps.vars.outputs.ecr_repo }}
+          image: ${{ steps.vars.outputs.ecr_repo }}:dev-latest
 
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@df9643053eda01f169e64a0e60233aacca83799a
         with:
-          task-definition: ${{ env.ECS_TASK_ORDER_DEFINITION }}
-          service: ${{ env.ECS_ORDER_SERVICE }}
+          task-definition: ${{ steps.vars.outputs.ecr_repo }}
+          service: ${{ steps.vars.outputs.ecr_repo }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
-
-      
-        
-      
-      
-        
