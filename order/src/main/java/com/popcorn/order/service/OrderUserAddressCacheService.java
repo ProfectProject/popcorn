@@ -9,13 +9,6 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Optional;
 
-/**
- * 사용자 주소 조회 캐싱 서비스 - 주문 처리 속도 최적화
- * Redis Cache-Aside 패턴으로 외부 주소 조회를 캐싱
- *
- * 성능 향상:
- * - 사용자 기본 주소 조회: 1000ms → 10ms (99% 단축)
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -27,11 +20,6 @@ public class OrderUserAddressCacheService {
     // 캐시 TTL 설정 - 주소는 자주 변경되지 않으므로 길게 설정
     private static final Duration USER_ADDRESS_TTL = Duration.ofHours(24);  // 24시간 캐시
 
-    /**
-     * 사용자 기본 주소 조회 (캐시 우선)
-     * Cache Hit 시: ~10ms
-     * Cache Miss 시: ~1000ms + 캐시 저장
-     */
     public Optional<UserAddressResponse> getDefaultAddress(Long userId) {
         String cacheKey = "order:address:user:" + userId + ":default";
 
@@ -62,9 +50,7 @@ public class OrderUserAddressCacheService {
         return addressOpt;
     }
 
-    /**
-     * 사용자 주소 캐시 무효화 - 주소 변경/삭제 시 호출
-     */
+   
     public void invalidateUserAddress(Long userId) {
         String cacheKeyPattern = "order:address:user:" + userId + ":*";
 
@@ -77,9 +63,7 @@ public class OrderUserAddressCacheService {
         }
     }
 
-    /**
-     * 주소 캐시 워밍업 - 자주 주문하는 사용자들의 주소를 미리 캐시
-     */
+   
     public void warmupUserAddressCache(Long userId) {
         log.info("🔥 [CACHE-WARMUP] 사용자 주소 캐시 워밍업 시작 - userId: {}", userId);
         getDefaultAddress(userId);
