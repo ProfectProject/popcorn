@@ -27,19 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 
-/**
- * 주문 조회(Query) 서비스 - CQRS 패턴의 조회 쪽 담당
- *
- * CQRS 패턴에서는 명령(Command)과 조회(Query)를 분리해요:
- * - OrderCommandService: 데이터 변경 (생성, 수정, 삭제)
- * - OrderQueryService: 데이터 조회 (읽기 전용)
- *
- * 이렇게 분리하는 이유:
- * - 복잡한 조회 로직과 변경 로직을 분리해서 이해하기 쉬워져요
- * - 조회 성능을 최적화하기 쉬워져요
- * - 각각 독립적으로 확장할 수 있어요
- * - 보안상 조회와 변경 권한을 다르게 관리할 수 있어요
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -51,14 +39,7 @@ public class OrderQueryService {
     private final OrderDomainService orderDomainService;
     private final OrderPopupLookupService orderPopupLookupService;
 
-    // ================ 단일 주문 조회 ================
-
-    /**
-     * 주문 ID로 주문 상세 정보 조회
-     *
-     * @param orderId 조회할 주문 ID
-     * @return 주문 상세 정보 (없으면 Optional.empty())
-     */
+   
     public Optional<OrderDetailResponse> findOrderById(UUID orderId) {
         log.debug("주문 상세 조회 - ID: {}", orderId);
 
@@ -77,12 +58,7 @@ public class OrderQueryService {
         return Optional.of(response);
     }
 
-    /**
-     * 주문 번호로 주문 조회
-     *
-     * @param orderNo 주문 번호 (O20260120-000001 형태)
-     * @return 주문 상세 정보
-     */
+ 
     public Optional<OrderDetailResponse> findOrderByOrderNo(String orderNo) {
         log.debug("주문 조회 - 주문번호: {}", orderNo);
 
@@ -95,15 +71,6 @@ public class OrderQueryService {
         return findOrderById(orderOpt.get().getId());
     }
 
-    // ================ 주문 목록 조회 ================
-
-    /**
-     * 사용자의 주문 목록 조회 (페이징)
-     *
-     * @param userId 사용자 ID
-     * @param pageable 페이징 정보
-     * @return 주문 요약 목록
-     */
     public Page<OrderSummaryResponse> findOrdersByUserId(Long userId, Pageable pageable) {
         log.debug("사용자 주문 목록 조회 - 사용자: {}, 페이지: {}", userId, pageable.getPageNumber());
 
@@ -115,13 +82,7 @@ public class OrderQueryService {
         });
     }
 
-    /**
-     * 팝업별 주문 목록 조회
-     *
-     * @param popupId 팝업 ID
-     * @param pageable 페이징 정보
-     * @return 주문 목록
-     */
+ 
     public Page<OrderSummaryResponse> findOrdersByPopupId(UUID popupId, Pageable pageable) {
         log.debug("팝업 주문 목록 조회 - 팝업: {}", popupId);
 
@@ -129,15 +90,7 @@ public class OrderQueryService {
         return orders.map(OrderSummaryResponse::fromOrder);
     }
 
-    // ================ 조건부 조회 ================
-
-    /**
-     * 취소 가능한 주문들 조회
-     *
-     * @param userId 사용자 ID
-     * @param pageable 페이징 정보
-     * @return 취소 가능한 주문 목록
-     */
+   
     public Page<OrderSummaryResponse> findCancellableOrdersByUserId(Long userId, Pageable pageable) {
         log.debug("취소 가능한 주문 조회 - 사용자: {}", userId);
 
@@ -147,14 +100,7 @@ public class OrderQueryService {
         return orders.map(OrderSummaryResponse::fromOrder);
     }
 
-    // ================ 통계 및 집계 ================
-
-    /**
-     * 사용자의 총 주문 수 조회
-     *
-     * @param userId 사용자 ID
-     * @return 총 주문 수
-     */
+  
     public long countOrdersByUserId(Long userId) {
         log.debug("사용자 총 주문 수 조회 - 사용자: {}", userId);
         return orderRepository.countByCustomerId(userId);
@@ -162,12 +108,7 @@ public class OrderQueryService {
 
     // ================ 비즈니스 로직 조회 ================
 
-    /**
-     * 주문이 취소 가능한지 확인
-     *
-     * @param orderId 주문 ID
-     * @return 취소 가능 여부
-     */
+  
     public boolean isOrderCancellable(UUID orderId) {
         Optional<Order> orderOpt = orderRepository.findById(orderId);
         if (orderOpt.isEmpty()) {
@@ -178,39 +119,18 @@ public class OrderQueryService {
         return orderDomainService.canCancelOrder(order);
     }
 
-    /**
-     * 주문의 현재 상태 조회
-     *
-     * @param orderId 주문 ID
-     * @return 현재 주문 상태 (주문이 없으면 Optional.empty())
-     */
     public Optional<OrderStatus> getOrderStatus(UUID orderId) {
         return orderRepository.findById(orderId)
                 .map(Order::getStatus);
     }
 
-    /**
-     * 주문 상태 변경 이력 조회
-     *
-     * @param orderId 주문 ID
-     * @return 상태 변경 이력 목록
-     */
+   
     public List<OrderStatusHistory> getOrderStatusHistory(UUID orderId) {
         log.debug("주문 상태 이력 조회 - 주문: {}", orderId);
         return orderStatusHistoryRepository.findByOrderIdOrderByChangedAtAsc(orderId);
     }
 
-    // ================ 관리자용 조회 ================
-
-    /**
-     * 처리가 필요한 주문들 조회 (관리자용)
-     *
-     * 예: 오랫동안 REQUESTED 상태인 주문들
-     *
-     * @param hours 체크할 시간 (몇 시간 전부터)
-     * @param pageable 페이징 정보
-     * @return 처리 필요한 주문 목록
-     */
+  
     public Page<OrderSummaryResponse> findOrdersNeedingAttention(int hours, Pageable pageable) {
         LocalDateTime cutoffTime = LocalDateTime.now().minusHours(hours);
         log.debug("처리 필요 주문 조회 - {} 시간 전부터", hours);
@@ -219,34 +139,17 @@ public class OrderQueryService {
         return orders.map(OrderSummaryResponse::fromOrder);
     }
 
-    /**
-     * 주문이 존재하는지 확인
-     *
-     * @param orderId 주문 ID
-     * @return 존재 여부
-     */
+  
     public boolean existsById(UUID orderId) {
         return orderRepository.existsById(orderId);
     }
 
-    /**
-     * 주문 번호가 존재하는지 확인
-     *
-     * @param orderNo 주문 번호
-     * @return 존재 여부
-     */
+ 
     public boolean existsByOrderNo(String orderNo) {
         return orderRepository.existsByOrderNo(orderNo);
     }
 
-    // ================ 새로운 Store 서비스 방식 조회 (Pagination) ================
-
-    /**
-     * 팝업별 주문 목록 조회 (Store 서비스 방식)
-     *
-     * @param query 조회 조건
-     * @return Store 서비스 방식의 주문 목록 응답
-     */
+   
     public OrderListResponse findOrdersByPopupId(OrderListQuery query) {
         log.info("팝업별 주문 목록 조회 - 팝업ID: {}, 페이지: {}, 사이즈: {}",
                 query.getPopupId(), query.getValidatedPage(), query.getValidatedSize());
@@ -286,22 +189,17 @@ public class OrderQueryService {
         }
     }
 
-    /**
-     * 카테고리별 주문 목록 조회 (Store 서비스 방식)
-     *
-     * @param query 조회 조건
-     * @return Store 서비스 방식의 주문 목록 응답
-     */
+ 
     public OrderListResponse findOrdersByCategory(OrderListQuery query) {
         log.info("카테고리별 주문 목록 조회 - 카테고리: {}, 페이지: {}, 사이즈: {}",
                 query.getOrderType(), query.getValidatedPage(), query.getValidatedSize());
 
-        // 1. 페이지네이션 파라미터 검증
+        
         int page = query.getValidatedPage();
         int size = query.getValidatedSize();
 
         try {
-            // 2. ItemType 검증
+          
             ItemType orderType = null;
             if (query.getOrderType() != null) {
                 try {
@@ -312,10 +210,10 @@ public class OrderQueryService {
                 }
             }
 
-            // 3. Pageable 생성
+          
             Pageable pageable = PageRequest.of(page - 1, size);
 
-            // 4. 조건에 맞는 주문 목록 조회
+            
             Page<Order> orderPage = orderRepository.findOrdersByCategoryWithConditions(
                     orderType,
                     query.getStatus(),
@@ -325,10 +223,10 @@ public class OrderQueryService {
                     pageable
             );
 
-            // 5. 전체 개수 (withTotal=false인 경우 -1 반환)
+           
             long total = query.getValidatedWithTotal() ? orderPage.getTotalElements() : -1L;
 
-            // 6. Store 서비스 방식으로 응답 생성
+           
             OrderListResponse response = OrderListResponse.from(
                     orderPage.getContent(), page, size, total);
 
@@ -339,18 +237,12 @@ public class OrderQueryService {
 
         } catch (Exception e) {
             log.error("카테고리 주문 목록 조회 실패 - 카테고리: {}, 에러: {}", query.getOrderType(), e.getMessage(), e);
-            // 에러 시 빈 응답 반환
+           
             return OrderListResponse.from(List.of(), page, size, 0L);
         }
     }
 
-    /**
-     * 통합 주문 목록 조회 (Store 서비스 방식)
-     * 모든 검색 조건을 지원하는 범용 메서드
-     *
-     * @param query 조회 조건
-     * @return Store 서비스 방식의 주문 목록 응답
-     */
+
     public OrderListResponse findOrdersWithQuery(OrderListQuery query) {
         log.info("통합 주문 목록 조회 - 팝업: {}, 타입: {}, 상태: {}, 사용자: {}, 페이지: {}",
                 query.getPopupId(), query.getOrderType(), query.getStatus(),
@@ -371,10 +263,10 @@ public class OrderQueryService {
                 }
             }
 
-            // Pageable 생성
+         
             Pageable pageable = PageRequest.of(page - 1, size);
 
-            // 통합 조회 (모든 조건 지원)
+            
             Page<Order> orderPage = orderRepository.findOrdersWithAllConditions(
                     query.getPopupId(),
                     orderType,
@@ -397,32 +289,7 @@ public class OrderQueryService {
         }
     }
 
-    // ===== 새로 추가된 고급 조회 API 메소드들 =====
-
-    /**
-     * 내 주문 타임라인 조회 (Redis 캐시 적용)
-     *
-     * [Java 초보자를 위한 가이드]
-     *
-     * 이 메소드가 하는 일:
-     * 1. 특정 사용자의 모든 주문(예약+구매)을 시간순으로 조회
-     * 2. 페이지네이션 적용
-     * 3. 필터링 조건 적용 (주문 타입, 상태, 기간)
-     *
-     * 캐시 적용:
-     * - 사용자별 주문 목록은 자주 조회되므로 3분간 캐시
-     * - 실시간성이 중요하므로 짧은 TTL 적용
-     * - 필터 조건별로 다른 캐시 엔트리 생성
-     *
-     * @param customerId 고객 ID (JWT에서 추출)
-     * @param orderType 주문 타입 ("RESERVATION", "PURCHASE", null=전체)
-     * @param status 주문 상태 ("PAID", "COMPLETED", null=전체)
-     * @param from 조회 시작 시각 (null이면 제한 없음)
-     * @param to 조회 종료 시각 (null이면 제한 없음)
-     * @param limit 페이지 사이즈
-     * @param offset 건너뛸 개수 (페이지네이션)
-     * @return 내 주문 타임라인 응답
-     */
+  
     @Cacheable(value = "my-orders",
                key = "#customerId + ':' + (#orderType ?: 'ALL') + ':' + (#status ?: 'ALL') + ':' + (#offset ?: 0) + ':' + (#limit ?: 20)",
                condition = "#from == null and #to == null") // 기간 필터가 없을 때만 캐시
@@ -477,23 +344,7 @@ public class OrderQueryService {
         }
     }
 
-    /**
-     * 매장별 주문 현황 조회
-     *
-     * [Java 초보자 설명]
-     * 매장 운영자가 "우리 가게에 들어온 주문들"을 확인할 때 사용
-     *
-     * @param storeId 매장 ID
-     * @param popupId 팝업 ID (특정 팝업만 보고 싶을 때)
-     * @param scheduleId 스케줄 ID
-     * @param orderType 주문 타입
-     * @param status 주문 상태
-     * @param from 조회 시작 시각
-     * @param to 조회 종료 시각
-     * @param limit 페이지 사이즈
-     * @param offset 건너뛸 개수
-     * @return 매장 주문 현황
-     */
+   
     public com.popcorn.order.dto.response.StoreOrderReservationListResponse getStoreOrderReservations(
             UUID storeId,
             UUID popupId,
@@ -523,9 +374,7 @@ public class OrderQueryService {
                     pageable
                 );
             } else {
-                // 매장 전체 주문 조회 - 현재는 storeId 직접 조회가 불가능하므로
-                // Store 서비스를 통해 해당 매장의 모든 팝업을 조회한 후 주문을 조회해야 함
-                // TODO: Store 서비스에서 매장의 모든 팝업 ID 목록을 가져와서 조회하도록 구현 필요
+               
                 log.warn("매장 전체 주문 조회는 현재 구현되지 않음 - storeId: {}", storeId);
                 orderPage = Page.empty(pageable);
             }
@@ -553,21 +402,7 @@ public class OrderQueryService {
         }
     }
 
-    // ===== 헬퍼 메소드들 (DTO 변환용) =====
-
-    /**
-     * Order 엔티티를 MyOrderTimelineResponse.ItemDto로 변환
-     *
-     * [Java 초보자 설명]
-     * 이런 변환 메소드를 만드는 이유:
-     * 1. 같은 변환 로직을 여러 곳에서 재사용
-     * 2. 코드 중복 방지
-     * 3. 변환 로직 변경 시 한 곳만 수정하면 됨
-     *
-     * Store 서비스 연동:
-     * - 이벤트 기반으로 팝업/매장 정보 조회
-     * - 서비스 장애 시 기본값을 반환 (Fallback 패턴)
-     */
+   
     private com.popcorn.order.dto.response.MyOrderTimelineResponse.ItemDto convertToMyOrderTimelineItem(Order order) {
         // 1. Store 서비스에서 팝업 정보 조회 (매장 정보 포함)
         PopupInfoResponse popupInfo = orderPopupLookupService.getPopupInfo(order.getPopupId())
@@ -601,9 +436,7 @@ public class OrderQueryService {
             .build();
     }
 
-    /**
-     * Order 엔티티를 StoreOrderReservationListResponse.ItemDto로 변환
-     */
+
     private com.popcorn.order.dto.response.StoreOrderReservationListResponse.ItemDto convertToStoreOrderItem(Order order) {
         return com.popcorn.order.dto.response.StoreOrderReservationListResponse.ItemDto.builder()
             .id(order.getId())
@@ -615,15 +448,7 @@ public class OrderQueryService {
             .build();
     }
 
-    /**
-     * 팝업별 주문 목록 조회 (관리자용)
-     *
-     * @param popupId 팝업 ID
-     * @param status 주문 상태 필터 (선택사항)
-     * @param page 페이지 번호
-     * @param size 페이지 크기
-     * @return 주문 목록
-     */
+
     public List<OrderListResponse.OrderItemDto> findOrdersByPopup(UUID popupId, String status, int page, int size) {
         log.info("팝업별 주문 목록 조회 - popupId: {}, status: {}, page: {}, size: {}",
                 popupId, status, page, size);
