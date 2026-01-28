@@ -141,6 +141,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set image tag
+        id: image-tag
+        run: echo "tag=${{ github.event.inputs.image_tag || github.sha }}" >> $GITHUB_OUTPUT
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -164,6 +168,9 @@ jobs:
           ./gradlew :${{ matrix.service }}:bootJar -x test -x javadoc \
             -Dspring.aot.enabled=false --no-daemon --configuration-cache
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Set ECR repository name
         id: ecr-repo
         run: |
@@ -178,37 +185,66 @@ jobs:
             *) echo "repository=goorm-popcorn-${{ matrix.service }}" >> $GITHUB_OUTPUT ;;
           esac
 
-      - name: Build Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
-        run: |
-          docker build \
-            -f ${{ matrix.service }}/Dockerfile \
-            --build-arg JAR_FILE=build/libs/*.jar \
-            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG \
-            -t $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest \
-            .
+      - name: Build and push Docker image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          provenance: false
+          build-args: |
+            JAR_FILE=build/libs/*.jar
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ steps.ecr-repo.outputs.repository }}:${{ steps.image-tag.outputs.tag }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ steps.ecr-repo.outputs.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Push to ECR
+  notify-ci-start:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord (CI Start)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            🔵 **CI 시작**
+            
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **브랜치**: ${{ github.ref_name }}
+            **작성자**: ${{ github.actor }}
+            **트리거**: ${{ github.event_name }}
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
-        run: |
-          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:$IMAGE_TAG
-          docker push $ECR_REGISTRY/${{ steps.ecr-repo.outputs.repository }}:latest
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
-  deploy-group-1:
+  notify-ci-end:
+    needs: [detect-changes, build-and-deploy]
+    if: always() && needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord (CI End)
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            ${{ needs.build-and-deploy.result == 'success' && '✅' || '❌' }} **CI 종료** ${{ needs.build-and-deploy.result == 'success' && '성공' || '실패' }}
+            
+            **서비스**: ${{ needs.detect-changes.outputs.services }}
+            **브랜치**: ${{ github.ref_name }}
+            **작성자**: ${{ github.actor }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+  deploy:
     needs: [detect-changes, build-and-deploy]
     if: |
       always() &&
       needs.detect-changes.outputs.services != '' &&
-      needs.build-and-deploy.result == 'success' &&
-      (contains(needs.detect-changes.outputs.services, 'users') || contains(needs.detect-changes.outputs.services, 'checkIns'))
+      needs.build-and-deploy.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [users, checkIns]
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
       fail-fast: false
 
     permissions:
@@ -232,85 +268,6 @@ jobs:
       USER_AUTH_DB_PASSWORD_TASK: ${{ secrets.USER_AUTH_DB_PASSWORD_TASK }}
       USER_AUTH_FLYWAY_USERNAME_TASK: ${{ secrets.USER_AUTH_FLYWAY_USERNAME_TASK }}
       USER_AUTH_FLYWAY_PASSWORD_TASK: ${{ secrets.USER_AUTH_FLYWAY_PASSWORD_TASK }}
-      QR_DB_USERNAME_TASK: ${{ secrets.QR_DB_USERNAME_TASK }}
-      QR_DB_PASSWORD_TASK: ${{ secrets.QR_DB_PASSWORD_TASK }}
-      QR_FLYWAY_PASSWORD_TASK: ${{ secrets.QR_FLYWAY_PASSWORD_TASK }}
-      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
-
-    steps:
-      - name: Skip if service not in deployment list
-        id: check-service
-        run: |
-          if [[ ! "${{ needs.detect-changes.outputs.services }}" =~ "${{ matrix.service }}" ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout code
-        if: steps.check-service.outputs.skip == 'false'
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        if: steps.check-service.outputs.skip == 'false'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Deploy to Staging
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev')
-        working-directory: .aws
-        run: |
-          chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/checkIns/checkin-service/')
-          ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
-
-      - name: Wait for manual approval (Production)
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && env.PROD_APPROVERS != ''
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ github.TOKEN }}
-          approvers: ${{ env.PROD_APPROVERS }}
-          minimum-approvals: 1
-          issue-title: "Deploy ${{ matrix.service }} to Production"
-
-      - name: Deploy to Production
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
-        working-directory: .aws
-        run: |
-          chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/users/user-service/; s/checkIns/checkin-service/')
-          ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
-
-  deploy-group-2:
-    needs: [detect-changes, build-and-deploy, deploy-group-1]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.services != '' &&
-      needs.build-and-deploy.result == 'success' &&
-      (contains(needs.detect-changes.outputs.services, 'stores') || contains(needs.detect-changes.outputs.services, 'order') || contains(needs.detect-changes.outputs.services, 'orderQuery'))
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [stores, order, orderQuery]
-      fail-fast: false
-
-    permissions:
-      id-token: write
-      contents: read
-
-    env:
-      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
-      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
-      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
-      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
-      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
-      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
-      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
-      JWT_SECRET_TASK: ${{ secrets.JWT_SECRET_TASK }}
-      PASSPORT_SECRET_TASK: ${{ secrets.PASSPORT_SECRET_TASK }}
-      GATEWAY_URL_TASK: ${{ secrets.GATEWAY_URL_TASK }}
       STORE_DB_USERNAME_TASK: ${{ secrets.STORE_DB_USERNAME_TASK }}
       STORE_DB_PASSWORD_TASK: ${{ secrets.STORE_DB_PASSWORD_TASK }}
       STORE_FLYWAY_USERNAME_TASK: ${{ secrets.STORE_FLYWAY_USERNAME_TASK }}
@@ -323,83 +280,14 @@ jobs:
       ORDER_QUERY_DB_PASSWORD_TASK: ${{ secrets.ORDER_QUERY_DB_PASSWORD_TASK }}
       ORDER_QUERY_FLYWAY_USERNAME_TASK: ${{ secrets.ORDER_QUERY_FLYWAY_USERNAME_TASK }}
       ORDER_QUERY_FLYWAY_PASSWORD_TASK: ${{ secrets.ORDER_QUERY_FLYWAY_PASSWORD_TASK }}
-      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
-
-    steps:
-      - name: Skip if service not in deployment list
-        id: check-service
-        run: |
-          if [[ ! "${{ needs.detect-changes.outputs.services }}" =~ "${{ matrix.service }}" ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout code
-        if: steps.check-service.outputs.skip == 'false'
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        if: steps.check-service.outputs.skip == 'false'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Deploy to Staging
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev')
-        working-directory: .aws
-        run: |
-          chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/')
-          ./deploy.sh $SERVICE_NAME dev ${{ github.event.inputs.image_tag || github.sha }}
-
-      - name: Wait for manual approval (Production)
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && env.PROD_APPROVERS != ''
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ github.TOKEN }}
-          approvers: ${{ env.PROD_APPROVERS }}
-          minimum-approvals: 1
-          issue-title: "Deploy ${{ matrix.service }} to Production"
-
-      - name: Deploy to Production
-        if: steps.check-service.outputs.skip == 'false' && (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod')
-        working-directory: .aws
-        run: |
-          chmod +x deploy.sh
-          SERVICE_NAME=$(echo "${{ matrix.service }}" | sed 's/stores/store-service/; s/order$/order-service/; s/orderQuery/order-query/')
-          ./deploy.sh $SERVICE_NAME prod ${{ github.event.inputs.image_tag || github.sha }}
-
-  deploy-payment:
-    needs: [detect-changes, build-and-deploy, deploy-group-2]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.services != '' &&
-      needs.build-and-deploy.result == 'success' &&
-      contains(needs.detect-changes.outputs.services, 'payment')
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
-
-    env:
-      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
-      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
-      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
-      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
-      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
-      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
-      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
-      JWT_SECRET_TASK: ${{ secrets.JWT_SECRET_TASK }}
-      PASSPORT_SECRET_TASK: ${{ secrets.PASSPORT_SECRET_TASK }}
-      GATEWAY_URL_TASK: ${{ secrets.GATEWAY_URL_TASK }}
       PAYMENT_DB_USERNAME_TASK: ${{ secrets.PAYMENT_DB_USERNAME_TASK }}
       PAYMENT_DB_PASSWORD_TASK: ${{ secrets.PAYMENT_DB_PASSWORD_TASK }}
       PAYMENT_FLYWAY_USERNAME_TASK: ${{ secrets.PAYMENT_FLYWAY_USERNAME_TASK }}
       PAYMENT_FLYWAY_PASSWORD_TASK: ${{ secrets.PAYMENT_FLYWAY_PASSWORD_TASK }}
       TOSS_PAYMENTS_CLIENT_KEY_TASK: ${{ secrets.TOSS_PAYMENTS_CLIENT_KEY_TASK }}
+      QR_DB_USERNAME_TASK: ${{ secrets.QR_DB_USERNAME_TASK }}
+      QR_DB_PASSWORD_TASK: ${{ secrets.QR_DB_PASSWORD_TASK }}
+      QR_FLYWAY_PASSWORD_TASK: ${{ secrets.QR_FLYWAY_PASSWORD_TASK }}
       PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
 
     steps:
@@ -411,16 +299,29 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve service name
+        id: svc
+        run: |
+          case "${{ matrix.service }}" in
+            users) echo "name=user-service" >> $GITHUB_OUTPUT ;;
+            stores) echo "name=store-service" >> $GITHUB_OUTPUT ;;
+            order) echo "name=order-service" >> $GITHUB_OUTPUT ;;
+            orderQuery) echo "name=order-query" >> $GITHUB_OUTPUT ;;
+            payment) echo "name=payment-service" >> $GITHUB_OUTPUT ;;
+            gateway) echo "name=api-gateway" >> $GITHUB_OUTPUT ;;
+            checkIns) echo "name=checkin-service" >> $GITHUB_OUTPUT ;;
+          esac
 
       - name: Deploy to Staging
         if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev'
         working-directory: .aws
         run: |
           chmod +x deploy.sh
-          ./deploy.sh payment-service dev ${{ github.event.inputs.image_tag || github.sha }}
+          ./deploy.sh ${{ steps.svc.outputs.name }} dev ${{ github.event.inputs.image_tag || github.sha }}
 
-      - name: Wait for manual approval (Production - Payment Service)
-        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && env.PROD_APPROVERS != ''
+      - name: Wait for manual approval (Production - Payment)
+        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && matrix.service == 'payment' && env.PROD_APPROVERS != ''
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
@@ -436,79 +337,28 @@ jobs:
             ⚠️ **SECURITY CRITICAL**: This is a payment service deployment.
             Please review security checklist and approve with 2 approvers.
 
-      - name: Deploy to Production
-        if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
-        working-directory: .aws
-        run: |
-          chmod +x deploy.sh
-          ./deploy.sh payment-service prod ${{ github.event.inputs.image_tag || github.sha }}
-
-  deploy-gateway:
-    needs: [detect-changes, build-and-deploy, deploy-payment]
-    if: |
-      always() &&
-      needs.detect-changes.outputs.services != '' &&
-      needs.build-and-deploy.result == 'success' &&
-      contains(needs.detect-changes.outputs.services, 'gateway')
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
-
-    env:
-      DB_HOST_TASK: ${{ secrets.DB_HOST_TASK }}
-      DB_PORT_TASK: ${{ secrets.DB_PORT_TASK }}
-      DB_NAME_TASK: ${{ secrets.DB_NAME_TASK }}
-      DB_USER_TASK: ${{ secrets.DB_USER_TASK }}
-      DB_PASSWORD_TASK: ${{ secrets.DB_PASSWORD_TASK }}
-      REDIS_HOST_TASK: ${{ secrets.REDIS_HOST_TASK }}
-      KAFKA_BOOTSTRAP_SERVERS_TASK: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS_TASK }}
-      JWT_SECRET_TASK: ${{ secrets.JWT_SECRET_TASK }}
-      PASSPORT_SECRET_TASK: ${{ secrets.PASSPORT_SECRET_TASK }}
-      GATEWAY_URL_TASK: ${{ secrets.GATEWAY_URL_TASK }}
-      GATEWAY_SERVICE_URL_TASK: ${{ secrets.GATEWAY_SERVICE_URL_TASK }}
-      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Deploy to Staging
-        if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/') || github.event.inputs.environment == 'dev'
-        working-directory: .aws
-        run: |
-          chmod +x deploy.sh
-          ./deploy.sh api-gateway dev ${{ github.event.inputs.image_tag || github.sha }}
-
       - name: Wait for manual approval (Production)
-        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && env.PROD_APPROVERS != ''
+        if: (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && matrix.service != 'payment' && env.PROD_APPROVERS != ''
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
           approvers: ${{ env.PROD_APPROVERS }}
           minimum-approvals: 1
-          issue-title: "Deploy API Gateway to Production"
+          issue-title: "Deploy ${{ matrix.service }} to Production"
 
       - name: Deploy to Production
         if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod'
         working-directory: .aws
         run: |
           chmod +x deploy.sh
-          ./deploy.sh api-gateway prod ${{ github.event.inputs.image_tag || github.sha }}
+          ./deploy.sh ${{ steps.svc.outputs.name }} prod ${{ github.event.inputs.image_tag || github.sha }}
 
   notify-cd-start:
     needs: [detect-changes, build-and-deploy]
     if: |
       needs.detect-changes.outputs.services != '' &&
       needs.build-and-deploy.result == 'success' &&
-      github.event_name == 'push'
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     steps:
@@ -527,16 +377,15 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
   notify-cd-end:
-    needs: [detect-changes, deploy-group-1, deploy-group-2, deploy-payment, deploy-gateway]
-    if: always() && needs.detect-changes.outputs.services != '' && github.event_name == 'push'
+    needs: [detect-changes, deploy]
+    if: always() && needs.detect-changes.outputs.services != '' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     steps:
       - name: Set CD status
         id: status
         run: |
-          results="${{ needs.deploy-group-1.result }} ${{ needs.deploy-group-2.result }} ${{ needs.deploy-payment.result }} ${{ needs.deploy-gateway.result }}"
-          if echo "$results" | grep -Eq "(failure|cancelled)"; then
+          if [ "${{ needs.deploy.result }}" != "success" ]; then
             echo "status=failure" >> $GITHUB_OUTPUT
           else
             echo "status=success" >> $GITHUB_OUTPUT
@@ -553,26 +402,5 @@ jobs:
             **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
             **작성자**: ${{ github.actor }}
             **브랜치**: ${{ github.ref_name }}
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-
-  notify:
-    needs: [detect-changes, build-and-deploy]
-    if: always() && needs.detect-changes.outputs.services != ''
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Notify Discord
-        uses: Ilshidur/action-discord@master
-        with:
-          args: |
-            🚀 **Unified CI/CD Pipeline** ${{ needs.build-and-deploy.result == 'success' && '✅ 성공' || '❌ 실패' }}
-            
-            **서비스**: ${{ needs.detect-changes.outputs.services }}
-            **환경**: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && 'Production' || 'Dev' }}
-            **버전**: `${{ github.event.inputs.image_tag || github.sha }}`
-            **작성자**: ${{ github.actor }}
-            **트리거**: ${{ github.event_name }}
-            **실행 시간**: ${{ github.run_number }}번째 실행
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
