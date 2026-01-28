@@ -115,6 +115,13 @@ jobs:
       ORDER_FLYWAY_USERNAME: order_migrator
       ORDER_FLYWAY_PASSWORD: order321
 
+      ORDER_QUERY_DB_USERNAME: order_query_app
+      ORDER_QUERY_DB_PASSWORD: quary123
+
+      ORDER_QUERY_FLYWAY_USERNAME: order_query_migrator
+      ORDER_QUERY_FLYWAY_PASSWORD: quary321
+
+
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       JWT_SECRET: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==PASSPORT_SECRET=passport-shared-secret
