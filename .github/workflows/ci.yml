@@ -194,7 +194,7 @@ jobs:
       - name: Download Task Definition
         run: |
           aws ecs describe-task-definition \
-            --task-definition ${{ steps.vars.outputs.ecr_repo }} \
+            --task-definition ${{ steps.vars.outputs.task_def_file }} \
             --query taskDefinition \
             | jq 'del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy)' > task-definition.json  
 
@@ -202,14 +202,14 @@ jobs:
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@c804dfbdd57f713b6c079302a4c01db7017a36fc
         with:
-          task-definition: ${{ steps.vars.outputs.ecr_repo }}
-          container-name: ${{ steps.vars.outputs.ecr_repo }}
+          task-definition: ${{ steps.vars.outputs.task_def_file }}
+          container-name: ${{ steps.vars.outputs.container_name }}
           image: ${{ steps.vars.outputs.ecr_repo }}:dev-latest
 
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@df9643053eda01f169e64a0e60233aacca83799a
         with:
-          task-definition: ${{ steps.vars.outputs.ecr_repo }}
-          service: ${{ steps.vars.outputs.ecr_repo }}
+          task-definition: ${{ steps.vars.outputs.task_def_file }}
+          service: ${{ steps.vars.outputs.ecs_service }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
