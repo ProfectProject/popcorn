@@ -1,0 +1,177 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:ap-northeast-2:375896310755:task-definition/goorm-popcorn-dev-api-gateway:23",
+    "containerDefinitions": [
+        {
+            "name": "api-gateway",
+            "image": "375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-api-gateway:621bc5a1940d3380f2c906b62da6f3a813de8ca1",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "name": "http",
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "SERVER_PORT",
+                    "value": "8080"
+                },
+                {
+                    "name": "GATEWAY_SERVICE_URL",
+                    "value": "https://dev.goormpopcorn.shop"
+                },
+                {
+                    "name": "GATEWAY_URL",
+                    "value": "https://dev.goormpopcorn.shop"
+                },
+                {
+                    "name": "PAYMENT_SERVICE_URL",
+                    "value": "http://payment-service.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "STORE_SERVICE_URL",
+                    "value": "http://store-service.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "USER_SERVICE_URL",
+                    "value": "http://user-service.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "SPRING_PROFILES_ACTIVE",
+                    "value": "dev"
+                },
+                {
+                    "name": "BACKEND_SERVICE_URL",
+                    "value": "http://backend-service.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "SPRING_DATA_REDIS_HOST",
+                    "value": "goorm-popcorn-cache-dev.mkltth.ng.0001.apn2.cache.amazonaws.com"
+                },
+                {
+                    "name": "SPRING_DATA_REDIS_PORT",
+                    "value": "6379"
+                },
+                {
+                    "name": "ORDERQUERY_SERVICE_URL",
+                    "value": "http://order-query.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "JWT_SECRET",
+                    "value": "bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU="
+                },
+                {
+                    "name": "CHECKIN_SERVICE_URL",
+                    "value": "http://checkin-service.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "ORDER_SERVICE_URL",
+                    "value": "http://order-service.goormpopcorn.local:8080"
+                },
+                {
+                    "name": "PASSPORT_SECRET",
+                    "value": "passport-shared-secret"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "startTimeout": 120,
+            "stopTimeout": 30,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/aws/ecs/goorm-popcorn-dev/api-gateway",
+                    "awslogs-region": "ap-northeast-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost:8080/actuator/health || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 180
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "goorm-popcorn-dev-api-gateway",
+    "taskRoleArn": "arn:aws:iam::375896310755:role/goorm-popcorn-dev-ecs-task-role",
+    "executionRoleArn": "arn:aws:iam::375896310755:role/goorm-popcorn-dev-ecs-task-execution-role",
+    "networkMode": "awsvpc",
+    "revision": 23,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.container-health-check"
+        },
+        {
+            "name": "ecs.capability.container-ordering"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "MANAGED_INSTANCES",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "registeredAt": "2026-01-28T09:18:49.703Z",
+    "registeredBy": "arn:aws:sts::375896310755:assumed-role/githubaction/GitHubActions",
+    "tags": [
+        {
+            "key": "Project",
+            "value": "goorm-popcorn"
+        },
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "Service",
+            "value": "api-gateway"
+        },
+        {
+            "key": "ManagedBy",
+            "value": "application-team"
+        }
+    ]
+}
