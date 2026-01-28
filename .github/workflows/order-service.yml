@@ -2,14 +2,14 @@ name: Order Service CI/CD
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'order/**'
       - 'common-lib/**'
       - '.aws/task-definitions/order-service.json'
       - '.github/workflows/order-service.yml'
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'order/**'
       - 'common-lib/**'

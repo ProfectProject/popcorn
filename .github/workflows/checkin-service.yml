@@ -2,14 +2,14 @@ name: CheckIn Service CI/CD
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'checkIns/**'
       - 'common-lib/**'
       - '.aws/task-definitions/checkin-service.json'
       - '.github/workflows/checkin-service.yml'
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'checkIns/**'
       - 'common-lib/**'

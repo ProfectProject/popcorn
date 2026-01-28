@@ -2,14 +2,14 @@ name: Store Service CI/CD
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'stores/**'
       - 'common-lib/**'
       - '.aws/task-definitions/store-service.json'
       - '.github/workflows/store-service.yml'
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'stores/**'
       - 'common-lib/**'

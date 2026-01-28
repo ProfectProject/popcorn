@@ -2,14 +2,14 @@ name: Payment Service CI/CD
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'payment/**'
       - 'common-lib/**'
       - '.aws/task-definitions/payment-service.json'
       - '.github/workflows/payment-service.yml'
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, feature/*]
     paths:
       - 'payment/**'
       - 'common-lib/**'
