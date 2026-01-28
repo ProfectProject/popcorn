@@ -315,7 +315,7 @@ jobs:
   build-and-deploy:
     needs: [generate-tags, test, security-scan]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: needs.test.result == 'success' || needs.test.result == 'skipped'
     env:
       PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
     
