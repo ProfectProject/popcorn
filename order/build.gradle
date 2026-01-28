@@ -158,3 +158,12 @@ jacocoTestCoverageVerification {
 check {
     dependsOn jacocoTestCoverageVerification
 }
+// === Javadoc 빌드 에러 해결을 위한 설정 ===
+tasks.withType(Javadoc) {
+    options {
+        // 주석 내 문법 오류(doclint)를 무시하고 빌드를 진행합니다.
+        addStringOption('Xdoclint:none', '-quiet')
+        // 한글 깨짐 방지
+        encoding = 'UTF-8'
+        charSet = 'UTF-8'
+        docEncoding = 'UTF-8'
