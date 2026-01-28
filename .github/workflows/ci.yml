@@ -4,12 +4,7 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'users/**'
-      - 'checkIns/**'
       - 'order/**'
-      - 'store/**'
-      - 'qr/**'
-      - 'order_query/**'
       - 'common-lib/**'
       - 'gradle/**'
       - '*.gradle'
@@ -155,8 +150,8 @@ jobs:
           
           # ✅ 요청하신 dev-latest 태그 적용
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:dev-latest
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:test-${{ github.run_number }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_ORDER_REPOSITORY }}:dev-latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_ORDER_REPOSITORY }}:test-${{ github.run_number }}
           
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -165,7 +160,7 @@ jobs:
       - name: Download Task Definition
         run: |
           aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+            --task-definition ${{ env.ECS_TASK_ORDER_DEFINITION }} \
             --query taskDefinition \
             | jq 'del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy)' > task-definition.json  
 
@@ -173,15 +168,15 @@ jobs:
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@c804dfbdd57f713b6c079302a4c01db7017a36fc
         with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ env.ECR_REPOSITORY }}:dev-latest
+          task-definition: ${{ env.ECS_TASK_ORDER_DEFINITION }}
+          container-name: ${{ env.CONTAINER_ORDER_NAME }}
+          image: ${{ env.ECR_ORDER_REPOSITORY }}:dev-latest
 
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@df9643053eda01f169e64a0e60233aacca83799a
         with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          service: ${{ env.ECS_SERVICE }}
+          task-definition: ${{ env.ECS_TASK_ORDER_DEFINITION }}
+          service: ${{ env.ECS_ORDER_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
