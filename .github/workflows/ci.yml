@@ -99,11 +99,30 @@ jobs:
       AWS_REGION: ap-northeast-2
       ECR_REPOSITORY: goorm-popcorn-user
       ECR_ORDER_REPOSITORY: goorm-popcorn-order
+      
       ECS_TASK_DEFINITION: users/goorm-popcorn-dev-user-service-revision2.json
+      ECS_TASK_ORDER_DEFINITION: order/goorm-popcorn-dev-order-service.json
       
       CONTAINER_NAME: user-service
+      CONTAINER_ORDER_NAME: order-service
+      
       ECS_SERVICE: goorm-popcorn-dev-user-service
+      ECS_ORDER_SERVICE: goorm-popcorn-dev-order-service
+      
       ECS_CLUSTER: goorm-popcorn-dev-cluster
+
+      DB_HOST: localhost
+      DB_PORT: 5430
+      DB_NAME: popcorn_db
+
+      ORDER_DB_USERNAME: order_app
+      ORDER_DB_PASSWORD: order321
+      ORDER_FLYWAY_USERNAME: order_migrator
+      ORDER_FLYWAY_PASSWORD: order321
+
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: dGVzdC1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQtb25seS1kb25vdC11c2UtaW4tcHJvZHVjdGlvbg==PASSPORT_SECRET=passport-shared-secret
 
     steps:
       - name: Checkout code
