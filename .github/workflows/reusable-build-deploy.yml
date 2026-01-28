@@ -291,16 +291,18 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run Snyk to check for vulnerabilities
-        if: secrets.SNYK_TOKEN != ''
+        if: env.SNYK_TOKEN != ''
         uses: snyk/actions/gradle@master
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high --file=${{ inputs.service-directory }}/build.gradle
 
@@ -314,6 +316,8 @@ jobs:
     needs: [generate-tags, test, security-scan]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    env:
+      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
     
     permissions:
       id-token: write
@@ -442,11 +446,11 @@ jobs:
           ./deploy.sh ${{ inputs.service-name }} dev ${{ needs.generate-tags.outputs.primary_tag }}
 
       - name: Wait for manual approval (Production)
-        if: github.ref == 'refs/heads/main' && secrets.PROD_APPROVERS != ''
+        if: github.ref == 'refs/heads/main' && env.PROD_APPROVERS != ''
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
-          approvers: ${{ secrets.PROD_APPROVERS }}
+          approvers: ${{ env.PROD_APPROVERS }}
           minimum-approvals: ${{ inputs.min-approvals }}
           issue-title: "Deploy ${{ inputs.service-name }} to Production${{ inputs.enhanced-security && ' - CRITICAL SERVICE' || '' }}"
           issue-body: |
