@@ -12,18 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 재고 예약 타임아웃 관리 서비스
- *
- * [역할]
- * - 주기적으로 만료된 재고 예약을 확인하고 자동 취소 처리
- * - RESERVED 상태에서 30분 경과한 주문들을 CANCELLED로 변경
- * - 재고 예약 취소를 통해 다른 고객이 주문할 수 있도록 함
- *
- * [스케줄링]
- * - 5분마다 실행되어 만료된 예약을 확인
- * - Spring Boot의 @Scheduled 애노테이션 사용
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -32,17 +21,7 @@ public class StockReservationTimeoutService {
     private final OrderRepository orderRepository;
     private final OrderCommandService orderCommandService;
 
-    /**
-     * 만료된 재고 예약들을 주기적으로 취소합니다.
-     *
-     * [실행 주기]
-     * - 매 5분마다 실행 (300,000ms = 5분)
-     * - 새벽 시간대에도 실행되어 24시간 운영
-     *
-     * [처리 대상]
-     * - RESERVED 상태인 주문 중
-     * - 생성일시가 30분 이전인 주문들
-     */
+   
     @Scheduled(fixedRate = 300000) // 5분마다 실행
     @Transactional
     public void cancelExpiredReservations() {
@@ -97,13 +76,7 @@ public class StockReservationTimeoutService {
         }
     }
 
-    /**
-     * 예약/재고 응답이 없는 주문을 타임아웃 처리합니다.
-     *
-     * [처리 대상]
-     * - REQUESTED 상태이고
-     * - cancelableUntil이 지난 주문들
-     */
+
     @Scheduled(fixedRate = 60000) // 1분마다 실행
     @Transactional
     public void cancelStalledRequestedOrders() {
@@ -135,17 +108,7 @@ public class StockReservationTimeoutService {
         }
     }
 
-    /**
-     * 만료 임박한 재고 예약들을 확인하고 알림을 보냅니다.
-     *
-     * [실행 주기]
-     * - 매 10분마다 실행
-     * - 결제 완료까지 5분 남은 주문들에게 알림 발송
-     *
-     * [알림 대상]
-     * - RESERVED 상태인 주문 중
-     * - 생성일시가 25분 전인 주문들 (만료 5분 전)
-     */
+    
     @Scheduled(fixedRate = 600000) // 10분마다 실행
     @Transactional(readOnly = true)
     public void notifyExpiringReservations() {
@@ -171,10 +134,7 @@ public class StockReservationTimeoutService {
                     log.info("만료 임박 재고 예약 알림 - 주문번호: {}, 생성시간: {}",
                             expiringOrder.getOrderNo(), expiringOrder.getCreatedAt());
 
-                    // TODO: 실제 알림 발송 로직 구현
-                    // - 푸시 알림: "결제 시간이 5분 남았습니다"
-                    // - SMS: "주문 [주문번호]의 결제를 완료해주세요"
-
+                   
                     log.debug("만료 임박 알림 발송 완료 - 주문번호: {}", expiringOrder.getOrderNo());
 
                 } catch (Exception e) {
@@ -191,17 +151,7 @@ public class StockReservationTimeoutService {
         }
     }
 
-    /**
-     * 수동으로 특정 주문의 재고 예약을 취소합니다.
-     *
-     * [사용 케이스]
-     * - 관리자가 수동으로 예약을 취소해야 하는 경우
-     * - 시스템 오류로 인해 특정 주문을 취소해야 하는 경우
-     *
-     * @param orderId 취소할 주문 ID
-     * @param reason 취소 이유
-     * @return 취소 성공 여부
-     */
+    
     public boolean manualCancelReservation(java.util.UUID orderId, String reason) {
         try {
             log.info("수동 재고 예약 취소 요청 - 주문ID: {}, 이유: {}", orderId, reason);
