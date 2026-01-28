@@ -85,7 +85,7 @@ public class ExternalServiceClient {
         );
     }
 
-    // ========================= 사용자 서비스 호출 =========================
+
 
   
     public CompletableFuture<Map<String, Object>> getUserInfo(Long userId) {
@@ -130,7 +130,7 @@ public class ExternalServiceClient {
         );
     }
 
-    // ========================= 재고 서비스 호출 =========================
+   
 
   
     public CompletableFuture<Map<String, Object>> checkAndReserveStock(UUID orderId, Long productId, Integer quantity) {
