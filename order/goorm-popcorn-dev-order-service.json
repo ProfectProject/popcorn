@@ -1,0 +1,189 @@
+{
+  "taskDefinitionArn": "arn:aws:ecs:ap-northeast-2:375896310755:task-definition/goorm-popcorn-dev-order-service:17",
+  "containerDefinitions": [
+    {
+      "name": "order-service",
+      "image": "375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-order:621bc5a1940d3380f2c906b62da6f3a813de8ca1",
+      "cpu": 0,
+      "portMappings": [
+        {
+          "name": "http",
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "SERVER_PORT",
+          "value": "8080"
+        },
+        {
+          "name": "CHECKINS_SERVICE_URL",
+          "value": "http://checkin-service.goormpopcorn.local:8080"
+        },
+        {
+          "name": "GATEWAY_URL",
+          "value": "https://dev.goormpopcorn.shop"
+        },
+        {
+          "name": "REDIS_HOST",
+          "value": "goorm-popcorn-cache-dev.mkltth.ng.0001.apn2.cache.amazonaws.com"
+        },
+        {
+          "name": "PAYMENT_SERVICE_URL",
+          "value": "http://payment-service.goormpopcorn.local:8080"
+        },
+        {
+          "name": "STORE_SERVICE_URL",
+          "value": "http://store-service.goormpopcorn.local:8080"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "USER_SERVICE_URL",
+          "value": "http://user-service.goormpopcorn.local:8080"
+        },
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "dev"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "goorm_popcorn_db"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "goorm-popcorn-dev-postgres.cds4g0gykt3t.ap-northeast-2.rds.amazonaws.com"
+        },
+        {
+          "name": "ORDER_FLYWAY_USERNAME",
+          "value": "order_migrator"
+        },
+        {
+          "name": "REDIS_PORT",
+          "value": "6379"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU="
+        },
+        {
+          "name": "ORDER_DB_PASSWORD",
+          "value": "order321"
+        },
+        {
+          "name": "ORDER_FLYWAY_PASSWORD",
+          "value": "order321"
+        },
+        {
+          "name": "ORDER_DB_USERNAME",
+          "value": "order_app"
+        },
+        {
+          "name": "PASSPORT_SECRET",
+          "value": "passport-shared-secret"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "startTimeout": 180,
+      "stopTimeout": 60,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/ecs/goorm-popcorn-dev/order-service",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/actuator/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 180
+      },
+      "systemControls": []
+    }
+  ],
+  "family": "goorm-popcorn-dev-order-service",
+  "taskRoleArn": "arn:aws:iam::375896310755:role/goorm-popcorn-dev-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::375896310755:role/goorm-popcorn-dev-ecs-task-execution-role",
+  "networkMode": "awsvpc",
+  "revision": 17,
+  "volumes": [],
+  "status": "ACTIVE",
+  "requiresAttributes": [
+    {
+      "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+    },
+    {
+      "name": "ecs.capability.execution-role-awslogs"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.ecr-auth"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.task-iam-role"
+    },
+    {
+      "name": "ecs.capability.container-health-check"
+    },
+    {
+      "name": "ecs.capability.container-ordering"
+    },
+    {
+      "name": "ecs.capability.execution-role-ecr-pull"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+    },
+    {
+      "name": "ecs.capability.task-eni"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+    }
+  ],
+  "placementConstraints": [],
+  "compatibilities": [
+    "EC2",
+    "FARGATE",
+    "MANAGED_INSTANCES"
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "registeredAt": "2026-01-28T09:18:09.677Z",
+  "registeredBy": "arn:aws:sts::375896310755:assumed-role/githubaction/GitHubActions",
+  "tags": [
+    {
+      "key": "Project",
+      "value": "goorm-popcorn"
+    },
+    {
+      "key": "Environment",
+      "value": "dev"
+    },
+    {
+      "key": "Service",
+      "value": "order-service"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "application-team"
+    }
+  ]
+}
