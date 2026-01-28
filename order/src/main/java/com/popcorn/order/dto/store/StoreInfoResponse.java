@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
  * - HTTP 통신으로 JSON을 받아서 Java 객체로 변환할 때 사용
  *
  * 사용 예시:
- * StoreClient.getStoreInfo(storeId) → StoreInfoResponse 반환
+ * 이벤트 기반 팝업/매장 조회 → StoreInfoResponse 반환
  */
 @Getter
 @Builder

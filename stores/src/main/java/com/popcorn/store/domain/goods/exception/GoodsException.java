@@ -20,4 +20,8 @@ public class GoodsException extends BaseException {
 	public static GoodsException insufficientStock() {
 		return new GoodsException(GoodsResponseCode.INSUFFICIENT_STOCK);
 	}
+
+	public static GoodsException missingOrderId() {
+		return new GoodsException(GoodsResponseCode.MISSING_ORDER_ID);
+	}
 }

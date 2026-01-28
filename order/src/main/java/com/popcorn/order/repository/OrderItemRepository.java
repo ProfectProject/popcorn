@@ -72,10 +72,10 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
     /**
      * 굿즈 변형별 주문 항목 조회 (구매형 상품)
      *
-     * @param goodsVariantId 굿즈 변형 ID
+     * @param goodsId 굿즈 변형 ID
      * @return 주문 항목 목록
      */
-    List<OrderItem> findByGoodsVariantId(UUID goodsVariantId);
+    List<OrderItem> findByGoodsId(UUID goodsId);
 
     /**
      * 주문 항목 타입별 조회
@@ -89,7 +89,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
      */
     @Query("SELECT oi FROM OrderItem oi WHERE oi.orderId = :orderId " +
            "AND oi.orderItemType = :orderItemType")
-    List<OrderItem> findByOrderIdAndOrderItemType(@Param("orderId") UUID orderId,
+    List<OrderItem> findByOrderIdAndItemType(@Param("orderId") UUID orderId,
                                                  @Param("orderItemType") String orderItemType);
 
     /**

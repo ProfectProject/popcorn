@@ -18,7 +18,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 
 /**
  * OrderRepository 테스트
@@ -53,7 +53,7 @@ class OrderRepositoryTest {
                 .customerId(1L)
                 .popupId(popupId1)
                 .popupId(popupId1)
-                .orderType(OrderType.RESERVATION)
+                .orderType(ItemType.RESERVATION)
                 .status(OrderStatus.REQUESTED)
                 .totalAmount(15000)
                 .cancelableUntil(LocalDateTime.now().plusMinutes(30))
@@ -64,7 +64,7 @@ class OrderRepositoryTest {
                 .customerId(1L)
                 .popupId(popupId1)
                 .popupId(popupId1)
-                .orderType(OrderType.GOODS)
+                .orderType(ItemType.GOODS)
                 .status(OrderStatus.PAID)
                 .totalAmount(25000)
                 .cancelableUntil(LocalDateTime.now().plusMinutes(30))
@@ -75,7 +75,7 @@ class OrderRepositoryTest {
                 .customerId(2L)
                 .popupId(popupId2)
                 .popupId(popupId1)
-                .orderType(OrderType.RESERVATION)
+                .orderType(ItemType.RESERVATION)
                 .status(OrderStatus.COMPLETED)
                 .totalAmount(35000)
                 .cancelableUntil(LocalDateTime.now().minusMinutes(30)) // 이미 지난 시간

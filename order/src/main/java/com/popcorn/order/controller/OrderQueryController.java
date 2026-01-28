@@ -23,6 +23,8 @@ import com.popcorn.order.dto.response.OrderDetailResponse;
 import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderResponseCode;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
+import com.popcorn.order.dto.payment.PaymentUrlResponse;
+import com.popcorn.order.service.OrderCacheService;
 import com.popcorn.order.service.OrderQueryService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -73,6 +75,7 @@ public class OrderQueryController {
      * - Spring이 OrderQueryService 구현체를 자동으로 주입해줌
      */
     private final OrderQueryService orderQueryService;
+    private final OrderCacheService orderCacheService;
 
     /**
      * 주문 상세 조회 API
@@ -151,6 +154,28 @@ public class OrderQueryController {
             return ResponseEntity.status(OrderResponseCode.DATABASE_ERROR.getHttpStatus())
                     .body(errorResponse);
         }
+    }
+
+    /**
+     * 결제 URL 조회 API (예약 성공 이후 제공)
+     */
+    @GetMapping("/{orderId}/payment-url")
+    @Operation(summary = "결제 URL 조회", description = "예약 성공 이후 생성된 결제 URL을 조회합니다.")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('SYSTEM')")
+    public ResponseEntity<BaseResponse<PaymentUrlResponse>> getPaymentUrl(
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal PassportPrincipal principal) {
+
+        PaymentUrlResponse paymentUrl = orderCacheService.getPaymentUrl(orderId);
+        if (paymentUrl == null) {
+            return ResponseEntity.status(OrderResponseCode.ORDER_NOT_FOUND.getHttpStatus())
+                    .body(BaseResponse.of(
+                            OrderResponseCode.ORDER_NOT_FOUND.getCode(),
+                            OrderResponseCode.ORDER_NOT_FOUND.getMessage(),
+                            null
+                    ));
+        }
+        return ResponseEntity.ok(BaseResponse.from(OrderResponseCode.ORDER_RETRIEVED, paymentUrl));
     }
 
     /**
@@ -576,7 +601,7 @@ public class OrderQueryController {
             log.info("🎯 JWT에서 추출된 사용자 ID: {}", customerId);
 
             // 2. 파라미터 정규화
-            String normalizedOrderType = "ALL".equalsIgnoreCase(orderType) ? null : orderType;
+            String normalizedItemType = "ALL".equalsIgnoreCase(orderType) ? null : orderType;
             String normalizedStatus = (status == null || "ALL".equalsIgnoreCase(status)) ? null : status;
 
             // 3. page/size를 offset/limit으로 변환
@@ -585,7 +610,7 @@ public class OrderQueryController {
 
             // 4. 서비스 호출
             com.popcorn.order.dto.response.MyOrderTimelineResponse response = orderQueryService.getMyOrderTimeline(
-                customerId, normalizedOrderType, normalizedStatus, from, to, limit, offset
+                customerId, normalizedItemType, normalizedStatus, from, to, limit, offset
             );
 
             log.info("내 주문 타임라인 조회 완료 - 사용자: {}, 조회된 주문: {}개",

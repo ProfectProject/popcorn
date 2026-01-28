@@ -7,13 +7,17 @@ import com.popcorn.payment.dto.TossPaymentCancelRequest
 import com.popcorn.payment.dto.TossPaymentConfirmRequest
 import com.popcorn.payment.event.PaymentEventPublisherImpl
 import com.popcorn.payment.exception.PaymentException
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.util.*
+import kotlin.coroutines.Continuation
 
 
 /**
@@ -26,7 +30,8 @@ class TossPaymentCoroutineService(
     private val paymentCommandService: PaymentCommandCoroutineService,
     private val orderQueryService: OrderQueryCoroutineService,
     private val objectMapper: ObjectMapper,
-    private val paymentEventPublisher: PaymentEventPublisherImpl
+    private val paymentEventPublisher: PaymentEventPublisherImpl,
+    private val stringRedisTemplate: StringRedisTemplate
 ) {
 
     private val log = LoggerFactory.getLogger(TossPaymentCoroutineService::class.java)
@@ -81,6 +86,7 @@ class TossPaymentCoroutineService(
     /**
      * 토스 결제 승인 처리 (이벤트 기반)
      */
+    @CircuitBreaker(name = "tossPaymentApprove", fallbackMethod = "confirmPaymentFallback")
     suspend fun confirmPayment(
         paymentKey: String,
         orderId: String,
@@ -88,8 +94,14 @@ class TossPaymentCoroutineService(
     ): TossPaymentConfirmResult = coroutineScope {
 
             log.info("토스 결제 승인 요청 시작: orderId={}, paymentKey={}, amount={}", orderId, paymentKey, amount)
+            val lockKey = buildConfirmLockKey(paymentKey)
 
             try {
+                if (!tryAcquireConfirmLock(lockKey)) {
+                    log.warn("🚫 결제 승인 중복 차단 - paymentKey={}, orderId={}", paymentKey, orderId)
+                    throw PaymentException.duplicatePaymentAttempt()
+                }
+
                 // 1. 멱등성 체크 - 이미 처리된 결제인지 확인
                 val existingPayment = checkIdempotency(paymentKey)
                 if (existingPayment != null) {
@@ -181,7 +193,31 @@ class TossPaymentCoroutineService(
             } catch (e: Exception) {
                 log.error("❌ 결제 승인 실패: paymentKey={}, orderId={}, error={}", paymentKey, orderId, e.message, e)
                 throw e
+            } finally {
+                releaseConfirmLock(lockKey)
             }
+    }
+
+    private fun buildConfirmLockKey(paymentKey: String): String {
+        return "payment:confirm:lock:$paymentKey"
+    }
+
+    private fun tryAcquireConfirmLock(lockKey: String): Boolean {
+        return try {
+            stringRedisTemplate.opsForValue()
+                .setIfAbsent(lockKey, "1", Duration.ofMinutes(5)) == true
+        } catch (e: Exception) {
+            log.warn("결제 승인 락 획득 실패 - key={}, error={}", lockKey, e.message)
+            true // Redis 문제 시 결제 흐름은 진행
+        }
+    }
+
+    private fun releaseConfirmLock(lockKey: String) {
+        try {
+            stringRedisTemplate.delete(lockKey)
+        } catch (e: Exception) {
+            log.warn("결제 승인 락 해제 실패 - key={}, error={}", lockKey, e.message)
+        }
     }
 
     /**
@@ -191,6 +227,7 @@ class TossPaymentCoroutineService(
      * @param cancelReason 취소 사유
      * @return 결제 취소 결과
      */
+    @CircuitBreaker(name = "tossPaymentCancel", fallbackMethod = "cancelPaymentFallback")
     suspend fun cancelPayment(
         orderId: UUID,
         cancelReason: String
@@ -238,6 +275,39 @@ class TossPaymentCoroutineService(
             result.paymentId, result.cancelAmount)
 
         return result
+    }
+
+    @Suppress("unused")
+    suspend fun confirmPaymentFallback(
+        paymentKey: String,
+        orderId: String,
+        amount: Int,
+        throwable: Throwable
+    ): TossPaymentConfirmResult {
+        log.error("🚨 토스 결제 승인 CircuitBreaker OPEN - orderId={}, error={}", orderId, throwable.message, throwable)
+        throw PaymentException.externalApiError("토스 결제 승인 실패(서킷 브레이커): ${throwable.message}")
+    }
+
+    @Suppress("unused")
+    fun confirmPaymentFallback(
+        paymentKey: String,
+        orderId: String,
+        amount: Int,
+        continuation: Continuation<*>,
+        throwable: Throwable
+    ): Any {
+        log.error("🚨 토스 결제 승인 CircuitBreaker OPEN - orderId={}, error={}", orderId, throwable.message, throwable)
+        throw PaymentException.externalApiError("토스 결제 승인 실패(서킷 브레이커): ${throwable.message}")
+    }
+
+    @Suppress("unused")
+    suspend fun cancelPaymentFallback(
+        orderId: UUID,
+        cancelReason: String,
+        throwable: Throwable
+    ): TossPaymentCancelResult {
+        log.error("🚨 토스 결제 취소 CircuitBreaker OPEN - orderId={}, error={}", orderId, throwable.message, throwable)
+        throw PaymentException.externalApiError("토스 결제 취소 실패(서킷 브레이커): ${throwable.message}")
     }
 
     /**

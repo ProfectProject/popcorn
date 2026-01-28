@@ -7,7 +7,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import com.popcorn.order.dto.request.CreateOrderRequest;
+import com.popcorn.order.dto.request.OrderCreateRequest;
 import com.popcorn.order.dto.request.OrderItemRequest;
 
 /**
@@ -37,7 +37,7 @@ class CreateOrderRequestTest {
         );
 
         // When (실행) - 실제 테스트할 코드 실행
-        CreateOrderRequest request = CreateOrderRequest.builder()
+        OrderCreateRequest request = OrderCreateRequest.builder()
                 .popupId(popupId)
                 .orderType(orderType)
                 .items(items)
@@ -54,7 +54,7 @@ class CreateOrderRequestTest {
     @Test
     void 예약타입_확인_테스트() {
         // Given
-        CreateOrderRequest request = CreateOrderRequest.builder()
+        OrderCreateRequest request = OrderCreateRequest.builder()
                 .orderType("RESERVATION")
                 .build();
 
@@ -66,7 +66,7 @@ class CreateOrderRequestTest {
     @Test
     void 구매타입_확인_테스트() {
         // Given
-        CreateOrderRequest request = CreateOrderRequest.builder()
+        OrderCreateRequest request = OrderCreateRequest.builder()
                 .orderType("GOODS") // "PURCHASE" → "GOODS"로 변경
                 .build();
 
@@ -85,14 +85,14 @@ class CreateOrderRequestTest {
                 .build();
 
         // When
-        CreateOrderRequest request = CreateOrderRequest.builder()
+        OrderCreateRequest request = OrderCreateRequest.builder()
                 .items(List.of(item))
                 .build();
 
         // Then
         assertNotNull(request.getItems());
         assertEquals(1, request.getItems().size());
-        assertEquals("RESERVATION", request.getItems().get(0).getOrderItemType());
+        assertEquals("RESERVATION", request.getItems().get(0).getOrderType());
     }
 
     @Test
@@ -101,7 +101,7 @@ class CreateOrderRequestTest {
         OrderItemRequest item1 = OrderItemRequest.builder().qty(3).build();
         OrderItemRequest item2 = OrderItemRequest.builder().qty(5).build();
 
-        CreateOrderRequest request = CreateOrderRequest.builder()
+        OrderCreateRequest request = OrderCreateRequest.builder()
                 .items(List.of(item1, item2))
                 .build();
 

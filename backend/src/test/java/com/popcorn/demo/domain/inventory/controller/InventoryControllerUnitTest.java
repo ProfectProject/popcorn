@@ -32,12 +32,12 @@ class InventoryControllerUnitTest {
     @Test
     void getGoodsStockReturnsSoldOutStatus() {
         // Given
-        UUID goodsVariantId = UUID.randomUUID();
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(0);
+        UUID goodsId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(0);
 
         // When
         ResponseEntity<BaseResponse<InventoryController.GoodsStockResponse>> response =
-                controller.getGoodsStock(goodsVariantId);
+                controller.getGoodsStock(goodsId);
 
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -48,12 +48,12 @@ class InventoryControllerUnitTest {
     @Test
     void getGoodsStockReturnsLowStockStatus() {
         // Given
-        UUID goodsVariantId = UUID.randomUUID();
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(3);
+        UUID goodsId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(3);
 
         // When
         ResponseEntity<BaseResponse<InventoryController.GoodsStockResponse>> response =
-                controller.getGoodsStock(goodsVariantId);
+                controller.getGoodsStock(goodsId);
 
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -64,12 +64,12 @@ class InventoryControllerUnitTest {
     @Test
     void getGoodsStockReturnsNormalStatus() {
         // Given
-        UUID goodsVariantId = UUID.randomUUID();
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(15);
+        UUID goodsId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(15);
 
         // When
         ResponseEntity<BaseResponse<InventoryController.GoodsStockResponse>> response =
-                controller.getGoodsStock(goodsVariantId);
+                controller.getGoodsStock(goodsId);
 
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -80,12 +80,12 @@ class InventoryControllerUnitTest {
     @Test
     void getGoodsStockReturnsSufficientStatus() {
         // Given
-        UUID goodsVariantId = UUID.randomUUID();
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(50);
+        UUID goodsId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(50);
 
         // When
         ResponseEntity<BaseResponse<InventoryController.GoodsStockResponse>> response =
-                controller.getGoodsStock(goodsVariantId);
+                controller.getGoodsStock(goodsId);
 
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -96,11 +96,11 @@ class InventoryControllerUnitTest {
     @Test
     void getGoodsStockThrowsWhenStockIsNull() {
         // Given
-        UUID goodsVariantId = UUID.randomUUID();
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(null);
+        UUID goodsId = UUID.randomUUID();
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(null);
 
         // When & Then
-        assertThatThrownBy(() -> controller.getGoodsStock(goodsVariantId))
+        assertThatThrownBy(() -> controller.getGoodsStock(goodsId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("상품을 찾을 수 없습니다");
     }
@@ -184,22 +184,22 @@ class InventoryControllerUnitTest {
     @Test
     void getGoodsStockWithBoundaryValues() {
         // Test boundary values for status classification
-        UUID goodsVariantId = UUID.randomUUID();
+        UUID goodsId = UUID.randomUUID();
 
         // Test exact boundary for LOW_STOCK (5)
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(5);
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(5);
         ResponseEntity<BaseResponse<InventoryController.GoodsStockResponse>> response =
-                controller.getGoodsStock(goodsVariantId);
+                controller.getGoodsStock(goodsId);
         assertThat(response.getBody().getData().getStatus()).isEqualTo("LOW_STOCK");
 
         // Test boundary for NORMAL (20)
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(20);
-        response = controller.getGoodsStock(goodsVariantId);
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(20);
+        response = controller.getGoodsStock(goodsId);
         assertThat(response.getBody().getData().getStatus()).isEqualTo("NORMAL");
 
         // Test boundary for SUFFICIENT (21)
-        when(inventoryService.getCurrentGoodsStock(goodsVariantId)).thenReturn(21);
-        response = controller.getGoodsStock(goodsVariantId);
+        when(inventoryService.getCurrentGoodsStock(goodsId)).thenReturn(21);
+        response = controller.getGoodsStock(goodsId);
         assertThat(response.getBody().getData().getStatus()).isEqualTo("SUFFICIENT");
     }
 

@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -54,14 +55,16 @@ public class OrderStatusHistory extends BaseEntity {
 
     /** 변경 전 상태 - 어떤 상태에서 */
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "from_status")
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnTransformer(write = "?::orders.orderstatus")
+    @Column(name = "from_status", columnDefinition = "orders.orderstatus")
     private OrderStatus fromStatus;
 
     /** 변경 후 상태 - 어떤 상태로 바뀌었는지 */
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "to_status")
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnTransformer(write = "?::orders.orderstatus")
+    @Column(name = "to_status", columnDefinition = "orders.orderstatus")
     private OrderStatus toStatus;
 
     /** 변경한 사용자 ID (메모리상에만 존재) */

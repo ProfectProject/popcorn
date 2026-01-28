@@ -25,6 +25,8 @@ spring:
   # 설정 파일 import
   config:
     import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
       - classpath:security/application-${spring.profiles.active}.yml
 
   # 기본 데이터베이스 설정 (프로필별로 오버라이드 가능)
@@ -49,6 +51,8 @@ spring:
     enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: ${FLYWAY_BASELINE:true}
     locations: classpath:db/migration
+    user: ${PAYMENT_DB_MIGRATION_USERNAME:${PAYMENT_DB_USERNAME:payment_app}}
+    password: ${PAYMENT_DB_MIGRATION_PASSWORD:${PAYMENT_DB_PASSWORD:payment123}}
 
   # Docker Compose 자동 실행 비활성화 (개발 편의성)
   docker:
@@ -128,6 +132,18 @@ resilience4j:
         minimum-number-of-calls: 3
         sliding-window-size: 10
         wait-duration-in-open-state: 15s
+      tossPaymentApprove:
+        failure-rate-threshold: 65
+        minimum-number-of-calls: 5
+        sliding-window-size: 10
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+      tossPaymentCancel:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 3
+        sliding-window-size: 6
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
       default:
         failure-rate-threshold: 50
         minimum-number-of-calls: 5

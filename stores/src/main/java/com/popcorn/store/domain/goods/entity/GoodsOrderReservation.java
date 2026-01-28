@@ -36,7 +36,7 @@ public class GoodsOrderReservation {
     private UUID popupId;
 
     @Column(name = "goods_variant_id")
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     @Column(name = "schedule_id")
     private UUID scheduleId;

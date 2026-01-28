@@ -35,6 +35,9 @@ import com.popcorn.store.domain.popup.repository.owner.OwnerPopupRepository;
 import com.popcorn.store.domain.popup.repository.owner.OwnerPopupScheduleRepository;
 import com.popcorn.store.domain.popup.repository.owner.view.OwnerPopupScheduleView;
 import com.popcorn.store.domain.store.exception.StoreException;
+import com.popcorn.store.event.standard.StandardStoreEventPublisher;
+import com.popcorn.store.event.standard.StandardPopupCreatedEvent;
+import com.popcorn.store.event.standard.StandardPopupStatusUpdatedEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +51,7 @@ public class OwnerPopupService {
     private final OwnerPopupScheduleRepository ownerPopupScheduleRepository;
     private final OwnerPopupValidationService validationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final StandardStoreEventPublisher standardStoreEventPublisher;
     private final PopupDetailCacheManager popupDetailCacheManager;
 
     @Transactional
@@ -66,7 +70,11 @@ public class OwnerPopupService {
         Popup savedPopup = ownerPopupRepository.save(createPopupEntity(userId, request, trimmedTitle));
         createPopupSchedules(savedPopup.getId(), request.getSchedules(), userId);
 
+        // 기존 이벤트 발행
         eventPublisher.publishEvent(new PopupCreatedEvent(userId, savedPopup));
+
+        // 표준 이벤트 발행
+        publishStandardPopupCreatedEvent(savedPopup);
 
         log.info("[POPUP_CREATED] popupId={}, storeId={}", savedPopup.getId(), savedPopup.getStoreId());
         return mapToDto(savedPopup);
@@ -168,6 +176,9 @@ public class OwnerPopupService {
         Popup popup = ownerPopupRepository.findOwnedPopup(popupId, ownerId)
                 .orElseThrow(PopupException::popupNotFound);
 
+        // 이전 상태 저장
+        PopupStatus fromStatus = popup.getStatus();
+
         popup.setStatus(request.getStatus());
         popup.setUpdatedBy(ownerId);
 
@@ -177,7 +188,12 @@ public class OwnerPopupService {
                     ownerId);
         }
 
+        // 기존 이벤트 발행
         eventPublisher.publishEvent(new PopupStatusUpdatedEvent(ownerId, updatedPopup));
+
+        // 표준 이벤트 발행
+        publishStandardPopupStatusUpdatedEvent(updatedPopup, fromStatus, request.getStatus());
+
         // 상태 변경 후 상세 캐시 무효화
         popupDetailCacheManager.evictDetail(updatedPopup.getId());
 
@@ -494,5 +510,58 @@ public class OwnerPopupService {
         }
     }
 
+    /**
+     * 표준 팝업 생성 이벤트 발행
+     */
+    private void publishStandardPopupCreatedEvent(Popup popup) {
+        try {
+            StandardPopupCreatedEvent event = StandardPopupCreatedEvent.builder()
+                    .eventType(com.popcorn.store.event.standard.StandardEventType.POPUP_CREATED)
+                    .producer("store-service")
+                    .storeId(popup.getStoreId())
+                    .popupId(popup.getId())
+                    .title(popup.getTitle())
+                    .status(popup.getStatus().name())
+                    .reservationOpenAt(popup.getReservationOpenAt())
+                    .addressRoad(popup.getAddressRoad())
+                    .addressDetail(popup.getAddressDetail())
+                    .createdAt(popup.getCreatedAt())
+                    .build();
+
+            event.setDefaults();
+            standardStoreEventPublisher.publishPopupCreatedEvent(event);
+
+            log.info("✅ [STANDARD-STORE] 팝업 생성 표준 이벤트 발행 완료 - popupId: {}, storeId: {}",
+                    popup.getId(), popup.getStoreId());
+        } catch (Exception e) {
+            log.error("❌ [STANDARD-STORE] 팝업 생성 표준 이벤트 발행 실패 - popupId: {}, error: {}",
+                    popup.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 표준 팝업 상태 변경 이벤트 발행
+     */
+    private void publishStandardPopupStatusUpdatedEvent(Popup popup, PopupStatus fromStatus, PopupStatus toStatus) {
+        try {
+            StandardPopupStatusUpdatedEvent event = StandardPopupStatusUpdatedEvent.builder()
+                    .eventType(com.popcorn.store.event.standard.StandardEventType.POPUP_STATUS_UPDATED)
+                    .producer("store-service")
+                    .storeId(popup.getStoreId())
+                    .popupId(popup.getId())
+                    .fromStatus(fromStatus.name())
+                    .toStatus(toStatus.name())
+                    .build();
+
+            event.setDefaults();
+            standardStoreEventPublisher.publishPopupStatusUpdatedEvent(event);
+
+            log.info("✅ [STANDARD-STORE] 팝업 상태 변경 표준 이벤트 발행 완료 - popupId: {}, {} -> {}",
+                    popup.getId(), fromStatus.name(), toStatus.name());
+        } catch (Exception e) {
+            log.error("❌ [STANDARD-STORE] 팝업 상태 변경 표준 이벤트 발행 실패 - popupId: {}, error: {}",
+                    popup.getId(), e.getMessage(), e);
+        }
+    }
 
 }

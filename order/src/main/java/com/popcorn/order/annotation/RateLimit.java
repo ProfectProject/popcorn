@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
  * public OrderDetailResponse getOrder(UUID orderId) { ... }
  *
  * {@literal @}RateLimit(requests = 5, windowSeconds = 60, keyType = KEY_TYPE.USER_IP)
- * public void createOrder(CreateOrderRequest request) { ... }
+ * public void createOrder(OrderCreateRequest request) { ... }
  *
  * Rate Limiting 알고리즘:
  * 1. Token Bucket: 일정한 속도로 토큰을 생성하여 버킷에 저장

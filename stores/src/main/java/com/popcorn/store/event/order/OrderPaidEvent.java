@@ -1,5 +1,6 @@
 package com.popcorn.store.event.order;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -46,12 +47,13 @@ public class OrderPaidEvent {
     @AllArgsConstructor
     @Builder
     @ToString
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OrderItemInfo {
 
         private String orderItemType;
         private Integer quantity;
         private UUID sessionId;
-        private UUID goodsVariantId;
+        private UUID goodsId;
         private Integer unitPrice;
 
         public boolean isGoodsItem() {

@@ -18,4 +18,25 @@ public class UserAddressResponse {
     private String address2;
     private String postalCode;
     private Boolean isDefault;
+
+    /**
+     * 빈 주소 객체인지 확인 (캐싱용)
+     */
+    public boolean isEmpty() {
+        return addrId == null && userId == null && addrName == null;
+    }
+
+    /**
+     * 빈 주소 객체 생성 (캐싱용 - "주소 없음" 상태)
+     */
+    public static UserAddressResponse empty() {
+        return UserAddressResponse.builder().build();
+    }
+
+    /**
+     * 캐시 조회용 getter (addrId 대신 addressId 사용하는 곳을 위해)
+     */
+    public UUID getAddressId() {
+        return this.addrId;
+    }
 }

@@ -12,7 +12,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.ColumnTransformer;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -53,9 +56,11 @@ public class OrderItem extends BaseEntity {
     private UUID popupId;
 
     /** 주문 아이템 타입 (예약/굿즈) */
-    @Column(name = "item_type")
     @Enumerated(EnumType.STRING)
-    private OrderItemType orderItemType;
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnTransformer(write = "?::orders.itemtype")
+    @Column(name = "item_type", columnDefinition = "orders.itemtype")
+    private ItemType orderItemType;
 
     /** 세션 옵션 ID - 예약형 상품의 경우 시간 슬롯 정보 */
     @Column(name = "schedule_id")
@@ -63,7 +68,7 @@ public class OrderItem extends BaseEntity {
 
     /** 굿즈 변형 ID - 구매형 상품의 상품 정보 (색상, 사이즈 등) */
     @Column(name = "goods_variant_id")
-    private UUID goodsVariantId;
+    private UUID goodsId;
 
     /** 수량 - 주문한 개수 */
     @Column(name = "qty")
@@ -87,7 +92,7 @@ public class OrderItem extends BaseEntity {
      * 예약형은 시간과 장소가 정해진 서비스 (팝업 참여 예약 등)
      */
     public boolean isReservationType() {
-        return OrderItemType.RESERVATION.equals(orderItemType);
+        return ItemType.RESERVATION.equals(orderItemType);
     }
 
     /**
@@ -98,7 +103,7 @@ public class OrderItem extends BaseEntity {
      * 굿즈형은 물리적인 상품 (티셔츠, 굿즈 등)
      */
     public boolean isGoodsType() {
-        return OrderItemType.GOODS.equals(orderItemType);
+        return ItemType.GOODS.equals(orderItemType);
     }
 
 }

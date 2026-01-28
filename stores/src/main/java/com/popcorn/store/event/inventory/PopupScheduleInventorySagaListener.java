@@ -4,12 +4,15 @@ import com.popcorn.store.domain.goods.entity.GoodsOrderReservation;
 import com.popcorn.store.domain.goods.entity.ReservationStatus;
 import com.popcorn.store.domain.goods.entity.ReservationType;
 import com.popcorn.store.domain.goods.service.GoodsOrderReservationService;
-import com.popcorn.store.domain.popup.dto.query.response.PopupScheduleCapacity;
 import com.popcorn.store.domain.popup.service.PopupService;
+import com.popcorn.store.domain.popup.service.ScheduleInventoryApiService;
 import com.popcorn.store.event.order.OrderPaidEvent;
 import com.popcorn.store.event.order.StockReservedEvent;
 import com.popcorn.store.event.order.StockReservationFailedEvent;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
+import com.popcorn.store.inventory.redis.InventoryEventIdempotencyService;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -20,20 +23,88 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 팝업 스케줄 예약은 Redis HOLD를 기준으로 동시성 제어하고,
+ * 결제 성공 시에만 DB 스케줄 수용량을 실제로 차감한다.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class PopupScheduleInventorySagaListener {
 
+    private static final String ORDER_PAID_SCHEDULE_SCOPE = "order-paid-schedule";
+    private static final String INVENTORY_CONFIRMATION_SCHEDULE_SCOPE = "inventory-confirmation-schedule";
+    private static final String SCHEDULE_KEY_FORMAT = "schedule_avail:{%s}:%s";
+
     private final PopupService popupService;
     private final GoodsOrderReservationService reservationService;
     private final StoreInventoryEventPublisher eventPublisher;
+    private final InventoryRedisHoldService inventoryHoldService;
+    private final ScheduleInventoryApiService scheduleInventoryApiService;
+    private final InventoryEventIdempotencyService idempotencyService;
 
+    /**
+     * 코레오그래피 Saga로 전달된 OrderPaidEvent를 Redis Lua HOLD로 먼저 처리하고 예약 로그에 HELD 상태로 기록한다.
+     */
     @EventListener
     @Transactional
     public void handleOrderPaid(OrderPaidEvent event) {
+        if (!shouldProcessOrderPaid(event)) {
+            return;
+        }
+
         List<OrderPaidEvent.OrderItemInfo> scheduleItems = event.getReservationItems();
         if (scheduleItems.isEmpty()) {
+            log.info("스케줄 항목 없음 - orderId={}", event.getOrderId());
+            return;
+        }
+
+        UUID popupId = event.getPopupId();
+        if (popupId == null) {
+            log.warn("팝업 정보 누락된 스케줄 예약 - orderId={}", event.getOrderId());
+            return;
+        }
+        HoldResult holdResult = null;
+        OrderPaidEvent.OrderItemInfo primarySchedule = scheduleItems.stream()
+                .filter(item -> item.isReservationItem() && item.getSessionId() != null && item.getQuantity() != null && item.getQuantity() > 0)
+                .findFirst()
+                .orElse(null);
+        if (primarySchedule != null) {
+            scheduleInventoryApiService.ensureScheduleKey(popupId, primarySchedule.getSessionId());
+            holdResult = inventoryHoldService.holdSchedule(
+                    event.getOrderId(),
+                    popupId,
+                    primarySchedule.getSessionId(),
+                    primarySchedule.getQuantity()
+            );
+            if (!holdResult.isSuccess()) {
+                log.warn("[SCHEDULE_HOLD_FAIL] popupId={}, orderId={}, reason={}",
+                        popupId, event.getOrderId(), holdResult.getDetail());
+                if (InventoryRedisHoldService.HoldCode.KEY_NOT_INITIALIZED == holdResult.getCode()) {
+                    scheduleInventoryApiService.ensureScheduleKey(popupId, primarySchedule.getSessionId());
+                    holdResult = inventoryHoldService.holdSchedule(
+                            event.getOrderId(),
+                            popupId,
+                            primarySchedule.getSessionId(),
+                            primarySchedule.getQuantity()
+                    );
+                    if (holdResult.isSuccess()) {
+                        log.info("[SCHEDULE_HOLD] re-try success - orderId={}", event.getOrderId());
+                    } else {
+                        throw new RuntimeException("Redis 스케줄 HOLD 실패: " + holdResult.getDetail());
+                    }
+                } else {
+                    throw new RuntimeException("Redis 스케줄 HOLD 실패: " + holdResult.getDetail());
+                }
+            }
+            if (holdResult.isAlreadyHeld()) {
+                log.info("[SCHEDULE_HOLD] 이미 HOLD 존재 - orderId={}", event.getOrderId());
+            } else {
+                log.info("[SCHEDULE_HOLD] popupId={}, scheduleId={}, qty={}, orderId={}, eventId={}",
+                        popupId, primarySchedule.getSessionId(), primarySchedule.getQuantity(), event.getOrderId(), event.getEventId());
+            }
+        } else {
+            log.warn("유효한 스케줄 항목 없음 - orderId={}", event.getOrderId());
             return;
         }
 
@@ -46,22 +117,17 @@ public class PopupScheduleInventorySagaListener {
                     continue;
                 }
 
-                PopupScheduleCapacity capacity = popupService.reservationPopupSchedule(
-                        event.getPopupId(),
-                        item.getSessionId(),
-                        item.getQuantity()
-                );
+                Integer remainingCapacity = scheduleInventoryApiService.available(popupId, item.getSessionId());
 
                 GoodsOrderReservation reservation = reservationService.createScheduleReservation(
                         event.getOrderId(),
                         event.getOrderNo(),
-                        event.getPopupId(),
+                        popupId,
                         item.getSessionId(),
                         item.getQuantity()
                 );
                 createdReservations.add(reservation);
-
-                reservedItems.add(buildReservationRecord(item, capacity));
+                reservedItems.add(buildReservationRecord(item, remainingCapacity));
             }
 
             if (!reservedItems.isEmpty()) {
@@ -69,20 +135,29 @@ public class PopupScheduleInventorySagaListener {
             }
 
         } catch (Exception e) {
-            log.error("팝업 스케줄 재고 예약 실패 - orderId: {}, error: {}", event.getOrderId(), e.getMessage(), e);
-            rollbackScheduleReservations(createdReservations);
+            log.error("팝업 스케줄 재고 예약 실패 - orderId={}, error={}, eventId={}",
+                    event.getOrderId(), e.getMessage(), event.getEventId(), e);
+            rollbackScheduleReservations(event.getOrderId(), createdReservations);
             List<StockReservationFailedEvent.FailedStockItem> failedItems = buildFailedScheduleItems(scheduleItems, e.getMessage());
             eventPublisher.publishStockReservationFailedEvent(event, failedItems, e.getMessage());
             throw new RuntimeException("팝업 스케줄 재고 예약 실패", e);
         }
     }
 
+    /**
+     * Payment 서비스의 재고 확정/복구 이벤트에 따라 COMMIT 또는 RELEASE 흐름을 실행한다.
+     */
     @EventListener
     @Transactional
     public void handleInventoryConfirmation(InventoryConfirmationRequestedEvent event) {
+        if (!shouldProcessInventoryConfirmation(event)) {
+            return;
+        }
+
         List<GoodsOrderReservation> reservations =
                 reservationService.findByOrderIdAndType(event.getOrderId(), ReservationType.SCHEDULE);
         if (reservations.isEmpty()) {
+            log.warn("예약 정보 없음 - inventory event orderId={}", event.getOrderId());
             return;
         }
 
@@ -94,40 +169,43 @@ public class PopupScheduleInventorySagaListener {
             List<String> details = new ArrayList<>();
             try {
                 for (GoodsOrderReservation reservation : reservations) {
-                    if (ReservationStatus.RESERVED != reservation.getStatus()) {
+                    if (ReservationStatus.HELD != reservation.getStatus()) {
                         continue;
                     }
                     popupService.completePopupScheduleReservation(
                             reservation.getScheduleId(),
                             reservation.getQuantity()
                     );
-                    reservationService.updateStatus(reservation, ReservationStatus.CONFIRMED, null);
+                    reservationService.updateStatus(reservation, ReservationStatus.COMMITTED, null);
                     details.add(formatDetail(reservation));
                 }
+                log.info("[SCHEDULE_COMMIT] orderId={} eventId={}", orderId, event.getEventId());
                 eventPublisher.publishStockDeductionSuccessEvent(orderId, orderNo, popupId,
                         String.join(", ", details));
             } catch (Exception e) {
-                log.error("팝업 스케줄 재고 확정 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+                log.error("팝업 스케줄 재고 확정 실패 - orderId={}, error={}", orderId, e.getMessage(), e);
                 reservations.stream()
-                        .filter(res -> ReservationStatus.RESERVED == res.getStatus())
+                        .filter(res -> ReservationStatus.HELD == res.getStatus())
                         .forEach(res -> reservationService.updateStatus(res, ReservationStatus.FAILED, e.getMessage()));
                 eventPublisher.publishStockDeductionFailedEvent(orderId, orderNo, popupId,
                         "재고 차감 실패: " + e.getMessage(), "SYSTEM_ERROR", e.getMessage());
                 throw new RuntimeException("팝업 스케줄 재고 확정 실패", e);
             }
         } else if (event.isRestoreAction()) {
+            log.info("[SCHEDULE_RELEASE] orderId={}, eventId={}", orderId, event.getEventId());
+            try {
+                HoldResult releaseResult = inventoryHoldService.releaseHold(orderId);
+                if (releaseResult.isAlreadyHeld()) {
+                    log.info("[SCHEDULE_RELEASE] Redis HOLD 정보 없음 - orderId={}", orderId);
+                } else {
+                    log.info("[SCHEDULE_RELEASE] Redis HOLD 데이터 삭제 완료 - orderId={}", orderId);
+                }
+            } catch (Exception e) {
+                log.error("Redis HOLD 복구 중 오류 - orderId={}, error={}", orderId, e.getMessage(), e);
+            }
             reservations.stream()
-                    .filter(res -> ReservationStatus.RESERVED == res.getStatus())
-                    .forEach(res -> {
-                        try {
-                            popupService.cancelPopupScheduleReservation(res.getScheduleId(), res.getQuantity());
-                            reservationService.updateStatus(res, ReservationStatus.RESTORED, event.getReason());
-                        } catch (Exception e) {
-                            log.error("팝업 스케줄 재고 복구 실패 - orderId: {}, scheduleId: {}, error: {}",
-                                    orderId, res.getScheduleId(), e.getMessage(), e);
-                            reservationService.updateStatus(res, ReservationStatus.FAILED, e.getMessage());
-                        }
-                    });
+                    .filter(res -> ReservationStatus.HELD == res.getStatus())
+                    .forEach(res -> reservationService.updateStatus(res, ReservationStatus.RELEASED, event.getReason()));
             eventPublisher.publishStockDeductionFailedEvent(orderId, orderNo, popupId,
                     "재고 복구 - " + event.getReason(), "PAYMENT_RESTORE",
                     "restore requested by payment event");
@@ -135,27 +213,28 @@ public class PopupScheduleInventorySagaListener {
     }
 
     private StockReservedEvent.ReservedStockItem buildReservationRecord(OrderPaidEvent.OrderItemInfo item,
-                                                                        PopupScheduleCapacity capacity) {
+                                                                        Integer remainingCapacity) {
         return StockReservedEvent.ReservedStockItem.builder()
                 .scheduleId(item.getSessionId())
                 .quantity(item.getQuantity())
                 .unitPrice(item.getUnitPrice())
                 .reservationCategory(StockReservedEvent.ReservedStockItem.ReservationCategory.SCHEDULE)
                 .reservationName(buildScheduleName(item.getSessionId()))
-                .reservationDetails(capacity != null ? capacity.getRemainingCapacity() : null)
+                .reservationDetails(remainingCapacity)
                 .build();
     }
 
-    private void rollbackScheduleReservations(List<GoodsOrderReservation> reservations) {
-        for (GoodsOrderReservation reservation : reservations) {
+    private void rollbackScheduleReservations(UUID orderId, List<GoodsOrderReservation> reservations) {
+        if (orderId != null) {
             try {
-                popupService.cancelPopupScheduleReservation(reservation.getScheduleId(), reservation.getQuantity());
-                reservationService.updateStatus(reservation, ReservationStatus.RESTORED,
-                        "rollback after failure");
-            } catch (Exception ex) {
-                log.error("팝업 스케줄 재고 롤백 실패 - scheduleId: {}, error: {}", reservation.getScheduleId(),
-                        ex.getMessage(), ex);
+                inventoryHoldService.releaseHold(orderId);
+            } catch (Exception e) {
+                log.error("HOLD 복구 실패 - orderId={}, error={}", orderId, e.getMessage(), e);
             }
+        }
+        for (GoodsOrderReservation reservation : reservations) {
+            reservationService.updateStatus(reservation, ReservationStatus.FAILED,
+                    "rollback after failure");
         }
     }
 
@@ -183,5 +262,26 @@ public class PopupScheduleInventorySagaListener {
 
     private String formatDetail(GoodsOrderReservation reservation) {
         return String.format("scheduleId=%s qty=%d", reservation.getScheduleId(), reservation.getQuantity());
+    }
+
+
+    private boolean shouldProcessOrderPaid(OrderPaidEvent event) {
+        boolean registered = idempotencyService.registerEvent(
+                event.getEventId(), event.getOrderId(), ORDER_PAID_SCHEDULE_SCOPE
+        );
+        if (!registered) {
+            log.info("중복 OrderPaidEvent 스케줄 처리 스킵 - orderId={}, eventId={}", event.getOrderId(), event.getEventId());
+        }
+        return registered;
+    }
+
+    private boolean shouldProcessInventoryConfirmation(InventoryConfirmationRequestedEvent event) {
+        boolean registered = idempotencyService.registerEvent(
+                event.getEventId(), event.getOrderId(), INVENTORY_CONFIRMATION_SCHEDULE_SCOPE
+        );
+        if (!registered) {
+            log.info("중복 InventoryConfirmation 이벤트 스케줄 처리 스킵 - orderId={}, eventId={}", event.getOrderId(), event.getEventId());
+        }
+        return registered;
     }
 }

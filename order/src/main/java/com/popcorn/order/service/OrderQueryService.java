@@ -16,12 +16,11 @@ import com.popcorn.order.dto.response.OrderDetailResponse;
 import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
 import com.popcorn.order.entity.Order;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.entity.OrderStatusHistory;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
-import com.popcorn.order.client.StoreClient;
 import com.popcorn.order.dto.store.PopupInfoResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -50,7 +49,7 @@ public class OrderQueryService {
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final OrderDomainService orderDomainService;
-    private final StoreClient storeClient;
+    private final OrderPopupLookupService orderPopupLookupService;
 
     // ================ 단일 주문 조회 ================
 
@@ -302,11 +301,11 @@ public class OrderQueryService {
         int size = query.getValidatedSize();
 
         try {
-            // 2. OrderType 검증
-            OrderType orderType = null;
+            // 2. ItemType 검증
+            ItemType orderType = null;
             if (query.getOrderType() != null) {
                 try {
-                    orderType = OrderType.valueOf(query.getOrderType());
+                    orderType = ItemType.valueOf(query.getOrderType());
                 } catch (IllegalArgumentException e) {
                     log.warn("잘못된 주문 타입: {}", query.getOrderType());
                     return OrderListResponse.from(List.of(), page, size, 0L);
@@ -361,11 +360,11 @@ public class OrderQueryService {
         int size = query.getValidatedSize();
 
         try {
-            // OrderType 검증
-            OrderType orderType = null;
+            // ItemType 검증
+            ItemType orderType = null;
             if (query.getOrderType() != null) {
                 try {
-                    orderType = OrderType.valueOf(query.getOrderType());
+                    orderType = ItemType.valueOf(query.getOrderType());
                 } catch (IllegalArgumentException e) {
                     log.warn("잘못된 주문 타입: {}", query.getOrderType());
                     return OrderListResponse.from(List.of(), page, size, 0L);
@@ -446,7 +445,7 @@ public class OrderQueryService {
             // 2. 사용자별 주문 조회 (기존 메소드 활용)
             Page<Order> orderPage = orderRepository.findOrdersWithAllConditions(
                 null, // popupId
-                orderType != null ? OrderType.valueOf(orderType) : null,
+                orderType != null ? ItemType.valueOf(orderType) : null,
                 status,
                 customerId,
                 null, // storeId
@@ -566,12 +565,25 @@ public class OrderQueryService {
      * 3. 변환 로직 변경 시 한 곳만 수정하면 됨
      *
      * Store 서비스 연동:
-     * - StoreClient를 사용해서 실제 팝업/매장 정보 조회
+     * - 이벤트 기반으로 팝업/매장 정보 조회
      * - 서비스 장애 시 기본값을 반환 (Fallback 패턴)
      */
     private com.popcorn.order.dto.response.MyOrderTimelineResponse.ItemDto convertToMyOrderTimelineItem(Order order) {
         // 1. Store 서비스에서 팝업 정보 조회 (매장 정보 포함)
-        PopupInfoResponse popupInfo = storeClient.getPopupInfo(order.getPopupId());
+        PopupInfoResponse popupInfo = orderPopupLookupService.getPopupInfo(order.getPopupId())
+                .orElseGet(() -> PopupInfoResponse.builder()
+                        .popupId(order.getPopupId())
+                        .title("팝업 정보를 불러올 수 없습니다")
+                        .description("")
+                        .storeId(null)
+                        .storeInfo(PopupInfoResponse.StoreInfo.builder()
+                                .name("매장 정보 없음")
+                                .address1("")
+                                .address2("")
+                                .phoneNumber("")
+                                .build())
+                        .status("UNKNOWN")
+                        .build());
 
         return com.popcorn.order.dto.response.MyOrderTimelineResponse.ItemDto.builder()
             .type(order.getOrderType().name())

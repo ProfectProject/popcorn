@@ -160,7 +160,7 @@ public class AuthorizationService {
         // OWNER는 자신의 스토어 내 모든 팝업에 접근 가능
         if ("OWNER".equals(userInfo.getRole())) {
             // TODO: 실제로는 팝업이 해당 스토어에 속하는지 확인 필요
-            // StoreClient를 통해 popup의 storeId를 조회하고 userInfo.storeId와 비교
+            // 이벤트 기반으로 popup의 storeId를 조회하고 userInfo.storeId와 비교
             log.debug("OWNER 권한으로 팝업 접근 허용 - popupId: {}", popupId);
             return true;
         }

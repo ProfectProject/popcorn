@@ -17,6 +17,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -75,14 +76,16 @@ public class Order extends BaseEntity {
 
     /** 주문 타입 - 예약형/구매형/혼합형 구분 */
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "order_type", nullable = false)
-    private OrderType orderType;
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnTransformer(write = "?::orders.itemtype")
+    @Column(name = "order_type", nullable = false, columnDefinition = "orders.itemtype")
+    private ItemType orderType;
 
     /** 주문 상태 - 현재 주문이 어떤 단계에 있는지 */
-    @Enumerated(EnumType.STRING)  // Enum을 문자열로 저장
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnTransformer(write = "?::orders.orderstatus")
+    @Column(name = "status", nullable = false, columnDefinition = "orders.orderstatus")
     private OrderStatus status;
 
     /** 취소 가능 시간 - 이 시간 이후로는 주문 취소 불가 */
@@ -143,7 +146,7 @@ public class Order extends BaseEntity {
      * @return true면 예약 주문, false면 구매 주문
      */
     public boolean isReservationType() {
-        return OrderType.RESERVATION.equals(orderType);
+        return ItemType.RESERVATION.equals(orderType);
     }
 
     /**
@@ -151,7 +154,7 @@ public class Order extends BaseEntity {
      * @return true면 구매 주문, false면 예약 주문
      */
     public boolean isGoodsType() {
-        return OrderType.GOODS.equals(orderType);
+        return ItemType.GOODS.equals(orderType);
     }
 
     /**
@@ -159,7 +162,7 @@ public class Order extends BaseEntity {
      * @return true면 혼합 주문 (예약 + 굿즈)
      */
     public boolean isMixedType() {
-        return OrderType.MIXED.equals(orderType);
+        return ItemType.MIXED.equals(orderType);
     }
 
     /**

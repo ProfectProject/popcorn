@@ -8,10 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.popcorn.order.dto.command.CreateOrderCommand;
-import com.popcorn.order.dto.response.CreateOrderResponse;
+import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
 import com.popcorn.order.event.OrderEventPublisher;
@@ -60,7 +60,7 @@ public class OrderService {
      * @return 만들어진 주문 정보
      */
     @Transactional  // 데이터베이스 작업이 안전하게 처리되도록 보장
-    public CreateOrderResponse createOrder(CreateOrderCommand command) {
+    public OrderCreateResponse createOrder(CreateOrderCommand command) {
         // 로그 찍기 - 어떤 일이 일어나는지 기록해둬요
         log.info("새 주문 만들기 시작! 사용자: {}, 팝업: {}",
                 command.getUserId(), command.getPopupId());
@@ -76,7 +76,7 @@ public class OrderService {
             Order savedOrder = saveOrderToDatabase(newOrder);
 
             // 단계 4: 응답 만들어서 돌려주기
-            CreateOrderResponse response = createOrderResponse(savedOrder);
+            OrderCreateResponse response = createOrderResponse(savedOrder);
 
             log.info("주문 만들기 성공! 주문번호: {}", response.getOrderNo());
             return response;
@@ -157,7 +157,7 @@ public class OrderService {
         String orderNo = Order.generateOrderNo();
 
         // 주문 타입 변환
-        OrderType orderType = OrderType.valueOf(command.getOrderType());
+        ItemType orderType = ItemType.valueOf(command.getOrderType());
 
         // 총 금액 계산 (임시로 고정값 사용)
         Integer totalAmount = calculateTotalAmount(command);
@@ -221,10 +221,10 @@ public class OrderService {
      * @param order 변환할 주문 엔티티
      * @return 주문 생성 응답 DTO
      */
-    private CreateOrderResponse createOrderResponse(Order order) {
+    private OrderCreateResponse createOrderResponse(Order order) {
         log.debug("주문 응답 생성 - 주문번호: {}", order.getOrderNo());
 
-        return CreateOrderResponse.builder()
+        return OrderCreateResponse.builder()
                 .orderId(order.getId())
                 .orderNo(order.getOrderNo())
                 .popupId(order.getPopupId())

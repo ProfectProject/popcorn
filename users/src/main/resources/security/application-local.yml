@@ -11,6 +11,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      database: 0
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
     username: ${USER_AUTH_DB_USERNAME:user_auth_app}
@@ -51,11 +53,6 @@ jwt:
 passport:
   secret: ${PASSPORT_SECRET:passport-shared-secret}
   ttl-seconds: 60
-
-# Redis 이벤트 설정
-redis:
-  events:
-    enabled: true
 
 logging:
   level:

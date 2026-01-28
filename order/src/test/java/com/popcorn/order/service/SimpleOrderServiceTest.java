@@ -17,9 +17,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderItem;
-import com.popcorn.order.entity.OrderItemType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 
 /**
  * 간단한 Order 서비스 테스트 (커버리지용)
@@ -88,7 +88,7 @@ class SimpleOrderServiceTest {
     @DisplayName("✅ 취소 가능 시간 계산")
     void 취소가능시간_계산() {
         // When: 예약형 취소 가능 시간 계산
-        var cancelableTime = realDomainService.calculateCancelableUntil(OrderType.RESERVATION);
+        var cancelableTime = realDomainService.calculateCancelableUntil(ItemType.RESERVATION);
 
         // Then: 현재 시간보다 미래여야 함
         assertNotNull(cancelableTime, "취소 가능 시간 설정");
@@ -115,10 +115,10 @@ class SimpleOrderServiceTest {
         Long customerId = 123L;
         UUID storeId = UUID.randomUUID();
         UUID popupId = UUID.randomUUID();
-        OrderType orderType = OrderType.RESERVATION;
+        ItemType orderType = ItemType.RESERVATION;
 
         OrderItem orderItem = OrderItem.builder()
-                .orderItemType(OrderItemType.RESERVATION)
+                .orderItemType(ItemType.RESERVATION)
                 .qty(1)
                 .unitPrice(15000)
                 .lineAmount(15000)
@@ -145,7 +145,7 @@ class SimpleOrderServiceTest {
         Order order = Order.builder()
                 .customerId(123L)
                 .popupId(UUID.randomUUID())
-                .orderType(OrderType.RESERVATION)
+                .orderType(ItemType.RESERVATION)
                 .status(OrderStatus.REQUESTED)
                 .totalAmount(15000)
                 .build();
@@ -153,7 +153,7 @@ class SimpleOrderServiceTest {
         // Then: 기본 메서드들 테스트
         assertNotNull(order, "Order 생성됨");
         assertEquals(123L, order.getCustomerId(), "고객 ID");
-        assertEquals(OrderType.RESERVATION, order.getOrderType(), "주문 타입");
+        assertEquals(ItemType.RESERVATION, order.getOrderType(), "주문 타입");
         assertTrue(order.isReservationType(), "예약형 확인");
         assertFalse(order.isGoodsType(), "구매형 아님");
         assertEquals(OrderStatus.REQUESTED, order.getStatus(), "상태");
@@ -164,7 +164,7 @@ class SimpleOrderServiceTest {
     void OrderItem_엔티티_기본테스트() {
         // Given: OrderItem 생성
         OrderItem orderItem = OrderItem.builder()
-                .orderItemType(OrderItemType.RESERVATION)
+                .orderItemType(ItemType.RESERVATION)
                 .sessionOptionId(UUID.randomUUID())
                 .qty(2)
                 .unitPrice(10000)
@@ -173,7 +173,7 @@ class SimpleOrderServiceTest {
 
         // Then: 기본 검증
         assertNotNull(orderItem, "OrderItem 생성됨");
-        assertEquals(OrderItemType.RESERVATION, orderItem.getOrderItemType(), "타입 확인");
+        assertEquals(ItemType.RESERVATION, orderItem.getOrderType(), "타입 확인");
         assertTrue(orderItem.isReservationType(), "예약형 확인");
         assertFalse(orderItem.isGoodsType(), "굿즈형 아님");
         assertEquals(2, orderItem.getQty(), "수량");
@@ -212,12 +212,12 @@ class SimpleOrderServiceTest {
     @DisplayName("✅ 주문 타입 enum 값들")
     void 주문타입_enum값들() {
         // When & Then
-        OrderType[] types = OrderType.values();
+        ItemType[] types = ItemType.values();
         assertEquals(3, types.length, "3개 타입");
 
-        assertEquals("RESERVATION", OrderType.RESERVATION.name(), "예약형");
-        assertEquals("GOODS", OrderType.GOODS.name(), "구매형");
-        assertEquals("MIXED", OrderType.MIXED.name(), "혼합형");
+        assertEquals("RESERVATION", ItemType.RESERVATION.name(), "예약형");
+        assertEquals("GOODS", ItemType.GOODS.name(), "구매형");
+        assertEquals("MIXED", ItemType.MIXED.name(), "혼합형");
     }
 
 }

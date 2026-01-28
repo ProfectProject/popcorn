@@ -8,7 +8,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.popcorn.order.dto.command.CreateOrderCommand;
-import com.popcorn.order.dto.request.CreateOrderRequest;
+import com.popcorn.order.dto.request.OrderCreateRequest;
 import com.popcorn.order.dto.request.OrderItemRequest;
 
 /**
@@ -46,7 +46,7 @@ class CreateOrderCommandTest {
     void Request에서_Command로_변환_테스트() {
         // Given
         Long userId = 1L; // MSA에서는 JWT에서 추출된 사용자 ID
-        CreateOrderRequest request = CreateOrderRequest.builder()
+        OrderCreateRequest request = OrderCreateRequest.builder()
                 // userId는 request에서 제거됨 (JWT에서 추출)
                 .popupId(UUID.randomUUID())
                 .orderType("RESERVATION")

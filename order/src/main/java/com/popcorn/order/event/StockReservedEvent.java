@@ -78,7 +78,7 @@ public class StockReservedEvent {
     @ToString
     public static class ReservedStockItem {
         /** 굿즈 변형 ID */
-        private UUID goodsVariantId;
+        private UUID goodsId;
 
         /** 예약 수량 */
         private Integer quantity;
@@ -89,10 +89,10 @@ public class StockReservedEvent {
         /** 상품명 */
         private String productName;
 
-        public static ReservedStockItem create(UUID goodsVariantId, Integer quantity,
+        public static ReservedStockItem create(UUID goodsId, Integer quantity,
                                              Integer unitPrice, String productName) {
             return ReservedStockItem.builder()
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .quantity(quantity)
                     .unitPrice(unitPrice)
                     .productName(productName)

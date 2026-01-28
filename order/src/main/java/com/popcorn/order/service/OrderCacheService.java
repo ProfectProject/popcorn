@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.popcorn.order.annotation.PerformanceMonitoring;
 import com.popcorn.order.dto.response.OrderDetailResponse;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
+import com.popcorn.order.dto.payment.PaymentUrlResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,7 @@ public class OrderCacheService {
     private static final String ORDER_LIST_PREFIX = CACHE_KEY_PREFIX + "list:user:";
     private static final String ORDER_STATS_PREFIX = CACHE_KEY_PREFIX + "stats:";
     private static final String MY_ORDERS_PREFIX = "my-orders::";
+    private static final String PAYMENT_URL_PREFIX = CACHE_KEY_PREFIX + "payment-url:";
 
     /**
      * 주문 상세 정보 캐시 조회
@@ -127,6 +129,40 @@ public class OrderCacheService {
         } catch (Exception e) {
             log.error("사용자 주문 목록 캐시 제거 실패 - 사용자ID: {}, 오류: {}", userId, e.getMessage());
         }
+    }
+
+    /**
+     * 결제 URL 저장 (예약 성공 이후 생성된 링크)
+     */
+    @PerformanceMonitoring(threshold = 100, category = "cache")
+    public void storePaymentUrl(UUID orderId, PaymentUrlResponse paymentUrlResponse) {
+        if (orderId == null || paymentUrlResponse == null) {
+            return;
+        }
+        String key = PAYMENT_URL_PREFIX + orderId;
+        long ttlSeconds = 1800; // 기본 30분
+        if (paymentUrlResponse.getExpiresAt() != null) {
+            long seconds = java.time.Duration.between(
+                    java.time.LocalDateTime.now(), paymentUrlResponse.getExpiresAt()).getSeconds();
+            ttlSeconds = Math.max(seconds, 60);
+        }
+        redisTemplate.opsForValue().set(key, paymentUrlResponse, ttlSeconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 결제 URL 조회
+     */
+    @PerformanceMonitoring(threshold = 50, category = "cache")
+    public PaymentUrlResponse getPaymentUrl(UUID orderId) {
+        if (orderId == null) {
+            return null;
+        }
+        String key = PAYMENT_URL_PREFIX + orderId;
+        Object value = redisTemplate.opsForValue().get(key);
+        if (value instanceof PaymentUrlResponse response) {
+            return response;
+        }
+        return null;
     }
 
     /**

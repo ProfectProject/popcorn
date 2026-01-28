@@ -1,0 +1,139 @@
+{
+  "name": "user-service",
+  "image": "375896310755.dkr.ecr.ap-northeast-2.amazonaws.com/goorm-popcorn-user:2c317fbb3ef15892ba5f269e90e22f8a4e1ee6be",
+  "cpu": 0,
+  "portMappings": [
+    {
+      "name": "http",
+      "containerPort": 8080,
+      "hostPort": 8080,
+      "protocol": "tcp"
+    }
+  ],
+  "essential": true,
+  "environment": [
+    {
+      "name": "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE",
+      "value": "health,info,metrics"
+    },
+    {
+      "name": "JWT_EXPIRATION_TIME",
+      "value": "86400000"
+    },
+    {
+      "name": "MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS",
+      "value": "always"
+    },
+    {
+      "name": "SPRING_DATASOURCE_URL",
+      "value": "jdbc:postgresql://goorm-popcorn-dev-postgres.cds4g0gykt3t.ap-northeast-2.rds.amazonaws.com:5432/goorm_popcorn_db"
+    },
+    {
+      "name": "KAFKA_CONSUMER_GROUP_ID",
+      "value": "user-service-group"
+    },
+    {
+      "name": "LOGGING_LEVEL_ROOT",
+      "value": "INFO"
+    },
+    {
+      "name": "SPRING_PROFILES_ACTIVE",
+      "value": "dev"
+    },
+    {
+      "name": "SPRING_DATASOURCE_USERNAME",
+      "value": "postgres"
+    },
+    {
+      "name": "SPRING_DATA_REDIS_HOST",
+      "value": "goorm-popcorn-cache-dev.mkltth.ng.0001.apn2.cache.amazonaws.com"
+    },
+    {
+      "name": "JWT_SECRET_KEY",
+      "value": "goorm-popcorn-jwt-secret-key-for-dev-environment"
+    },
+    {
+      "name": "LOGGING_LEVEL_COM_GOORMPOPCORN",
+      "value": "DEBUG"
+    },
+    {
+      "name": "KAFKA_BOOTSTRAP_SERVERS",
+      "value": " "
+    },
+    {
+      "name": "SPRING_JPA_SHOW_SQL",
+      "value": "true"
+    },
+    {
+      "name": "REDIS_PORT",
+      "value": "6379"
+    },
+    {
+      "name": "JWT_SECRET",
+      "value": "bXlWZXJ5TG9uZ1NlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvblRoYXRJczI1NkJpdHNMb25nMTIzNDU="
+    },
+    {
+      "name": "SPRING_DATASOURCE_PASSWORD",
+      "value": "lJn24IkLJC&7D{(I"
+    },
+    {
+      "name": "SPRING_JPA_DATABASE_PLATFORM",
+      "value": "org.hibernate.dialect.PostgreSQLDialect"
+    },
+    {
+      "name": "PASSPORT_SECRET",
+      "value": "passport-shared-secret"
+    },
+    {
+      "name": "SERVER_PORT",
+      "value": "8080"
+    },
+    {
+      "name": "REDIS_HOST",
+      "value": "goorm-popcorn-cache-dev.mkltth.ng.0001.apn2.cache.amazonaws.com"
+    },
+    {
+      "name": "SPRING_JPA_HIBERNATE_DDL_AUTO",
+      "value": "validate"
+    },
+    {
+      "name": "SPRING_DATA_REDIS_PORT",
+      "value": "6379"
+    },
+    {
+      "name": "SPRING_DATASOURCE_DRIVER_CLASS_NAME",
+      "value": "org.postgresql.Driver"
+    },
+    {
+      "name": "SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL",
+      "value": "true"
+    },
+    {
+      "name": "SPRING_CLOUD_AWS_REGION_STATIC",
+      "value": "ap-northeast-2"
+    }
+  ],
+  "mountPoints": [],
+  "volumesFrom": [],
+  "startTimeout": 120,
+  "stopTimeout": 30,
+  "logConfiguration": {
+    "logDriver": "awslogs",
+    "options": {
+      "awslogs-group": "/aws/ecs/goorm-popcorn-dev/user-service",
+      "awslogs-region": "ap-northeast-2",
+      "awslogs-stream-prefix": "ecs"
+    }
+  },
+  "healthCheck": {
+    "command": [
+      "CMD-SHELL",
+      "curl -f http://localhost:8080/actuator/health || exit 1"
+    ],
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3,
+    "startPeriod": 60
+  },
+  "systemControls": []
+}

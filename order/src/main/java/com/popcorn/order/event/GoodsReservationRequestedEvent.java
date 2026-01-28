@@ -63,12 +63,12 @@ public class GoodsReservationRequestedEvent {
     @Builder
     @ToString
     public static class ReservationItem {
-        private UUID goodsVariantId;
+        private UUID goodsId;
         private Integer quantity;
 
-        public static ReservationItem create(UUID goodsVariantId, Integer quantity) {
+        public static ReservationItem create(UUID goodsId, Integer quantity) {
             return ReservationItem.builder()
-                    .goodsVariantId(goodsVariantId)
+                    .goodsId(goodsId)
                     .quantity(quantity)
                     .build();
         }

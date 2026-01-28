@@ -29,6 +29,7 @@ spring:
         format_sql: true
         show_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: payment
     show-sql: true
 
   # Flyway 설정 (개발 환경)
@@ -39,8 +40,10 @@ spring:
     validate-on-migrate: false
     out-of-order: true
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5430}/${DB_NAME:popcorn_db}
-    user: ${PAYMENT_DB_USERNAME:payment_app}
-    password: ${PAYMENT_DB_PASSWORD:payment123}
+    user: ${PAYMENT_DB_MIGRATION_USERNAME:${PAYMENT_FLYWAY_USERNAME:${PAYMENT_DB_USERNAME:payment_app}}}
+    password: ${PAYMENT_DB_MIGRATION_PASSWORD:${PAYMENT_FLYWAY_PASSWORD:${PAYMENT_DB_PASSWORD:payment123}}}
+    schemas: payment
+    default-schema: payment
 
   # Redis 설정 (개발 환경)
   data:
