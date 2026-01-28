@@ -37,8 +37,8 @@ spring:
     schemas: order_query
     clean-disabled: false
 
-
-
+springdoc:
+  server-url: ${GATEWAY_SERVICE_URL:https://dev.goormpopcorn.shop}
 
 passport:
   secret: ${PASSPORT_SECRET:passport-shared-secret}

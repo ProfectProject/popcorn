@@ -46,6 +46,9 @@ logging:
     org.springframework.boot.web: WARN
     org.hibernate.SQL: WARN
 
+springdoc:
+  server-url: ${GATEWAY_SERVICE_URL:https://dev.goormpopcorn.shop}
+
 passport:
   secret: ${PASSPORT_SECRET:passport-shared-secret}
   ttl-seconds: 60

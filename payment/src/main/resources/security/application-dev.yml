@@ -83,6 +83,9 @@ microservices:
   gateway:
     base-url: ${GATEWAY_URL:http://localhost:8080}
 
+springdoc:
+  server-url: ${GATEWAY_SERVICE_URL:https://dev.goormpopcorn.shop}
+
 # Payment 서비스 비즈니스 설정 (개발용)
 payment:
   webhook:

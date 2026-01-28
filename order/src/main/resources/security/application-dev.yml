@@ -42,7 +42,10 @@ spring:
     default-schema: orders
     schemas: orders
 
-  # Redis 설정
+springdoc:
+  server-url: ${GATEWAY_SERVICE_URL:https://dev.goormpopcorn.shop}
+
+# Redis 설정
   data:
     redis:
       host: ${REDIS_HOST:localhost}
