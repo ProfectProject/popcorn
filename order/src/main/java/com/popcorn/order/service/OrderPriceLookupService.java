@@ -15,9 +15,7 @@ import com.popcorn.order.event.RedisEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 가격 조회 요청/응답을 Redis 이벤트로 처리하는 서비스
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
