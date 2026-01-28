@@ -137,7 +137,7 @@ public class OrderCacheService {
     @PerformanceMonitoring(threshold = 1000, category = "cache")
     public Map<String, Object> getOrderStatisticsFromCache(String statsType, String period) {
         log.debug("주문 통계 캐시 조회 - 타입: {}, 기간: {}", statsType, period);
-        return null;  // 실제로는 복잡한 통계 계산 로직
+        return null; 
     }
 
   
@@ -146,15 +146,15 @@ public class OrderCacheService {
         log.info("캐시 워밍업 시작");
 
         try {
-            // 최근 24시간 내 주문이 많은 사용자들의 데이터를 미리 캐시
+            
             List<Long> activeUsers = getActiveUserIds();  // 구현 필요
 
             for (Long userId : activeUsers) {
-                // 첫 페이지 데이터를 미리 캐시
+            
                 getUserOrderListFromCache(userId, 0, 10, "createdAt");
             }
 
-            // 자주 조회되는 통계 데이터 미리 캐시
+           
             getOrderStatisticsFromCache("daily", "today");
             getOrderStatisticsFromCache("hourly", "today");
 
@@ -169,12 +169,12 @@ public class OrderCacheService {
     @PerformanceMonitoring(threshold = 500, category = "cache")
     public Map<String, Object> getCacheStatistics() {
         try {
-            // Redis INFO 명령어로 통계 정보 수집
+         
             var info = redisTemplate.getConnectionFactory()
                     .getConnection()
                     .info("stats");
 
-            // 캐시별 키 개수 계산
+            
             Map<String, Object> stats = new java.util.HashMap<>();
             stats.put("orderDetailCacheSize", countCacheKeys(ORDER_DETAIL_PREFIX + "*"));
             stats.put("orderListCacheSize", countCacheKeys(ORDER_LIST_PREFIX + "*"));
@@ -201,7 +201,7 @@ public class OrderCacheService {
     public void clearAllOrderCache() {
         log.warn("모든 주문 캐시 클리어 실행");
 
-        // 패턴 기반 캐시 클리어 (Spring Cache가 처리하지 못하는 부분)
+       
         clearCacheByPattern(CACHE_KEY_PREFIX + "*");
     }
 
@@ -211,7 +211,7 @@ public class OrderCacheService {
         int cleanedCount = 0;
 
         try {
-            // TTL이 0이거나 음수인 키들을 찾아서 제거
+           
             var allKeys = redisTemplate.keys(CACHE_KEY_PREFIX + "*");
 
             if (allKeys != null) {
@@ -235,7 +235,7 @@ public class OrderCacheService {
 
   
     private List<Long> getActiveUserIds() {
-        // TODO: 실제 구현 - 최근 활성 사용자 조회 로직
+        
         return List.of(1L, 2L, 3L, 4L, 5L);
     }
 
