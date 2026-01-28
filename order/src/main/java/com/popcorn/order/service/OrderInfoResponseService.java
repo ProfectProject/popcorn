@@ -19,10 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Order 정보 요청에 대한 응답 처리 서비스
- * Payment 서비스 등에서 Order 정보를 요청했을 때 응답하는 서비스
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -33,9 +30,7 @@ public class OrderInfoResponseService {
 
     private static final String ORDER_INFO_RESPONSES_STREAM = "order-info-responses";
 
-    /**
-     * Order 정보 요청 처리 및 응답
-     */
+   
     public void handleOrderInfoRequest(Map<String, Object> requestData) {
         try {
             String requestId = (String) requestData.get("requestId");
@@ -74,9 +69,7 @@ public class OrderInfoResponseService {
         }
     }
 
-    /**
-     * Order 정보 응답 이벤트 발행
-     */
+   
     private void publishOrderInfoResponse(String requestId, boolean success, Order order, String message) {
         try {
             Map<String, String> responseData = new HashMap<>();
@@ -114,25 +107,19 @@ public class OrderInfoResponseService {
         }
     }
 
-    /**
-     * 주문에 예약이 포함되어 있는지 확인
-     */
+    
     private boolean hasReservation(Order order) {
         return order.getOrderItems().stream()
                 .anyMatch(item -> ItemType.RESERVATION.equals(item.getOrderItemType()));
     }
 
-    /**
-     * 주문에 굿즈가 포함되어 있는지 확인
-     */
+  
     private boolean hasGoods(Order order) {
         return order.getOrderItems().stream()
                 .anyMatch(item -> ItemType.GOODS.equals(item.getOrderItemType()));
     }
 
-    /**
-     * OrderItem들을 JSON으로 변환
-     */
+    
     private String convertOrderItemsToJson(List<OrderItem> orderItems) {
         try {
             List<Map<String, Object>> items = orderItems.stream()
@@ -148,9 +135,7 @@ public class OrderInfoResponseService {
         }
     }
 
-    /**
-     * OrderItem을 Map으로 변환
-     */
+   
     private Map<String, Object> convertOrderItemToMap(OrderItem orderItem) {
         Map<String, Object> item = new HashMap<>();
         item.put("orderGoodsId", orderItem.getId().toString());
