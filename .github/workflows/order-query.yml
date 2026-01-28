@@ -1,0 +1,35 @@
+name: Order Query Service CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'orderQuery/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/order-query.json'
+      - '.github/workflows/order-query.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'orderQuery/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/order-query.json'
+
+jobs:
+  build-deploy:
+    uses: ./.github/workflows/reusable-build-deploy.yml
+    with:
+      service-name: order-query
+      service-directory: orderQuery
+      ecr-repository: goorm-popcorn-order-query
+      java-version: '17'
+      gradle-build-args: 'bootJar -x test -x javadoc'
+      needs-kafka: false
+      enhanced-security: false
+      min-approvals: 1
+      discord-emoji: '📊'
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

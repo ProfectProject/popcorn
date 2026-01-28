@@ -1,0 +1,31 @@
+name: Store Service CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'stores/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/store-service.json'
+      - '.github/workflows/store-service.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'stores/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/store-service.json'
+
+jobs:
+  build-deploy:
+    uses: ./.github/workflows/reusable-build-deploy.yml
+    with:
+      service-name: store-service
+      service-directory: stores
+      ecr-repository: goorm-popcorn-store
+      java-version: '17'
+      gradle-build-args: 'bootJar -x test -x javadoc'
+      needs-kafka: false
+      enhanced-security: false
+      min-approvals: 1
+      discord-emoji: '🏪'
+    secrets: inherit

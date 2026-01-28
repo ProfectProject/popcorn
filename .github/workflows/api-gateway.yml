@@ -1,0 +1,35 @@
+name: API Gateway CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'gateway/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/api-gateway.json'
+      - '.github/workflows/api-gateway.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'gateway/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/api-gateway.json'
+
+jobs:
+  build-deploy:
+    uses: ./.github/workflows/reusable-build-deploy.yml
+    with:
+      service-name: api-gateway
+      service-directory: gateway
+      ecr-repository: goorm-popcorn-api-gateway
+      java-version: '17'
+      gradle-build-args: 'bootJar -x test -x javadoc'
+      needs-kafka: false
+      enhanced-security: false
+      min-approvals: 1
+      discord-emoji: '🚪'
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      PROD_APPROVERS: ${{ secrets.PROD_APPROVERS }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}

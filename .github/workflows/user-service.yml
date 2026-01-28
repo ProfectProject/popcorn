@@ -1,0 +1,31 @@
+name: User Service CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'users/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/user-service.json'
+      - '.github/workflows/user-service.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'users/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/user-service.json'
+
+jobs:
+  build-deploy:
+    uses: ./.github/workflows/reusable-build-deploy.yml
+    with:
+      service-name: user-service
+      service-directory: users
+      ecr-repository: goorm-popcorn-user
+      java-version: '17'
+      gradle-build-args: 'bootJar -x test -x javadoc'
+      needs-kafka: false
+      enhanced-security: false
+      min-approvals: 1
+      discord-emoji: '👤'
+    secrets: inherit

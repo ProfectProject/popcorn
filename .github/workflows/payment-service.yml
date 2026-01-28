@@ -1,0 +1,31 @@
+name: Payment Service CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'payment/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/payment-service.json'
+      - '.github/workflows/payment-service.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'payment/**'
+      - 'common-lib/**'
+      - '.aws/task-definitions/payment-service.json'
+
+jobs:
+  build-deploy:
+    uses: ./.github/workflows/reusable-build-deploy.yml
+    with:
+      service-name: payment-service
+      service-directory: payment
+      ecr-repository: goorm-popcorn-payment
+      java-version: '17'
+      gradle-build-args: 'bootJar -x test -x javadoc'
+      needs-kafka: false
+      enhanced-security: true
+      min-approvals: 2
+      discord-emoji: '🔒'
+    secrets: inherit
