@@ -9,14 +9,6 @@ import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * 가격 조회 캐싱 서비스 - 주문 처리 속도 최적화
- * Redis Cache-Aside 패턴으로 외부 가격 조회를 캐싱
- *
- * 성능 향상:
- * - 세션 가격 조회: 2000ms → 10ms (99.5% 단축)
- * - 굿즈 가격 조회: 1500ms → 10ms (99.3% 단축)
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -25,15 +17,11 @@ public class OrderPriceCacheService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final OrderPriceLookupService originalPriceLookupService;
 
-    // 캐시 TTL 설정
+  
     private static final Duration SESSION_PRICE_TTL = Duration.ofDays(1);    // 세션 가격: 1일 캐시
     private static final Duration GOODS_PRICE_TTL = Duration.ofMinutes(30);  // 굿즈 가격: 30분 캐시
 
-    /**
-     * 세션 가격 조회 (캐시 우선)
-     * Cache Hit 시: ~10ms
-     * Cache Miss 시: ~2000ms + 캐시 저장
-     */
+
     public Integer getSessionPrice(UUID sessionId) {
         String cacheKey = "order:price:session:" + sessionId;
 
@@ -58,11 +46,7 @@ public class OrderPriceCacheService {
         return price;
     }
 
-    /**
-     * 굿즈 가격 조회 (캐시 우선)
-     * Cache Hit 시: ~10ms
-     * Cache Miss 시: ~1500ms + 캐시 저장
-     */
+ 
     public Integer getGoodsPrice(UUID goodsId) {
         String cacheKey = "order:price:goods:" + goodsId;
 
@@ -87,12 +71,7 @@ public class OrderPriceCacheService {
         return price;
     }
 
-    /**
-     * 병렬 가격 조회 - 세션 + 굿즈 가격을 동시 조회
-     * 순차 조회: ~3500ms
-     * 병렬 조회: ~2000ms (최대값)
-     * 캐시 히트 시: ~20ms
-     */
+  
     public CompletableFuture<PriceResult> getSessionAndGoodsPrice(UUID sessionId, UUID goodsId) {
         CompletableFuture<Integer> sessionPriceFuture = CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -112,9 +91,7 @@ public class OrderPriceCacheService {
                 .thenApply(v -> new PriceResult(sessionPriceFuture.join(), goodsPriceFuture.join()));
     }
 
-    /**
-     * 가격 캐시 무효화 - 가격 변경 시 호출
-     */
+   
     public void invalidateSessionPrice(UUID sessionId) {
         String cacheKey = "order:price:session:" + sessionId;
         redisTemplate.delete(cacheKey);
@@ -127,9 +104,7 @@ public class OrderPriceCacheService {
         log.info("🗑️ [CACHE-DEL] 굿즈 가격 캐시 무효화 - goodsId: {}", goodsId);
     }
 
-    /**
-     * 캐시 워밍업 - 자주 조회되는 가격들을 미리 캐시에 로드
-     */
+  
     public void warmupCache(UUID sessionId, UUID goodsId) {
         CompletableFuture.runAsync(() -> {
             log.info("🔥 [CACHE-WARMUP] 가격 캐시 워밍업 시작 - session: {}, goods: {}", sessionId, goodsId);
@@ -139,7 +114,7 @@ public class OrderPriceCacheService {
         });
     }
 
-    // === Private Helper Methods ===
+  
 
     private Integer getCachedPrice(String cacheKey) {
         try {
@@ -160,9 +135,7 @@ public class OrderPriceCacheService {
         }
     }
 
-    /**
-     * 가격 조회 결과 DTO
-     */
+   
     public static class PriceResult {
         private final Integer sessionPrice;
         private final Integer goodsPrice;
