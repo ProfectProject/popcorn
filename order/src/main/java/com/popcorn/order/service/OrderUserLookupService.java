@@ -16,9 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Order 서비스의 User 주소 조회 서비스 (이벤트 기반)
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -32,9 +30,6 @@ public class OrderUserLookupService {
     @org.springframework.beans.factory.annotation.Value("${order.user-lookup.timeout-ms:1200}")
     private long timeoutMs;
 
-    /**
-     * 사용자 기본 주소 조회 (이벤트 기반)
-     */
     public Optional<UserAddressResponse> getDefaultAddress(Long userId) {
         try {
             String correlationId = UUID.randomUUID().toString();
@@ -72,9 +67,7 @@ public class OrderUserLookupService {
         }
     }
 
-    /**
-     * User 서비스로부터 주소 조회 응답 처리
-     */
+   
     public void handleUserAddressLookupResponse(UserAddressLookupResponseEvent response) {
         String correlationId = response.getCorrelationId();
         CompletableFuture<UserAddressLookupResponseEvent> future = pendingRequests.remove(correlationId);
