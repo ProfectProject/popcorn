@@ -98,7 +98,9 @@ jobs:
     env:
       AWS_REGION: ap-northeast-2
       ECR_REPOSITORY: goorm-popcorn-user
+      ECR_ORDER_REPOSITORY: goorm-popcorn-order
       ECS_TASK_DEFINITION: users/goorm-popcorn-dev-user-service-revision2.json
+      
       CONTAINER_NAME: user-service
       ECS_SERVICE: goorm-popcorn-dev-user-service
       ECS_CLUSTER: goorm-popcorn-dev-cluster
