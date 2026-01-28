@@ -80,6 +80,9 @@ public enum OrderResponseCode implements ResponseCode {
     /** 동일 요청 처리 중 */
     IDEMPOTENCY_REQUEST_IN_PROGRESS(4012, 409, "이미 처리 중인 동일 요청이 있습니다."),
 
+    /** 예약 처리 실패 */
+    ORDER_RESERVATION_FAILED(4013, 409, "예약 처리에 실패했습니다."),
+
     // ================ 서버 오류 ================
 
     /** 주문 생성 실패 */
@@ -110,7 +113,10 @@ public enum OrderResponseCode implements ResponseCode {
     INTERNAL_SERVER_ERROR(5009, 500, "내부 서버 오류가 발생했습니다."),
 
     /** 멱등성 키 생성 실패 */
-    IDEMPOTENCY_KEY_GENERATION_FAILED(5010, 500, "멱등성 키 생성에 실패했습니다.");
+    IDEMPOTENCY_KEY_GENERATION_FAILED(5010, 500, "멱등성 키 생성에 실패했습니다."),
+
+    /** 예약 응답 타임아웃 */
+    ORDER_RESERVATION_TIMEOUT(5011, 500, "예약 응답이 지연되어 주문 생성에 실패했습니다.");
 
     private final int code;
     private final int httpStatus;

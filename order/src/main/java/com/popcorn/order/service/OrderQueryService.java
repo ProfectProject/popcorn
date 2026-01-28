@@ -16,7 +16,7 @@ import com.popcorn.order.dto.response.OrderDetailResponse;
 import com.popcorn.order.dto.response.OrderListResponse;
 import com.popcorn.order.dto.response.OrderSummaryResponse;
 import com.popcorn.order.entity.Order;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.entity.OrderStatusHistory;
 import com.popcorn.order.repository.OrderRepository;
@@ -301,11 +301,11 @@ public class OrderQueryService {
         int size = query.getValidatedSize();
 
         try {
-            // 2. OrderType 검증
-            OrderType orderType = null;
+            // 2. ItemType 검증
+            ItemType orderType = null;
             if (query.getOrderType() != null) {
                 try {
-                    orderType = OrderType.valueOf(query.getOrderType());
+                    orderType = ItemType.valueOf(query.getOrderType());
                 } catch (IllegalArgumentException e) {
                     log.warn("잘못된 주문 타입: {}", query.getOrderType());
                     return OrderListResponse.from(List.of(), page, size, 0L);
@@ -360,11 +360,11 @@ public class OrderQueryService {
         int size = query.getValidatedSize();
 
         try {
-            // OrderType 검증
-            OrderType orderType = null;
+            // ItemType 검증
+            ItemType orderType = null;
             if (query.getOrderType() != null) {
                 try {
-                    orderType = OrderType.valueOf(query.getOrderType());
+                    orderType = ItemType.valueOf(query.getOrderType());
                 } catch (IllegalArgumentException e) {
                     log.warn("잘못된 주문 타입: {}", query.getOrderType());
                     return OrderListResponse.from(List.of(), page, size, 0L);
@@ -445,7 +445,7 @@ public class OrderQueryService {
             // 2. 사용자별 주문 조회 (기존 메소드 활용)
             Page<Order> orderPage = orderRepository.findOrdersWithAllConditions(
                 null, // popupId
-                orderType != null ? OrderType.valueOf(orderType) : null,
+                orderType != null ? ItemType.valueOf(orderType) : null,
                 status,
                 customerId,
                 null, // storeId

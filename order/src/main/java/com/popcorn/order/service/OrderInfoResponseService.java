@@ -2,7 +2,7 @@ package com.popcorn.order.service;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderItem;
-import com.popcorn.order.entity.OrderItemType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.event.RedisEventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -119,7 +119,7 @@ public class OrderInfoResponseService {
      */
     private boolean hasReservation(Order order) {
         return order.getOrderItems().stream()
-                .anyMatch(item -> OrderItemType.RESERVATION.equals(item.getOrderItemType()));
+                .anyMatch(item -> ItemType.RESERVATION.equals(item.getOrderItemType()));
     }
 
     /**
@@ -127,7 +127,7 @@ public class OrderInfoResponseService {
      */
     private boolean hasGoods(Order order) {
         return order.getOrderItems().stream()
-                .anyMatch(item -> OrderItemType.GOODS.equals(item.getOrderItemType()));
+                .anyMatch(item -> ItemType.GOODS.equals(item.getOrderItemType()));
     }
 
     /**

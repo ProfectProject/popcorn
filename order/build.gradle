@@ -40,7 +40,7 @@ dependencies {
 
     // === 데이터베이스 ===
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'org.postgresql:postgresql:42.7.4'
     implementation project(':common-lib')
     // === Hibernate 추가 기능 ===
     implementation 'org.hibernate.orm:hibernate-core:6.4.1.Final'

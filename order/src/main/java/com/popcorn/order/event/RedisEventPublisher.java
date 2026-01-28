@@ -28,11 +28,13 @@ public class RedisEventPublisher {
     private final ObjectMapper objectMapper;
 
     // Redis Stream 이름 상수
-    private static final String ORDER_EVENTS_STREAM = "order-events";
-    private static final String GOODS_EVENTS_STREAM = "goods-events";
-    private static final String STOCK_EVENTS_STREAM = "stock-events";
-    private static final String PRICE_EVENTS_STREAM = "price-events";
-    private static final String PAYMENT_EVENTS_STREAM = "payment-events";
+    private static final String ORDER_EVENTS_STREAM = "order-events";    // 주문 생성, 결제 완료 등
+    private static final String SCHEDULE_EVENTS_STREAM = "schedule-events";  // 스케줄 예약
+    private static final String GOODS_EVENTS_STREAM = "goods-events";        // 굿즈 예약
+    private static final String MIXED_EVENTS_STREAM = "mixed-events";        // 복합형 (스케줄+굿즈)
+    private static final String STOCK_EVENTS_STREAM = "stock-events";        // 재고 차감
+    private static final String PRICE_EVENTS_STREAM = "price-events";        // 가격 조회
+    private static final String PAYMENT_EVENTS_STREAM = "payment-events";    // 결제
     private static final String STORE_LOOKUP_STREAM = "store-lookup-requests";
 
     /**
@@ -355,6 +357,121 @@ public class RedisEventPublisher {
             log.error("❌ 사용자 주소 조회 요청 이벤트 Stream 발행 실패 - userId: {}, correlationId: {}, error: {}",
                     event.getUserId(), event.getCorrelationId(), e.getMessage(), e);
             throw new RuntimeException("사용자 주소 조회 요청 이벤트 Stream 발행 실패", e);
+        }
+    }
+
+    // ================ 📅 스케줄 예약 관련 이벤트 발행 메소드들 ================
+
+    /**
+     * 스케줄 예약 요청 이벤트 발행 (Store 서비스에서 수신)
+     */
+    public void publishScheduleReservationRequestedEvent(ScheduleReservationRequestedEvent event) {
+        try {
+            log.info("📅 [ORDER→STORE] 스케줄 예약 요청 이벤트 Stream 발행 시작 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+            // 예약 항목들을 JSON으로 직렬화
+            String reservationItemsJson = objectMapper.writeValueAsString(event.getReservationItems());
+
+            Map<String, String> eventData = Map.of(
+                "eventType", "schedule-reservation-requested",
+                "eventId", event.getEventId(),
+                "orderId", event.getOrderId().toString(),
+                "orderNo", event.getOrderNo(),
+                "popupId", event.getPopupId().toString(),
+                "reservationItems", reservationItemsJson,
+                "requestedAt", event.getRequestedAt().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            StringRecord record = StreamRecords.string(eventData).withStreamKey(SCHEDULE_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("📅✅ [ORDER→STORE] 스케줄 예약 요청 이벤트 Stream 발행 완료 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+        } catch (Exception e) {
+            log.error("📅❌ [ORDER→STORE] 스케줄 예약 요청 이벤트 Stream 발행 실패 - orderId: {}, eventId: {}, error: {}",
+                    event.getOrderId(), event.getEventId(), e.getMessage(), e);
+            throw new RuntimeException("스케줄 예약 요청 이벤트 Stream 발행 실패", e);
+        }
+    }
+
+    /**
+     * 스케줄 예약 취소 요청 이벤트 발행 (Store 서비스에서 수신)
+     */
+    public void publishScheduleReservationCancelRequestedEvent(ScheduleReservationCancelRequestedEvent event) {
+        try {
+            log.info("📅 [ORDER→STORE] 스케줄 예약 취소 요청 이벤트 Stream 발행 시작 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+            // 취소 항목들을 JSON으로 직렬화
+            String cancelItemsJson = objectMapper.writeValueAsString(event.getCancelItems());
+
+            Map<String, String> eventData = Map.of(
+                "eventType", "schedule-reservation-cancel-requested",
+                "eventId", event.getEventId(),
+                "orderId", event.getOrderId().toString(),
+                "orderNo", event.getOrderNo(),
+                "popupId", event.getPopupId().toString(),
+                "reservationToken", event.getReservationToken() != null ? event.getReservationToken() : "",
+                "cancelItems", cancelItemsJson,
+                "cancelReason", event.getCancelReason(),
+                "cancelRequestedAt", event.getCancelRequestedAt().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            StringRecord record = StreamRecords.string(eventData).withStreamKey(SCHEDULE_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("📅✅ [ORDER→STORE] 스케줄 예약 취소 요청 이벤트 Stream 발행 완료 - orderId: {}, eventId: {}",
+                    event.getOrderId(), event.getEventId());
+
+        } catch (Exception e) {
+            log.error("📅❌ [ORDER→STORE] 스케줄 예약 취소 요청 이벤트 Stream 발행 실패 - orderId: {}, eventId: {}, error: {}",
+                    event.getOrderId(), event.getEventId(), e.getMessage(), e);
+            throw new RuntimeException("스케줄 예약 취소 요청 이벤트 Stream 발행 실패", e);
+        }
+    }
+
+    /**
+     * 복합형 예약 요청 이벤트 발행 (스케줄 + 굿즈) - Store 서비스에서 hold_both.lua 사용
+     */
+    public void publishMixedReservationRequestedEvent(
+            ScheduleReservationRequestedEvent scheduleEvent,
+            GoodsReservationRequestedEvent goodsEvent) {
+        try {
+            log.info("🔗 [ORDER→STORE] 복합형 예약 요청 이벤트 Stream 발행 시작 - orderId: {}",
+                    scheduleEvent.getOrderId());
+
+            // 스케줄 예약 항목들을 JSON으로 직렬화
+            String scheduleItemsJson = objectMapper.writeValueAsString(scheduleEvent.getReservationItems());
+
+            // 굿즈 예약 항목들을 JSON으로 직렬화
+            String goodsItemsJson = objectMapper.writeValueAsString(goodsEvent.getReservationItems());
+
+            Map<String, String> eventData = Map.of(
+                "eventType", "mixed-reservation-requested",
+                "eventId", java.util.UUID.randomUUID().toString(),
+                "orderId", scheduleEvent.getOrderId().toString(),
+                "orderNo", scheduleEvent.getOrderNo(),
+                "popupId", scheduleEvent.getPopupId() != null ? scheduleEvent.getPopupId().toString() : "",
+                "scheduleItems", scheduleItemsJson,
+                "goodsItems", goodsItemsJson,
+                "requestedAt", scheduleEvent.getRequestedAt().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            StringRecord record = StreamRecords.string(eventData).withStreamKey(MIXED_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("🔗✅ [ORDER→STORE] 복합형 예약 요청 이벤트 Stream 발행 완료 - orderId: {}",
+                    scheduleEvent.getOrderId());
+
+        } catch (Exception e) {
+            log.error("🔗❌ [ORDER→STORE] 복합형 예약 요청 이벤트 Stream 발행 실패 - orderId: {}, error: {}",
+                    scheduleEvent.getOrderId(), e.getMessage(), e);
+            throw new RuntimeException("복합형 예약 요청 이벤트 Stream 발행 실패", e);
         }
     }
 

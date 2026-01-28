@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.popcorn.order.dto.request.OrderCreateRequest;
 import com.popcorn.order.dto.request.OrderItemRequest;
-import com.popcorn.order.entity.OrderItemType;
+import com.popcorn.order.entity.ItemType;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -52,7 +52,7 @@ public class CreateOrderCommand {
     public static class OrderItemCommand {
 
         /** 주문 항목 타입 - RESERVATION 또는 GOODS */
-        private final OrderItemType orderItemType;
+        private final ItemType orderItemType;
 
         /** 세션 ID - 예약형 상품의 경우 */
         private final UUID sessionId;
@@ -99,7 +99,7 @@ public class CreateOrderCommand {
      */
     private static OrderItemCommand convertOrderItemRequest(OrderItemRequest itemRequest) {
         return OrderItemCommand.builder()
-                .orderItemType(OrderItemType.valueOf(itemRequest.getOrderItemType()))
+                .orderItemType(ItemType.valueOf(itemRequest.getOrderItemType()))
                 .sessionId(itemRequest.getSessionId())
                 .goodsId(itemRequest.getGoodsId())
                 .qty(itemRequest.getQty())

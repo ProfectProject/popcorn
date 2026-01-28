@@ -280,6 +280,29 @@ public class OrderCommandController {
 
             return ResponseEntity.status(OrderResponseCode.INVALID_ORDER_REQUEST.getHttpStatus())
                     .body(errorResponse);
+        } catch (com.popcorn.order.exception.OrderReservationFailedException e) {
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            log.warn("⏳ [REQ-{}] 예약 실패로 주문 생성 실패 ({}ms): {}",
+                    requestId, processingTime, e.getMessage());
+
+            BaseResponse<OrderCreateResponse> errorResponse = BaseResponse.from(
+                    OrderResponseCode.ORDER_RESERVATION_FAILED, null);
+
+            return ResponseEntity.status(OrderResponseCode.ORDER_RESERVATION_FAILED.getHttpStatus())
+                    .body(errorResponse);
+
+        } catch (com.popcorn.order.exception.OrderReservationTimeoutException e) {
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            log.warn("⏳ [REQ-{}] 예약 타임아웃으로 주문 생성 실패 ({}ms): {}",
+                    requestId, processingTime, e.getMessage());
+
+            BaseResponse<OrderCreateResponse> errorResponse = BaseResponse.from(
+                    OrderResponseCode.ORDER_RESERVATION_TIMEOUT, null);
+
+            return ResponseEntity.status(OrderResponseCode.ORDER_RESERVATION_TIMEOUT.getHttpStatus())
+                    .body(errorResponse);
 
         } catch (Exception e) {
             // 예상치 못한 서버 오류

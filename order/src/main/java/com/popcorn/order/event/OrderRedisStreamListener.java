@@ -3,7 +3,7 @@ package com.popcorn.order.event;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.common.cache.IdempotencyService;
 import com.popcorn.order.dto.user.UserAddressResponse;
-import com.popcorn.order.entity.OrderItemType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.entity.OrderStatus;
 import com.popcorn.order.event.PopupInfoLookupResponseEvent;
 import com.popcorn.order.repository.OrderRepository;
@@ -11,8 +11,11 @@ import com.popcorn.order.service.OrderCommandService;
 import com.popcorn.order.service.OrderPopupLookupService;
 import com.popcorn.order.service.OrderPriceLookupService;
 import com.popcorn.order.service.OrderUserLookupService;
+import com.popcorn.order.service.OrderReservationAwaiter;
+import com.popcorn.order.dto.payment.PaymentUrlResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.stereotype.Component;
@@ -37,7 +40,9 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
     private final OrderCommandService orderCommandService;
     private final OrderRepository orderRepository;
     private final OrderPopupLookupService orderPopupLookupService;
+    private final OrderReservationAwaiter orderReservationAwaiter;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public void onMessage(MapRecord<String, String, Object> record) {
@@ -87,8 +92,8 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     handlePaymentApproved(values);
                     break;
                 case "payment-completed":
-                    log.info("✅ [ORDER] 결제 완료 이벤트 수신");
-                    handlePaymentCompleted(values);
+                    log.info("🔕 [ORDER] 결제 완료 이벤트 무시 (payment-approved에서 이미 처리됨)");
+                    // handlePaymentCompleted(values); // 중복 처리 방지를 위해 비활성화
                     break;
                 case "payment-failed":
                     log.info("❌ [ORDER] 결제 실패 이벤트 수신");
@@ -97,6 +102,23 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                 case "payment-cancelled":
                     log.info("↩️ [ORDER] 결제 취소 이벤트 수신");
                     handlePaymentCancelled(values);
+                    break;
+                case "order-paid":
+                    log.info("💳✅ [ORDER] 주문 결제 완료 이벤트 수신 - 재고 차감 시작");
+                    handleOrderPaid(values);
+                    break;
+                case "schedule-reservation-requested":
+                    // Order가 발행한 요청 이벤트이므로 무시
+                    log.debug("🔕 [ORDER] 스케줄 예약 요청 이벤트 무시 - eventId: {}",
+                            values.get("eventId"));
+                    break;
+                case "schedule-reservation-success":
+                    log.info("📅✅ [ORDER] 스케줄 예약 성공 이벤트 수신");
+                    handleScheduleReservationSuccess(values);
+                    break;
+                case "schedule-reservation-failed":
+                    log.info("📅❌ [ORDER] 스케줄 예약 실패 이벤트 수신");
+                    handleScheduleReservationFailed(values);
                     break;
                 case "stock-deduction-success":
                     log.info("📦✅ [ORDER] 재고 차감 성공 이벤트 수신");
@@ -129,12 +151,168 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     log.debug("🔕 [ORDER] 결제 생성 요청 이벤트 무시 - eventId: {}",
                             values.get("eventId"));
                     break;
+                case "goods-reservation-requested":
+                    // Order가 발행한 이벤트이므로 수신 시 무시
+                    log.debug("🔕 [ORDER] 굿즈 재고 예약 요청 이벤트 무시 - eventId: {}",
+                            values.get("eventId"));
+                    break;
                 default:
                     log.debug("🔔 [ORDER] 알 수 없는 이벤트 타입 - type: {}", eventType);
                     break;
             }
         } catch (Exception e) {
             log.error("🚨 [ORDER] 이벤트 처리 실패 - eventType: {}, error: {}", eventType, e.getMessage(), e);
+        }
+    }
+
+    private void handleScheduleReservationSuccess(Map<String, Object> values) {
+        try {
+            String eventId = normalizeQuotedString((String) values.get("eventId"));
+            String orderIdStr = normalizeQuotedString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String popupIdStr = normalizeQuotedString((String) values.get("popupId"));
+            String reservedSessionsJson = normalizeJsonString((String) values.get("reservedSessions"));
+            String reservationToken = normalizeQuotedString((String) values.get("reservationToken"));
+            String reservedAtStr = normalizeQuotedString((String) values.get("reservedAt"));
+            String expiresAtStr = normalizeQuotedString((String) values.get("expiresAt"));
+
+            List<Map<String, Object>> reservedSessionsRaw = objectMapper.readValue(
+                    reservedSessionsJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {}
+            );
+
+            List<ScheduleReservationSuccessEvent.ReservedSession> sessions = new ArrayList<>();
+            for (Map<String, Object> raw : reservedSessionsRaw) {
+                String sessionIdStr = String.valueOf(raw.get("sessionOptionId"));
+                String reservedQtyStr = String.valueOf(raw.get("reservedQuantity"));
+                String sessionName = raw.get("sessionName") != null ? String.valueOf(raw.get("sessionName")) : null;
+                String sessionTimeStr = raw.get("sessionTime") != null ? String.valueOf(raw.get("sessionTime")) : null;
+                String remainingStr = raw.get("remainingSeats") != null ? String.valueOf(raw.get("remainingSeats")) : null;
+                String reservationCode = raw.get("reservationCode") != null ? String.valueOf(raw.get("reservationCode")) : null;
+
+                sessions.add(ScheduleReservationSuccessEvent.ReservedSession.create(
+                        UUID.fromString(sessionIdStr),
+                        parseInt(reservedQtyStr),
+                        sessionName,
+                        sessionTimeStr != null && !sessionTimeStr.isBlank()
+                                ? java.time.LocalDateTime.parse(sessionTimeStr)
+                                : null,
+                        parseInt(remainingStr),
+                        reservationCode
+                ));
+            }
+
+            ScheduleReservationSuccessEvent event = ScheduleReservationSuccessEvent.builder()
+                    .eventId(eventId)
+                    .orderId(UUID.fromString(orderIdStr))
+                    .orderNo(orderNo)
+                    .popupId(popupIdStr != null && !popupIdStr.isBlank() ? UUID.fromString(popupIdStr) : null)
+                    .reservedSessions(sessions)
+                    .reservationToken(reservationToken)
+                    .reservedAt(reservedAtStr != null && !reservedAtStr.isBlank()
+                            ? java.time.LocalDateTime.parse(reservedAtStr) : java.time.LocalDateTime.now())
+                    .expiresAt(expiresAtStr != null && !expiresAtStr.isBlank()
+                            ? java.time.LocalDateTime.parse(expiresAtStr) : java.time.LocalDateTime.now().plusMinutes(30))
+                    .build();
+
+            eventPublisher.publishEvent(event);
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 스케줄 예약 성공 이벤트 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    private void handleScheduleReservationFailed(Map<String, Object> values) {
+        try {
+            String eventId = normalizeQuotedString((String) values.get("eventId"));
+            String orderIdStr = normalizeQuotedString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String popupIdStr = normalizeQuotedString((String) values.get("popupId"));
+            String failedSessionsJson = normalizeJsonString((String) values.get("failedSessions"));
+            String failureReason = normalizeQuotedString((String) values.get("failureReason"));
+            String failedAtStr = normalizeQuotedString((String) values.get("failedAt"));
+
+            List<Map<String, Object>> failedSessionsRaw = objectMapper.readValue(
+                    failedSessionsJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {}
+            );
+
+            List<ScheduleReservationFailedEvent.FailedSession> sessions = new ArrayList<>();
+            for (Map<String, Object> raw : failedSessionsRaw) {
+                String sessionIdStr = String.valueOf(raw.get("sessionOptionId"));
+                String requestedQtyStr = String.valueOf(raw.get("requestedQuantity"));
+                String availableQtyStr = String.valueOf(raw.get("availableQuantity"));
+                String sessionName = raw.get("sessionName") != null ? String.valueOf(raw.get("sessionName")) : null;
+                String sessionTimeStr = raw.get("sessionTime") != null ? String.valueOf(raw.get("sessionTime")) : null;
+                String itemReason = raw.get("failureReason") != null ? String.valueOf(raw.get("failureReason")) : null;
+
+                sessions.add(ScheduleReservationFailedEvent.FailedSession.create(
+                        UUID.fromString(sessionIdStr),
+                        parseInt(requestedQtyStr),
+                        parseInt(availableQtyStr),
+                        sessionName,
+                        sessionTimeStr != null && !sessionTimeStr.isBlank()
+                                ? java.time.LocalDateTime.parse(sessionTimeStr)
+                                : null,
+                        itemReason
+                ));
+            }
+
+            ScheduleReservationFailedEvent event = ScheduleReservationFailedEvent.builder()
+                    .eventId(eventId)
+                    .orderId(UUID.fromString(orderIdStr))
+                    .orderNo(orderNo)
+                    .popupId(popupIdStr != null && !popupIdStr.isBlank() ? UUID.fromString(popupIdStr) : null)
+                    .failedSessions(sessions)
+                    .failureReason(failureReason)
+                    .failedAt(failedAtStr != null && !failedAtStr.isBlank()
+                            ? java.time.LocalDateTime.parse(failedAtStr) : java.time.LocalDateTime.now())
+                    .build();
+
+            eventPublisher.publishEvent(event);
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 스케줄 예약 실패 이벤트 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    private String normalizeQuotedString(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() >= 2) {
+            char first = trimmed.charAt(0);
+            char last = trimmed.charAt(trimmed.length() - 1);
+            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                return trimmed.substring(1, trimmed.length() - 1).trim();
+            }
+        }
+        return trimmed;
+    }
+
+    private String normalizeJsonString(String value) {
+        String trimmed = normalizeQuotedString(value);
+        if (trimmed == null) {
+            return null;
+        }
+        // Handle escaped JSON payloads like "\"[{\\\"a\\\":1}]\""
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || trimmed.contains("\\\"")) {
+            try {
+                return objectMapper.readValue(trimmed, String.class).trim();
+            } catch (Exception ignored) {
+                return trimmed.replace("\\\"", "\"");
+            }
+        }
+        return trimmed;
+    }
+
+    private int parseInt(String value) {
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(value.trim().replaceAll("^\"|\"$", ""));
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 
@@ -453,12 +631,31 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                     orderId, paymentId, amount);
 
             if (orderId != null && !orderId.isEmpty()) {
-                // 주문 상태를 PAID로 업데이트 (결제 완료 상태)
                 UUID orderUuid = UUID.fromString(orderId);
+
+                // 1. 주문 상태를 PAID로 업데이트
                 orderCommandService.updateOrderStatus(orderUuid, OrderStatus.PAID.name(),
                     "결제 승인 완료 - 결제ID: " + paymentId);
 
-                log.info("✅ [ORDER] 주문 상태 업데이트 완료 - orderId: {}, status: PAID", orderId);
+                // 2. 내부 PaymentCompletedEvent 발행하여 재고 차감 프로세스 시작
+                try {
+                    PaymentCompletedEvent paymentEvent = PaymentCompletedEvent.builder()
+                            .eventId(java.util.UUID.randomUUID().toString())
+                            .orderId(orderUuid)
+                            .paymentKey(paymentId) // 결제키로 사용
+                            .amount(amount != null ? Integer.valueOf(amount) : null)
+                            .paymentMethod("TOSS_PAYMENT")
+                            .completedAt(java.time.LocalDateTime.now())
+                            .eventTime(java.time.LocalDateTime.now())
+                            .build();
+
+                    eventPublisher.publishEvent(paymentEvent);
+                    log.info("✅ [ORDER] PaymentCompletedEvent 발행 완료 - 재고 차감 프로세스 시작 - orderId: {}", orderId);
+                } catch (Exception eventEx) {
+                    log.error("🚨 [ORDER] PaymentCompletedEvent 발행 실패 - orderId: {}", orderId, eventEx);
+                }
+
+                log.info("✅ [ORDER] 결제 승인 처리 완료 - orderId: {}, status: PAID", orderId);
             }
 
         } catch (Exception e) {
@@ -468,9 +665,13 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
     }
 
     /**
-     * 결제 완료 이벤트 처리
+     * 결제 완료 이벤트 처리 (비활성화됨 - handlePaymentApproved에서 처리)
+     *
+     * 중복 결제 방지를 위해 사용 중단.
+     * 모든 결제 처리는 handlePaymentApproved에서 통합 처리됨.
      */
-    private void handlePaymentCompleted(Map<String, Object> values) {
+    @SuppressWarnings("unused")
+    private void handlePaymentCompleted_DEPRECATED(Map<String, Object> values) {
         try {
             String orderId = (String) values.get("orderId");
             String paymentId = (String) values.get("paymentId");
@@ -500,6 +701,71 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
 
         } catch (Exception e) {
             log.error("🚨 [ORDER] 결제 완료 이벤트 처리 실패 - values: {}, error: {}",
+                    values, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 주문 결제 완료 이벤트 처리 (Stores 서비스에서 발행)
+     * - 재고 차감 요청 발행
+     * - 스케줄 확정 처리
+     */
+    private void handleOrderPaid(Map<String, Object> values) {
+        try {
+            String orderId = (String) values.get("orderId");
+            String orderNo = (String) values.get("orderNo");
+            String paymentId = (String) values.get("paymentId");
+            String totalAmount = (String) values.get("totalAmount");
+
+            // 따옴표 제거
+            if (orderId != null) orderId = orderId.trim().replaceAll("^\"|\"$", "");
+            if (orderNo != null) orderNo = orderNo.trim().replaceAll("^\"|\"$", "");
+            if (paymentId != null) paymentId = paymentId.trim().replaceAll("^\"|\"$", "");
+            if (totalAmount != null) totalAmount = totalAmount.trim().replaceAll("^\"|\"$", "");
+
+            log.info("💳✅ [ORDER] 주문 결제 완료 처리 시작 - orderId: {}, orderNo: {}, amount: {}",
+                    orderId, orderNo, totalAmount);
+
+            if (orderId != null && !orderId.isEmpty()) {
+                UUID orderUuid = UUID.fromString(orderId);
+
+                // 1. 주문 상태를 PAID로 업데이트
+                orderCommandService.updateOrderStatus(orderUuid, OrderStatus.PAID.name(),
+                    "결제 완료 - 재고 차감 및 스케줄 확정 진행");
+
+                // 2. 재고 차감 요청 (Store 서비스에 재고 차감 요청 전송)
+                log.info("📦 [ORDER] 재고 차감 요청 발행 - orderId: {}", orderId);
+                orderCommandService.requestStockDeduction(orderUuid);
+
+                // 3. 스케줄 확정 처리 (TODO: 구현 필요)
+                log.warn("📅 [ORDER] 스케줄 확정 로직 미구현 - orderId: {} (현재는 재고 차감만 처리)", orderId);
+                // TODO: orderCommandService.requestScheduleConfirmation(orderUuid); // 구현 필요
+
+                // 4. 내부 결제 완료 이벤트 발행 (다른 서비스 알림용)
+                try {
+                    PaymentCompletedEvent paymentEvent = PaymentCompletedEvent.builder()
+                            .eventId(java.util.UUID.randomUUID().toString())
+                            .orderId(orderUuid)
+                            .paymentKey(paymentId)
+                            .amount(totalAmount != null ? Integer.valueOf(totalAmount) : null)
+                            .paymentMethod("TOSS_PAYMENT")
+                            .completedAt(java.time.LocalDateTime.now())
+                            .eventTime(java.time.LocalDateTime.now())
+                            .build();
+
+                    eventPublisher.publishEvent(paymentEvent);
+                    log.info("📨 [ORDER] 내부 결제 완료 이벤트 발행 완료 - orderId: {}", orderId);
+
+                } catch (Exception eventError) {
+                    log.warn("⚠️ [ORDER] 내부 결제 완료 이벤트 발행 실패 (재고/스케줄 처리는 계속) - error: {}",
+                            eventError.getMessage());
+                }
+
+                log.info("✅ [ORDER] 주문 결제 완료 처리 완료 - orderId: {}, 재고차감+스케줄확정 요청 발행됨", orderId);
+            }
+
+        } catch (Exception e) {
+            log.error("🚨 [ORDER] 주문 결제 완료 이벤트 처리 실패 - values: {}, error: {}",
                     values, e.getMessage(), e);
         }
     }
@@ -570,10 +836,15 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                 try {
                     orderCommandService.updateOrderStatus(orderUuid, OrderStatus.COMPLETED.name(),
                         "재고 차감 완료 - 주문 완료: " + stockDetails);
-                } catch (IdempotencyService.IdempotencyException e) {
-                    log.warn("📦✅ [ORDER] 재고 차감 성공 멱등 처리 중복 - orderId: {}, reason: {}",
-                            orderId, e.getMessage());
-                    return;
+                } catch (Exception e) {
+                    // 멱등성 처리나 이미 완료된 상태일 경우 로깅만 하고 넘어감
+                    if (e.getMessage() != null && e.getMessage().contains("IdempotencyException")) {
+                        log.warn("📦✅ [ORDER] 재고 차감 성공 멱등 처리 중복 - orderId: {}, reason: {}",
+                                orderId, e.getMessage());
+                        return;
+                    }
+                    // 다른 예외는 다시 던짐
+                    throw e;
                 }
 
                 log.info("📦✅ [ORDER] 재고 차감 성공으로 주문 완료 상태 업데이트 완료 - orderId: {}", orderId);
@@ -680,6 +951,11 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
 
                 // 결제 생성 요청 이벤트 발행
                 orderCommandService.publishPaymentCreateRequestedEvent(orderUuid);
+
+                orderRepository.findById(orderUuid).ifPresent(order -> {
+                    PaymentUrlResponse paymentUrl = orderCommandService.generatePaymentUrlAfterReservation(order);
+                    orderReservationAwaiter.completeSuccess(orderUuid, paymentUrl);
+                });
             }
 
         } catch (Exception e) {
@@ -757,8 +1033,10 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
 
             if (orderId != null && !orderId.isEmpty()) {
                 UUID orderUuid = UUID.fromString(orderId);
-                orderCommandService.updateOrderStatus(orderUuid, OrderStatus.REJECTED.name(),
+                orderCommandService.updateOrderStatus(orderUuid, OrderStatus.CANCELLED.name(),
                         "재고 부족 - 주문 실패: " + (reason != null ? reason : "재고 부족"));
+                orderReservationAwaiter.completeFailure(orderUuid,
+                        reason != null ? reason : "재고 부족");
             }
 
         } catch (Exception e) {

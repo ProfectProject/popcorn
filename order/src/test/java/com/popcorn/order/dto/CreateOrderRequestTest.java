@@ -92,7 +92,7 @@ class CreateOrderRequestTest {
         // Then
         assertNotNull(request.getItems());
         assertEquals(1, request.getItems().size());
-        assertEquals("RESERVATION", request.getItems().get(0).getOrderItemType());
+        assertEquals("RESERVATION", request.getItems().get(0).getOrderType());
     }
 
     @Test

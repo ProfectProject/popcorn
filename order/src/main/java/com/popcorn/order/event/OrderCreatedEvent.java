@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 
 import lombok.Getter;
 
@@ -30,7 +30,7 @@ public class OrderCreatedEvent extends BaseOrderEvent {
     // 이벤트에 포함할 주요 정보들
     private final Order order;                 // 생성된 주문 정보 전체
     private final String orderNo;              // 주문 번호 (O20260120-000001 형태)
-    private final OrderType orderType;         // 주문 타입 (예약/구매)
+    private final ItemType orderType;         // 주문 타입 (예약/구매)
     private final OrderStatus orderStatus;     // 주문 상태
     private final Integer totalAmount;         // 총 주문 금액
     private final Integer itemCount;           // 주문 항목 개수
@@ -133,14 +133,14 @@ public class OrderCreatedEvent extends BaseOrderEvent {
      * 예약형 주문인지 확인
      */
     public boolean isReservationOrder() {
-        return OrderType.RESERVATION.equals(orderType);
+        return ItemType.RESERVATION.equals(orderType);
     }
 
     /**
      * 구매형 주문인지 확인
      */
     public boolean isPurchaseOrder() {
-        return OrderType.GOODS.equals(orderType);
+        return ItemType.GOODS.equals(orderType);
     }
 
 }

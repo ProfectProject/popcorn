@@ -127,6 +127,42 @@ public class OrderExceptionHandler {
     }
 
     /**
+     * 예약 실패 예외 처리
+     */
+    @ExceptionHandler(OrderReservationFailedException.class)
+    public ResponseEntity<BaseResponse<Void>> handleOrderReservationFailed(
+            OrderReservationFailedException ex, WebRequest request) {
+
+        log.warn("예약 처리 실패 - 사유: {}", ex.getMessage());
+
+        BaseResponse<Void> response = BaseResponse.from(
+                OrderResponseCode.ORDER_RESERVATION_FAILED,
+                null
+        );
+
+        return ResponseEntity.status(OrderResponseCode.ORDER_RESERVATION_FAILED.getHttpStatus())
+                .body(response);
+    }
+
+    /**
+     * 예약 타임아웃 예외 처리
+     */
+    @ExceptionHandler(OrderReservationTimeoutException.class)
+    public ResponseEntity<BaseResponse<Void>> handleOrderReservationTimeout(
+            OrderReservationTimeoutException ex, WebRequest request) {
+
+        log.warn("예약 응답 타임아웃 - 사유: {}", ex.getMessage());
+
+        BaseResponse<Void> response = BaseResponse.from(
+                OrderResponseCode.ORDER_RESERVATION_TIMEOUT,
+                null
+        );
+
+        return ResponseEntity.status(OrderResponseCode.ORDER_RESERVATION_TIMEOUT.getHttpStatus())
+                .body(response);
+    }
+
+    /**
      * 결제 처리 실패 예외 처리
      *
      * 결제 서비스 연동 중 오류가 발생했을 때 처리합니다.

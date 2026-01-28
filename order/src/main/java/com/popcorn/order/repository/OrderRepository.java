@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 
 /**
  * 주문 Repository 인터페이스
@@ -140,6 +140,11 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findByStatusAndCreatedAtBefore(OrderStatus status, LocalDateTime cutoffTime);
 
     /**
+     * 특정 상태이고 취소 가능 시한이 지난 주문들 조회 (타임아웃 처리용)
+     */
+    List<Order> findByStatusAndCancelableUntilBefore(OrderStatus status, LocalDateTime cutoffTime);
+
+    /**
      * 주문 번호 존재 여부 확인
      */
     boolean existsByOrderNo(String orderNo);
@@ -219,7 +224,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
            "AND (:to IS NULL OR o.createdAt <= :to) " +
            "ORDER BY o.createdAt DESC")
     Page<Order> findOrdersByCategoryWithConditions(
-            @Param("orderType") OrderType orderType,
+            @Param("orderType") ItemType orderType,
             @Param("status") String status,
             @Param("userId") Long userId,
             @Param("from") LocalDateTime from,
@@ -236,7 +241,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
            "AND (:from IS NULL OR o.createdAt >= :from) " +
            "AND (:to IS NULL OR o.createdAt <= :to)")
     long countOrdersByCategory(
-            @Param("orderType") OrderType orderType,
+            @Param("orderType") ItemType orderType,
             @Param("status") String status,
             @Param("userId") Long userId,
             @Param("from") LocalDateTime from,
@@ -265,7 +270,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
            "ORDER BY o.createdAt DESC")
     Page<Order> findOrdersWithAllConditions(
             @Param("popupId") UUID popupId,
-            @Param("orderType") OrderType orderType,
+            @Param("orderType") ItemType orderType,
             @Param("status") String status,
             @Param("userId") Long userId,
             @Param("storeId") UUID storeId, // 현재는 사용하지 않지만 향후 확장용
@@ -285,7 +290,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
            "AND o.createdAt <= COALESCE(:to, o.createdAt)")
     long countOrdersWithAllConditions(
             @Param("popupId") UUID popupId,
-            @Param("orderType") OrderType orderType,
+            @Param("orderType") ItemType orderType,
             @Param("status") String status,
             @Param("userId") Long userId,
             @Param("storeId") UUID storeId, // 현재는 사용하지 않지만 향후 확장용
@@ -323,7 +328,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findOrdersByPopupIdWithAdvancedConditions(
             @Param("popupId") UUID popupId,
             @Param("status") OrderStatus status,
-            @Param("orderType") OrderType orderType,
+            @Param("orderType") ItemType orderType,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             Pageable pageable);

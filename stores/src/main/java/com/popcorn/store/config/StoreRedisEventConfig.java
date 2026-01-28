@@ -12,6 +12,7 @@ import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.data.redis.stream.Subscription;
@@ -38,10 +39,12 @@ public class StoreRedisEventConfig {
     private final RedisTemplate<String, Object> redisTemplate;
 
     // Stream 이름 상수
-    private static final String ORDER_EVENTS_STREAM = "order-events";
-    private static final String GOODS_EVENTS_STREAM = "goods-events";
-    private static final String STOCK_EVENTS_STREAM = "stock-events";
-    private static final String PRICE_EVENTS_STREAM = "price-events";
+    private static final String ORDER_EVENTS_STREAM = "order-events";    // 주문 생성, 결제 완료 등
+    private static final String SCHEDULE_EVENTS_STREAM = "schedule-events";  // 스케줄 예약
+    private static final String GOODS_EVENTS_STREAM = "goods-events";        // 굿즈 예약
+    private static final String MIXED_EVENTS_STREAM = "mixed-events";        // 복합형 (스케줄+굿즈)
+    private static final String STOCK_EVENTS_STREAM = "stock-events";        // 재고 차감
+    private static final String PRICE_EVENTS_STREAM = "price-events";        // 가격 조회
     private static final String STORE_LOOKUP_STREAM = "store-lookup-requests";
 
     // Consumer Group 이름
@@ -53,7 +56,9 @@ public class StoreRedisEventConfig {
         try {
             // Consumer Group 생성 (이미 존재하면 무시)
             createConsumerGroupIfNotExists(ORDER_EVENTS_STREAM);
+            createConsumerGroupIfNotExists(SCHEDULE_EVENTS_STREAM);
             createConsumerGroupIfNotExists(GOODS_EVENTS_STREAM);
+            createConsumerGroupIfNotExists(MIXED_EVENTS_STREAM);
             createConsumerGroupIfNotExists(STOCK_EVENTS_STREAM);
             createConsumerGroupIfNotExists(PRICE_EVENTS_STREAM);
             createConsumerGroupIfNotExists(STORE_LOOKUP_STREAM);
@@ -69,9 +74,30 @@ public class StoreRedisEventConfig {
             redisTemplate.opsForStream().createGroup(streamName, ReadOffset.from("0"), STORE_CONSUMER_GROUP);
             log.info("📝 Consumer Group 생성: {} - {}", streamName, STORE_CONSUMER_GROUP);
         } catch (Exception e) {
-            // Consumer Group이 이미 존재하는 경우 무시
-            log.debug("Consumer Group 이미 존재: {} - {}", streamName, STORE_CONSUMER_GROUP);
+            if (isStreamMissing(e)) {
+                // Stream이 없으면 임시 레코드로 생성 후 그룹 생성
+                String recordId = redisTemplate.opsForStream()
+                        .add(StreamRecords.mapBacked(Map.of("_init", "1")).withStreamKey(streamName))
+                        .getValue();
+                if (recordId != null) {
+                    redisTemplate.opsForStream().delete(streamName, recordId);
+                }
+                redisTemplate.opsForStream().createGroup(streamName, ReadOffset.from("0"), STORE_CONSUMER_GROUP);
+                log.info("📝 Consumer Group 생성(MKSTREAM): {} - {}", streamName, STORE_CONSUMER_GROUP);
+            } else {
+                // Consumer Group이 이미 존재하는 경우 무시
+                log.debug("Consumer Group 이미 존재: {} - {}", streamName, STORE_CONSUMER_GROUP);
+            }
         }
+    }
+
+    private boolean isStreamMissing(Exception e) {
+        String message = e.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("requires the key to exist") || lower.contains("no such key");
     }
 
     /**
@@ -91,7 +117,9 @@ public class StoreRedisEventConfig {
 
         // 각 Stream에 대한 Consumer 등록
         registerStreamConsumer(container, ORDER_EVENTS_STREAM);
+        registerStreamConsumer(container, SCHEDULE_EVENTS_STREAM);
         registerStreamConsumer(container, GOODS_EVENTS_STREAM);
+        registerStreamConsumer(container, MIXED_EVENTS_STREAM);
         registerStreamConsumer(container, STOCK_EVENTS_STREAM);
         registerStreamConsumer(container, PRICE_EVENTS_STREAM);
         registerStreamConsumer(container, STORE_LOOKUP_STREAM);

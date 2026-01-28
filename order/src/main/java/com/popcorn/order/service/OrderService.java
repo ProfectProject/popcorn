@@ -11,7 +11,7 @@ import com.popcorn.order.dto.command.CreateOrderCommand;
 import com.popcorn.order.dto.response.OrderCreateResponse;
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 import com.popcorn.order.repository.OrderRepository;
 import com.popcorn.order.repository.OrderStatusHistoryRepository;
 import com.popcorn.order.event.OrderEventPublisher;
@@ -157,7 +157,7 @@ public class OrderService {
         String orderNo = Order.generateOrderNo();
 
         // 주문 타입 변환
-        OrderType orderType = OrderType.valueOf(command.getOrderType());
+        ItemType orderType = ItemType.valueOf(command.getOrderType());
 
         // 총 금액 계산 (임시로 고정값 사용)
         Integer totalAmount = calculateTotalAmount(command);

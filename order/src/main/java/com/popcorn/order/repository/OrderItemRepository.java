@@ -89,7 +89,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
      */
     @Query("SELECT oi FROM OrderItem oi WHERE oi.orderId = :orderId " +
            "AND oi.orderItemType = :orderItemType")
-    List<OrderItem> findByOrderIdAndOrderItemType(@Param("orderId") UUID orderId,
+    List<OrderItem> findByOrderIdAndItemType(@Param("orderId") UUID orderId,
                                                  @Param("orderItemType") String orderItemType);
 
     /**

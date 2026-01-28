@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderItem;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -160,6 +160,9 @@ public class OrderDomainService {
         for (OrderItem item : orderItems) {
             validateSingleOrderItem(item);
         }
+
+        // 🚨 핵심 비즈니스 룰 검증 추가
+        validateOrderItemsBusinessRules(orderItems);
     }
 
     /**
@@ -177,6 +180,43 @@ public class OrderDomainService {
         }
     }
 
+    /**
+     * 주문 항목들 간의 비즈니스 룰 검증
+     *
+     * [수정된 비즈니스 룰]
+     * 1. 스케줄만 → 허용 (스케줄 예약)
+     * 2. 굿즈만 → 허용 (굿즈 예약)
+     * 3. 스케줄 + 굿즈 → 허용 (복합 주문)
+     * 4. 둘다 없으면 → 주문 실패
+     */
+    private void validateOrderItemsBusinessRules(List<OrderItem> orderItems) {
+        log.debug("주문 항목 비즈니스 룰 검증 시작");
+
+        boolean hasGoods = orderItems.stream()
+                .anyMatch(item -> ItemType.GOODS.equals(item.getOrderItemType()));
+
+        boolean hasReservation = orderItems.stream()
+                .anyMatch(item -> ItemType.RESERVATION.equals(item.getOrderItemType()));
+
+        // 둘다 없으면 주문할 게 없음
+        if (!hasGoods && !hasReservation) {
+            throw new IllegalArgumentException(
+                "예약 또는 굿즈 중 최소 하나는 선택해야 합니다."
+            );
+        }
+
+        // ✅ 허용되는 케이스들
+        if (hasReservation && !hasGoods) {
+            log.debug("비즈니스 룰 검증 통과: 스케줄 예약만");
+        } else if (!hasReservation && hasGoods) {
+            log.debug("비즈니스 룰 검증 통과: 굿즈만");
+        } else if (hasReservation && hasGoods) {
+            log.debug("비즈니스 룰 검증 통과: 스케줄 + 굿즈 복합형");
+        }
+
+        log.debug("주문 항목 비즈니스 룰 검증 완료");
+    }
+
     // ================ 주문 생성 로직 ================
 
     /**
@@ -187,7 +227,7 @@ public class OrderDomainService {
      * 복잡한 생성 로직을 여기에 모아두면 실수를 줄일 수 있어요.
      */
     public Order createOrder(Long customerId, UUID popupId,
-                           OrderType orderType, List<OrderItem> orderItems) {
+                           ItemType orderType, List<OrderItem> orderItems) {
 
         log.info("새 주문 만들기 시작 - 고객: {}, 타입: {}", customerId, orderType);
 
@@ -225,7 +265,7 @@ public class OrderDomainService {
      * 주문 타입에 따라 취소할 수 있는 시간이 달라요.
      * 지금은 모두 5분으로 같지만, 나중에 다르게 할 수도 있어요.
      */
-    public LocalDateTime calculateCancelableUntil(OrderType orderType) {
+    public LocalDateTime calculateCancelableUntil(ItemType orderType) {
         LocalDateTime now = LocalDateTime.now();
 
         return switch (orderType) {

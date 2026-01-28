@@ -6,7 +6,7 @@ import java.util.UUID;
 
 import com.popcorn.order.entity.Order;
 import com.popcorn.order.entity.OrderStatus;
-import com.popcorn.order.entity.OrderType;
+import com.popcorn.order.entity.ItemType;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -67,7 +67,7 @@ public class OrderListResponse {
         private String orderNo;
 
         /** 주문 타입 */
-        private OrderType orderType;
+        private ItemType orderType;
 
         /** 주문 상태 */
         private OrderStatus status;

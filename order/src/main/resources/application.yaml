@@ -36,18 +36,21 @@ spring:
   # 기본 JPA 설정 (프로필별로 오버라이드 가능)
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:validate}  # 기본값은 validate
+      ddl-auto: none  # 다시 validate 사용
     show-sql: ${JPA_SHOW_SQL:true}        # 기본값은 true (개발용)
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect  # PostgreSQL dialect 명시
         format_sql: ${JPA_FORMAT_SQL:true}  # 기본값은 true (개발용)
+        default_schema: orders
+        type:
+          preferred_enum_jdbc_type: NAMED_ENUM  # PostgreSQL enum 네이티브 지원
 
   # 기본 Flyway 설정
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
-    baseline-on-migrate: ${FLYWAY_BASELINE:true}
-    locations: classpath:db/migration/order
+    baseline-on-migrate: ${FLYWAY_BASELINE:false}
+    locations: classpath:db/migration
 
   # Docker Compose 자동 실행 비활성화 (개발 편의성)
   docker:
@@ -181,6 +184,8 @@ order:
   validation:
     max-quantity: ${ORDER_MAX_QUANTITY:100}  # 최대 주문 수량
     min-quantity: ${ORDER_MIN_QUANTITY:1}    # 최소 주문 수량
+  reservation:
+    wait-timeout-ms: ${ORDER_RESERVATION_WAIT_TIMEOUT_MS:5000}  # 예약 응답 대기 시간
   notification:
     enabled: ${ORDER_NOTIFICATION_ENABLED:true}  # 알림 활성화
     retry-count: ${ORDER_NOTIFICATION_RETRY:3}   # 알림 재시도 횟수

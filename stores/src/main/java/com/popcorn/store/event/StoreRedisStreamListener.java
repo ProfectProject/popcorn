@@ -21,9 +21,14 @@ import com.popcorn.store.domain.popup.entity.PopupSchedule;
 import com.popcorn.store.domain.popup.repository.owner.jpa.JpaOwnerPopupRepository;
 import com.popcorn.store.domain.store.repository.jpa.JpaStoreRepository;
 import com.popcorn.store.domain.popup.repository.owner.jpa.JpaOwnerPopupScheduleRepository;
+import com.popcorn.store.domain.popup.service.ScheduleInventoryApiService;
 import com.popcorn.store.event.payment.InventoryConfirmationRequestedEvent;
 import com.popcorn.store.event.order.OrderPaidEvent;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.HoldResult;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,7 +53,9 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private final JpaOwnerPopupScheduleRepository popupScheduleRepository;
     private final JpaOwnerPopupRepository popupRepository;
     private final JpaStoreRepository storeRepository;
+    private final InventoryRedisHoldService inventoryHoldService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ScheduleInventoryApiService scheduleInventoryApiService;
 
     @Override
     public void onMessage(MapRecord<String, String, Object> record) {
@@ -61,10 +68,15 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                     streamName, recordId, values.get("eventType"));
 
             String eventType = (String) values.get("eventType");
+            String originalEventType = eventType;
             // eventType에서 따옴표 제거
             if (eventType != null) {
                 eventType = eventType.trim().replaceAll("^\"|\"$", "");
             }
+
+            log.debug("🔍 [STORES] EventType 정규화 - original: '{}', normalized: '{}'",
+                     originalEventType, eventType);
+
             handleStreamEvent(eventType, values);
 
             // 메시지 처리 완료 후 ACK (자동으로 처리됨)
@@ -91,6 +103,10 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                     log.info("📋 [STORES] 굿즈 재고 예약 요청 이벤트 수신");
                     publishGoodsReservationRequestedEvent(values);
                     break;
+                case "mixed-reservation-requested":
+                    log.info("🔗 [STORES] 복합형 예약 요청 이벤트 수신 (스케줄+굿즈)");
+                    handleMixedReservationRequested(values);
+                    break;
                 case "goods-reserved":
                     log.info("✅ [STORES] 굿즈 재고 예약 성공 이벤트 수신 (내부) - orderId: {}, goodsId: {}, quantity: {}개 예약 완료",
                             values.get("orderId"), values.get("goodsId"), values.get("quantity"));
@@ -104,6 +120,14 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 case "goods-reservation-cancel-requested":
                     log.info("↩️ [STORES] 굿즈 예약 취소 요청 이벤트 수신");
                     handleGoodsReservationCancelRequested(values);
+                    break;
+                case "schedule-reservation-requested":
+                    log.info("📅 [STORES] 스케줄 예약 요청 이벤트 수신");
+                    handleScheduleReservationRequested(values);
+                    break;
+                case "schedule-reservation-cancel-requested":
+                    log.info("↩️ [STORES] 스케줄 예약 취소 요청 이벤트 수신");
+                    handleScheduleReservationCancelRequested(values);
                     break;
                 case "stock-deduction-requested":
                     log.info("📦 [STORES] 재고 차감 요청 이벤트 수신 - orderId: {}", values.get("orderId"));
@@ -126,6 +150,16 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                 case "popup-info-lookup-requested":
                     log.info("🏬 [STORES] 팝업 정보 조회 요청 이벤트 수신");
                     handlePopupInfoLookupRequested(values);
+                    break;
+                case "schedule-reservation-success":
+                    log.info("📅✅ [STORES] 스케줄 예약 성공 이벤트 수신 (→Order 전송됨) - orderId: {}, orderNo: {}",
+                            values.get("orderId"), values.get("orderNo"));
+                    // Order 서비스에서 발행한 스케줄 예약 성공 알림 - 로깅만 처리
+                    break;
+                case "schedule-reservation-failed":
+                    log.warn("📅❌ [STORES] 스케줄 예약 실패 이벤트 수신 (→Order 전송됨) - orderId: {}, orderNo: {}, reason: {}",
+                            values.get("orderId"), values.get("orderNo"), values.get("reason"));
+                    // Order 서비스에서 발행한 스케줄 예약 실패 알림 - 로깅만 처리
                     break;
                 default:
                     log.info("🔔 [STORES] 알 수 없는 이벤트 타입 - type: {}", eventType);
@@ -749,6 +783,87 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
         }
     }
 
+    private void handleScheduleReservationRequested(Map<String, Object> values) {
+        try {
+            String orderIdStr = normalizeUuidString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String popupIdStr = normalizeUuidString((String) values.get("popupId"));
+            String reservationItemsJson = normalizeQuotedString((String) values.get("reservationItems"));
+
+            UUID orderId = UUID.fromString(orderIdStr);
+            UUID popupId = UUID.fromString(popupIdStr);
+
+            List<ScheduleReservationItem> items = objectMapper.readValue(
+                    reservationItemsJson, new TypeReference<List<ScheduleReservationItem>>() {}
+            );
+
+            if (items == null || items.isEmpty()) {
+                storeRedisEventPublisher.publishScheduleReservationFailedEvent(
+                        orderId, orderNo, popupId, "[]", "예약 항목이 비어있음");
+                return;
+            }
+
+            if (items.size() > 1) {
+                storeRedisEventPublisher.publishScheduleReservationFailedEvent(
+                        orderId, orderNo, popupId, "[]", "현재는 단일 세션 예약만 지원");
+                return;
+            }
+
+            ScheduleReservationItem item = items.get(0);
+            UUID scheduleId = UUID.fromString(item.sessionOptionId);
+            int quantity = item.quantity != null ? item.quantity : 0;
+
+            scheduleInventoryApiService.ensureScheduleKey(popupId, scheduleId);
+            HoldResult holdResult = inventoryHoldService.holdSchedule(orderId, popupId, scheduleId, quantity);
+            if (!holdResult.isSuccess()) {
+                String failedSessionsJson = objectMapper.writeValueAsString(List.of(Map.of(
+                        "sessionOptionId", scheduleId.toString(),
+                        "requestedQuantity", String.valueOf(quantity),
+                        "availableQuantity", "0",
+                        "sessionName", item.sessionName != null ? item.sessionName : "",
+                        "sessionTime", item.sessionTime != null ? item.sessionTime : "",
+                        "failureReason", holdResult.getCode().getDescription()
+                )));
+                storeRedisEventPublisher.publishScheduleReservationFailedEvent(
+                        orderId, orderNo, popupId, failedSessionsJson, holdResult.getCode().getDescription());
+                return;
+            }
+
+            reservationService.createScheduleReservation(orderId, orderNo, popupId, scheduleId, quantity);
+
+            int remaining = scheduleInventoryApiService.available(popupId, scheduleId);
+            String reservedSessionsJson = objectMapper.writeValueAsString(List.of(Map.of(
+                    "sessionOptionId", scheduleId.toString(),
+                    "reservedQuantity", String.valueOf(quantity),
+                    "sessionName", item.sessionName != null ? item.sessionName : "",
+                    "sessionTime", item.sessionTime != null ? item.sessionTime : "",
+                    "remainingSeats", String.valueOf(remaining),
+                    "reservationCode", UUID.randomUUID().toString()
+            )));
+
+            storeRedisEventPublisher.publishScheduleReservationSuccessEvent(
+                    orderId, orderNo, popupId, reservedSessionsJson,
+                    UUID.randomUUID().toString(),
+                    java.time.LocalDateTime.now(),
+                    java.time.LocalDateTime.now().plusMinutes(30)
+            );
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 스케줄 예약 요청 처리 실패 - values: {}, error: {}", values, e.getMessage(), e);
+        }
+    }
+
+    private void handleScheduleReservationCancelRequested(Map<String, Object> values) {
+        try {
+            String orderIdStr = normalizeUuidString((String) values.get("orderId"));
+            UUID orderId = UUID.fromString(orderIdStr);
+            inventoryHoldService.releaseHold(orderId);
+            log.info("↩️ [STORES] 스케줄 예약 홀드 해제 완료 - orderId: {}", orderId);
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 스케줄 예약 취소 처리 실패 - values: {}, error: {}", values, e.getMessage(), e);
+        }
+    }
+
     /**
      * 재고 차감 실패 이벤트 발행
      */
@@ -774,6 +889,13 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
     private static class GoodsReservationItem {
         public UUID goodsId;
         public Integer quantity;
+    }
+
+    private static class ScheduleReservationItem {
+        public String sessionOptionId;
+        public Integer quantity;
+        public String sessionName;
+        public String sessionTime;
     }
 
     private String normalizeUuidString(String value) {
@@ -809,5 +931,111 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
             }
         }
         return trimmed;
+    }
+
+    /**
+     * 복합형 예약 요청 처리 (스케줄 + 굿즈) - Redis Lua hold_both.lua 사용
+     */
+    private void handleMixedReservationRequested(Map<String, Object> values) {
+        try {
+            String orderIdStr = normalizeQuotedString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String popupIdStr = normalizeQuotedString((String) values.get("popupId"));
+            String scheduleItemsJson = normalizeQuotedString((String) values.get("scheduleItems"));
+            String goodsItemsJson = normalizeQuotedString((String) values.get("goodsItems"));
+
+            UUID orderId = UUID.fromString(normalizeUuidString(orderIdStr));
+            UUID popupId = popupIdStr != null && !popupIdStr.isEmpty() ?
+                UUID.fromString(normalizeUuidString(popupIdStr)) : null;
+
+            log.info("🔗 [STORES] 복합형 예약 처리 시작 - orderId: {}, popupId: {}", orderId, popupId);
+
+            // 스케줄 항목 파싱
+            List<Map<String, Object>> scheduleItems = objectMapper.readValue(
+                scheduleItemsJson, new TypeReference<List<Map<String, Object>>>() {}
+            );
+
+            // 굿즈 항목 파싱
+            List<Map<String, Object>> goodsItemsList = objectMapper.readValue(
+                goodsItemsJson, new TypeReference<List<Map<String, Object>>>() {}
+            );
+
+            if (scheduleItems.isEmpty() || goodsItemsList.isEmpty()) {
+                log.error("🔗 [STORES] 복합형 예약 항목 누락 - orderId: {}, schedule: {}, goods: {}",
+                         orderId, scheduleItems.size(), goodsItemsList.size());
+                return;
+            }
+
+            // 스케줄 정보 추출 (첫 번째 스케줄 항목)
+            Map<String, Object> firstSchedule = scheduleItems.get(0);
+            UUID scheduleId = UUID.fromString((String) firstSchedule.get("sessionId"));
+            Integer scheduleQty = (Integer) firstSchedule.get("quantity");
+
+            // 굿즈 항목들을 GoodsHoldItem으로 변환
+            List<GoodsHoldItem> goodsHoldItems = new ArrayList<>();
+            for (Map<String, Object> goodsItem : goodsItemsList) {
+                UUID goodsId = UUID.fromString((String) goodsItem.get("goodsId"));
+                Integer quantity = (Integer) goodsItem.get("quantity");
+                goodsHoldItems.add(new GoodsHoldItem(goodsId, quantity));
+            }
+
+            // popupId 추론 (필요한 경우)
+            if (popupId == null) {
+                popupId = goodsService.resolvePopupId(goodsHoldItems.get(0).getGoodsId());
+            }
+
+            log.info("🔗 [STORES] Redis Lua holdBoth 실행 - orderId: {}, scheduleId: {}, scheduleQty: {}, goodsItems: {}",
+                     orderId, scheduleId, scheduleQty, goodsHoldItems.size());
+
+            // Redis Lua 스크립트 실행 (hold_both.lua)
+            HoldResult holdResult = inventoryHoldService.holdBoth(
+                orderId, popupId, scheduleId, scheduleQty, goodsHoldItems);
+
+            if (holdResult.isSuccess()) {
+                // 성공: 스케줄 예약 생성
+                for (Map<String, Object> scheduleItem : scheduleItems) {
+                    UUID sessionId = UUID.fromString((String) scheduleItem.get("sessionId"));
+                    Integer quantity = (Integer) scheduleItem.get("quantity");
+
+                    reservationService.createScheduleReservation(
+                        orderId, orderNo, popupId, sessionId, quantity);
+                }
+
+                // 성공: 굿즈 예약 생성
+                for (GoodsHoldItem goodsItem : goodsHoldItems) {
+                    reservationService.createGoodsReservation(
+                        orderId, orderNo, popupId, goodsItem.getGoodsId(), goodsItem.getQuantity());
+                }
+
+                log.info("🔗✅ [STORES] 복합형 예약 성공 - orderId: {}, schedule+goods 모두 홀드 완료", orderId);
+
+                // 성공 이벤트 발행 (Order 서비스에게 알림)
+                storeRedisEventPublisher.publishMixedReservationSuccessEvent(
+                    orderId, popupId, scheduleId, scheduleQty, goodsHoldItems);
+
+            } else {
+                log.error("🔗❌ [STORES] 복합형 예약 실패 - orderId: {}, reason: {}",
+                         orderId, holdResult.getDetail());
+
+                // 실패 이벤트 발행
+                storeRedisEventPublisher.publishMixedReservationFailedEvent(
+                    orderId, popupId, holdResult.getDetail());
+            }
+
+        } catch (Exception e) {
+            log.error("🔗❌ [STORES] 복합형 예약 처리 오류 - values: {}, error: {}",
+                     values, e.getMessage(), e);
+
+            try {
+                String orderIdStr = (String) values.get("orderId");
+                if (orderIdStr != null) {
+                    UUID orderId = UUID.fromString(normalizeUuidString(orderIdStr));
+                    storeRedisEventPublisher.publishMixedReservationFailedEvent(
+                        orderId, null, "시스템 오류: " + e.getMessage());
+                }
+            } catch (Exception ignored) {
+                // 추가 오류 무시
+            }
+        }
     }
 }

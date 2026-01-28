@@ -3,6 +3,7 @@ package com.popcorn.store.event;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popcorn.store.event.order.StockDeductionFailedEvent;
 import com.popcorn.store.event.order.StockDeductionSuccessEvent;
+import com.popcorn.store.inventory.redis.InventoryRedisHoldService.GoodsHoldItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -31,6 +32,8 @@ public class StoreRedisEventPublisher {
     private static final String STORE_LOOKUP_RESPONSES_STREAM = "store-lookup-responses";
     private static final String INVENTORY_EVENTS_STREAM = "inventory-events";
     private static final String GOODS_EVENTS_STREAM = "goods-events";
+    private static final String MIXED_EVENTS_STREAM = "mixed-events";  // 복합형 예약 결과
+    private static final String SCHEDULE_EVENTS_STREAM = "schedule-events";
 
     /**
      * 재고 차감 성공 이벤트 발행
@@ -295,6 +298,161 @@ public class StoreRedisEventPublisher {
 
         } catch (Exception e) {
             log.error("🏬 [STORES] 팝업 정보 조회 응답 이벤트 발행 실패 - error: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 복합형 예약 성공 이벤트 발행 (스케줄 + 굿즈)
+     */
+    public void publishMixedReservationSuccessEvent(
+            java.util.UUID orderId, java.util.UUID popupId, java.util.UUID scheduleId,
+            Integer scheduleQty, java.util.List<GoodsHoldItem> goodsHoldItems) {
+        try {
+            log.info("🔗✅ [STORE→ORDER] 복합형 예약 성공 이벤트 발행 시작 - orderId: {}", orderId);
+
+            // 굿즈 항목들을 JSON으로 변환
+            String goodsItemsJson = objectMapper.writeValueAsString(goodsHoldItems);
+
+            String eventId = java.util.UUID.randomUUID().toString();
+            Map<String, Object> eventData = Map.of(
+                "eventType", "mixed-reservation-success",
+                "eventId", eventId,
+                "orderId", orderId.toString(),
+                "popupId", popupId != null ? popupId.toString() : "",
+                "scheduleId", scheduleId.toString(),
+                "scheduleQty", scheduleQty.toString(),
+                "goodsItems", goodsItemsJson,
+                "successAt", LocalDateTime.now().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            // Map<String, Object>를 Map<String, String>으로 변환
+            Map<String, String> stringEventData = eventData.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue() != null ? e.getValue().toString() : ""
+                ));
+
+            StringRecord record = StreamRecords.string(stringEventData).withStreamKey(MIXED_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("🔗✅ [STORE→ORDER] 복합형 예약 성공 이벤트 발행 완료 - orderId: {}, eventId: {}", orderId, eventId);
+
+        } catch (Exception e) {
+            log.error("🔗❌ [STORE→ORDER] 복합형 예약 성공 이벤트 발행 실패 - orderId: {}, error: {}",
+                    orderId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 복합형 예약 실패 이벤트 발행 (스케줄 + 굿즈)
+     */
+    public void publishMixedReservationFailedEvent(java.util.UUID orderId, java.util.UUID popupId, String reason) {
+        try {
+            log.info("🔗❌ [STORE→ORDER] 복합형 예약 실패 이벤트 발행 시작 - orderId: {}, reason: {}", orderId, reason);
+
+            String eventId = java.util.UUID.randomUUID().toString();
+            Map<String, Object> eventData = Map.of(
+                "eventType", "mixed-reservation-failed",
+                "eventId", eventId,
+                "orderId", orderId.toString(),
+                "popupId", popupId != null ? popupId.toString() : "",
+                "reason", reason,
+                "failedAt", LocalDateTime.now().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            // Map<String, Object>를 Map<String, String>으로 변환
+            Map<String, String> stringEventData = eventData.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue() != null ? e.getValue().toString() : ""
+                ));
+
+            StringRecord record = StreamRecords.string(stringEventData).withStreamKey(MIXED_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("🔗❌ [STORE→ORDER] 복합형 예약 실패 이벤트 발행 완료 - orderId: {}, eventId: {}", orderId, eventId);
+
+        } catch (Exception e) {
+            log.error("🔗🚨 [STORE→ORDER] 복합형 예약 실패 이벤트 발행 실패 - orderId: {}, error: {}",
+                    orderId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 스케줄 예약 성공 이벤트 발행
+     */
+    public void publishScheduleReservationSuccessEvent(
+            java.util.UUID orderId, String orderNo, java.util.UUID popupId,
+            String reservedSessionsJson, String reservationToken,
+            LocalDateTime reservedAt, LocalDateTime expiresAt) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+            Map<String, Object> eventData = Map.of(
+                "eventType", "schedule-reservation-success",
+                "eventId", eventId,
+                "orderId", orderId.toString(),
+                "orderNo", orderNo,
+                "popupId", popupId != null ? popupId.toString() : "",
+                "reservedSessions", reservedSessionsJson,
+                "reservationToken", reservationToken != null ? reservationToken : "",
+                "reservedAt", reservedAt.toString(),
+                "expiresAt", expiresAt.toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            Map<String, String> stringEventData = eventData.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue() != null ? e.getValue().toString() : ""
+                ));
+
+            StringRecord record = StreamRecords.string(stringEventData).withStreamKey(SCHEDULE_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("📅✅ [STORE→ORDER] 스케줄 예약 성공 이벤트 발행 완료 - orderId: {}, eventId: {}",
+                    orderId, eventId);
+        } catch (Exception e) {
+            log.error("📅❌ [STORE→ORDER] 스케줄 예약 성공 이벤트 발행 실패 - orderId: {}, error: {}",
+                    orderId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 스케줄 예약 실패 이벤트 발행
+     */
+    public void publishScheduleReservationFailedEvent(
+            java.util.UUID orderId, String orderNo, java.util.UUID popupId,
+            String failedSessionsJson, String failureReason) {
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+            Map<String, Object> eventData = Map.of(
+                "eventType", "schedule-reservation-failed",
+                "eventId", eventId,
+                "orderId", orderId.toString(),
+                "orderNo", orderNo,
+                "popupId", popupId != null ? popupId.toString() : "",
+                "failedSessions", failedSessionsJson,
+                "failureReason", failureReason != null ? failureReason : "",
+                "failedAt", LocalDateTime.now().toString(),
+                "eventTime", LocalDateTime.now().toString()
+            );
+
+            Map<String, String> stringEventData = eventData.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue() != null ? e.getValue().toString() : ""
+                ));
+
+            StringRecord record = StreamRecords.string(stringEventData).withStreamKey(SCHEDULE_EVENTS_STREAM);
+            redisTemplate.opsForStream().add(record);
+
+            log.info("📅❌ [STORE→ORDER] 스케줄 예약 실패 이벤트 발행 완료 - orderId: {}, eventId: {}",
+                    orderId, eventId);
+        } catch (Exception e) {
+            log.error("📅❌ [STORE→ORDER] 스케줄 예약 실패 이벤트 발행 실패 - orderId: {}, error: {}",
+                    orderId, e.getMessage(), e);
         }
     }
 

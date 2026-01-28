@@ -98,6 +98,44 @@ public class StockReservationTimeoutService {
     }
 
     /**
+     * 예약/재고 응답이 없는 주문을 타임아웃 처리합니다.
+     *
+     * [처리 대상]
+     * - REQUESTED 상태이고
+     * - cancelableUntil이 지난 주문들
+     */
+    @Scheduled(fixedRate = 60000) // 1분마다 실행
+    @Transactional
+    public void cancelStalledRequestedOrders() {
+        try {
+            LocalDateTime cutoffTime = LocalDateTime.now();
+            List<Order> stalledOrders = orderRepository.findByStatusAndCancelableUntilBefore(
+                    OrderStatus.REQUESTED, cutoffTime);
+
+            if (stalledOrders.isEmpty()) {
+                return;
+            }
+
+            for (Order stalledOrder : stalledOrders) {
+                try {
+                    log.warn("예약 응답 타임아웃 - 주문번호: {}, 생성시간: {}",
+                            stalledOrder.getOrderNo(), stalledOrder.getCreatedAt());
+                    orderCommandService.updateOrderStatus(
+                            stalledOrder.getId(),
+                            OrderStatus.CANCELLED.name(),
+                            "예약 응답 타임아웃으로 자동 취소"
+                    );
+                } catch (Exception e) {
+                    log.error("예약 응답 타임아웃 취소 실패 - 주문번호: {}, 에러: {}",
+                            stalledOrder.getOrderNo(), e.getMessage(), e);
+                }
+            }
+        } catch (Exception e) {
+            log.error("예약 응답 타임아웃 처리 중 오류: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * 만료 임박한 재고 예약들을 확인하고 알림을 보냅니다.
      *
      * [실행 주기]
