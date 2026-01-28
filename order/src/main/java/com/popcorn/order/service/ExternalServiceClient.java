@@ -16,17 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * 외부 서비스 호출 클라이언트 (서킷 브레이커 적용)
- *
- * MSA 환경에서 다른 서비스들과의 통신을 안전하게 처리합니다.
- * 서킷 브레이커 패턴을 적용하여 장애 전파를 방지하고 시스템 안정성을 확보합니다.
- *
- * 적용된 외부 서비스:
- * - Payment Service: 결제 처리
- * - User Service: 사용자 정보 조회
- * - Inventory Service: 재고 확인/차감
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -44,19 +34,13 @@ public class ExternalServiceClient {
     @Value("${microservices.inventory.base-url:${microservices.gateway.base-url:http://localhost:8080}}")
     private String inventoryBaseUrl;
 
-    // ========================= 결제 서비스 호출 =========================
 
-    /**
-     * 결제 요청 처리 (서킷 브레이커 적용)
-     *
-     * 결제 서비스 장애시 폴백으로 임시 결제 보류 상태 반환
-     */
     public CompletableFuture<Map<String, Object>> processPayment(UUID orderId, Long amount, String paymentMethod) {
         CircuitBreaker paymentCircuitBreaker = circuitBreakerFactory.create("payment-service");
 
         return CompletableFuture.supplyAsync(() ->
             paymentCircuitBreaker.run(
-                // 정상 실행할 로직
+        
                 () -> {
                     log.info("결제 서비스 호출 시작 - 주문ID: {}, 금액: {}", orderId, amount);
 
@@ -83,12 +67,12 @@ public class ExternalServiceClient {
                     log.info("결제 서비스 응답 성공 - 주문ID: {}", orderId);
                     return response;
                 },
-                // 폴백 로직 (장애시 실행)
+     
                 throwable -> {
                     log.warn("결제 서비스 장애 발생 - 폴백 실행. 주문ID: {}, 오류: {}",
                         orderId, throwable.getMessage());
 
-                    // 결제 보류 상태로 폴백
+                 
                     return Map.of(
                         "status", "PENDING",
                         "orderId", orderId.toString(),
@@ -103,11 +87,7 @@ public class ExternalServiceClient {
 
     // ========================= 사용자 서비스 호출 =========================
 
-    /**
-     * 사용자 정보 조회 (서킷 브레이커 적용)
-     *
-     * 사용자 서비스 장애시 기본 사용자 정보 반환 (캐시 활용 가능)
-     */
+  
     public CompletableFuture<Map<String, Object>> getUserInfo(Long userId) {
         CircuitBreaker userCircuitBreaker = circuitBreakerFactory.create("user-service");
 
@@ -152,11 +132,7 @@ public class ExternalServiceClient {
 
     // ========================= 재고 서비스 호출 =========================
 
-    /**
-     * 재고 확인 및 차감 (서킷 브레이커 적용)
-     *
-     * 재고 서비스 장애시 재고 확인 실패로 처리하여 안전한 주문 처리
-     */
+  
     public CompletableFuture<Map<String, Object>> checkAndReserveStock(UUID orderId, Long productId, Integer quantity) {
         CircuitBreaker inventoryCircuitBreaker = circuitBreakerFactory.create("inventory-service");
 
@@ -209,14 +185,7 @@ public class ExternalServiceClient {
         );
     }
 
-    // ========================= 통합 주문 처리 =========================
-
-    /**
-     * 여러 외부 서비스를 함께 호출하는 통합 메서드
-     *
-     * 각 서비스별로 독립적인 서킷 브레이커가 적용되어
-     * 일부 서비스 장애가 전체 시스템에 미치는 영향을 최소화
-     */
+  
     public CompletableFuture<Map<String, Object>> processOrderWithCircuitBreaker(
             UUID orderId, Long userId, Long productId, Integer quantity, Long amount, String paymentMethod) {
 
@@ -258,13 +227,7 @@ public class ExternalServiceClient {
             });
     }
 
-    // ========================= 서킷 브레이커 상태 조회 =========================
 
-    /**
-     * 서킷 브레이커 상태 모니터링
-     *
-     * 운영자가 각 서비스별 서킷 브레이커 상태를 확인할 수 있습니다.
-     */
     public Map<String, String> getCircuitBreakerStatuses() {
         return Map.of(
             "payment-service", getCircuitBreakerStatus("payment-service"),
