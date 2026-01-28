@@ -9,51 +9,36 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * 사용자 권한 검증 서비스
- *
- * [역할]
- * - JWT 토큰에서 사용자 정보 추출
- * - MANAGER/OWNER 역할 검증
- * - 리소스별 접근 권한 검증
- */
+
 @Service
 @Slf4j
 public class AuthorizationService {
 
-    /**
-     * 사용자 권한 검증
-     *
-     * @param authentication Spring Security Authentication 객체
-     * @param requiredRoles 필요한 역할들
-     * @param resourceType 리소스 타입 (POPUP, ORDER, STORE)
-     * @param resourceId 리소스 ID
-     * @return 권한 검증 결과
-     */
+ 
     public boolean hasPermission(Authentication authentication, String[] requiredRoles,
                                String resourceType, UUID resourceId) {
         try {
-            // 1. 인증 정보 검증
+           
             if (authentication == null || !authentication.isAuthenticated()) {
                 log.warn("인증되지 않은 사용자의 접근 시도");
                 return false;
             }
 
-            // 2. JWT에서 사용자 정보 추출
+          
             UserInfo userInfo = extractUserInfo(authentication);
             if (userInfo == null) {
                 log.warn("JWT에서 사용자 정보 추출 실패");
                 return false;
             }
 
-            // 3. 역할 검증
+          
             if (!hasRequiredRole(userInfo.getRole(), requiredRoles)) {
                 log.warn("사용자 역할이 요구사항과 맞지 않음 - userId: {}, userRole: {}, requiredRoles: {}",
                         userInfo.getUserId(), userInfo.getRole(), List.of(requiredRoles));
                 return false;
             }
 
-            // 4. 리소스별 접근 권한 검증
+           
             if (resourceType != null && !resourceType.isEmpty() && resourceId != null) {
                 if (!hasResourceAccess(userInfo, resourceType, resourceId)) {
                     log.warn("리소스 접근 권한 없음 - userId: {}, resourceType: {}, resourceId: {}",
@@ -72,9 +57,7 @@ public class AuthorizationService {
         }
     }
 
-    /**
-     * Authentication 객체에서 사용자 정보 추출
-     */
+
     private UserInfo extractUserInfo(Authentication authentication) {
         try {
             // Gateway에서 처리된 PassportPrincipal 사용
@@ -108,9 +91,6 @@ public class AuthorizationService {
     }
 
 
-    /**
-     * GrantedAuthority에서 역할 추출 (JWT 실패 시 fallback)
-     */
     private String extractRoleFromAuthorities(Collection<? extends GrantedAuthority> authorities) {
         return authorities.stream()
                 .map(GrantedAuthority::getAuthority)
@@ -120,9 +100,7 @@ public class AuthorizationService {
                 .orElse("USER");
     }
 
-    /**
-     * 필요한 역할 보유 여부 검증
-     */
+
     private boolean hasRequiredRole(String userRole, String[] requiredRoles) {
         if (userRole == null || requiredRoles == null || requiredRoles.length == 0) {
             return false;
@@ -153,11 +131,9 @@ public class AuthorizationService {
         }
     }
 
-    /**
-     * 팝업 접근 권한 검증
-     */
+
     private boolean hasPopupAccess(UserInfo userInfo, UUID popupId) {
-        // OWNER는 자신의 스토어 내 모든 팝업에 접근 가능
+        
         if ("OWNER".equals(userInfo.getRole())) {
             // TODO: 실제로는 팝업이 해당 스토어에 속하는지 확인 필요
             // 이벤트 기반으로 popup의 storeId를 조회하고 userInfo.storeId와 비교
@@ -165,7 +141,7 @@ public class AuthorizationService {
             return true;
         }
 
-        // MANAGER는 권한이 부여된 팝업에만 접근 가능
+       
         if ("MANAGER".equals(userInfo.getRole())) {
             if (userInfo.getAuthorizedPopupIds() != null) {
                 boolean hasAccess = userInfo.getAuthorizedPopupIds().contains(popupId.toString());
@@ -177,20 +153,14 @@ public class AuthorizationService {
         return false;
     }
 
-    /**
-     * 주문 접근 권한 검증
-     */
+
     private boolean hasOrderAccess(UserInfo userInfo, UUID orderId) {
-        // TODO: 실제로는 주문이 속한 팝업을 조회하고, 그 팝업에 대한 권한을 확인해야 함
-        // OrderQueryService를 통해 주문의 popupId를 조회 후 hasPopupAccess() 호출
+       
 
         log.debug("주문 접근 권한 임시 허용 - orderId: {}, userId: {}", orderId, userInfo.getUserId());
         return true; // 임시로 모든 접근 허용
     }
 
-    /**
-     * 스토어 접근 권한 검증
-     */
     private boolean hasStoreAccess(UserInfo userInfo, UUID storeId) {
         // OWNER는 자신의 스토어에만 접근 가능
         if ("OWNER".equals(userInfo.getRole()) && userInfo.getStoreId() != null) {
@@ -201,13 +171,11 @@ public class AuthorizationService {
             return hasAccess;
         }
 
-        // MANAGER는 스토어 직접 접근 불가 (팝업 단위로만 접근)
+    
         return false;
     }
 
-    /**
-     * 사용자 정보 DTO
-     */
+ 
     @lombok.Builder
     @lombok.Getter
     public static class UserInfo {
