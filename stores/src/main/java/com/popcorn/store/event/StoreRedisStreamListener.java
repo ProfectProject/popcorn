@@ -161,6 +161,10 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
                             values.get("orderId"), values.get("orderNo"), values.get("reason"));
                     // Order 서비스에서 발행한 스케줄 예약 실패 알림 - 로깅만 처리
                     break;
+                case "schedule-confirmation-requested":
+                    log.info("📅🔒 [STORES] 스케줄 확정 요청 이벤트 수신");
+                    handleScheduleConfirmationRequested(values);
+                    break;
                 default:
                     log.info("🔔 [STORES] 알 수 없는 이벤트 타입 - type: {}", eventType);
                     break;
@@ -931,6 +935,118 @@ public class StoreRedisStreamListener implements StreamListener<String, MapRecor
             }
         }
         return trimmed;
+    }
+
+    /**
+     * 스케줄 확정 요청 처리 (결제 완료 후)
+     * 예약 상태에서 확정 상태로 변경하여 취소 불가능하게 만듦
+     */
+    private void handleScheduleConfirmationRequested(Map<String, Object> values) {
+        try {
+            String orderIdStr = normalizeUuidString((String) values.get("orderId"));
+            String orderNo = normalizeQuotedString((String) values.get("orderNo"));
+            String popupIdStr = normalizeUuidString((String) values.get("popupId"));
+            String confirmationItemsJson = normalizeQuotedString((String) values.get("confirmationItems"));
+
+            UUID orderId = UUID.fromString(orderIdStr);
+            UUID popupId = UUID.fromString(popupIdStr);
+
+            log.info("📅🔒 [STORES] 스케줄 확정 처리 시작 - orderId: {}, popupId: {}", orderId, popupId);
+
+            List<Map<String, Object>> confirmationItems = objectMapper.readValue(
+                    confirmationItemsJson, new TypeReference<List<Map<String, Object>>>() {}
+            );
+
+            if (confirmationItems == null || confirmationItems.isEmpty()) {
+                log.warn("📅🔒 [STORES] 스케줄 확정 항목이 비어있음 - orderId: {}", orderId);
+                return;
+            }
+
+            int confirmedCount = 0;
+            int failedCount = 0;
+
+            for (Map<String, Object> item : confirmationItems) {
+                try {
+                    UUID scheduleId = UUID.fromString((String) item.get("scheduleId"));
+                    Integer quantity = Integer.parseInt((String) item.get("quantity"));
+                    String sessionName = (String) item.get("sessionName");
+
+                    log.info("📅🔒 [STORES] 스케줄 확정 처리 - scheduleId: {}, quantity: {}, session: {}",
+                            scheduleId, quantity, sessionName);
+
+                    // TODO: 실제 스케줄 확정 로직 구현 필요
+                    // 예: 예약 상태를 '확정'으로 변경, 취소 불가 마킹 등
+                    // scheduleInventoryApiService.confirmSchedule(popupId, scheduleId, quantity);
+
+                    // 현재는 로깅만 수행
+                    log.info("✅ [STORES] 스케줄 확정 완료 (임시 로직) - scheduleId: {}, quantity: {}",
+                            scheduleId, quantity);
+
+                    confirmedCount++;
+
+                } catch (Exception itemError) {
+                    log.error("❌ [STORES] 스케줄 확정 실패 - item: {}, error: {}",
+                             item, itemError.getMessage(), itemError);
+                    failedCount++;
+                }
+            }
+
+            // 결과 발행 (성공/실패 이벤트)
+            if (failedCount == 0) {
+                // 모두 성공
+                publishScheduleConfirmationSuccessEvent(orderId, orderNo, popupId, confirmedCount);
+            } else {
+                // 일부 또는 전체 실패
+                publishScheduleConfirmationFailedEvent(orderId, orderNo, popupId,
+                        String.format("확정 성공: %d개, 실패: %d개", confirmedCount, failedCount));
+            }
+
+            log.info("✅ [STORES] 스케줄 확정 처리 완료 - orderId: {}, 성공: {}개, 실패: {}개",
+                    orderId, confirmedCount, failedCount);
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 스케줄 확정 처리 실패 - values: {}, error: {}", values, e.getMessage(), e);
+
+            try {
+                String orderIdStr = (String) values.get("orderId");
+                String orderNo = (String) values.get("orderNo");
+                if (orderIdStr != null && orderNo != null) {
+                    UUID safeOrderId = UUID.fromString(normalizeUuidString(orderIdStr));
+                    publishScheduleConfirmationFailedEvent(safeOrderId, orderNo, null,
+                            "시스템 오류: " + e.getMessage());
+                }
+            } catch (Exception ignored) {
+                // 추가 오류 발생 시 무시
+            }
+        }
+    }
+
+    /**
+     * 스케줄 확정 성공 이벤트 발행
+     */
+    private void publishScheduleConfirmationSuccessEvent(UUID orderId, String orderNo, UUID popupId, int confirmedCount) {
+        try {
+            // TODO: StoreRedisEventPublisher에 스케줄 확정 성공 이벤트 발행 메서드 추가 필요
+            log.info("📅✅ [STORES] 스케줄 확정 성공 - orderId: {}, 확정된 스케줄: {}개", orderId, confirmedCount);
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 스케줄 확정 성공 이벤트 발행 실패 - orderId: {}, error: {}",
+                     orderId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 스케줄 확정 실패 이벤트 발행
+     */
+    private void publishScheduleConfirmationFailedEvent(UUID orderId, String orderNo, UUID popupId, String reason) {
+        try {
+            // TODO: StoreRedisEventPublisher에 스케줄 확정 실패 이벤트 발행 메서드 추가 필요
+            log.warn("📅❌ [STORES] 스케줄 확정 실패 - orderId: {}, 사유: {}", orderId, reason);
+
+        } catch (Exception e) {
+            log.error("🚨 [STORES] 스케줄 확정 실패 이벤트 발행 실패 - orderId: {}, error: {}",
+                     orderId, e.getMessage(), e);
+        }
     }
 
     /**

@@ -475,4 +475,70 @@ public class RedisEventPublisher {
         }
     }
 
+    /**
+     * 스케줄 확정 요청 이벤트 Stream 발행 (결제 완료 후)
+     * Store 서비스로 스케줄 예약 → 확정 변경 요청 전송
+     */
+    public void publishScheduleConfirmationRequestedEvent(
+            String eventId,
+            java.util.UUID orderId,
+            String orderNo,
+            java.util.UUID popupId,
+            java.util.List<com.popcorn.order.service.OrderCommandService.ScheduleConfirmationItem> confirmationItems) {
+
+        try {
+            log.warn("🔥 [DEBUG] 스케줄 확정 요청 이벤트 Stream 발행 시작 - eventId: {}, orderId: {}",
+                    eventId, orderId);
+
+            // 확정 항목들을 JSON 형태로 직렬화
+            String confirmationItemsJson = objectMapper.writeValueAsString(
+                confirmationItems.stream()
+                    .map(item -> java.util.Map.of(
+                        "scheduleId", item.getScheduleId().toString(),
+                        "quantity", item.getQuantity().toString(),
+                        "sessionName", item.getSessionName() != null ? item.getSessionName() : "",
+                        "sessionTime", item.getSessionTime() != null ? item.getSessionTime() : ""
+                    ))
+                    .toList()
+            );
+
+            // Stream 이벤트 데이터 구성
+            java.util.Map<String, Object> eventData = new java.util.HashMap<>();
+            eventData.put("eventType", "schedule-confirmation-requested");
+            eventData.put("eventId", eventId);
+            eventData.put("orderId", orderId.toString());
+            eventData.put("orderNo", orderNo);
+            eventData.put("popupId", popupId != null ? popupId.toString() : "");
+            eventData.put("confirmationItems", confirmationItemsJson);
+            eventData.put("requestedAt", java.time.LocalDateTime.now().toString());
+            eventData.put("eventTime", java.time.LocalDateTime.now().toString());
+
+            log.warn("🔥 [DEBUG] 스케줄 확정 이벤트 데이터: {}", eventData);
+
+            // String 값으로 변환
+            java.util.Map<String, String> stringEventData = eventData.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                        java.util.Map.Entry::getKey,
+                        entry -> entry.getValue() != null ? entry.getValue().toString() : ""
+                    ));
+
+            // Redis Stream Record 생성 및 발행
+            StringRecord record = StreamRecords.string(stringEventData)
+                    .withStreamKey("schedule-events");
+
+            log.warn("🔥 [DEBUG] StringRecord 생성 완료");
+
+            String recordId = redisTemplate.opsForStream().add(record).getValue();
+
+            log.warn("🔥 [DEBUG] Redis Stream 발행 완료 - recordId: {}", recordId);
+            log.info("✅ 스케줄 확정 요청 이벤트 Stream 발행 완료 - eventId: {}, orderId: {}, recordId: {}",
+                    eventId, orderId, recordId);
+
+        } catch (Exception e) {
+            log.error("❌ [ORDER→STORE] 스케줄 확정 요청 이벤트 Stream 발행 실패 - orderId: {}, error: {}",
+                    orderId, e.getMessage(), e);
+            throw new RuntimeException("스케줄 확정 요청 이벤트 Stream 발행 실패", e);
+        }
+    }
+
 }

@@ -1211,6 +1211,88 @@ public class OrderCommandService {
     }
 
     /**
+     * 주문의 스케줄 확정 요청 (결제 완료 시 호출)
+     * 예약 상태에서 확정 상태로 변경하여 취소 불가능하게 만듦
+     */
+    public void requestScheduleConfirmation(UUID orderId) {
+        try {
+            log.info("📅 주문 스케줄 확정 요청 시작 - orderId: {}", orderId);
+
+            // 주문 조회
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없어요: " + orderId));
+
+            // 주문 항목들 조회
+            List<com.popcorn.order.entity.OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+            // 스케줄 항목만 필터링 (굿즈는 스케줄 확정 불필요)
+            List<com.popcorn.order.entity.OrderItem> scheduleItems = orderItems.stream()
+                    .filter(item -> ItemType.RESERVATION.equals(item.getOrderItemType()))
+                    .filter(item -> item.getSessionOptionId() != null)
+                    .toList();
+
+            if (scheduleItems.isEmpty()) {
+                log.info("스케줄 항목이 없어 스케줄 확정을 건너뜁니다 - orderId: {}", orderId);
+                return;
+            }
+
+            // 스케줄 확정 항목 리스트 생성
+            List<ScheduleConfirmationItem> confirmationItems = scheduleItems.stream()
+                    .map(item -> ScheduleConfirmationItem.builder()
+                            .scheduleId(item.getSessionOptionId())
+                            .quantity(item.getQty())
+                            .sessionName(generateProductName(item))
+                            .sessionTime(generateSessionTimeInfo(item))
+                            .build())
+                    .collect(java.util.stream.Collectors.toList());
+
+            // 스케줄 확정 요청 이벤트 발행
+            orderEventPublisher.publishScheduleConfirmationRequestedEvent(
+                    orderId,
+                    order.getOrderNo(),
+                    order.getPopupId(),
+                    confirmationItems
+            );
+
+            log.info("✅ 주문 스케줄 확정 요청 완료 - orderId: {}, 스케줄 항목 수: {}",
+                    orderId, confirmationItems.size());
+
+        } catch (Exception e) {
+            log.error("❌ 주문 스케줄 확정 요청 실패 - orderId: {}, error: {}", orderId, e.getMessage(), e);
+            // 스케줄 확정 요청 실패도 주문 상태 변경에 영향을 주지 않음 (로그만 남김)
+        }
+    }
+
+    /**
+     * OrderItem에서 세션 시간 정보 생성
+     */
+    private String generateSessionTimeInfo(OrderItem item) {
+        if (item == null || item.getSessionOptionId() == null) {
+            return "시간 정보 없음";
+        }
+
+        // TODO: 실제 세션 시간 정보 조회 로직 구현 필요
+        // 현재는 임시 정보만 반환
+        return "세션 " + item.getSessionOptionId().toString().substring(0, 8);
+    }
+
+    /**
+     * 스케줄 확정 항목 DTO
+     */
+    @lombok.Builder
+    public static class ScheduleConfirmationItem {
+        private java.util.UUID scheduleId;
+        private Integer quantity;
+        private String sessionName;
+        private String sessionTime;
+
+        public java.util.UUID getScheduleId() { return scheduleId; }
+        public Integer getQuantity() { return quantity; }
+        public String getSessionName() { return sessionName; }
+        public String getSessionTime() { return sessionTime; }
+    }
+
+    /**
      * OrderItem에서 상품 변형명 생성
      */
     private String generateProductVariantName(OrderItem item) {

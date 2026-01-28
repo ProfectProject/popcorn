@@ -436,4 +436,38 @@ public class OrderEventPublisher {
             log.error("📅❌ [ORDER] 스케줄 예약 실패 이벤트 발행 실패 - orderId: {}", order.getId(), e);
         }
     }
+
+    /**
+     * 스케줄 확정 요청 이벤트 발행 (결제 완료 후)
+     * 예약 상태에서 확정 상태로 변경 요청
+     */
+    public void publishScheduleConfirmationRequestedEvent(
+            java.util.UUID orderId,
+            String orderNo,
+            java.util.UUID popupId,
+            java.util.List<com.popcorn.order.service.OrderCommandService.ScheduleConfirmationItem> confirmationItems) {
+
+        try {
+            String eventId = java.util.UUID.randomUUID().toString();
+
+            log.info("📅🔒 [ORDER] 스케줄 확정 요청 이벤트 발행 시작 - orderId: {}, 스케줄 수: {}",
+                    orderId, confirmationItems.size());
+
+            // Redis Stream을 통해 Store 서비스로 스케줄 확정 요청 전송
+            redisEventPublisher.publishScheduleConfirmationRequestedEvent(
+                    eventId,
+                    orderId,
+                    orderNo,
+                    popupId,
+                    confirmationItems
+            );
+
+            log.info("✅ [ORDER] 스케줄 확정 요청 이벤트 발행 완료 - orderId: {}, eventId: {}",
+                    orderId, eventId);
+
+        } catch (Exception e) {
+            log.error("❌ [ORDER] 스케줄 확정 요청 이벤트 발행 실패 - orderId: {}", orderId, e);
+            // 스케줄 확정 요청 실패해도 주문 상태에는 영향 없음 (로그만 남김)
+        }
+    }
 }

@@ -737,9 +737,9 @@ public class OrderRedisStreamListener implements StreamListener<String, MapRecor
                 log.info("📦 [ORDER] 재고 차감 요청 발행 - orderId: {}", orderId);
                 orderCommandService.requestStockDeduction(orderUuid);
 
-                // 3. 스케줄 확정 처리 (TODO: 구현 필요)
-                log.warn("📅 [ORDER] 스케줄 확정 로직 미구현 - orderId: {} (현재는 재고 차감만 처리)", orderId);
-                // TODO: orderCommandService.requestScheduleConfirmation(orderUuid); // 구현 필요
+                // 3. 스케줄 확정 처리 (예약에서 확정으로 변경)
+                log.info("📅 [ORDER] 스케줄 확정 요청 발행 - orderId: {}", orderId);
+                orderCommandService.requestScheduleConfirmation(orderUuid);
 
                 // 4. 내부 결제 완료 이벤트 발행 (다른 서비스 알림용)
                 try {
