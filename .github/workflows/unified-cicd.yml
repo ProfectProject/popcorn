@@ -162,8 +162,7 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :${{ matrix.service }}:bootJar -x test -x javadoc \
-            -x processAot -x compileAotJava -x processAotResources -x aotClasses -x collectReachabilityMetadata \
-            -Dspring.aot.enabled=false
+            -Dspring.aot.enabled=false --no-daemon --configuration-cache
 
       - name: Set ECR repository name
         id: ecr-repo
