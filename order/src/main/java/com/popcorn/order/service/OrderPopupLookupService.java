@@ -17,9 +17,7 @@ import com.popcorn.order.event.RedisEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Order 서비스의 Popup 정보 조회 서비스 (이벤트 기반)
- */
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
