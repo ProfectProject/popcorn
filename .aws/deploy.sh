@@ -78,6 +78,7 @@ get_infrastructure_info() {
     DB_USER=${DB_USER_TASK:-""}
     DB_PASSWORD=${DB_PASSWORD_TASK:-""}
     REDIS_PRIMARY_ENDPOINT=${REDIS_HOST_TASK:-""}
+    REDIS_PORT=${REDIS_PORT_TASK:-"6379"}
     KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS_TASK:-""}
     JWT_SECRET=${JWT_SECRET_TASK:-""}
     PASSPORT_SECRET=${PASSPORT_SECRET_TASK:-""}
@@ -128,7 +129,7 @@ substitute_variables() {
     local task_def_file=$1
     local temp_file="/tmp/task-definition-${SERVICE_NAME}-${ENVIRONMENT}.json"
     
-    local esc_db_host esc_db_port esc_db_name esc_db_user esc_db_password esc_redis esc_kafka
+    local esc_db_host esc_db_port esc_db_name esc_db_user esc_db_password esc_redis esc_redis_port esc_kafka
     local esc_jwt_secret esc_passport_secret esc_gateway_url esc_gateway_service_url esc_app_gateway_url
     local esc_user_auth_db_username esc_user_auth_db_password esc_user_auth_flyway_username esc_user_auth_flyway_password
     local esc_store_db_username esc_store_db_password esc_store_flyway_username esc_store_flyway_password
@@ -143,6 +144,7 @@ substitute_variables() {
     esc_db_user=$(escape_sed "$DB_USER")
     esc_db_password=$(escape_sed "$DB_PASSWORD")
     esc_redis=$(escape_sed "$REDIS_PRIMARY_ENDPOINT")
+    esc_redis_port=$(escape_sed "$REDIS_PORT")
     esc_kafka=$(escape_sed "$KAFKA_BOOTSTRAP_SERVERS")
     esc_jwt_secret=$(escape_sed "$JWT_SECRET")
     esc_passport_secret=$(escape_sed "$PASSPORT_SECRET")
@@ -186,6 +188,8 @@ substitute_variables() {
         -e "s|\${DB_USER}|${esc_db_user}|g" \
         -e "s|\${DB_PASSWORD}|${esc_db_password}|g" \
         -e "s|\${REDIS_PRIMARY_ENDPOINT}|${esc_redis}|g" \
+        -e "s|\${REDIS_HOST}|${esc_redis}|g" \
+        -e "s|\${REDIS_PORT}|${esc_redis_port}|g" \
         -e "s|\${KAFKA_BOOTSTRAP_SERVERS}|${esc_kafka}|g" \
         -e "s|\${JWT_SECRET}|${esc_jwt_secret}|g" \
         -e "s|\${PASSPORT_SECRET}|${esc_passport_secret}|g" \
