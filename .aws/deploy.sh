@@ -109,6 +109,7 @@ get_infrastructure_info() {
 
     QR_DB_USERNAME=${QR_DB_USERNAME_TASK:-""}
     QR_DB_PASSWORD=${QR_DB_PASSWORD_TASK:-""}
+    QR_FLYWAY_USERNAME=${QR_FLYWAY_USERNAME_TASK:-""}
     QR_FLYWAY_PASSWORD=${QR_FLYWAY_PASSWORD_TASK:-""}
 
     ORDER_QUERY_DB_USERNAME=${ORDER_QUERY_DB_USERNAME_TASK:-""}
@@ -168,6 +169,7 @@ substitute_variables() {
     esc_toss_payments_secret_key=$(escape_sed "$TOSS_PAYMENTS_SECRET_KEY")
     esc_qr_db_username=$(escape_sed "$QR_DB_USERNAME")
     esc_qr_db_password=$(escape_sed "$QR_DB_PASSWORD")
+    esc_qr_flyway_username=$(escape_sed "$QR_FLYWAY_USERNAME")
     esc_qr_flyway_password=$(escape_sed "$QR_FLYWAY_PASSWORD")
     esc_order_query_db_username=$(escape_sed "$ORDER_QUERY_DB_USERNAME")
     esc_order_query_db_password=$(escape_sed "$ORDER_QUERY_DB_PASSWORD")
@@ -210,6 +212,7 @@ substitute_variables() {
         -e "s|\${TOSS_PAYMENTS_SECRET_KEY}|${esc_toss_payments_secret_key}|g" \
         -e "s|\${QR_DB_USERNAME}|${esc_qr_db_username}|g" \
         -e "s|\${QR_DB_PASSWORD}|${esc_qr_db_password}|g" \
+        -e "s|\${QR_FLYWAY_USERNAME}|${esc_qr_flyway_username}|g" \
         -e "s|\${QR_FLYWAY_PASSWORD}|${esc_qr_flyway_password}|g" \
         -e "s|\${ORDER_QUERY_DB_USERNAME}|${esc_order_query_db_username}|g" \
         -e "s|\${ORDER_QUERY_DB_PASSWORD}|${esc_order_query_db_password}|g" \
