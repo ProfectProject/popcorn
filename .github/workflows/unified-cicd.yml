@@ -2,7 +2,7 @@ name: Unified CI/CD Pipeline
 
 on:
   push:
-    branches: [develop, main, "feature/**"]
+    branches: [develop, main]
     paths:
       - 'users/**'
       - 'stores/**'
