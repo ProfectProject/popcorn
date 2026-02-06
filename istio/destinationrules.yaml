@@ -1,0 +1,266 @@
+# Order Service - 비즈니스 크리티컬 서비스
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: order-service-dr
+  namespace: popcorn
+spec:
+  host: order-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        h2UpgradePolicy: UPGRADE
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Payment Service - 높은 안정성 요구
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service-dr
+  namespace: popcorn
+spec:
+  host: payment-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 50
+        maxRequestsPerConnection: 1  # 결제는 연결 재사용 최소화
+        maxRetries: 1  # 결제는 재시도 최소화
+        consecutiveGatewayErrors: 3
+        interval: 30s
+        baseEjectionTime: 60s  # 더 긴 격리 시간
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      consecutive5xxErrors: 3
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30  # 결제 서비스는 보수적 격리
+      minHealthPercent: 50
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# User Service - 빠른 응답 요구
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service-dr
+  namespace: popcorn
+spec:
+  host: user-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+        connectTimeout: 5s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 10  # 높은 연결 재사용
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+    loadBalancer:
+      simple: LEAST_CONN  # 사용자 서비스는 연결 기반 로드밸런싱
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Store Service - 조회 중심 서비스
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: store-service-dr
+  namespace: popcorn
+spec:
+  host: store-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 150
+        connectTimeout: 5s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 150
+        http2MaxRequests: 150
+        maxRequestsPerConnection: 5
+        maxRetries: 2
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# CheckIn Service - QR 처리 서비스
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: checkin-service-dr
+  namespace: popcorn
+spec:
+  host: checkin-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 5s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 3
+        maxRetries: 2
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# OrderQuery Service - 읽기 전용 서비스
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: orderquery-service-dr
+  namespace: popcorn
+spec:
+  host: orderquery-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+        connectTimeout: 5s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 10  # 읽기 전용이므로 높은 재사용
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+    loadBalancer:
+      simple: LEAST_CONN  # 읽기 부하 분산
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Gateway Service - 진입점 서비스
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: gateway-service-dr
+  namespace: popcorn
+spec:
+  host: gateway-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 300
+        connectTimeout: 5s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 300
+        http2MaxRequests: 300
+        maxRequestsPerConnection: 20  # Gateway는 높은 연결 재사용
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+    loadBalancer:
+      simple: LEAST_CONN
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 30  # Gateway는 보수적 격리
+      minHealthPercent: 50
+  subsets:
+  - name: v1
+    labels:
+      version: v1

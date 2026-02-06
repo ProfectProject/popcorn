@@ -1,0 +1,41 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: popcorn-gateway
+  namespace: popcorn
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  # HTTP 트래픽 (개발 환경)
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.goormpopcorn.shop"
+    - "dev-api.goormpopcorn.shop"
+    - "localhost"  # 로컬 테스트용
+  # HTTPS 트래픽 (프로덕션 환경)
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: popcorn-tls-secret  # TLS 인증서 시크릿
+    hosts:
+    - "api.goormpopcorn.shop"
+    - "dev-api.goormpopcorn.shop"
+---
+# TLS 인증서 시크릿 (Let's Encrypt 또는 AWS ACM)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: popcorn-tls-secret
+  namespace: istio-system
+type: kubernetes.io/tls
+data:
+  # Base64 인코딩된 인증서와 키
+  tls.crt: LS0tLS1CRUdJTi... # 실제 인증서로 교체 필요
+  tls.key: LS0tLS1CRUdJTi... # 실제 개인키로 교체 필요

@@ -164,6 +164,25 @@ docker exec -it popcorn-postgres psql -U postgres -d popcorn_db -c "DROP SCHEMA 
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
+## 📚 DevOps & Monitoring Documentation
+
+### 🔧 DevOps 가이드
+- [Kubernetes Engineer Guide](docs/devops-guides/KUBERNETES_ENGINEER_DETAILED_GUIDE.md) - EKS 클러스터 구축 및 운영
+- [Monitoring Engineer Guide](docs/devops-guides/MONITORING_ENGINEER_DETAILED_GUIDE.md) - 모니터링 및 관찰성 시스템 구축
+
+### 📊 LGTM 스택 (Grafana 관찰성 플랫폼)
+- [**LGTM Stack Guide**](docs/devops-guides/LGTM_STACK_GUIDE.md) - **Grafana LGTM 스택 완전 구축 가이드**
+  - **L**oki: 로그 집계 및 검색
+  - **G**rafana: 통합 시각화 플랫폼
+  - **T**empo: 분산 트레이싱 (OpenTelemetry 호환)
+  - **M**imir: 장기 메트릭 저장소
+
+### 🎯 주요 특징
+- **통합 관찰성**: 로그-메트릭-트레이스 상관관계 분석
+- **OpenTelemetry 네이티브**: 표준 기반 분산 추적
+- **클라우드 네이티브**: Kubernetes 및 S3 호환 스토리지
+- **확장성**: 분산 아키텍처로 대규모 환경 지원
+
 ## 📚 API 문서 (Swagger)
 
 ### 역할별 API 문서 분리

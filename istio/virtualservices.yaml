@@ -1,0 +1,178 @@
+# 외부 트래픽을 Gateway Service로 라우팅
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: popcorn-gateway-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - "api.goormpopcorn.shop"
+  - "dev-api.goormpopcorn.shop"
+  - "localhost"
+  gateways:
+  - popcorn-gateway
+  http:
+  # API 트래픽을 Gateway Service로 라우팅
+  - match:
+    - uri:
+        prefix: "/api/"
+    route:
+    - destination:
+        host: gateway-service
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+  
+  # Swagger UI 및 API 문서
+  - match:
+    - uri:
+        prefix: "/swagger-ui"
+    - uri:
+        prefix: "/v3/api-docs"
+    route:
+    - destination:
+        host: gateway-service
+        port:
+          number: 8080
+    timeout: 10s
+  
+  # 헬스체크
+  - match:
+    - uri:
+        prefix: "/actuator/health"
+    route:
+    - destination:
+        host: gateway-service
+        port:
+          number: 8080
+    timeout: 5s
+---
+# 내부 서비스 간 통신을 위한 VirtualService들
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: order-service-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - order-service
+  http:
+  - route:
+    - destination:
+        host: order-service
+        port:
+          number: 8084
+    timeout: 30s
+    retries:
+      attempts: 2
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure
+    fault:
+      delay:
+        percentage:
+          value: 0.1  # 0.1% 요청에 지연 주입 (카오스 테스트)
+        fixedDelay: 5s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - payment-service
+  http:
+  - route:
+    - destination:
+        host: payment-service
+        port:
+          number: 8085
+    timeout: 60s  # 결제는 더 긴 타임아웃
+    retries:
+      attempts: 1  # 결제는 재시도 최소화
+      perTryTimeout: 30s
+      retryOn: 5xx,reset,connect-failure
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - user-service
+  http:
+  - route:
+    - destination:
+        host: user-service
+        port:
+          number: 8082
+    timeout: 10s
+    retries:
+      attempts: 3
+      perTryTimeout: 3s
+      retryOn: 5xx,reset,connect-failure
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: store-service-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - store-service
+  http:
+  - route:
+    - destination:
+        host: store-service
+        port:
+          number: 8083
+    timeout: 15s
+    retries:
+      attempts: 2
+      perTryTimeout: 5s
+      retryOn: 5xx,reset,connect-failure
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: checkin-service-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - checkin-service
+  http:
+  - route:
+    - destination:
+        host: checkin-service
+        port:
+          number: 8086
+    timeout: 10s
+    retries:
+      attempts: 2
+      perTryTimeout: 5s
+      retryOn: 5xx,reset,connect-failure
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: orderquery-service-vs
+  namespace: popcorn
+spec:
+  hosts:
+  - orderquery-service
+  http:
+  - route:
+    - destination:
+        host: orderquery-service
+        port:
+          number: 8087
+    timeout: 15s
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+      retryOn: 5xx,reset,connect-failure

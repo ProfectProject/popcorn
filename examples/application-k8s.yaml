@@ -1,0 +1,218 @@
+# Kubernetes 환경용 Spring Boot 설정 예시
+# 각 서비스의 src/main/resources/application-k8s.yaml 파일에 적용
+
+spring:
+  profiles:
+    active: k8s
+  
+  # 데이터베이스 설정 (환경 변수 사용)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:popcorn}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Flyway가 스키마 관리
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+  
+  # Redis 설정 (환경 변수 사용)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  
+  # Kafka 설정 (향후 사용)
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKER:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: popcorn-${spring.application.name}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.popcorn.*"
+
+# 서비스별 설정
+services:
+  # Kubernetes Service DNS 사용
+  user:
+    url: ${USER_SERVICE_URL:http://user-service:8082}
+  order:
+    url: ${ORDER_SERVICE_URL:http://order-service:8084}
+  payment:
+    url: ${PAYMENT_SERVICE_URL:http://payment-service:8085}
+  store:
+    url: ${STORE_SERVICE_URL:http://store-service:8083}
+  checkin:
+    url: ${CHECKIN_SERVICE_URL:http://checkin-service:8086}
+  orderquery:
+    url: ${ORDERQUERY_SERVICE_URL:http://orderquery-service:8087}
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:your-secret-key}
+  expiration: 3600  # 1시간
+  refresh-expiration: 86400  # 24시간
+
+# 외부 API 설정
+external:
+  toss:
+    payments:
+      secret-key: ${TOSS_PAYMENTS_SECRET_KEY:your-toss-secret}
+      base-url: https://api.tosspayments.com
+
+# 액추에이터 설정 (Kubernetes 헬스체크 및 Prometheus 메트릭)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true  # Kubernetes 프로브 지원
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: k8s
+
+# 로깅 설정
+logging:
+  level:
+    com.popcorn: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# 서버 설정
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 20000
+    max-connections: 8192
+    accept-count: 100
+
+---
+# Gateway Service 전용 설정
+spring:
+  config:
+    activate:
+      on-profile: gateway-k8s
+  cloud:
+    gateway:
+      # Istio와 함께 사용할 때는 단순한 라우팅만 유지
+      routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://user-service:8082}
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /${segment}
+            
+        - id: order-service
+          uri: ${ORDER_SERVICE_URL:http://order-service:8084}
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - RewritePath=/api/orders/(?<segment>.*), /${segment}
+            
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL:http://payment-service:8085}
+          predicates:
+            - Path=/api/payments/**,/api/pay/**
+          filters:
+            - RewritePath=/api/payments/(?<segment>.*), /${segment}
+            - RewritePath=/api/pay/(?<segment>.*), /${segment}
+            
+        - id: store-service
+          uri: ${STORE_SERVICE_URL:http://store-service:8083}
+          predicates:
+            - Path=/api/stores/**
+          filters:
+            - RewritePath=/api/stores/(?<segment>.*), /${segment}
+            
+        - id: checkin-service
+          uri: ${CHECKIN_SERVICE_URL:http://checkin-service:8086}
+          predicates:
+            - Path=/api/qr/**,/api/checkins/**
+          filters:
+            - RewritePath=/api/qr/(?<segment>.*), /${segment}
+            - RewritePath=/api/checkins/(?<segment>.*), /${segment}
+            
+        - id: orderquery-service
+          uri: ${ORDERQUERY_SERVICE_URL:http://orderquery-service:8087}
+          predicates:
+            - Path=/api/orderquery/**
+          filters:
+            - RewritePath=/api/orderquery/(?<segment>.*), /${segment}
+      
+      # CORS 설정 (Istio에서도 처리 가능하지만 애플리케이션 레벨에서 유지)
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "https://*.vercel.app"
+              - "https://*.netlify.app"
+              - "https://goormpopcorn.shop"
+              - "https://*.goormpopcorn.shop"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+
+# Resilience4j 설정 제거 (Istio가 처리)
+# resilience4j:
+#   circuitbreaker: ...
+#   retry: ...
+#   ratelimiter: ...

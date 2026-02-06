@@ -1,0 +1,282 @@
+# 기본 접근 제어 정책
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: popcorn-default-authz
+  namespace: popcorn
+spec:
+  # 모든 서비스에 적용되는 기본 정책
+  rules:
+  # 1. 헬스체크 엔드포인트는 모든 곳에서 접근 가능
+  - to:
+    - operation:
+        paths: ["/actuator/health", "/actuator/health/*"]
+        methods: ["GET"]
+  
+  # 2. Prometheus 메트릭 수집 허용
+  - to:
+    - operation:
+        paths: ["/actuator/prometheus"]
+        methods: ["GET"]
+    from:
+    - source:
+        namespaces: ["istio-system", "monitoring"]
+  
+  # 3. 같은 네임스페이스 내 서비스 간 통신 허용
+  - from:
+    - source:
+        namespaces: ["popcorn"]
+---
+# Gateway Service 접근 제어
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: gateway-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: gateway-service
+  rules:
+  # 1. 외부에서 API 엔드포인트 접근 허용
+  - to:
+    - operation:
+        paths: ["/api/*"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  
+  # 2. Swagger UI 접근 허용
+  - to:
+    - operation:
+        paths: ["/swagger-ui/*", "/v3/api-docs/*"]
+        methods: ["GET"]
+  
+  # 3. CORS preflight 요청 허용
+  - to:
+    - operation:
+        methods: ["OPTIONS"]
+  
+  # 4. 헬스체크 허용
+  - to:
+    - operation:
+        paths: ["/actuator/health", "/actuator/health/*"]
+        methods: ["GET"]
+---
+# Order Service 접근 제어
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: order-service-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  rules:
+  # 1. Gateway에서의 일반적인 접근
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+  
+  # 2. Payment Service에서 주문 상태 업데이트 허용
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+        # Payment Service에서만 접근 가능하도록 추가 제한 가능
+    to:
+    - operation:
+        methods: ["POST", "PUT", "PATCH"]
+        paths: ["/api/orders/v1/*/status", "/internal/orders/*/status"]
+  
+  # 3. OrderQuery Service에서 읽기 접근
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/api/orders/v1/*", "/internal/orders/*"]
+---
+# Payment Service 접근 제어 (높은 보안)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-service-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  rules:
+  # 1. Gateway에서의 결제 관련 접근만 허용
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH"]
+        paths: ["/api/payments/v1/*", "/api/pay/v1/*"]
+  
+  # 2. Order Service에서 결제 생성/조회 허용
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/internal/payments/*"]
+---
+# User Service 접근 제어
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: user-service-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  rules:
+  # 1. 공개 인증 엔드포인트 (모든 곳에서 접근 가능)
+  - to:
+    - operation:
+        paths: ["/api/users/v1/auth/login", "/api/users/v1/auth/refresh", "/api/users/v1/users/signup"]
+        methods: ["POST"]
+  
+  # 2. Gateway에서의 일반적인 사용자 관리 접근
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        paths: ["/api/users/v1/*"]
+  
+  # 3. 다른 서비스에서 사용자 정보 조회
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/internal/users/*"]
+---
+# Store Service 접근 제어
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: store-service-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: store-service
+  rules:
+  # 1. 공개 팝업 조회 (모든 곳에서 접근 가능)
+  - to:
+    - operation:
+        paths: ["/api/stores/v1/popups"]
+        methods: ["GET"]
+  
+  # 2. Gateway에서의 일반적인 접근
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        paths: ["/api/stores/v1/*"]
+  
+  # 3. 다른 서비스에서 매장 정보 조회
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/internal/stores/*"]
+---
+# CheckIn Service 접근 제어
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: checkin-service-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: checkin-service
+  rules:
+  # 1. Gateway에서의 QR 및 체크인 관련 접근
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH"]
+        paths: ["/api/qr/v1/*", "/api/checkins/v1/*"]
+  
+  # 2. Order Service에서 QR 생성 요청
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/internal/qr/generate"]
+---
+# OrderQuery Service 접근 제어 (읽기 전용)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: orderquery-service-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: orderquery-service
+  rules:
+  # 1. Gateway에서의 주문 조회 접근
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET"]  # 읽기 전용
+        paths: ["/api/orderquery/v1/*"]
+  
+  # 2. 다른 서비스에서 주문 정보 조회
+  - from:
+    - source:
+        principals: ["cluster.local/ns/popcorn/sa/default"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/internal/orders/*"]
+---
+# Rate Limiting 정책 (선택적)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: rate-limiting-authz
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: gateway-service
+  rules:
+  # 일반 사용자는 분당 100개 요청으로 제한
+  - from:
+    - source: {}
+    to:
+    - operation:
+        paths: ["/api/*"]
+    when:
+    - key: source.ip
+      notValues: ["127.0.0.1", "::1"]  # 로컬호스트 제외
+  # 관리자 IP는 제한 없음 (필요시 추가)
+  - from:
+    - source:
+        remoteIpBlocks: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]  # 내부 네트워크

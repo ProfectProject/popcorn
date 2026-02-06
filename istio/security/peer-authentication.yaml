@@ -1,0 +1,36 @@
+# 네임스페이스 전체에 mTLS 적용
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: popcorn
+spec:
+  mtls:
+    mode: STRICT  # 모든 서비스 간 mTLS 강제
+---
+# Gateway Service는 외부 트래픽을 받아야 하므로 PERMISSIVE 모드
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: gateway-permissive
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      app: gateway-service
+  mtls:
+    mode: PERMISSIVE  # 외부 HTTP 트래픽과 내부 mTLS 트래픽 모두 허용
+---
+# 개발 환경에서 디버깅을 위한 선택적 PERMISSIVE 모드
+# 프로덕션에서는 제거 권장
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: debug-permissive
+  namespace: popcorn
+spec:
+  selector:
+    matchLabels:
+      debug: "true"  # debug=true 라벨이 있는 Pod만 PERMISSIVE
+  mtls:
+    mode: PERMISSIVE
