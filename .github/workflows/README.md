@@ -34,6 +34,7 @@
 | Payment Service | payment | goorm-popcorn-payment | ❌ | ✅ | 2 | 🔒 |
 | CheckIn Service | checkIns | goorm-popcorn-checkin | ❌ | ❌ | 1 | 📱 |
 | Order Query | orderQuery | goorm-popcorn-order-query | ❌ | ❌ | 1 | 📊 |
+| Coupon Service | coupon | goorm-popcorn-coupon | ✅ | ❌ | 1 | 🎟️ |
 
 ## 이미지 태그 전략
 
@@ -57,6 +58,7 @@
 ### Push 이벤트
 각 서비스는 다음 경로 변경 시 트리거됩니다:
 - 서비스 디렉토리 (`users/**`, `gateway/**`, 등)
+- 신규 서비스 디렉토리 (`coupon/**` 등)
 - Task Definition (`.aws/task-definitions/{service}.json`)
 - 워크플로우 파일 (`.github/workflows/{service}.yml`)
 
@@ -153,6 +155,32 @@ jobs:
 2. **Task Definition 생성**: `.aws/task-definitions/new-service.json`
 
 3. **배포 스크립트 업데이트**: `.aws/deploy.sh`에 서비스 추가
+
+## 신규 서비스 온보딩 체크리스트
+
+1. 애플리케이션 코드 반영
+   - 서비스 디렉토리 추가 (`<service>/`)
+   - `settings.gradle`에 모듈 include 추가
+2. 컨테이너 레지스트리 준비
+   - ECR 리포지토리 생성 (`goorm-popcorn-<service>`)
+3. CI 워크플로우 반영
+   - `.github/workflows/unified-cicd.yml`
+     - `paths`, 변경 감지, `services=all`, whitelist, ECR 매핑
+   - `.github/workflows/feature-branch-ci.yml`
+     - `pull_request.paths`, 변경 감지, common-lib 전체 빌드 목록, ECR 매핑
+4. 배포 저장소 반영 (`popcorn_deploy`)
+   - `helm/charts/<service>` 차트 추가
+   - `helm/popcorn-umbrella/Chart.yaml` dependency 추가
+   - `values.yaml`, `values-dev.yaml`, `values-prod.yaml` 서비스 블록 추가
+5. 시크릿/환경변수 반영
+   - ExternalSecret 템플릿 키 추가
+   - 서비스별 `env/envFrom` 값과 Secret 키 이름 정합성 확인
+6. 라우팅/관측 반영
+   - gateway 라우팅 URL/환경변수 반영
+   - 모니터링 대시보드/알림 대상 점검
+7. 최종 검증
+   - 워크플로우 dry-run 또는 feature 브랜치 빌드 성공 확인
+   - Helm template/lint 및 ArgoCD Sync 결과 확인
 
 ## 트러블슈팅
 

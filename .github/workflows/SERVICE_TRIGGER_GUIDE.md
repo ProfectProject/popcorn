@@ -91,6 +91,18 @@
   - .github/workflows/checkin-service.yml
 ```
 
+### 9. Coupon Service
+
+**트리거 파일:**
+```yaml
+워크플로우: unified-cicd.yml, feature-branch-ci.yml
+트리거 조건:
+  - coupon/** (서비스 디렉토리 존재 시)
+  - common-lib/** 변경 시 전체 서비스 빌드 목록에 포함
+```
+
+> 참고: 현재 쿠폰은 서비스별 단독 워크플로우 파일 대신 통합/브랜치 워크플로우에서 처리됩니다.
+
 ## 🔄 통합 워크플로우 (unified-cicd.yml)
 
 통합 워크플로우는 다음 경우에만 실행됩니다:
@@ -293,6 +305,6 @@ gh run list --limit 50 --json workflowName,conclusion,createdAt
 
 ---
 
-**문서 버전**: 1.0  
-**최종 업데이트**: 2024-01-26  
+**문서 버전**: 1.1
+**최종 업데이트**: 2026-02-21
 **작성자**: DevOps Team

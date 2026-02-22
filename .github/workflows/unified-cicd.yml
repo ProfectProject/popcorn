@@ -12,6 +12,7 @@ on:
       - 'payment/**'
       - 'gateway/**'
       - 'checkIns/**'
+      - 'coupon/**'
       - 'common-lib/**'
       - '.aws/task-definitions/**'
       - '.github/workflows/unified-cicd.yml'
@@ -58,9 +59,17 @@ jobs:
       - name: Detect changed services
         id: changes
         run: |
+          AVAILABLE_SERVICES=""
+          for svc in users stores order orderQuery payment gateway checkIns coupon; do
+            if [ -d "$svc" ]; then
+              AVAILABLE_SERVICES="${AVAILABLE_SERVICES},${svc}"
+            fi
+          done
+          AVAILABLE_SERVICES=$(echo "$AVAILABLE_SERVICES" | sed 's/^,//')
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.services }}" = "all" ]; then
-              SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
+              SERVICES="$AVAILABLE_SERVICES"
             else
               SERVICES="${{ github.event.inputs.services }}"
             fi
@@ -68,31 +77,34 @@ jobs:
             SERVICES=""
             
             # Check for changes in each service directory
-            if git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
+            if [ -d "users" ] && git diff --name-only HEAD~1 HEAD | grep -q "^users/"; then
               SERVICES="${SERVICES},users"
             fi
-            if git diff --name-only HEAD~1 HEAD | grep -q "^stores/"; then
+            if [ -d "stores" ] && git diff --name-only HEAD~1 HEAD | grep -q "^stores/"; then
               SERVICES="${SERVICES},stores"
             fi
-            if git diff --name-only HEAD~1 HEAD | grep -q "^order/"; then
+            if [ -d "order" ] && git diff --name-only HEAD~1 HEAD | grep -q "^order/"; then
               SERVICES="${SERVICES},order"
             fi
-            if git diff --name-only HEAD~1 HEAD | grep -q "^orderQuery/"; then
+            if [ -d "orderQuery" ] && git diff --name-only HEAD~1 HEAD | grep -q "^orderQuery/"; then
               SERVICES="${SERVICES},orderQuery"
             fi
-            if git diff --name-only HEAD~1 HEAD | grep -q "^payment/"; then
+            if [ -d "payment" ] && git diff --name-only HEAD~1 HEAD | grep -q "^payment/"; then
               SERVICES="${SERVICES},payment"
             fi
-            if git diff --name-only HEAD~1 HEAD | grep -q "^gateway/"; then
+            if [ -d "gateway" ] && git diff --name-only HEAD~1 HEAD | grep -q "^gateway/"; then
               SERVICES="${SERVICES},gateway"
             fi
-            if git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
+            if [ -d "checkIns" ] && git diff --name-only HEAD~1 HEAD | grep -q "^checkIns/"; then
               SERVICES="${SERVICES},checkIns"
+            fi
+            if [ -d "coupon" ] && git diff --name-only HEAD~1 HEAD | grep -q "^coupon/"; then
+              SERVICES="${SERVICES},coupon"
             fi
 
             # common-lib 변경 시 전체 서비스 빌드/배포
             if git diff --name-only HEAD~1 HEAD | grep -q "^common-lib/"; then
-              SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
+              SERVICES="$AVAILABLE_SERVICES"
             fi
             
             # Check for task definition changes
@@ -107,12 +119,19 @@ jobs:
 
           # feature 브랜치에서 서비스 변경이 없더라도 배포 경로 테스트용으로 전체 서비스 지정
           if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/heads/feature/* ]] && [ -z "$SERVICES" ]; then
-            SERVICES="users,stores,order,orderQuery,payment,gateway,checkIns"
+            SERVICES="$AVAILABLE_SERVICES"
           fi
           
           # Create matrix for parallel execution
           SERVICES=$(printf '%s' "$SERVICES" | tr -d '\r\n')
-          SERVICES=$(printf '%s' "$SERVICES" | tr ',' '\n' | grep -E '^(users|stores|order|orderQuery|payment|gateway|checkIns)$' | paste -sd, -)
+          SERVICES=$(printf '%s' "$SERVICES" | tr ',' '\n' | grep -E '^(users|stores|order|orderQuery|payment|gateway|checkIns|coupon)$' | awk '!seen[$0]++' | paste -sd, -)
+          FILTERED_SERVICES=""
+          for svc in $(printf '%s' "$SERVICES" | tr ',' ' '); do
+            if [ -d "$svc" ]; then
+              FILTERED_SERVICES="${FILTERED_SERVICES},${svc}"
+            fi
+          done
+          SERVICES=$(echo "$FILTERED_SERVICES" | sed 's/^,//')
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           
           if [ -n "$SERVICES" ]; then
@@ -180,6 +199,7 @@ jobs:
             "payment") echo "repository=goorm-popcorn-payment" >> $GITHUB_OUTPUT ;;
             "gateway") echo "repository=goorm-popcorn-api-gateway" >> $GITHUB_OUTPUT ;;
             "checkIns") echo "repository=goorm-popcorn-checkin" >> $GITHUB_OUTPUT ;;
+            "coupon") echo "repository=goorm-popcorn-coupon" >> $GITHUB_OUTPUT ;;
             *) echo "repository=goorm-popcorn-${{ matrix.service }}" >> $GITHUB_OUTPUT ;;
           esac
 
